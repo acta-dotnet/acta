@@ -15,7 +15,7 @@
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261111163142_init has no upgrade path: provision a new one.
+-- init migration other than M20261117133534_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value', 'M20261114235108_repeat_raise_after_finish', 'M20261115084424_refuse_cross_tenant_dedup', 'M20261115085724_carry_child_failure_message', 'M20261115090220_answer_the_checked_dedup_job', 'M20261115092119_rename_the_enqueue_staging_table', 'M20261115101053_decode_the_signal_cleared_event', 'M20261115113558_name_a_landed_child', 'M20261115114815_keep_a_child_landing_whole', 'M20261115115355_record_a_wait_expiry', 'M20261115144330_seek_a_waited_child', 'M20261115144345_seek_a_held_job', 'M20261115163155_admit_children_in_a_suspended_namespace', 'M20261115163733_name_the_raised_signal')
+    WHERE name NOT IN ('M20261117133534_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261111163142_init =====
+-- ===== BEGIN M20261117133534_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -263,6 +263,7 @@ CREATE TABLE IF NOT EXISTS main.lanes (
     lane_name text NOT NULL,
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
 ) STRICT;
+CREATE INDEX IF NOT EXISTS main.ix_lanes_namespace ON lanes (namespace_id, lane_id);
 CREATE UNIQUE INDEX IF NOT EXISTS main.ux_lanes_namespace_name ON lanes (namespace_id, lane_name);
 
 -- jobs_state
@@ -636,7 +637,7 @@ SELECT
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name,
@@ -827,197 +828,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261111163142_init')
+VALUES ('M20261117133534_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111163142_init =====
-
--- ===== BEGIN M20261112231452_index_lanes_by_namespace =====
-CREATE INDEX IF NOT EXISTS main.ix_lanes_namespace ON lanes (namespace_id, lane_id);
-
-INSERT INTO main.migrations (name)
-VALUES ('M20261112231452_index_lanes_by_namespace')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261112231452_index_lanes_by_namespace =====
-
--- ===== BEGIN M20261114214847_keep_first_signal_value =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261114214847_keep_first_signal_value')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261114214847_keep_first_signal_value =====
-
--- ===== BEGIN M20261114235108_repeat_raise_after_finish =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261114235108_repeat_raise_after_finish')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261114235108_repeat_raise_after_finish =====
-
--- ===== BEGIN M20261115084424_refuse_cross_tenant_dedup =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115084424_refuse_cross_tenant_dedup')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115084424_refuse_cross_tenant_dedup =====
-
--- ===== BEGIN M20261115085724_carry_child_failure_message =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115085724_carry_child_failure_message')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115085724_carry_child_failure_message =====
-
--- ===== BEGIN M20261115090220_answer_the_checked_dedup_job =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115090220_answer_the_checked_dedup_job')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115090220_answer_the_checked_dedup_job =====
-
--- ===== BEGIN M20261115092119_rename_the_enqueue_staging_table =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115092119_rename_the_enqueue_staging_table')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115092119_rename_the_enqueue_staging_table =====
-
--- ===== BEGIN M20261115101053_decode_the_signal_cleared_event =====
-DROP VIEW IF EXISTS main.events_view;
-CREATE VIEW main.events_view AS
-SELECT
-    e.event_id,
-    strftime('%Y-%m-%dT%H:%M:%fZ', e.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
-    ns.namespace_name,
-    e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
-    e.entity_code,
-    e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    e.definition_id,
-    d.definition_name,
-    e.tenant_id,
-    t.tenant_name,
-    e.lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.event_message,
-    e.actor,
-    CASE e.details_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE 'custom-' || CAST(e.details_format_id AS TEXT)
-    END AS details_format,
-    CASE WHEN e.details_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(e.details AS TEXT) END AS details_text
-FROM main.events AS e
-JOIN main.namespaces AS ns ON ns.namespace_id = e.namespace_id
-LEFT JOIN main.definitions AS d ON d.definition_id = e.definition_id
-LEFT JOIN main.tenants AS t
-    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
-LEFT JOIN main.jobs AS root ON root.job_id = e.lineage_root_job_id
-LEFT JOIN main.workers AS wkr ON wkr.worker_id = e.worker_id;
-
-
-INSERT INTO main.migrations (name)
-VALUES ('M20261115101053_decode_the_signal_cleared_event')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115101053_decode_the_signal_cleared_event =====
-
--- ===== BEGIN M20261115113558_name_a_landed_child =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115113558_name_a_landed_child')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115113558_name_a_landed_child =====
-
--- ===== BEGIN M20261115114815_keep_a_child_landing_whole =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115114815_keep_a_child_landing_whole')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115114815_keep_a_child_landing_whole =====
-
--- ===== BEGIN M20261115115355_record_a_wait_expiry =====
-DROP VIEW IF EXISTS main.events_view;
-CREATE VIEW main.events_view AS
-SELECT
-    e.event_id,
-    strftime('%Y-%m-%dT%H:%M:%fZ', e.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
-    ns.namespace_name,
-    e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
-    e.entity_code,
-    e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    e.definition_id,
-    d.definition_name,
-    e.tenant_id,
-    t.tenant_name,
-    e.lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.event_message,
-    e.actor,
-    CASE e.details_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE 'custom-' || CAST(e.details_format_id AS TEXT)
-    END AS details_format,
-    CASE WHEN e.details_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(e.details AS TEXT) END AS details_text
-FROM main.events AS e
-JOIN main.namespaces AS ns ON ns.namespace_id = e.namespace_id
-LEFT JOIN main.definitions AS d ON d.definition_id = e.definition_id
-LEFT JOIN main.tenants AS t
-    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
-LEFT JOIN main.jobs AS root ON root.job_id = e.lineage_root_job_id
-LEFT JOIN main.workers AS wkr ON wkr.worker_id = e.worker_id;
-
-
-INSERT INTO main.migrations (name)
-VALUES ('M20261115115355_record_a_wait_expiry')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115115355_record_a_wait_expiry =====
-
--- ===== BEGIN M20261115144330_seek_a_waited_child =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115144330_seek_a_waited_child')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115144330_seek_a_waited_child =====
-
--- ===== BEGIN M20261115144345_seek_a_held_job =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115144345_seek_a_held_job')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115144345_seek_a_held_job =====
-
--- ===== BEGIN M20261115163155_admit_children_in_a_suspended_namespace =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115163155_admit_children_in_a_suspended_namespace')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115163155_admit_children_in_a_suspended_namespace =====
-
--- ===== BEGIN M20261115163733_name_the_raised_signal =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261115163733_name_the_raised_signal')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261115163733_name_the_raised_signal =====
+-- ===== END M20261117133534_init =====
 
 COMMIT;
 

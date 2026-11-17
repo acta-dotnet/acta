@@ -237,6 +237,7 @@ CREATE TABLE {{schema}}.lanes (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
     , CONSTRAINT pk_lanes PRIMARY KEY (lane_id)
 );
+CREATE INDEX ix_lanes_namespace ON {{schema}}.lanes (namespace_id, lane_id);
 CREATE UNIQUE INDEX ux_lanes_namespace_name ON {{schema}}.lanes (namespace_id, lane_name);
 END
 GO
@@ -1695,6 +1696,8 @@ BEGIN
                     CREATE TABLE #parents (
                         parent_job_id BIGINT NOT NULL,
                         child_job_id BIGINT NOT NULL,
+                        child_ref UNIQUEIDENTIFIER NOT NULL,
+                        child_status TINYINT NOT NULL,
                         latch_name VARCHAR(128) NOT NULL,
                         envelope VARBINARY(MAX) NOT NULL,
                         reason VARCHAR(64) NULL,
@@ -1706,23 +1709,46 @@ BEGIN
                         PRIMARY KEY (parent_job_id, latch_name)
                     );
 
-                    INSERT INTO #parents (parent_job_id, child_job_id, latch_name, envelope, reason, event_message)
+                    INSERT INTO #parents (parent_job_id, child_job_id, child_ref, child_status, latch_name, envelope, reason, event_message)
                     SELECT
                         d.parent_job_id,
                         d.job_id,
+                        j.job_ref,
+                        d.job_status_code,
                         'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
+                        -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
                         CAST(
                             CAST(
-                                N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
-                                + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20)) + N'}'
+                                (
+                                    N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
+                                    + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
+                                    + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20))
+                                    -- A failed landing carries its message, so the parent's outcome can say why.
+                                    + CASE
+                                        WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ AND c.event_message IS NOT NULL
+                                            THEN N',"failureMessage":"' + STRING_ESCAPE(c.event_message, 'json') + N'"'
+                                        ELSE N''
+                                    END
+                                    + N'}'
+                                ) COLLATE latin1_general_100_bin2_utf8
                                 AS VARCHAR(MAX)
-                            ) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX)
+                            ) AS VARBINARY(MAX)
                         ),
                         c.reason,
-                        c.event_message
+                        -- The landing names the child as its parent named it, how it ended, and the child's own message; the cast
+                        -- caps it in UTF-16 units, which LEFT does not count under a supplementary-character collation.
+                        CAST(LEFT(
+                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
+                            + CASE d.job_status_code
+                                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
+                                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
+                                ELSE N'cancelled'
+                            END + COALESCE(N': ' + c.event_message, N'.'),
+                            512
+                        ) AS NVARCHAR(512))
                     FROM @done d
                     INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                    INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
                     WHERE
                         d.parent_job_id IS NOT NULL
                         AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
@@ -1782,14 +1808,26 @@ BEGIN
                         p.parent_execution,
                         CASE
                             WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
-                                THEN LEFT(
+                                THEN CAST(LEFT(
                                     COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
                                     512
-                                )
+                                ) AS NVARCHAR(512))
                             ELSE p.event_message
                         END,
-                        CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                        CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
+                        -- The details name the child by its ref and how it ended, beside the reason it ended with.
+                        1 /* JobPayloadFormat.Json */,
+                        CAST(
+                            '{' + COALESCE('"reason":"' + p.reason + '",', '')
+                            + '"child":"job_' + LOWER(REPLACE(CONVERT(CHAR(36), p.child_ref), '-', ''))
+                            + '","status":"'
+                            + CASE p.child_status
+                                WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                                WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                                ELSE 'cancelled'
+                            END
+                            + '"}'
+                            AS VARBINARY(MAX)
+                        )
                     FROM #parents p
                     INNER JOIN {{schema}}.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
@@ -2027,7 +2065,7 @@ BEGIN
         DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
         DECLARE @def_event_recording TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
         DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
-        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
+        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @existing_tenant INT, @job_id BIGINT;
         DECLARE @lane VARCHAR(128), @lane_id BIGINT, @ancestor_lane_hits INT;
 
         -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
@@ -2073,7 +2111,8 @@ BEGIN
                 THROW 50001, @route_msg, 1;
             END;
 
-        IF @ns_status <> 10 /* NamespaceStatusCode.Active */
+        -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
+        IF @ns_status <> 10 /* NamespaceStatusCode.Active */ AND @p_parent_job_id IS NULL
             BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
             END;
@@ -2179,7 +2218,8 @@ BEGIN
                     BEGIN
                         SELECT
                             @existing_id = j.job_id,
-                            @existing_ref = j.job_ref
+                            @existing_ref = j.job_ref,
+                            @existing_tenant = j.tenant_id
                         FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
                         WHERE
                             j.namespace_id = @ns_id
@@ -2187,6 +2227,10 @@ BEGIN
                             AND j.parent_job_id IS NULL
                             AND j.deduplication_key IS NOT NULL;
                     END;
+
+                -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
+                IF @existing_tenant IS NOT NULL AND @tenant_id IS NOT NULL AND @existing_tenant <> @tenant_id
+                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.', 1;
             END;
 
         IF @p_parent_job_id IS NOT NULL
@@ -2422,10 +2466,13 @@ BEGIN
                 THROW 50001, @route_msg, 1;
             END;
 
+        -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
         IF
             EXISTS (
-                SELECT 1 FROM @resolved
-                WHERE ns_status <> 10 /* NamespaceStatusCode.Active */
+                SELECT 1
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                WHERE r.ns_status <> 10 /* NamespaceStatusCode.Active */ AND b.parent_job_id IS NULL
             )
             BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
@@ -2636,6 +2683,18 @@ BEGIN
                 WHERE
                     b.deduplication_key IS NOT NULL
                     AND b.parent_job_id IS NULL;
+
+                -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it
+                -- is taken.
+                IF
+                    EXISTS (
+                        SELECT 1
+                        FROM @existing x
+                        INNER JOIN @resolved r ON r.ordinal = x.ordinal
+                        INNER JOIN {{schema}}.jobs j ON j.job_id = x.job_id
+                        WHERE j.parent_job_id IS NULL AND j.tenant_id <> r.tenant_id
+                    )
+                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.', 1;
             END;
 
         DECLARE @parents TABLE (
@@ -3561,8 +3620,11 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @existing TINYINT;
+        DECLARE @fmt TINYINT;
+        DECLARE @val VARBINARY(MAX);
         DECLARE @expired BIT = 0;
         DECLARE @message NVARCHAR(512);
+        DECLARE @landing NVARCHAR(512);
         DECLARE
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
             @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
@@ -3575,7 +3637,7 @@ BEGIN
         IF @checkpoint_lock_result < 0
             THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
 
-        SELECT @existing = checkpoint_status_code
+        SELECT @existing = checkpoint_status_code, @fmt = value_format_id, @val = value
         FROM {{schema}}.checkpoints WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
@@ -3600,14 +3662,27 @@ BEGIN
                 GOTO Finish;
             END;
 
-        -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
+        -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
+        -- It still takes a child's latch, which a restart of it reads, and is not woken.
         IF
             @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
             BEGIN
 
                 SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(
+                        CASE
+                            WHEN
+                                @existing = 20 /* CheckpointStatusCode.Set */
+                                AND @fmt = @p_value_format_id
+                                AND (
+                                    (@val IS NULL AND @p_value IS NULL)
+                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
+                                )
+                                THEN 6 /* ControlAction.AlreadyInState */
+                            ELSE 3 /* ControlAction.Rejected */
+                        END AS TINYINT
+                    ) AS action,
                     @from_status AS status;
                 GOTO Finish;
             END;
@@ -3623,14 +3698,54 @@ BEGIN
                 GOTO Finish;
             END;
 
-        /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no
-           value and releases no job. The raise still happened, so it is still recorded: the event below
+        -- First raise wins: a signal never changes once raised, so a repeat writes nothing, already in state with the
+        -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
+        -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
+        IF
+            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+            BEGIN
+                SELECT
+                    CAST(
+                        CASE
+                            WHEN
+                                @existing = 20 /* CheckpointStatusCode.Set */
+                                AND @fmt = @p_value_format_id
+                                AND (
+                                    (@val IS NULL AND @p_value IS NULL)
+                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
+                                )
+                                THEN 6 /* ControlAction.AlreadyInState */
+                            ELSE 3 /* ControlAction.Rejected */
+                        END AS TINYINT
+                    ) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
+           value and releases no job. The landing still happened, so it is still recorded: the event below
            carries a message saying why it changed nothing, and the verb reports the unchanged status. */
         SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
+        SET @landing = COALESCE(
+            @p_event_message,
+            N'Child '
+            + COALESCE(
+                (SELECT N'''' + c.deduplication_key COLLATE DATABASE_DEFAULT + N'''' FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id),
+                N'job ' + CONVERT(NVARCHAR(20), @p_child_job_id)
+            )
+            + N' '
+            + CASE @p_child_status
+                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
+                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
+                ELSE N'cancelled'
+            END + N'.'
+        );
         SET @message = CASE
             WHEN @expired = 1
-                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @p_event_message
+                THEN LEFT(COALESCE(@landing + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
+            ELSE @landing
         END;
 
         IF @expired = 0
@@ -3656,6 +3771,27 @@ BEGIN
                         job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
             END
 
+        -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
+        DECLARE @details VARBINARY(MAX) = @p_details;
+        IF @p_child_job_id IS NOT NULL
+            SET @details = CAST(
+                '{' + COALESCE('"reason":"' + CAST(JSON_VALUE(CAST(@p_details AS VARCHAR(MAX)), '$.reason') AS VARCHAR(64)) + '",', '')
+                + COALESCE(
+                    '"child":"job_'
+                    + LOWER(REPLACE(CONVERT(CHAR(36), (SELECT c.job_ref FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id)), '-', ''))
+                    + '",',
+                    ''
+                )
+                + '"status":"'
+                + CASE @p_child_status
+                    WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                    WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                    ELSE 'cancelled'
+                END
+                + '"}'
+                AS VARBINARY(MAX)
+            );
+
         IF @event_recording = 20 /* EventRecordingCode.Audit */
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
@@ -3669,7 +3805,9 @@ BEGIN
                 50 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                @message, @p_actor, @p_details_format_id, @p_details
+                @message, @p_actor,
+                CASE WHEN @details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+                @details
             );
 
         -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
@@ -3696,7 +3834,7 @@ BEGIN
                         50 /* EntityCode.Job */, @p_job_id,
                         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                         @execution_number,
-                        @p_event_message, @p_actor, @p_details_format_id, @p_details
+                        @landing, @p_actor, @p_details_format_id, @p_details
                     );
 
                 SELECT
@@ -4537,6 +4675,7 @@ BEGIN
         DECLARE @val VARBINARY(MAX) = NULL;
         DECLARE @due DATETIME2(3) = NULL;
         DECLARE @outcome SMALLINT;
+        DECLARE @expired_due DATETIME2(3) = NULL;
         DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
         DECLARE @arm_state TINYINT = CASE
             WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
@@ -4591,6 +4730,7 @@ BEGIN
                 WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                SET @expired_due = @due;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -4608,7 +4748,10 @@ BEGIN
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
                         IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                            BEGIN
+                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                                SET @expired_due = @arm_due;
+                            END
                     END
                 ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
                     BEGIN
@@ -4623,11 +4766,53 @@ BEGIN
                             AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
                         IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                            BEGIN
+                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                                SET @expired_due = @arm_due;
+                            END
                     END
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
+
+        -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
+        IF @expired_due IS NOT NULL
+            INSERT INTO {{schema}}.events (
+                event_code, created_at_utc, namespace_id,
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                worker_id, execution_number,
+                event_message, details_format_id, details
+            )
+            SELECT
+                83 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
+                50 /* EntityCode.Job */, j.job_id,
+                j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
+                @p_leased_by_worker_id, @p_execution_number,
+                N'The wait for '
+                + CASE
+                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                        THEN N'child ' + COALESCE(
+                            N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
+                            N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
+                        )
+                    ELSE N'signal ''' + @p_checkpoint_name + N''''
+                END + N' expired.',
+                1 /* JobPayloadFormat.Json */,
+                CAST(
+                    '{"kind":"'
+                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END
+                    + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
+                    AS VARBINARY(MAX)
+                )
+            FROM {{schema}}.jobs j
+            LEFT JOIN {{schema}}.jobs ch
+                ON
+                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    AND ch.parent_job_id = j.job_id
+                    -- A seek on the child's id, the latch name's tail, so no sibling row is read or waited on.
+                    AND ch.job_id = TRY_CAST(SUBSTRING(@p_checkpoint_name, 11, 20) AS BIGINT)
+            WHERE j.job_id = @p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
         SELECT
             @outcome AS outcome_code,
@@ -4814,7 +4999,7 @@ SELECT
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name,
@@ -5021,7 +5206,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111163142_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117133534_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111163142_init');
+VALUES ('M20261117133534_init');
 GO

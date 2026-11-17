@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261111163142_init has no upgrade path: provision a new one.
+-- init migration other than M20261117133534_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value', 'M20261114235108_repeat_raise_after_finish', 'M20261115084424_refuse_cross_tenant_dedup', 'M20261115085724_carry_child_failure_message', 'M20261115090220_answer_the_checked_dedup_job', 'M20261115092119_rename_the_enqueue_staging_table', 'M20261115101053_decode_the_signal_cleared_event', 'M20261115113558_name_a_landed_child', 'M20261115114815_keep_a_child_landing_whole', 'M20261115115355_record_a_wait_expiry', 'M20261115144330_seek_a_waited_child', 'M20261115144345_seek_a_held_job', 'M20261115163155_admit_children_in_a_suspended_namespace', 'M20261115163733_name_the_raised_signal')
+    WHERE name NOT IN ('M20261117133534_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111163142_init =====
+-- ===== BEGIN M20261117133534_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -305,6 +305,7 @@ CREATE TABLE acta.lanes (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
     , CONSTRAINT pk_lanes PRIMARY KEY (lane_id)
 );
+CREATE INDEX ix_lanes_namespace ON acta.lanes (namespace_id, lane_id);
 CREATE UNIQUE INDEX ux_lanes_namespace_name ON acta.lanes (namespace_id, lane_name);
 END
 GO
@@ -1763,6 +1764,8 @@ BEGIN
                     CREATE TABLE #parents (
                         parent_job_id BIGINT NOT NULL,
                         child_job_id BIGINT NOT NULL,
+                        child_ref UNIQUEIDENTIFIER NOT NULL,
+                        child_status TINYINT NOT NULL,
                         latch_name VARCHAR(128) NOT NULL,
                         envelope VARBINARY(MAX) NOT NULL,
                         reason VARCHAR(64) NULL,
@@ -1774,23 +1777,46 @@ BEGIN
                         PRIMARY KEY (parent_job_id, latch_name)
                     );
 
-                    INSERT INTO #parents (parent_job_id, child_job_id, latch_name, envelope, reason, event_message)
+                    INSERT INTO #parents (parent_job_id, child_job_id, child_ref, child_status, latch_name, envelope, reason, event_message)
                     SELECT
                         d.parent_job_id,
                         d.job_id,
+                        j.job_ref,
+                        d.job_status_code,
                         'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
+                        -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
                         CAST(
                             CAST(
-                                N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
-                                + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20)) + N'}'
+                                (
+                                    N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
+                                    + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
+                                    + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20))
+                                    -- A failed landing carries its message, so the parent's outcome can say why.
+                                    + CASE
+                                        WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ AND c.event_message IS NOT NULL
+                                            THEN N',"failureMessage":"' + STRING_ESCAPE(c.event_message, 'json') + N'"'
+                                        ELSE N''
+                                    END
+                                    + N'}'
+                                ) COLLATE latin1_general_100_bin2_utf8
                                 AS VARCHAR(MAX)
-                            ) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX)
+                            ) AS VARBINARY(MAX)
                         ),
                         c.reason,
-                        c.event_message
+                        -- The landing names the child as its parent named it, how it ended, and the child's own message; the cast
+                        -- caps it in UTF-16 units, which LEFT does not count under a supplementary-character collation.
+                        CAST(LEFT(
+                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
+                            + CASE d.job_status_code
+                                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
+                                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
+                                ELSE N'cancelled'
+                            END + COALESCE(N': ' + c.event_message, N'.'),
+                            512
+                        ) AS NVARCHAR(512))
                     FROM @done d
                     INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
                     WHERE
                         d.parent_job_id IS NOT NULL
                         AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
@@ -1850,14 +1876,26 @@ BEGIN
                         p.parent_execution,
                         CASE
                             WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
-                                THEN LEFT(
+                                THEN CAST(LEFT(
                                     COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
                                     512
-                                )
+                                ) AS NVARCHAR(512))
                             ELSE p.event_message
                         END,
-                        CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                        CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
+                        -- The details name the child by its ref and how it ended, beside the reason it ended with.
+                        1 /* JobPayloadFormat.Json */,
+                        CAST(
+                            '{' + COALESCE('"reason":"' + p.reason + '",', '')
+                            + '"child":"job_' + LOWER(REPLACE(CONVERT(CHAR(36), p.child_ref), '-', ''))
+                            + '","status":"'
+                            + CASE p.child_status
+                                WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                                WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                                ELSE 'cancelled'
+                            END
+                            + '"}'
+                            AS VARBINARY(MAX)
+                        )
                     FROM #parents p
                     INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
@@ -2058,7828 +2096,6 @@ BEGIN
     END CATCH;
 END;
 GO
-
--- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
--- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
--- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
-CREATE OR ALTER PROCEDURE acta.enqueue_job
-    @p_job_ref UNIQUEIDENTIFIER = NULL,
-    @p_namespace_name VARCHAR(128) = NULL,
-    @p_job_name VARCHAR(128) = NULL,
-    @p_deduplication_key VARCHAR(128) = NULL,
-    @p_correlation_key VARCHAR(64) = NULL,
-    @p_job_priority_code_override TINYINT = NULL,
-    @p_input_format_id TINYINT = NULL,
-    @p_input VARBINARY(MAX) = NULL,
-    @p_concurrency_key VARCHAR(128) = NULL,
-    @p_next_run_at_utc DATETIME2(3) = NULL,
-    @p_delay_seconds INT = NULL,
-    @p_parent_job_id BIGINT = NULL,
-    @p_tenant_name VARCHAR(128) = NULL,
-    @p_tenant_override BIT = 0,
-    @p_tags acta.enqueue_tags READONLY,
-    @p_lane_name VARCHAR(128) = NULL,
-    @p_parent_execution_number BIGINT = NULL,
-    @p_parent_worker_id INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
-        DECLARE @def_event_recording TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
-        DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
-        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
-        DECLARE @lane VARCHAR(128), @lane_id BIGINT, @ancestor_lane_hits INT;
-
-        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
-        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
-        -- on error rethrow and let the caller roll back the whole transaction.
-
-        -- Server-generate the job ref when the caller omits it (a proc default cannot be NEWID()).
-        SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
-
-        -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
-        IF @p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
-            THROW 50014, 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).', 1;
-
-        -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
-        -- Strings compare padded here, so a key of spaces is refused with the empty one, as PostgreSQL's trim does.
-        IF @p_deduplication_key = '' OR @p_correlation_key = '' OR @p_concurrency_key = ''
-            THROW 50015, 'Enqueue rejected: a key is blank. Pass NULL for no key.', 1;
-
-        SELECT
-            @ns_id = ns.namespace_id,
-            @ns_status = ns.namespace_status_code,
-            @def_id = jd.definition_id,
-            @def_priority = jd.job_priority_code_effective,
-            @def_event_recording = jd.event_recording_code_effective,
-            @def_status = jd.definition_status_code,
-            @def_tenant_req = jd.tenant_requirement_code,
-            @lane = COALESCE(@p_lane_name, jd.lane_name)
-        -- Seeks its own namespace and definition: a caller's transaction at repeatable read or serializable keeps every
-        -- row a read touches locked to commit, so a scan would hold every namespace's row (docs/sql-internals.md,
-        -- "Locking reads seek").
-        FROM acta.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name)))
-        INNER JOIN acta.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
-            ON
-                jd.namespace_id = ns.namespace_id
-                AND jd.definition_name = @p_job_name
-        WHERE ns.namespace_name = @p_namespace_name;
-
-        IF @def_id IS NULL
-            BEGIN
-                DECLARE
-                    @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-                    + ' namespace or job. Have the jobs been deployed there (jobs deploy)?';
-                THROW 50001, @route_msg, 1;
-            END;
-
-        IF @ns_status <> 10 /* NamespaceStatusCode.Active */
-            BEGIN
-                THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
-            END;
-
-        IF @def_status <> 10 /* DefinitionStatusCode.Active */
-            BEGIN
-                THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
-            END;
-
-        IF @p_tenant_name IS NOT NULL
-            BEGIN
-                SELECT
-                    @tenant_id = t.tenant_id,
-                    @tenant_status = t.tenant_status_code
-                FROM acta.tenants t
-                WHERE t.tenant_name = @p_tenant_name;
-
-                IF @tenant_id IS NULL
-                    BEGIN
-                        THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
-                    END;
-
-                IF @tenant_status <> 10 /* TenantStatusCode.Active */
-                    BEGIN
-                        THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
-                    END;
-            END;
-
-        IF @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
-            BEGIN
-                THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
-            END;
-
-        -- The lane row is the lane's mutex, held to commit (docs/sql-internals.md, "Lane
-        -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
-        -- Ready versus Blocked is read after the lane lock, which a SNAPSHOT transaction (level 5) never sees.
-        IF @lane IS NOT NULL
-            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
-            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
-
-        DECLARE @lane_found BIGINT;
-        WHILE @lane IS NOT NULL AND @lane_id IS NULL
-            BEGIN
-                SET @lane_found = NULL;
-                SELECT @lane_found = l.lane_id
-                FROM acta.lanes l
-                WHERE
-                    l.namespace_id = @ns_id
-                    AND l.lane_name = @lane;
-
-                IF @lane_found IS NOT NULL
-                    SELECT @lane_id = l.lane_id
-                    FROM acta.lanes l WITH (UPDLOCK, ROWLOCK)
-                    WHERE l.lane_id = @lane_found;
-
-                IF @lane_found IS NULL
-                    BEGIN
-                        SET XACT_ABORT OFF;
-                        BEGIN TRY
-                            INSERT INTO acta.lanes (namespace_id, lane_name, created_at_utc)
-                            VALUES (@ns_id, @lane, @now);
-                        END TRY
-                        BEGIN CATCH
-                            SET XACT_ABORT ON;
-                            IF ERROR_NUMBER() NOT IN (2601, 2627)
-                                THROW;
-                        END CATCH;
-                        SET XACT_ABORT ON;
-                    END;
-            END;
-
-        IF @p_deduplication_key IS NOT NULL
-            BEGIN
-                -- The key's own lock serializes enqueues of one key to commit (docs/sql-internals.md,
-                -- "Deduplication lock"); the same name in enqueue_jobs.
-                DECLARE @dedup_lock NVARCHAR(255) = CONCAT(
-                    N'acta.dedup:',
-                    CASE WHEN @p_parent_job_id IS NULL THEN CONCAT(N'n', @ns_id) ELSE CONCAT(N'p', @p_parent_job_id) END,
-                    N':',
-                    @p_deduplication_key
-                );
-                DECLARE @dedup_lock_result INT;
-                -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
-                IF @dedup_lock_result < 0
-                    THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
-
-                -- Each probe seeks its dedup index, the index's filter restated: a scan under UPDLOCK locks every row it
-                -- reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
-                IF @p_parent_job_id IS NOT NULL
-                    BEGIN
-                        SELECT
-                            @existing_id = j.job_id,
-                            @existing_ref = j.job_ref
-                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
-                        WHERE
-                            j.parent_job_id = @p_parent_job_id
-                            AND j.deduplication_key = @p_deduplication_key
-                            AND j.parent_job_id IS NOT NULL
-                            AND j.deduplication_key IS NOT NULL;
-                    END
-                ELSE
-                    BEGIN
-                        SELECT
-                            @existing_id = j.job_id,
-                            @existing_ref = j.job_ref
-                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
-                        WHERE
-                            j.namespace_id = @ns_id
-                            AND j.deduplication_key = @p_deduplication_key
-                            AND j.parent_job_id IS NULL
-                            AND j.deduplication_key IS NOT NULL;
-                    END;
-            END;
-
-        IF @p_parent_job_id IS NOT NULL
-            BEGIN
-                SELECT
-                    @lineage = COALESCE(pj.lineage_root_job_id, pj.job_id),
-                    @parent_corr = pj.correlation_key,
-                    @parent_tenant = pj.tenant_id
-                FROM acta.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-                INNER JOIN acta.jobs_state pr WITH (FORCESEEK) ON pr.job_id = pj.job_id
-                WHERE
-                    pj.job_id = @p_parent_job_id
-                    AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
-
-                -- A child its parent's handler starts lands only while that attempt holds the parent's row, update-locked
-                -- to commit after the parent's jobs row (docs/sql-internals.md, "Execution fence").
-                IF @p_parent_execution_number IS NOT NULL
-                    BEGIN
-                        IF NOT EXISTS (
-                            SELECT 1
-                            FROM acta.jobs_state fr WITH (UPDLOCK, ROWLOCK)
-                            WHERE
-                                fr.job_id = @p_parent_job_id
-                                AND fr.job_status_code = 50 /* JobStatusCode.Executing */
-                                AND fr.execution_number = @p_parent_execution_number
-                                AND fr.leased_by_worker_id = @p_parent_worker_id
-                        )
-                            THROW 50012, 'ACTA:EXECUTION_FENCED:enqueue_job: the parent job is no longer executing this attempt.', 1;
-                    END;
-
-                IF @lineage IS NULL
-                    BEGIN
-                        THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
-                    END;
-
-                IF @lane_id IS NOT NULL
-                    BEGIN
-                        WITH ancestors AS (
-                            SELECT a.job_id, a.parent_job_id
-                            FROM acta.jobs a WITH (FORCESEEK)
-                            WHERE a.job_id = @p_parent_job_id
-                            UNION ALL
-                            SELECT a.job_id, a.parent_job_id
-                            FROM acta.jobs a WITH (FORCESEEK)
-                            INNER JOIN ancestors c ON a.job_id = c.parent_job_id
-                        )
-
-                        SELECT @ancestor_lane_hits = COUNT(*)
-                        FROM ancestors c
-                        INNER JOIN acta.jobs_state ar WITH (FORCESEEK) ON ar.job_id = c.job_id
-                        WHERE
-                            ar.lane_id = @lane_id
-                            AND ar.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                        -- A lineage has no depth bound, so neither has the walk.
-                        OPTION (MAXRECURSION 0);
-
-                        IF @ancestor_lane_hits > 0
-                            BEGIN
-                                DECLARE
-                                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: a child names the lane of an'
-                                    + ' unfinished ancestor, so it would wait behind the ancestor that waits for it.';
-                                THROW 50010, @ancestor_msg, 1;
-                            END;
-                    END;
-            END;
-
-        IF @def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
-            BEGIN
-                THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
-            END;
-
-        IF @tenant_id IS NOT NULL AND @parent_tenant IS NOT NULL AND @tenant_id <> @parent_tenant AND @p_tenant_override = 0
-            BEGIN
-                THROW 50009,
-                'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantName differs from the parent tenant without an explicit override.',
-                1;
-            END;
-
-        IF @existing_id IS NULL
-            BEGIN
-                INSERT INTO acta.jobs (
-                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
-                    namespace_id, definition_id, tenant_id,
-                    input_format_id, input,
-                    concurrency_key, event_recording_code,
-                    created_at_utc
-                )
-                VALUES (
-                    10 /* JobKindCode.Ordinary */, @p_job_ref, @lineage, @p_parent_job_id,
-                    @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
-                    @ns_id, @def_id,
-                    CASE
-                        WHEN @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
-                        ELSE COALESCE(@tenant_id, @parent_tenant)
-                    END,
-                    COALESCE(
-                        @p_input_format_id,
-                        CASE WHEN @p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END
-                    ),
-                    @p_input,
-                    @p_concurrency_key, @def_event_recording,
-                    @now
-                );
-
-                SET @job_id = SCOPE_IDENTITY();
-
-                -- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits
-                -- as Blocked, keeping its due instant for when the settle ahead of it promotes it.
-                DECLARE @status TINYINT = 10 /* JobStatusCode.Ready */;
-                IF
-                    @lane_id IS NOT NULL
-                    AND EXISTS (
-                        SELECT 1
-                        FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                        WHERE
-                            m.lane_id = @lane_id
-                            AND m.lane_id IS NOT NULL
-                            AND m.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                    )
-                    SET @status = 15 /* JobStatusCode.Blocked */;
-
-                INSERT INTO acta.jobs_state (
-                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
-                    execution_number, failure_count, retention_until_utc,
-                    modified_at_utc, version
-                )
-                VALUES (
-                    @job_id, @ns_id, @lane_id, @status,
-                    COALESCE(@p_job_priority_code_override, @def_priority),
-                    COALESCE(@p_next_run_at_utc, DATEADD(SECOND, COALESCE(@p_delay_seconds, 0), @now)),
-                    0, 0, NULL,
-                    @now, 0
-                );
-
-                INSERT INTO acta.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-                SELECT
-                    50 /* EntityCode.Job */,
-                    @job_id,
-                    t.tag_name,
-                    t.tag_value,
-                    t.tag_value_search
-                FROM @p_tags t;
-            END;
-
-        SELECT
-            0 AS ordinal,
-            COALESCE(@job_id, @existing_id) AS job_id,
-            CASE WHEN @job_id IS NOT NULL THEN @p_job_ref ELSE @existing_ref END AS job_ref,
-            CASE
-                WHEN @job_id IS NOT NULL
-                    THEN 1 /* EnqueueJobAction.Inserted */
-                ELSE 2 /* EnqueueJobAction.Deduplicated */
-            END AS action;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
--- Lock order: the batch's lanes in id order, then job rows (docs/sql-internals.md,
--- "Lane lock order").
-CREATE OR ALTER PROCEDURE acta.enqueue_jobs
-    @p_batch acta.enqueue_jobs READONLY,
-    @p_tags acta.enqueue_tags READONLY
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
-        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
-        -- on error rethrow and let the caller roll back the whole transaction.
-
-        DECLARE @resolved TABLE (
-            ordinal INT PRIMARY KEY,
-            ns_id INT NOT NULL,
-            ns_status TINYINT NOT NULL,
-            def_id INT NOT NULL,
-            def_priority SMALLINT NOT NULL,
-            def_event_recording TINYINT NOT NULL,
-            def_status TINYINT NOT NULL,
-            def_tenant_req TINYINT NOT NULL,
-            tenant_id INT NULL,
-            lane VARCHAR(128) NULL,
-            lane_id BIGINT NULL,
-            lane_head BIT NOT NULL DEFAULT 0
-        );
-
-        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_event_recording, def_status, def_tenant_req, lane)
-        SELECT
-            b.ordinal,
-            ns.namespace_id,
-            ns.namespace_status_code,
-            jd.definition_id,
-            jd.job_priority_code_effective,
-            jd.event_recording_code_effective,
-            jd.definition_status_code,
-            jd.tenant_requirement_code,
-            COALESCE(b.lane_name, jd.lane_name)
-        -- Seeks each row's own namespace and definition, as enqueue_job does.
-        FROM @p_batch b
-        INNER JOIN acta.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name))) ON ns.namespace_name = b.namespace_name
-        INNER JOIN acta.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
-            ON
-                jd.namespace_id = ns.namespace_id
-                AND jd.definition_name = b.job_name;
-
-        IF (SELECT COUNT(*) FROM @resolved) < (SELECT COUNT(*) FROM @p_batch)
-            BEGIN
-                DECLARE
-                    @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-                    + ' namespace or job. Have the jobs been deployed there (jobs deploy)?';
-                THROW 50001, @route_msg, 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @resolved
-                WHERE ns_status <> 10 /* NamespaceStatusCode.Active */
-            )
-            BEGIN
-                THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @resolved
-                WHERE def_status <> 10 /* DefinitionStatusCode.Active */
-            )
-            BEGIN
-                THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @p_batch
-                WHERE tenant_name IS NOT NULL
-            )
-            BEGIN
-                -- A named tenant resolves by name alone, and the checks below judge the id resolved here, so a tenant
-                -- registered, suspended, or resumed in between can never leave the stored job without it.
-                UPDATE r
-                SET tenant_id = t.tenant_id
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                INNER JOIN acta.tenants t ON t.tenant_name = b.tenant_name
-                WHERE b.tenant_name IS NOT NULL;
-
-                IF
-                    EXISTS (
-                        SELECT 1
-                        FROM @p_batch b
-                        INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                        WHERE b.tenant_name IS NOT NULL AND r.tenant_id IS NULL
-                    )
-                    BEGIN
-                        THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
-                    END;
-                IF
-                    EXISTS (
-                        SELECT 1 FROM @resolved r JOIN acta.tenants t ON t.tenant_id = r.tenant_id
-                        WHERE t.tenant_status_code <> 10 /* TenantStatusCode.Active */
-                    )
-                    BEGIN
-                        THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
-                    END;
-            END;
-
-        -- Missing lanes are inserted in namespace and name order without a range lock, then every lane is locked one row
-        -- at a time in id order (docs/sql-internals.md, "Lane lock order").
-        DECLARE @lanes TABLE (
-            ns_id INT NOT NULL,
-            lane_name VARCHAR(128) NOT NULL,
-            lane_id BIGINT NULL,
-            PRIMARY KEY (ns_id, lane_name)
-        );
-
-        INSERT INTO @lanes (ns_id, lane_name)
-        SELECT DISTINCT r.ns_id, r.lane
-        FROM @resolved r
-        WHERE r.lane IS NOT NULL;
-
-        DECLARE @laned BIT = CASE WHEN EXISTS (SELECT 1 FROM @lanes) THEN 1 ELSE 0 END;
-        DECLARE @lanes_pending BIT = @laned;
-        DECLARE @lane_cursor BIGINT, @lane_next BIGINT, @lane_locked BIGINT;
-
-        -- Ready versus Blocked is read after the lane locks, which a SNAPSHOT transaction (level 5) never sees.
-        IF @lanes_pending = 1
-            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
-            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
-
-        WHILE @lanes_pending = 1
-            BEGIN
-                SET XACT_ABORT OFF;
-                BEGIN TRY
-                    INSERT INTO acta.lanes (namespace_id, lane_name, created_at_utc)
-                    SELECT e.ns_id, e.lane_name, @now
-                    FROM @lanes e
-                    WHERE NOT EXISTS (
-                        SELECT 1
-                        FROM acta.lanes l WITH (FORCESEEK)
-                        WHERE
-                            l.namespace_id = e.ns_id
-                            AND l.lane_name = e.lane_name
-                    )
-                    ORDER BY e.ns_id, e.lane_name;
-                END TRY
-                BEGIN CATCH
-                    SET XACT_ABORT ON;
-                    IF ERROR_NUMBER() NOT IN (2601, 2627)
-                        THROW;
-                END CATCH;
-                SET XACT_ABORT ON;
-
-                UPDATE e
-                SET lane_id = l.lane_id
-                -- Both lane reads seek their own names, so a caller's transaction never waits on another lane's insert.
-                FROM @lanes e
-                LEFT JOIN acta.lanes l WITH (FORCESEEK)
-                    ON
-                        l.namespace_id = e.ns_id
-                        AND l.lane_name = e.lane_name;
-
-                SET @lanes_pending = CASE WHEN EXISTS (SELECT 1 FROM @lanes WHERE lane_id IS NULL) THEN 1 ELSE 0 END;
-                SET @lane_cursor = 0;
-                WHILE @lanes_pending = 0
-                    BEGIN
-                        SET @lane_next = NULL;
-                        SELECT TOP (1) @lane_next = e.lane_id
-                        FROM @lanes e
-                        WHERE e.lane_id > @lane_cursor
-                        ORDER BY e.lane_id;
-
-                        IF @lane_next IS NULL
-                            BREAK;
-
-                        SET @lane_locked = NULL;
-                        SELECT @lane_locked = l.lane_id
-                        FROM acta.lanes l WITH (UPDLOCK, ROWLOCK)
-                        WHERE l.lane_id = @lane_next;
-
-                        IF @lane_locked IS NULL
-                            SET @lanes_pending = 1;
-                        SET @lane_cursor = @lane_next;
-                    END;
-            END;
-
-        UPDATE r
-        SET lane_id = e.lane_id
-        FROM @resolved r
-        INNER JOIN @lanes e
-            ON
-                e.ns_id = r.ns_id
-                AND e.lane_name = r.lane;
-
-        DECLARE @existing TABLE (
-            ordinal INT PRIMARY KEY,
-            job_id BIGINT NOT NULL,
-            job_ref UNIQUEIDENTIFIER NOT NULL
-        );
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @p_batch
-                WHERE deduplication_key IS NOT NULL
-            )
-            BEGIN
-                -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
-                -- never deadlock (docs/sql-internals.md, "Deduplication lock").
-                DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                INSERT INTO @dedup_locks (name)
-                SELECT DISTINCT
-                    CONCAT(
-                        N'acta.dedup:',
-                        CASE WHEN b.parent_job_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_job_id) END,
-                        N':',
-                        b.deduplication_key
-                    )
-                FROM @p_batch b
-                LEFT JOIN @resolved r ON r.ordinal = b.ordinal
-                WHERE
-                    b.deduplication_key IS NOT NULL
-                    AND (b.parent_job_id IS NOT NULL OR r.ns_id IS NOT NULL);
-
-                DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks), @dedup_lock_result INT;
-                WHILE @dedup_lock IS NOT NULL
-                    BEGIN
-                        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                        EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
-                        IF @dedup_lock_result < 0
-                            THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
-                        SET @dedup_lock = (SELECT MIN(name) FROM @dedup_locks WHERE name > @dedup_lock);
-                    END;
-
-                -- Each probe seeks its dedup index on both key columns, the index's filter restated: a scan under UPDLOCK
-                -- locks every row it reads and escalates to a table lock on jobs, which a stale row estimate makes the
-                -- cheaper plan, and a seek on the leading column alone reads every key under it once per batch row.
-                INSERT INTO @existing (ordinal, job_id, job_ref)
-                SELECT
-                    b.ordinal,
-                    j.job_id,
-                    j.job_ref
-                FROM @p_batch b
-                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_job_id, deduplication_key)))
-                    ON
-                        j.parent_job_id = b.parent_job_id
-                        AND j.deduplication_key = b.deduplication_key
-                        AND j.parent_job_id IS NOT NULL
-                        AND j.deduplication_key IS NOT NULL
-                WHERE
-                    b.deduplication_key IS NOT NULL
-                    AND b.parent_job_id IS NOT NULL;
-
-                INSERT INTO @existing (ordinal, job_id, job_ref)
-                SELECT
-                    b.ordinal,
-                    j.job_id,
-                    j.job_ref
-                FROM @p_batch b
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
-                    ON
-                        j.namespace_id = r.ns_id
-                        AND j.deduplication_key = b.deduplication_key
-                        AND j.parent_job_id IS NULL
-                        AND j.deduplication_key IS NOT NULL
-                WHERE
-                    b.deduplication_key IS NOT NULL
-                    AND b.parent_job_id IS NULL;
-            END;
-
-        DECLARE @parents TABLE (
-            ordinal INT PRIMARY KEY,
-            lineage_root_job_id BIGINT NOT NULL,
-            correlation_key VARCHAR(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-            tenant_id INT NULL
-        );
-
-        INSERT INTO @parents (ordinal, lineage_root_job_id, correlation_key, tenant_id)
-        SELECT
-            b.ordinal,
-            COALESCE(pj.lineage_root_job_id, pj.job_id),
-            pj.correlation_key,
-            pj.tenant_id
-        FROM @p_batch b
-        INNER JOIN acta.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pj.job_id = b.parent_job_id
-        INNER JOIN acta.jobs_state pr WITH (FORCESEEK) ON pr.job_id = pj.job_id
-        WHERE
-            b.parent_job_id IS NOT NULL
-            AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        ORDER BY pj.job_id DESC;
-
-        IF (
-            SELECT COUNT(*) FROM @parents) < (
-            SELECT COUNT(*) FROM @p_batch
-            WHERE parent_job_id IS NOT NULL
-        )
-            BEGIN
-                THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                LEFT JOIN @parents p ON p.ordinal = b.ordinal
-                WHERE
-                    r.def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */
-                    AND r.tenant_id IS NULL
-                    AND p.tenant_id IS NULL
-            )
-            BEGIN
-                THROW 50007,
-                'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: one or more rows target a definition that requires a tenant and carry none.',
-                1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                WHERE
-                    r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */
-                    AND b.tenant_name IS NOT NULL
-            )
-            BEGIN
-                THROW 50008,
-                'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.',
-                1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                INNER JOIN @parents p ON p.ordinal = b.ordinal
-                WHERE
-                    r.tenant_id IS NOT NULL
-                    AND p.tenant_id IS NOT NULL
-                    AND r.tenant_id <> p.tenant_id
-                    AND b.tenant_override = 0
-            )
-            BEGIN
-                DECLARE
-                    @tenant_msg NVARCHAR(2048) = 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a'
-                    + ' TenantName that differs from the parent tenant without an explicit override.';
-                THROW 50009, @tenant_msg, 1;
-            END;
-
-        -- A child may not wait behind an unfinished ancestor in its own lane: the ancestor waits for it.
-        DECLARE @ancestor_lane_hits INT = 0;
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                WHERE
-                    r.lane_id IS NOT NULL
-                    AND b.parent_job_id IS NOT NULL
-            )
-            BEGIN
-                WITH ancestors AS (
-                    SELECT r.lane_id, a.job_id, a.parent_job_id
-                    FROM @resolved r
-                    INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                    INNER JOIN acta.jobs a WITH (FORCESEEK) ON a.job_id = b.parent_job_id
-                    WHERE r.lane_id IS NOT NULL
-                    UNION ALL
-                    SELECT c.lane_id, a.job_id, a.parent_job_id
-                    FROM acta.jobs a WITH (FORCESEEK)
-                    INNER JOIN ancestors c ON a.job_id = c.parent_job_id
-                )
-
-                SELECT @ancestor_lane_hits = COUNT(*)
-                FROM ancestors c
-                INNER JOIN acta.jobs_state ar WITH (FORCESEEK) ON ar.job_id = c.job_id
-                WHERE
-                    ar.lane_id = c.lane_id
-                    AND ar.job_status_code IN (
-                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                        30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                    )
-                -- A lineage has no depth bound, so neither has the walk.
-                OPTION (MAXRECURSION 0);
-            END;
-
-        IF @ancestor_lane_hits > 0
-            BEGIN
-                DECLARE
-                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of'
-                    + ' an unfinished ancestor, so they would wait behind the ancestor that waits for them.';
-                THROW 50010, @ancestor_msg, 1;
-            END;
-
-        DECLARE @map TABLE (
-            job_ref UNIQUEIDENTIFIER PRIMARY KEY,
-            job_id BIGINT NOT NULL
-        );
-
-        -- An unlaned batch runs the plain inserts; only a laned one pays for batch order and lane heads.
-        -- Both jobs_state inserts force nested loops so the foreign-key checks seek their parent rows
-        -- (docs/sql-internals.md, "Foreign keys in set-based writes").
-        IF @laned = 0
-            BEGIN
-                INSERT INTO acta.jobs (
-                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
-                    namespace_id, definition_id, tenant_id,
-                    input_format_id, input,
-                    concurrency_key, event_recording_code,
-                    created_at_utc
-                )
-                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
-                SELECT
-                    10 /* JobKindCode.Ordinary */,
-                    b.job_ref,
-                    p.lineage_root_job_id,
-                    b.parent_job_id,
-                    b.deduplication_key,
-                    COALESCE(b.correlation_key, p.correlation_key),
-                    r.ns_id,
-                    r.def_id,
-                    CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
-                        ELSE COALESCE(r.tenant_id, p.tenant_id)
-                    END,
-                    b.input_format_id,
-                    b.input,
-                    b.concurrency_key,
-                    r.def_event_recording,
-                    @now
-                FROM @p_batch b
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                LEFT JOIN @parents p ON p.ordinal = b.ordinal
-                LEFT JOIN @existing e ON e.ordinal = b.ordinal
-                WHERE e.ordinal IS NULL;
-
-                INSERT INTO acta.jobs_state (
-                    job_id, namespace_id, job_status_code, job_priority_code, next_run_at_utc,
-                    execution_number, failure_count, retention_until_utc,
-                    modified_at_utc, version
-                )
-                SELECT
-                    m.job_id,
-                    r.ns_id,
-                    10 /* JobStatusCode.Ready */,
-                    COALESCE(b.job_priority_code_override, r.def_priority),
-                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
-                    0,
-                    0,
-                    NULL,
-                    @now,
-                    0
-                FROM @map m
-                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                OPTION (LOOP JOIN);
-            END
-        ELSE
-            BEGIN
-                INSERT INTO acta.jobs (
-                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
-                    namespace_id, definition_id, tenant_id,
-                    input_format_id, input,
-                    concurrency_key, event_recording_code,
-                    created_at_utc
-                )
-                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
-                SELECT
-                    10 /* JobKindCode.Ordinary */,
-                    b.job_ref,
-                    p.lineage_root_job_id,
-                    b.parent_job_id,
-                    b.deduplication_key,
-                    COALESCE(b.correlation_key, p.correlation_key),
-                    r.ns_id,
-                    r.def_id,
-                    CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
-                        ELSE COALESCE(r.tenant_id, p.tenant_id)
-                    END,
-                    b.input_format_id,
-                    b.input,
-                    b.concurrency_key,
-                    r.def_event_recording,
-                    @now
-                FROM @p_batch b
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                LEFT JOIN @parents p ON p.ordinal = b.ordinal
-                LEFT JOIN @existing e ON e.ordinal = b.ordinal
-                WHERE e.ordinal IS NULL
-                -- Identity values follow this order, so job-id order equals the caller's batch order, which
-                -- is the order a lane runs in.
-                ORDER BY b.ordinal;
-
-                -- A lane's head is its first inserted row, the lowest ordinal the dedup probe kept, and only
-                -- when no unfinished member is already there; every other laned row waits as Blocked. The
-                -- probe runs under the lane locks, before this batch has any jobs_state row.
-                UPDATE r
-                SET lane_head = 1
-                FROM @resolved r
-                INNER JOIN (
-                    SELECT MIN(h.ordinal) AS ordinal
-                    FROM @resolved h
-                    LEFT JOIN @existing x ON x.ordinal = h.ordinal
-                    WHERE
-                        h.lane_id IS NOT NULL
-                        AND x.ordinal IS NULL
-                    GROUP BY h.lane_id
-                ) f ON f.ordinal = r.ordinal
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM acta.jobs_state x WITH (FORCESEEK)
-                    WHERE
-                        x.lane_id = r.lane_id
-                        AND x.lane_id IS NOT NULL
-                        AND x.job_status_code IN (
-                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                        )
-                );
-
-                INSERT INTO acta.jobs_state (
-                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
-                    execution_number, failure_count, retention_until_utc,
-                    modified_at_utc, version
-                )
-                SELECT
-                    m.job_id,
-                    r.ns_id,
-                    r.lane_id,
-                    CASE
-                        WHEN r.lane_id IS NULL OR r.lane_head = 1 THEN 10 /* JobStatusCode.Ready */
-                        ELSE 15 /* JobStatusCode.Blocked */
-                    END,
-                    COALESCE(b.job_priority_code_override, r.def_priority),
-                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
-                    0,
-                    0,
-                    NULL,
-                    @now,
-                    0
-                FROM @map m
-                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                OPTION (LOOP JOIN);
-            END;
-
-        INSERT INTO acta.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-        SELECT
-            50 /* EntityCode.Job */,
-            m.job_id,
-            t.tag_name,
-            t.tag_value,
-            t.tag_value_search
-        FROM @p_tags t
-        INNER JOIN @p_batch b ON b.ordinal = t.ordinal
-        INNER JOIN @map m ON m.job_ref = b.job_ref;
-
-        SELECT
-            b.ordinal,
-            COALESCE(m.job_id, e.job_id) AS job_id,
-            COALESCE(m.job_ref, e.job_ref) AS job_ref,
-            CASE
-                WHEN m.job_id IS NOT NULL
-                    THEN 1 /* EnqueueJobAction.Inserted */
-                ELSE 2 /* EnqueueJobAction.Deduplicated */
-            END AS action
-        FROM @p_batch b
-        LEFT JOIN @map m ON m.job_ref = b.job_ref
-        LEFT JOIN @existing e ON e.ordinal = b.ordinal
-        ORDER BY b.ordinal;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE acta.extend_worker_leases
-    @p_leased_by_worker_id INT,
-    @p_lease_ttl_seconds INT,
-    @p_draining BIT,
-    @p_executions NVARCHAR(MAX),
-    @p_locks NVARCHAR(MAX),
-    @p_recovery_interval_seconds INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @new_expiry DATETIME2(7) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
-        DECLARE @namespace_id INT = (SELECT w.namespace_id FROM acta.workers w WHERE w.worker_id = @p_leased_by_worker_id);
-
-        -- The status the heartbeat replaces comes from the update itself, so a mark-dead that landed first is seen.
-        DECLARE @replaced TABLE (worker_status_code TINYINT NOT NULL);
-
-        UPDATE acta.workers
-        SET
-            last_seen_at_utc = @now,
-            -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
-            -- moment it heartbeats; Stopped stays Stopped.
-            worker_status_code = CASE
-                WHEN @p_draining = 1 AND worker_status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
-                    THEN 80 /* WorkerStatusCode.Draining */
-                WHEN worker_status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
-                ELSE worker_status_code
-            END,
-            modified_at_utc = @now,
-            version = version + 1
-        OUTPUT DELETED.worker_status_code INTO @replaced (worker_status_code)
-        WHERE worker_id = @p_leased_by_worker_id;
-
-        -- A worker marked Dead that heartbeats is alive again, and says so as its registration did.
-        IF EXISTS (SELECT 1 FROM @replaced WHERE worker_status_code = 200 /* WorkerStatusCode.Dead */)
-            INSERT INTO acta.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
-            VALUES (
-                120 /* EventCode.WorkerStarted */, @now, @namespace_id, @p_leased_by_worker_id,
-                130 /* EntityCode.Worker */, @p_leased_by_worker_id
-            );
-
-        /* The held executions and lock holds arrive as JSON array text, expanded once into keyed tables. A process
-           can hold two executions of one job, or two holds on one key, while a stale attempt unwinds. */
-        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number BIGINT NOT NULL, PRIMARY KEY (job_id, execution_number));
-        INSERT INTO @held (job_id, execution_number)
-        SELECT job_id, execution_number
-        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number BIGINT '$.execution_number');
-
-        DECLARE @lock_held TABLE (
-            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
-            hold_token UNIQUEIDENTIFIER NOT NULL,
-            PRIMARY KEY (lock_key, hold_token)
-        );
-        INSERT INTO @lock_held (lock_key, hold_token)
-        SELECT lock_key, hold_token
-        FROM OPENJSON(@p_locks) WITH (
-            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 '$.lock_key',
-            hold_token UNIQUEIDENTIFIER '$.hold_token'
-        );
-
-        -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A renewed hold is
-        -- answered by its token, so a process holding a stale and a current hold on one key tells them apart; a hold
-        -- whose token moved is not answered, and the attempt that relied on it stops.
-        DECLARE @lock_renewed TABLE (hold_token UNIQUEIDENTIFIER NOT NULL PRIMARY KEY);
-        UPDATE k
-        SET expires_at_utc = @new_expiry
-        OUTPUT INSERTED.hold_token INTO @lock_renewed (hold_token)
-        FROM acta.locks k WITH (FORCESEEK)
-        INNER JOIN @lock_held h ON h.lock_key = k.lock_key AND h.hold_token = k.hold_token;
-
-        /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
-           process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
-           version bump: a lease refresh is not a claim-generation change. */
-        -- Read the held rows first so the update locks base rows only, never an index key; complete_executions locks in
-        -- the other order. A row another transaction holds is skipped and answered unrenewed, so the read never waits;
-        -- only a row read that no longer matches goes unanswered, which stops its attempt (docs/sql-internals.md).
-        DECLARE @seen TABLE (
-            job_id BIGINT NOT NULL,
-            execution_number BIGINT NOT NULL,
-            matched BIT NOT NULL,
-            PRIMARY KEY (job_id, execution_number)
-        );
-        INSERT INTO @seen (job_id, execution_number, matched)
-        SELECT
-            h.job_id,
-            h.execution_number,
-            CASE
-                WHEN r.execution_number = h.execution_number
-                    AND r.leased_by_worker_id = @p_leased_by_worker_id
-                    AND r.job_status_code = 50 /* JobStatusCode.Executing */
-                    THEN 1
-                ELSE 0
-            END
-        FROM @held h
-        INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, READCOMMITTEDLOCK, READPAST) ON r.job_id = h.job_id;
-
-        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-        -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
-        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
-        UPDATE r
-        SET lease_expires_at_utc = @new_expiry
-        OUTPUT INSERTED.job_id INTO @renewed (job_id)
-        FROM acta.jobs_state r WITH (INDEX(pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
-        INNER JOIN @seen m ON m.job_id = r.job_id AND m.execution_number = r.execution_number AND m.matched = 1
-        WHERE
-            r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.job_status_code = 50 /* JobStatusCode.Executing */;
-
-        -- Takes the namespace's recovery pass when it is due, moving the next one an interval out; this worker runs it.
-        -- A namespace row another transaction holds is skipped, so the heartbeat never waits on it.
-        DECLARE @recovery_claimed BIT = 0;
-        IF @p_recovery_interval_seconds IS NOT NULL
-            BEGIN
-                UPDATE n
-                SET recovery_due_at_utc = DATEADD(SECOND, @p_recovery_interval_seconds, @now)
-                FROM acta.namespaces n WITH (ROWLOCK, READPAST)
-                WHERE n.namespace_id = @namespace_id AND (n.recovery_due_at_utc IS NULL OR n.recovery_due_at_utc <= @now);
-                SET @recovery_claimed = CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END;
-            END;
-
-        SELECT
-            CAST(NULL AS BIGINT) AS job_id,
-            CAST(NULL AS BIGINT) AS execution_number,
-            l.hold_token,
-            CAST(1 AS BIT) AS renewed,
-            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc,
-            CAST(0 AS BIT) AS recovery_claimed
-        FROM @lock_renewed l
-        UNION ALL
-        SELECT
-            h.job_id,
-            h.execution_number,
-            CAST(NULL AS UNIQUEIDENTIFIER),
-            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
-            CAST(NULL AS DATETIME2(3)),
-            CAST(0 AS BIT)
-        FROM @held h
-        LEFT JOIN @seen s ON s.job_id = h.job_id AND s.execution_number = h.execution_number
-        LEFT JOIN @renewed n ON n.job_id = h.job_id
-        WHERE s.job_id IS NULL OR s.matched = 1
-        UNION ALL
-        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves. A definition
-        -- another transaction holds is skipped, which at worst delays that re-read by one beat.
-        SELECT
-            CAST(NULL AS BIGINT) AS job_id,
-            CAST(NULL AS BIGINT) AS execution_number,
-            CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token,
-            CAST(0 AS BIT) AS renewed,
-            MAX(d.modified_at_utc) AS definitions_modified_at_utc,
-            @recovery_claimed AS recovery_claimed
-        FROM acta.definitions d WITH (FORCESEEK, READCOMMITTEDLOCK, READPAST)
-        WHERE d.namespace_id = @namespace_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-/* One section, one bounded atomic batch; section numbers match RetentionSection. Alert-required events above the
-   namespace floor stay with their jobs (PurgeExpiredDataCommand). */
-CREATE OR ALTER PROCEDURE acta.purge_expired_data
-    @p_namespace_id INT,
-    @p_section INT,
-    @p_cutoff_utc DATETIME2(7),
-    @p_batch_size INT,
-    @p_before_created_utc DATETIME2(7) = NULL,
-    @p_before_job_id BIGINT = 0,
-    @p_alert_floor_utc DATETIME2(7) = NULL,
-    @p_alert_floor_event_id BIGINT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        IF @p_batch_size <= 0 OR @p_section NOT BETWEEN 1 AND 7
-            THROW 50002, 'Invalid retention section or batch size.', 1;
-
-        DECLARE @rows INT = 0;
-        DECLARE @next_created_utc DATETIME2(3) = NULL;
-        DECLARE @next_job_id BIGINT = 0;
-        DECLARE @job_del TABLE (job_id BIGINT NOT NULL, created_at_utc DATETIME2(3) NOT NULL);
-        DECLARE @event_del TABLE (worker_id INT NOT NULL, event_id BIGINT NOT NULL, PRIMARY KEY (worker_id, event_id));
-        DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
-        DECLARE @alert_del TABLE (alert_id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
-        DECLARE @alert_seen TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @alert_locked TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @worker_del TABLE (worker_id BIGINT NOT NULL);
-        DECLARE @lane_del TABLE (lane_id BIGINT NOT NULL);
-        DECLARE @floor_utc DATETIME2(7) = COALESCE(@p_alert_floor_utc, @p_cutoff_utc);
-        DECLARE @floor_id BIGINT = COALESCE(@p_alert_floor_event_id, 9223372036854775807);
-        IF @p_section = 1
-            BEGIN
-                DELETE @job_del;
-
-                /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten
-                   batches a slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers
-                   no cursor; a full batch ends the slice at its last job, so the walk moves on past what it took. */
-                DECLARE @below DATETIME2(3) = @p_before_created_utc;
-                DECLARE @below_id BIGINT = @p_before_job_id;
-                IF @below IS NULL
-                    BEGIN
-                        /* A cycle starts at the newest job old enough to have expired: none expires sooner than the
-                           shortest retention any definition of the namespace has, a retired one included. The framework's own
-                           are left out: they run only permanent jobs, and their default would hold a longer-keeping walk to it. */
-                        SELECT @below = DATEADD(SECOND, -COALESCE(MIN(d.retention_seconds_effective), 0), @p_cutoff_utc)
-                        FROM acta.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
-                        WHERE d.namespace_id = @p_namespace_id AND d.definition_name NOT LIKE 'sys.%';
-                        SET @below_id = 9223372036854775807;
-                    END;
-
-                -- The walk skips a row another transaction holds; the delete below locks and re-checks its own.
-                DECLARE @slice_end DATETIME2(3), @slice_end_id BIGINT;
-                SELECT TOP (1) @slice_end = s.created_at_utc, @slice_end_id = s.job_id
-                FROM (
-                    SELECT TOP (@p_batch_size * 10) w.created_at_utc, w.job_id
-                    FROM acta.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
-                    WHERE
-                        w.namespace_id = @p_namespace_id
-                        AND w.created_at_utc <= @below
-                        AND (w.created_at_utc < @below OR w.job_id < @below_id)
-                    ORDER BY w.created_at_utc DESC, w.job_id DESC
-                ) s
-                ORDER BY s.created_at_utc, s.job_id;
-
-                /* A locking read seeks (docs/sql-internals.md, "Locking reads seek"). The walk reads the index without
-                   update locks, so a slice of live jobs holds none; a job is locked through its state row, where the
-                   status and the deadline are read, and then its own row. */
-                INSERT INTO @job_del (job_id, created_at_utc)
-                SELECT TOP (@p_batch_size) j.job_id, w.created_at_utc
-                FROM acta.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
-                INNER JOIN acta.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK) ON r.job_id = w.job_id
-                INNER JOIN acta.jobs j WITH (UPDLOCK, READPAST, FORCESEEK) ON j.job_id = r.job_id
-                WHERE
-                    w.namespace_id = @p_namespace_id
-                    AND w.created_at_utc <= @below
-                    AND (w.created_at_utc < @below OR w.job_id < @below_id)
-                    AND w.created_at_utc >= @slice_end
-                    AND (w.created_at_utc > @slice_end OR w.job_id >= @slice_end_id)
-                    AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    AND r.retention_until_utc IS NOT NULL
-                    AND r.retention_until_utc <= @p_cutoff_utc
-                    -- Lineage guard: parent_job_id carries no FK, so purging a parent whose children still
-                    -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
-                    -- delete; a fully-expired subtree drains bottom-up across iterations.
-                    AND NOT EXISTS (
-                        SELECT 1 FROM acta.jobs c WITH (FORCESEEK (ix_jobs_parent (parent_job_id)))
-                        WHERE c.parent_job_id = j.job_id AND c.parent_job_id IS NOT NULL
-                    )
-                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
-                    -- and reads its result, so purging it would run the child again. The tree drains once
-                    -- the parent is terminal.
-                    AND NOT EXISTS (
-                        SELECT 1 FROM acta.jobs_state p WITH (FORCESEEK)
-                        WHERE p.job_id = j.parent_job_id
-                            AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    )
-                    -- A stopped recurring job stays while its definition is live: the next deploy would register
-                    -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
-                    -- it drain.
-                    AND NOT EXISTS (
-                        SELECT 1 FROM acta.schedules s WITH (FORCESEEK (ix_schedules_job (job_id)))
-                        INNER JOIN acta.definitions d WITH (FORCESEEK) ON d.definition_id = j.definition_id
-                        WHERE
-                            s.job_id = j.job_id
-                            AND s.job_id IS NOT NULL
-                            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-                    )
-                    -- A job stays while the projector still owes one of its events, since raising an alert reads the job row.
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM acta.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
-                        INNER JOIN acta.definitions d WITH (FORCESEEK) ON d.definition_id = e.definition_id
-                        WHERE
-                            e.entity_code = 50 /* EntityCode.Job */
-                            AND e.entity_id = j.job_id
-                            AND e.created_at_utc >= @floor_utc
-                            AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
-                            AND (
-                                e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                                OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
-                            )
-                            AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                    )
-                ORDER BY w.created_at_utc DESC, w.job_id DESC
-                OPTION (FORCE ORDER, LOOP JOIN);
-
-                IF (SELECT COUNT(*) FROM @job_del) = @p_batch_size
-                    SELECT TOP (1) @next_created_utc = d.created_at_utc, @next_job_id = d.job_id
-                    FROM @job_del d
-                    ORDER BY d.created_at_utc, d.job_id;
-                ELSE IF @slice_end IS NOT NULL
-                    SELECT @next_created_utc = @slice_end, @next_job_id = @slice_end_id;
-
-                /* A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet. The
-                   batch has given the walk its place, so a job kept here is passed. The batch's alert ids come from
-                   ix_alerts_job alone and their rows by primary key (docs/sql-internals.md, "Alert lock order"). */
-                DELETE @alert_seen;
-                INSERT INTO @alert_seen (alert_id)
-                SELECT k.alert_id
-                FROM @job_del d
-                INNER JOIN acta.alerts k WITH (FORCESEEK (ix_alerts_job (job_id))) ON k.job_id = d.job_id AND k.job_id IS NOT NULL;
-                DELETE d
-                FROM @job_del d
-                WHERE d.job_id IN (
-                    SELECT a.job_id
-                    FROM @alert_seen s
-                    INNER JOIN acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) ON a.alert_id = s.alert_id
-                    WHERE a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-                );
-
-                -- Each delete below seeks its rows by job id: an unhinted plan can scan
-                -- the whole child table under update locks
-                -- (docs/sql-internals.md, "Foreign keys in set-based writes").
-                DELETE t FROM acta.tags t WITH (FORCESEEK (pk_tags (entity_code, entity_id)))
-                INNER JOIN @job_del d ON t.entity_code = 50 /* EntityCode.Job */ AND t.entity_id = d.job_id;
-
-                /* The jobs' settled alerts go with them, so no alert outlives its job: the held job rows let none join since
-                   the ids were read. Each identity row is locked before its row (docs/sql-internals.md, "Alert lock
-                   order"), and the delete rechecks the job, since a deduplicated raise moves an open alert. */
-                DELETE @alert_del;
-                INSERT INTO @alert_del (alert_id, deduplication_key)
-                SELECT a.alert_id, a.deduplication_key
-                FROM @alert_seen s
-                INNER JOIN acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) ON a.alert_id = s.alert_id
-                WHERE EXISTS (SELECT 1 FROM @job_del j WHERE j.job_id = a.job_id);
-                DECLARE @alert_identities INT = (
-                    SELECT COUNT(*)
-                    FROM @alert_del d
-                    INNER JOIN acta.alerts a WITH (UPDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
-                        ON
-                            a.namespace_id = @p_namespace_id
-                            AND a.deduplication_key = d.deduplication_key
-                            AND a.alert_id = d.alert_id
-                    WHERE d.deduplication_key IS NOT NULL
-                );
-                DELETE a FROM acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) INNER JOIN @alert_del d ON d.alert_id = a.alert_id
-                WHERE EXISTS (SELECT 1 FROM @job_del j WHERE j.job_id = a.job_id);
-                DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
-                DELETE r FROM acta.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
-                DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
-                DELETE st FROM acta.schedules_state st WITH (FORCESEEK (pk_schedules_state (schedule_id)))
-                INNER JOIN acta.schedules s WITH (FORCESEEK (ix_schedules_job (job_id))) ON s.schedule_id = st.schedule_id
-                INNER JOIN @job_del d ON d.job_id = s.job_id;
-                DELETE s FROM acta.schedules s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
-                DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = j.job_id;
-                SET @rows = (SELECT COUNT(*) FROM @job_del);
-
-            END;
-
-        ELSE IF @p_section = 2
-            BEGIN
-                DELETE @event_del;
-
-                -- Collected by the clustered key, so each delete is a direct seek on pk_events.
-                -- Events still owed to the alert projector stay past the cutoff; see the floor above.
-                INSERT INTO @event_del (worker_id, event_id)
-                SELECT TOP (@p_batch_size) e.worker_id, e.event_id
-                FROM acta.events e WITH (UPDLOCK, READPAST, FORCESEEK (ix_events_namespace_created (namespace_id)))
-                WHERE
-                    e.namespace_id = @p_namespace_id
-                    AND e.created_at_utc <= @p_cutoff_utc
-                    AND NOT (
-                        e.entity_code = 50 /* EntityCode.Job */
-                        AND e.created_at_utc >= @floor_utc
-                        AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
-                        AND (
-                            e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                            OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
-                        )
-                        AND EXISTS (
-                            SELECT 1
-                            FROM acta.definitions d
-                            WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                        )
-                    )
-                ORDER BY e.created_at_utc, e.event_id;
-                DELETE e FROM acta.events e WITH (FORCESEEK) INNER JOIN @event_del d ON d.worker_id = e.worker_id AND d.event_id = e.event_id;
-                SET @rows = (SELECT COUNT(*) FROM @event_del);
-
-            END;
-
-        ELSE IF @p_section = 3
-            BEGIN
-                DELETE @alert_del;
-                DELETE @alert_locked;
-
-                INSERT INTO @alert_del (alert_id, deduplication_key)
-                SELECT TOP (@p_batch_size) alert_id, deduplication_key
-                FROM acta.alerts WITH (READPAST)
-                WHERE
-                    namespace_id = @p_namespace_id
-                    AND created_at_utc <= @p_cutoff_utc
-                    AND delivery_status_code IN (
-                        30 /* AlertDeliveryStatusCode.Suppressed */,
-                        100 /* AlertDeliveryStatusCode.Delivered */,
-                        200 /* AlertDeliveryStatusCode.Failed */
-                    )
-                ORDER BY created_at_utc, alert_id;
-
-                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
-                -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/sql-internals.md, "Alert lock order").
-                INSERT INTO @alert_locked (alert_id)
-                SELECT a.alert_id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
-                    ON
-                        a.namespace_id = @p_namespace_id
-                        AND a.deduplication_key = d.deduplication_key
-                        AND a.alert_id = d.alert_id
-                WHERE d.deduplication_key IS NOT NULL;
-                INSERT INTO @alert_locked (alert_id)
-                SELECT a.alert_id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.alert_id = d.alert_id
-                WHERE d.deduplication_key IS NULL;
-
-                DELETE a
-                FROM acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id)))
-                INNER JOIN @alert_locked l ON l.alert_id = a.alert_id
-                WHERE
-                    a.created_at_utc <= @p_cutoff_utc
-                    AND a.delivery_status_code IN (
-                        30 /* AlertDeliveryStatusCode.Suppressed */,
-                        100 /* AlertDeliveryStatusCode.Delivered */,
-                        200 /* AlertDeliveryStatusCode.Failed */
-                    );
-                SET @rows = @@ROWCOUNT;
-
-            END;
-
-        ELSE IF @p_section = 4
-            BEGIN
-                DELETE @alert_del;
-                DELETE @alert_locked;
-
-                INSERT INTO @alert_del (alert_id, deduplication_key)
-                SELECT TOP (@p_batch_size) alert_id, deduplication_key
-                FROM acta.alerts WITH (READPAST)
-                WHERE
-                    namespace_id = @p_namespace_id
-                    AND created_at_utc <= @p_cutoff_utc
-                    AND delivery_status_code IN (
-                        10 /* AlertDeliveryStatusCode.Pending */,
-                        20 /* AlertDeliveryStatusCode.RetryAfter */
-                    )
-                ORDER BY created_at_utc, alert_id;
-
-                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
-                -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/sql-internals.md, "Alert lock order").
-                INSERT INTO @alert_locked (alert_id)
-                SELECT a.alert_id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
-                    ON
-                        a.namespace_id = @p_namespace_id
-                        AND a.deduplication_key = d.deduplication_key
-                        AND a.alert_id = d.alert_id
-                WHERE d.deduplication_key IS NOT NULL;
-                INSERT INTO @alert_locked (alert_id)
-                SELECT a.alert_id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.alert_id = d.alert_id
-                WHERE d.deduplication_key IS NULL;
-
-                DELETE a
-                FROM acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id)))
-                INNER JOIN @alert_locked l ON l.alert_id = a.alert_id
-                WHERE
-                    a.created_at_utc <= @p_cutoff_utc
-                    AND a.delivery_status_code IN (
-                        10 /* AlertDeliveryStatusCode.Pending */,
-                        20 /* AlertDeliveryStatusCode.RetryAfter */
-                    );
-                SET @rows = @@ROWCOUNT;
-
-            END;
-
-        ELSE IF @p_section = 5
-            BEGIN
-                DELETE @worker_del;
-
-                -- Events about a terminal worker land after its last heartbeat, and each one stamps modified_at_utc, so
-                -- the row goes once both are past the window and no Executing job it leases is left for recovery.
-                INSERT INTO @worker_del (worker_id)
-                SELECT TOP (@p_batch_size) w.worker_id
-                FROM acta.workers w WITH (UPDLOCK, READPAST)
-                WHERE
-                    w.namespace_id = @p_namespace_id
-                    AND w.worker_status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-                    AND w.last_seen_at_utc <= @p_cutoff_utc
-                    AND w.modified_at_utc <= @p_cutoff_utc
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM acta.jobs_state r
-                        WHERE
-                            r.leased_by_worker_id = w.worker_id
-                            -- ix_jobs_state_worker_inflight's filter restated: a filtered index serves only a query that states it.
-                            AND r.leased_by_worker_id IS NOT NULL
-                            AND r.job_status_code = 50 /* JobStatusCode.Executing */
-                    )
-                ORDER BY w.last_seen_at_utc, w.worker_id;
-                DELETE w FROM acta.workers w WITH (FORCESEEK) INNER JOIN @worker_del d ON d.worker_id = w.worker_id;
-                SET @rows = (SELECT COUNT(*) FROM @worker_del);
-
-            END;
-
-        ELSE IF @p_section = 6
-            BEGIN
-            -- The batch is staged without holding locks, then the delete seeks each row by clustered key, first
-            -- as every lock writer does, skipping a row a writer holds and re-checking its expiry. Taking the
-            -- expiry index key first deadlocks against reserve_rate moving a bucket's expiry.
-                DELETE @lock_del;
-                INSERT INTO @lock_del (lock_key)
-                SELECT TOP (@p_batch_size) lock_key
-                FROM acta.locks WITH (READPAST)
-                WHERE
-                    expires_at_utc <= @p_cutoff_utc
-                ORDER BY expires_at_utc;
-                DELETE t
-                FROM acta.locks t WITH (READPAST, FORCESEEK (pk_locks (lock_key)))
-                INNER JOIN @lock_del d ON d.lock_key = t.lock_key
-                WHERE t.expires_at_utc <= @p_cutoff_utc;
-                SET @rows = @@ROWCOUNT;
-            END;
-
-        ELSE IF @p_section = 7
-            BEGIN
-            -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
-            -- holds, then re-checked under the lock (docs/sql-internals.md, "Lane lock order").
-                DELETE @lane_del;
-                INSERT INTO @lane_del (lane_id)
-                SELECT l.lane_id
-                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
-                WHERE l.lane_id IN (
-                    SELECT TOP (@p_batch_size) c.lane_id
-                    FROM acta.lanes c WITH (READCOMMITTEDLOCK, READPAST)
-                    WHERE
-                        c.namespace_id = @p_namespace_id
-                        AND NOT EXISTS (SELECT 1 FROM acta.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) WHERE r.lane_id = c.lane_id)
-                    ORDER BY c.lane_id
-                );
-                DELETE l
-                FROM acta.lanes l WITH (FORCESEEK)
-                INNER JOIN @lane_del d ON d.lane_id = l.lane_id
-                WHERE NOT EXISTS (SELECT 1 FROM acta.jobs_state r WHERE r.lane_id = l.lane_id)
-                OPTION (LOOP JOIN);
-                SET @rows = @@ROWCOUNT;
-            END;
-
-        SELECT @rows AS deleted_count, @next_created_utc AS next_created_utc, @next_job_id AS next_job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE acta.raise_job_signal
-    @p_job_id BIGINT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_event_message NVARCHAR(512),
-    @p_actor NVARCHAR(128),
-    @p_details_format_id TINYINT,
-    @p_details VARBINARY(MAX),
-    @p_child_job_id BIGINT,
-    @p_child_status TINYINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @existing TINYINT;
-        DECLARE @expired BIT = 0;
-        DECLARE @message NVARCHAR(512);
-        DECLARE
-            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
-
-        -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        SELECT @existing = checkpoint_status_code
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        SELECT
-            @from_status = r.job_status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_job_id = j.lineage_root_job_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @event_recording = j.event_recording_code
-        FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.job_id = r.job_id
-        WHERE r.job_id = @p_job_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status;
-                GOTO Finish;
-            END;
-
-        -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
-        IF
-            @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
-        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
-        IF @p_child_job_id IS NOT NULL AND EXISTS (
-            SELECT 1 FROM acta.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
-            BEGIN
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no
-           value and releases no job. The raise still happened, so it is still recorded: the event below
-           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
-        SET @message = CASE
-            WHEN @expired = 1
-                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @p_event_message
-        END;
-
-        IF @expired = 0
-            BEGIN
-                IF @existing IS NULL
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    VALUES (
-                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
-                        @p_value_format_id, @p_value, @now, @now, 0
-                    );
-                ELSE
-                    UPDATE acta.checkpoints
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = @p_value_format_id,
-                        value = @p_value,
-                        modified_at_utc = @now,
-                        version = version + 1
-                    WHERE
-                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-            END
-
-        IF @event_recording = 20 /* EventRecordingCode.Audit */
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
-                event_message, actor, details_format_id, details
-            )
-            VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
-                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                @execution_number,
-                @message, @p_actor, @p_details_format_id, @p_details
-            );
-
-        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
-            BEGIN
-                UPDATE acta.jobs_state
-                SET
-                    job_status_code = 10 /* JobStatusCode.Ready */,
-                    next_run_at_utc = @now,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id;
-
-                IF @event_recording = 20 /* EventRecordingCode.Audit */
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, actor, details_format_id, details
-                    )
-                    VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        50 /* EntityCode.Job */, @p_job_id,
-                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                        @execution_number,
-                        @p_event_message, @p_actor, @p_details_format_id, @p_details
-                    );
-
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
-                GOTO Finish;
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE acta.reclaim_stuck_jobs
-    @p_namespace_id INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-        DECLARE
-            @reclaimed TABLE
-            (
-                job_id BIGINT NOT NULL PRIMARY KEY,
-                namespace_id INT NOT NULL,
-                execution_number BIGINT NOT NULL,
-                lineage_root_job_id BIGINT NULL,
-                definition_id INT NOT NULL,
-                tenant_id INT NULL,
-                worker_id INT NOT NULL,
-                to_status_code TINYINT NOT NULL,
-                event_recording_code TINYINT NOT NULL,
-                parent_job_id BIGINT NULL,
-                schedule_id INT NULL
-            );
-
-        /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
-           most 100 stranded ones in visiting order (docs/sql-internals.md, "Lane lock order").
-           Each head is sought through ix_jobs_state_lane, named because a small jobs_state table tempts a scan. */
-        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, lane_id BIGINT NOT NULL);
-        DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
-        -- The walk skips a lane or member another transaction holds: the repair re-reads each lane under its lock.
-        SET @min_lane = (SELECT MIN(l.lane_id) FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST));
-        SET @max_lane = (SELECT MAX(l.lane_id) FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST));
-        IF @max_lane IS NOT NULL
-            BEGIN
-                SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
-                INSERT INTO @window (lane_id)
-                SELECT TOP (1000) l.lane_id
-                FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST)
-                WHERE l.namespace_id = @p_namespace_id AND l.lane_id >= @start_lane
-                ORDER BY l.lane_id;
-                SET @window_count = @@ROWCOUNT;
-                INSERT INTO @window (lane_id)
-                SELECT TOP (1000 - @window_count) l.lane_id
-                FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST)
-                WHERE l.namespace_id = @p_namespace_id AND l.lane_id < @start_lane
-                ORDER BY l.lane_id;
-
-                INSERT INTO @stranded (lane_id)
-                SELECT TOP (100) w.lane_id
-                FROM @window w
-                CROSS APPLY (
-                    SELECT TOP (1) m.job_status_code
-                    FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
-                    WHERE
-                        m.lane_id = w.lane_id
-                        AND m.lane_id IS NOT NULL
-                        AND m.job_status_code IN (
-                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                        )
-                    ORDER BY m.job_id
-                ) h
-                WHERE
-                    h.job_status_code = 15 /* JobStatusCode.Blocked */
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
-                        WHERE
-                            o.lane_id = w.lane_id
-                            AND o.lane_id IS NOT NULL
-                            AND o.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                                50 /* JobStatusCode.Executing */
-                            )
-                    )
-                ORDER BY w.ord;
-            END;
-
-        /* Stuck candidates are read through the filtered ix_jobs_state_worker_inflight without holding locks,
-           and only those rows are locked below, by primary key: the index is shared by every namespace, so
-           holding its keys would make another namespace's sweep skip its own rows under READPAST. */
-        DECLARE @stuck TABLE (job_id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL, worker_id INT NOT NULL);
-        INSERT INTO @stuck (job_id, lane_id, worker_id)
-        SELECT r.job_id, r.lane_id, r.leased_by_worker_id
-        FROM acta.jobs_state r WITH (INDEX (ix_jobs_state_worker_inflight), READPAST)
-        WHERE
-            r.job_status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id IS NOT NULL
-            AND r.lease_expires_at_utc < @now
-            AND r.namespace_id = @p_namespace_id;
-
-        /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
-           whose stuck rows and repair wait for a later pass. */
-        DECLARE @candidates TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
-        INSERT INTO @candidates (lane_id)
-        SELECT k.lane_id
-        FROM @stuck k
-        WHERE k.lane_id IS NOT NULL
-        UNION
-        SELECT s.lane_id
-        FROM @stranded s;
-
-        DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
-        WHILE 1 = 1
-            BEGIN
-                SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = c.lane_id
-                FROM @candidates c
-                WHERE c.lane_id > @lane_cursor
-                ORDER BY c.lane_id;
-
-                IF @lane_next IS NULL
-                    BREAK;
-
-                SET @lane_locked = NULL;
-                SELECT @lane_locked = l.lane_id
-                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE l.lane_id = @lane_next;
-
-                IF @lane_locked IS NOT NULL
-                    INSERT INTO @lanes (lane_id) VALUES (@lane_locked);
-
-                SET @lane_cursor = @lane_next;
-            END;
-
-        /* Each worker a stuck row names is stamped at the instant of the Orphaned event below, so the purge keeps it
-           while that event lasts. Workers lock before any jobs_state row, the order the heartbeat takes them. */
-        UPDATE w
-        SET
-            modified_at_utc = @now,
-            version = w.version + 1
-        FROM acta.workers w WITH (FORCESEEK, ROWLOCK)
-        INNER JOIN (
-            SELECT DISTINCT k.worker_id
-            FROM @stuck k
-            WHERE
-                k.lane_id IS NULL
-                OR k.lane_id IN (SELECT e.lane_id FROM @lanes e)
-        ) s ON s.worker_id = w.worker_id;
-
-        /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
-           only while it is still Blocked and no member runs. */
-        UPDATE r
-        SET
-            job_status_code = 10 /* JobStatusCode.Ready */,
-            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT INSERTED.job_id INTO @repaired (job_id)
-        FROM @stranded s
-        INNER JOIN @lanes e ON e.lane_id = s.lane_id
-        CROSS APPLY (
-            SELECT TOP (1) m.job_id, m.job_status_code
-            FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-            WHERE
-                m.lane_id = s.lane_id
-                AND m.lane_id IS NOT NULL
-                AND m.job_status_code IN (
-                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                )
-            ORDER BY m.job_id
-        ) h
-        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
-        WHERE
-            h.job_status_code = 15 /* JobStatusCode.Blocked */
-            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
-            AND NOT EXISTS (
-                SELECT 1
-                FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                WHERE
-                    o.lane_id = s.lane_id
-                    AND o.lane_id IS NOT NULL
-                    AND o.job_status_code IN (
-                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                        50 /* JobStatusCode.Executing */
-                    )
-            );
-
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            entity_code,
-            entity_id,
-            definition_id,
-            tenant_id,
-            lineage_root_job_id,
-            execution_number,
-            event_message,
-            details_format_id,
-            details
-        )
-        SELECT
-            72 /* EventCode.JobResumed */,
-            @now,
-            j.namespace_id,
-            50 /* EntityCode.Job */,
-            j.job_id,
-            j.definition_id,
-            j.tenant_id,
-            COALESCE(j.lineage_root_job_id, j.job_id),
-            r.execution_number,
-            N'Lane had no live head; crash recovery released its lowest Blocked member.',
-            1 /* JobPayloadFormat.Json */,
-            CAST('{"reason":"lane-repaired"}' AS VARBINARY(MAX))
-        FROM @repaired x
-        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = x.job_id
-        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = x.job_id;
-
-        WITH stuck AS (
-            SELECT
-                r.job_id,
-                -- Saturates at 32767, the ceiling WorkerFinalizer.FailureCountCeiling names; registration caps MaxAttempts there.
-                CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
-                jd.max_attempts_effective AS max_attempts,
-                jd.retention_seconds_effective AS retention_seconds,
-                /* The job was parked on THIS checkpoint: the suspend copied its due into
-                   next_run_at_utc, so the equality names the wait this attempt woke for, and an
-                   unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
-                CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM acta.checkpoints c WITH (FORCESEEK)
-                    WHERE
-                        c.job_id = r.job_id
-                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-                        AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
-                        AND c.due_at_utc = r.next_run_at_utc
-                ) THEN 1 ELSE 0 END AS wait_resolved,
-                -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
-                CASE WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 1 ELSE 0 END AS is_slot
-            FROM @stuck k
-            INNER JOIN acta.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
-            INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id
-            INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
-            WHERE
-                r.job_status_code = 50 /* JobStatusCode.Executing */
-                AND r.leased_by_worker_id IS NOT NULL
-                AND r.lease_expires_at_utc < @now
-                AND r.namespace_id = @p_namespace_id
-                AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.lane_id FROM @lanes e))
-        )
-
-        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
-           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
-           and the replay lands whatever outcome the waiting overload chooses. */
-        UPDATE r
-        SET
-            job_status_code = CASE
-                WHEN s.wait_resolved = 1
-                    THEN 20 /* JobStatusCode.Suspended */
-                WHEN s.new_failure_count >= s.max_attempts
-                    THEN CASE WHEN s.is_slot = 1 THEN 40 /* JobStatusCode.Idle */ ELSE 200 /* JobStatusCode.Failed */ END
-                ELSE 10  /* JobStatusCode.Ready */
-            END,
-            failure_count = CASE
-                WHEN s.wait_resolved = 1
-                    THEN r.failure_count
-                ELSE s.new_failure_count
-            END,
-            next_run_at_utc = CASE
-                WHEN s.wait_resolved = 1
-                    THEN r.next_run_at_utc
-                WHEN s.new_failure_count >= s.max_attempts
-                    THEN NULL
-                ELSE @now
-            END,
-            leased_by_worker_id = NULL,
-            lease_expires_at_utc = NULL,
-            retention_until_utc = CASE
-                WHEN s.wait_resolved = 0 AND s.is_slot = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN DATEADD(SECOND, s.retention_seconds, @now)
-                ELSE r.retention_until_utc
-            END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT
-            INSERTED.job_id, j.namespace_id, INSERTED.execution_number,
-            j.lineage_root_job_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
-            INSERTED.job_status_code, j.event_recording_code,
-            j.parent_job_id, j.schedule_id
-        INTO
-            @reclaimed (
-                job_id, namespace_id, execution_number, lineage_root_job_id,
-                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, parent_job_id,
-                schedule_id
-            )
-        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
-        -- see docs/sql-internals.md.
-        FROM acta.jobs_state r WITH (FORCESEEK)
-        INNER JOIN stuck s ON s.job_id = r.job_id
-        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id;
-
-        /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
-           wait. Every recording level records it in this transaction, so the projector meets every lease-loss
-           transition it alerts on. */
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            entity_code,
-            entity_id,
-            definition_id,
-            tenant_id,
-            lineage_root_job_id,
-            worker_id,
-            execution_number,
-            event_message,
-            details_format_id,
-            details
-        )
-        SELECT
-            CASE WHEN to_status_code = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
-            @now,
-            namespace_id,
-            50 /* EntityCode.Job */,
-            job_id,
-            definition_id,
-            tenant_id,
-            COALESCE(lineage_root_job_id, job_id),
-            worker_id,
-            execution_number,
-            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
-               what tells the two messages apart. */
-            CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
-                THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
-                ELSE N'Worker lease expired; reclaimed by crash recovery.'
-            END,
-            1 /* JobPayloadFormat.Json */,
-            CAST(
-                CASE to_status_code
-                    WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
-                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
-                    WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
-                    ELSE '{"reason":"lease-expired","to":"ready"}'
-                END AS VARBINARY(MAX)
-            )
-        FROM @reclaimed;
-
-        DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
-
-        -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on
-        -- the slot, or a charged root's, which releases its schedule's capacity.
-        UPDATE cp
-        SET
-            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
-            modified_at_utc = @now,
-            version = cp.version + 1
-        OUTPUT INSERTED.job_id, r.schedule_id INTO @settled (job_id, schedule_id)
-        FROM acta.checkpoints cp WITH (FORCESEEK)
-        INNER JOIN @reclaimed r ON r.job_id = cp.job_id
-        WHERE
-            cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-            AND cp.checkpoint_name = 'sys.firing'
-            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-            AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL));
-
-        UPDATE st
-        SET
-            next_evaluation_at_utc = @now,
-            evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
-            modified_at_utc = @now,
-            version = st.version + 1
-        FROM acta.schedules_state st WITH (FORCESEEK)
-        INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
-        INNER JOIN @reclaimed r ON r.job_id = js.job_id AND js.job_id IS NOT NULL
-        WHERE
-            r.to_status_code = 40 /* JobStatusCode.Idle */
-            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
-
-        UPDATE st
-        SET
-            outstanding_count = st.outstanding_count - s.settled,
-            next_evaluation_at_utc = CASE
-                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
-                ELSE st.next_evaluation_at_utc
-            END,
-            evaluation_status_code = CASE
-                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
-                ELSE st.evaluation_status_code
-            END,
-            modified_at_utc = @now,
-            version = st.version + 1
-        FROM acta.schedules_state st WITH (FORCESEEK)
-        INNER JOIN (
-            SELECT x.schedule_id, COUNT(*) AS settled
-            FROM @settled x
-            WHERE x.schedule_id IS NOT NULL
-            GROUP BY x.schedule_id
-        ) s ON s.schedule_id = st.schedule_id;
-
-        /* A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy
-           applies as it does on a completion. */
-        DECLARE @policy_paused TABLE (
-            schedule_id INT NOT NULL PRIMARY KEY,
-            schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
-            job_id BIGINT NOT NULL
-        );
-
-        UPDATE js
-        SET
-            schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
-            paused_until_utc = NULL,
-            pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
-            modified_at_utc = @now,
-            version = js.version + 1
-        OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, r.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-        FROM acta.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
-        INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
-        INNER JOIN @reclaimed r ON r.definition_id = jd.definition_id
-        WHERE
-            js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
-            AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
-            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
-            AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
-
-        UPDATE st
-        SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
-        FROM acta.schedules_state st WITH (FORCESEEK)
-        INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, entity_code, entity_id,
-            definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
-        SELECT
-            100 /* EventCode.SchedulePaused */, @now, r.namespace_id, 50 /* EntityCode.Job */, r.job_id,
-            r.definition_id, r.tenant_id, COALESCE(r.lineage_root_job_id, r.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
-            1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
-        FROM @policy_paused p
-        INNER JOIN @reclaimed r ON r.job_id = p.job_id;
-
-        /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
-           under the lane locks and re-reads each head rather than trusting the walk. */
-        UPDATE r
-        SET
-            job_status_code = 10 /* JobStatusCode.Ready */,
-            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        FROM @lanes e
-        CROSS APPLY (
-            SELECT TOP (1) m.job_id, m.job_status_code
-            FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-            WHERE
-                m.lane_id = e.lane_id
-                AND m.lane_id IS NOT NULL
-                AND m.job_status_code IN (
-                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                )
-            ORDER BY m.job_id
-        ) h
-        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
-        WHERE
-            h.job_status_code = 15 /* JobStatusCode.Blocked */
-            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
-            AND NOT EXISTS (
-                SELECT 1
-                FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                WHERE
-                    o.lane_id = e.lane_id
-                    AND o.lane_id IS NOT NULL
-                    AND o.job_status_code IN (
-                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                        50 /* JobStatusCode.Executing */
-                    )
-            );
-
-        SELECT
-            job_id,
-            to_status_code AS to_status,
-            parent_job_id,
-            CAST(0 AS TINYINT) AS lane_repaired
-        FROM @reclaimed
-        UNION ALL
-        SELECT
-            job_id,
-            CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS to_status,
-            NULL AS parent_job_id,
-            CAST(1 AS TINYINT) AS lane_repaired
-        FROM @repaired;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
--- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
--- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
--- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
-
--- The meter's own lock serializes the calls on one meter to commit (docs/sql-internals.md,
--- "Step, checkpoint and rate locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
--- next meters fall in.
-
--- The bucket row stays locked to commit once read or inserted, so the sweep's READPAST delete skips it
--- rather than races it, and the charge this call books is always persisted before it admits anything.
-
--- The clock is read once the bucket row is locked, not when the call began: judged against a stale
--- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
--- freed, four times the contract in one second under a flood of metered claims.
-CREATE OR ALTER PROCEDURE acta.reserve_rate
-    @p_lock_key VARCHAR(256),
-    @p_job_id BIGINT,
-    @p_rate_interval_ms INT,
-    @p_rate_burst INT,
-    @p_grace_seconds INT,
-    @p_hold_token UNIQUEIDENTIFIER
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        -- Everything is judged at the column's precision: a 7-digit reading rounds when it is stored,
-        -- so a meter read back can sit half a millisecond ahead of an unrounded now and refuse a
-        -- burst's last job. PostgreSQL and SQLite keep one precision in both places by construction.
-        DECLARE @now DATETIME2(3);
-        DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
-        -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
-        -- interval short of a whole period, so the burst-th request lands on now and the next waits.
-        DECLARE @lookback_ms INT = (@p_rate_burst - 1) * @p_rate_interval_ms;
-        -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup
-        -- at any rate, and a slower meter keeps its whole interval, so the window is the larger.
-        DECLARE @window_ms INT = CASE WHEN @p_rate_interval_ms > 1000 THEN @p_rate_interval_ms ELSE 1000 END;
-        DECLARE @consumed TABLE (expires_at_utc DATETIME2(3));
-        DECLARE @stored DATETIME2(3);
-        DECLARE @due DATETIME2(3);
-        DECLARE @turn DATETIME2(3);
-
-        -- Held for the rest of the call, so consume, hand back and allocate all decide against one
-        -- serialized meter and no instant is ever handed to two jobs.
-        DECLARE @meter_lock NVARCHAR(255) = CONCAT(N'acta.rate:', @p_lock_key);
-        DECLARE @meter_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @meter_lock_result = sp_getapplock @meter_lock, 'Exclusive', 'Transaction', -1;
-        IF @meter_lock_result < 0
-            THROW 51205, 'ACTA:RATE_LOCK:The rate meter lock was not granted (deadlock victim or cancelled).', 1;
-
-        SELECT @stored = b.expires_at_utc
-        FROM acta.locks AS b WITH (UPDLOCK)
-        WHERE b.lock_key = @p_lock_key;
-
-        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
-        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
-        IF @@ROWCOUNT = 0
-            BEGIN
-                SET @stored = SYSUTCDATETIME();
-                INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-                VALUES (@p_lock_key, @p_job_id, @stored, @p_hold_token);
-            END;
-
-        SET @now = SYSUTCDATETIME();
-
-        -- The OUTPUT decides consumption, never a later absence: the sweep cannot slip between a read
-        -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
-        DELETE FROM acta.locks
-        OUTPUT DELETED.expires_at_utc INTO @consumed
-        WHERE
-            lock_key = @reservation
-            AND expires_at_utc <= DATEADD(SECOND, @p_grace_seconds, @now);
-
-        SELECT @due = DATEADD(SECOND, -@p_grace_seconds, c.expires_at_utc) FROM @consumed AS c;
-
-        IF @due IS NOT NULL AND @due >= DATEADD(MILLISECOND, -@window_ms, @now)
-            -- Back on time: the bucket counted this job when it allocated the turn, so charging it
-            -- again would meter one job twice.
-            SELECT @due AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
-        ELSE
-            BEGIN
-                IF @due IS NULL
-                    -- A turn still ahead of now: the job is early, not owed a new instant.
-                    SELECT @turn = DATEADD(SECOND, -@p_grace_seconds, r.expires_at_utc)
-                    FROM acta.locks AS r
-                    WHERE r.lock_key = @reservation;
-
-                IF @turn IS NOT NULL
-                    SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
-                ELSE
-                    BEGIN
-                        IF @stored < @now
-                            SET @stored = @now;
-                        SET @turn = DATEADD(MILLISECOND, -@lookback_ms, @stored);
-
-                        UPDATE acta.locks
-                        SET
-                            job_id = @p_job_id,
-                            expires_at_utc = DATEADD(MILLISECOND, @p_rate_interval_ms, @stored),
-                            hold_token = @p_hold_token
-                        WHERE lock_key = @p_lock_key;
-
-                        IF @turn <= @now
-                            SELECT @turn AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
-                        ELSE
-                            BEGIN
-                                UPDATE acta.locks
-                                SET
-                                    job_id = @p_job_id,
-                                    expires_at_utc = DATEADD(SECOND, @p_grace_seconds, @turn),
-                                    hold_token = @p_hold_token
-                                WHERE lock_key = @reservation;
-
-                                IF @@ROWCOUNT = 0
-                                    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-                                    VALUES (@reservation, @p_job_id, DATEADD(SECOND, @p_grace_seconds, @turn), @p_hold_token);
-
-                                -- Measured on this clock so the caller never subtracts a host reading from a database one.
-                                SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
-                            END;
-                    END;
-            END;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE acta.start_job_step
-    @p_job_id BIGINT,
-    @p_execution_number BIGINT,
-    @p_leased_by_worker_id INT,
-    @p_step_name VARCHAR(128),
-    @p_at_most_once BIT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @outcome SMALLINT;
-        DECLARE @version INT;
-        DECLARE @rfid TINYINT = 0;
-        DECLARE @result VARBINARY(MAX) = NULL;
-        DECLARE @rmsg NVARCHAR(512) = NULL;
-        DECLARE @state TINYINT;
-
-        -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
-        -- "Step, checkpoint and rate locks"); a range lock on a step not yet stored would hold the gap every running job's next step
-        -- falls in.
-        DECLARE @step_lock NVARCHAR(255) = CONCAT(N'acta.step:', @p_job_id, N':', @p_step_name);
-        DECLARE @step_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
-        IF @step_lock_result < 0
-            THROW 51205, 'ACTA:STEP_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
-
-        -- The step changes only while this attempt holds the job's row, update-locked to commit after the step lock
-        -- (docs/sql-internals.md, "Execution fence").
-        IF NOT EXISTS (
-            SELECT 1
-            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-            WHERE
-                r.job_id = @p_job_id
-                AND r.job_status_code = 50 /* JobStatusCode.Executing */
-                AND r.execution_number = @p_execution_number
-                AND r.leased_by_worker_id = @p_leased_by_worker_id
-        )
-            THROW 50012, 'ACTA:EXECUTION_FENCED:start_job_step: the job is no longer executing this attempt.', 1;
-
-        SELECT
-            @state = step_status_code,
-            @version = version,
-            @rfid = result_format_id,
-            @result = result,
-            @rmsg = failure_message
-        FROM acta.steps WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND step_name = @p_step_name;
-
-        IF @state IS NULL
-            BEGIN
-                INSERT INTO acta.steps (
-                    job_id, step_name, step_status_code,
-                    result_format_id, created_at_utc, modified_at_utc, version
-                )
-                VALUES (
-                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */,
-                    0 /* JobPayloadFormat.None */, @now, @now, 0
-                );
-
-                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
-                SET @version = 0;
-                SET @rfid = 0 /* JobPayloadFormat.None */;
-                SET @result = NULL;
-                SET @rmsg = NULL;
-            END
-        ELSE IF @state = 100 /* StepStatusCode.Succeeded */
-            BEGIN
-                SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
-                SET @rmsg = NULL;
-            END
-        ELSE IF @state = 200 /* StepStatusCode.Failed */
-            BEGIN
-                SET @outcome = 4 /* StartJobStepOutcomeCode.Failed */;
-                SET @rfid = 0 /* JobPayloadFormat.None */;
-                SET @result = NULL;
-            END
-        ELSE IF @state = 230 /* StepStatusCode.Interrupted */
-            BEGIN
-            -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
-                SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
-                SET @rfid = 0 /* JobPayloadFormat.None */;
-                SET @result = NULL;
-                SET @rmsg = NULL;
-            END
-        ELSE IF @p_at_most_once = 1
-            BEGIN
-            -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
-            -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
-            -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
-                UPDATE acta.steps
-                SET
-                    step_status_code = 230 /* StepStatusCode.Interrupted */,
-                    failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND step_name = @p_step_name;
-
-                SET @version = @version + 1;
-                SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
-                SET @rfid = 0 /* JobPayloadFormat.None */;
-                SET @result = NULL;
-                SET @rmsg = NULL;
-            END
-        ELSE
-            BEGIN
-                -- An ordinary step with no success recorded runs again, its row unchanged.
-                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
-                SET @rfid = 0 /* JobPayloadFormat.None */;
-                SET @result = NULL;
-                SET @rmsg = NULL;
-            END
-
-        SELECT
-            @outcome AS outcome_code,
-            @version AS version,
-            @rfid AS result_format_id,
-            @result AS result,
-            @rmsg AS failure_message;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-/* Lock-first arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. */
-/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
-   group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
-   is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* The read below needs no re-read after a lost insert the way pg's does: the checkpoint's own lock, taken
-   first (docs/sql-internals.md, "Step, checkpoint and rate locks"), makes a concurrent first arrival wait
-   here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
-/* A wait this call armed with a length suspends once: the length is positive and the arm is the last
-   act of its branch. A checkpoint this call arms at or past an instant is armed Expired, so a child landing
-   after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
-CREATE OR ALTER PROCEDURE acta.wait_job_signal
-    @p_job_id BIGINT,
-    @p_execution_number BIGINT,
-    @p_leased_by_worker_id INT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_timeout_seconds INT = NULL,
-    @p_due_at_utc DATETIME2(3) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @state TINYINT, @fmt TINYINT = 0;
-        DECLARE @val VARBINARY(MAX) = NULL;
-        DECLARE @due DATETIME2(3) = NULL;
-        DECLARE @outcome SMALLINT;
-        DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
-        DECLARE @arm_state TINYINT = CASE
-            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
-            ELSE 10 /* CheckpointStatusCode.Pending */
-        END;
-
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        -- The wait changes the checkpoint only while this attempt holds the job's row, update-locked to commit after the
-        -- checkpoint lock (docs/sql-internals.md, "Execution fence").
-        IF NOT EXISTS (
-            SELECT 1
-            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-            WHERE
-                r.job_id = @p_job_id
-                AND r.job_status_code = 50 /* JobStatusCode.Executing */
-                AND r.execution_number = @p_execution_number
-                AND r.leased_by_worker_id = @p_leased_by_worker_id
-        )
-            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_job_signal: the job is no longer executing this attempt.', 1;
-
-        SELECT
-            @state = checkpoint_status_code,
-            @fmt = value_format_id,
-            @val = value,
-            @due = due_at_utc
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        IF @state = 20 /* CheckpointStatusCode.Set */
-            BEGIN
-                SET @outcome = 2 /* WaitJobSignalOutcomeCode.ContinueSet */;
-            END
-        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
-            BEGIN
-                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
-            BEGIN
-                UPDATE acta.checkpoints
-                SET
-                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE
-            BEGIN
-                SET @outcome = 1 /* WaitJobSignalOutcomeCode.SuspendPending */;
-                IF @state IS NULL
-                    BEGIN
-                        INSERT INTO acta.checkpoints (
-                            job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id, value,
-                            created_at_utc, modified_at_utc, version
-                        )
-                        VALUES (
-                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
-                            0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
-                        );
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                    END
-                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
-                    BEGIN
-                        UPDATE acta.checkpoints
-                        SET
-                            checkpoint_status_code = @arm_state,
-                            due_at_utc = @arm_due,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
-                            AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                            AND due_at_utc IS NULL;
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                    END
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-
-        SELECT
-            @outcome AS outcome_code,
-            @fmt AS value_format_id,
-            @val AS value;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER VIEW acta.alerts_view AS
-SELECT
-    a.alert_id,
-    a.alert_ref,
-    ns.namespace_name,
-    a.job_id,
-    a.job_ref,
-    j.definition_id,
-    d.definition_name,
-    CASE a.alert_severity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'info' WHEN 20 THEN 'warning' WHEN 30 THEN 'error' WHEN 40 THEN 'critical' END AS alert_severity,
-    a.alert_severity_code,
-    CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS alert_kind,
-    a.alert_kind_code,
-    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retry-after' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
-    a.delivery_status_code,
-    a.title,
-    a.alert_message,
-    a.channel_name,
-    a.deduplication_key,
-    a.occurrence_count,
-    a.resolved_at_utc,
-    a.acknowledged_at_utc,
-    a.retry_count,
-    a.retry_after_utc,
-    a.created_at_utc,
-    a.modified_at_utc,
-    a.version
-FROM acta.alerts AS a
-JOIN acta.namespaces AS ns ON ns.namespace_id = a.namespace_id
-LEFT JOIN acta.jobs AS j ON j.job_id = a.job_id
-LEFT JOIN acta.definitions AS d ON d.definition_id = j.definition_id
-GO
-
-CREATE OR ALTER VIEW acta.calendars_view AS
-SELECT
-    c.calendar_id,
-    ns.namespace_name,
-    c.calendar_name,
-    c.version,
-    CASE c.calendar_role_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'occurrence' WHEN 20 THEN 'availability' END AS calendar_role,
-    c.calendar_role_code,
-    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 30 THEN 'superseded' WHEN 240 THEN 'archived' END AS calendar_status,
-    c.calendar_status_code,
-    c.content_hash,
-    c.created_at_utc,
-    c.published_at_utc,
-    c.modified_at_utc
-FROM acta.calendars AS c
-JOIN acta.namespaces AS ns ON ns.namespace_id = c.namespace_id
-GO
-
-CREATE OR ALTER VIEW acta.checkpoints_view AS
-SELECT
-    c.job_id,
-    j.job_ref,
-    ns.namespace_name,
-    d.definition_name,
-    c.checkpoint_name,
-    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS checkpoint_kind,
-    c.checkpoint_kind_code,
-    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
-    c.checkpoint_status_code,
-    c.due_at_utc,
-    CASE c.value_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE CONCAT('custom-', c.value_format_id)
-    END AS value_format,
-    CASE
-        WHEN
-            c.value_format_id = 1 /* JobPayloadFormat.Json */
-            THEN CAST(c.value AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS value_text,
-    c.created_at_utc,
-    c.modified_at_utc,
-    c.version
-FROM acta.checkpoints AS c
-JOIN acta.jobs AS j ON j.job_id = c.job_id
-JOIN acta.namespaces AS ns ON ns.namespace_id = j.namespace_id
-JOIN acta.definitions AS d ON d.definition_id = j.definition_id
-GO
-
-CREATE OR ALTER VIEW acta.definitions_view AS
-SELECT
-    d.definition_id,
-    ns.namespace_name,
-    d.definition_name,
-    CASE d.definition_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 240 THEN 'retired' END AS definition_status,
-    d.definition_status_code,
-    d.definition_hash,
-    d.created_deployment_version,
-    d.input_type_name,
-    d.input_format_name,
-    d.result_type_name,
-    d.result_format_name,
-    CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
-    d.job_priority_code,
-    d.job_priority_code_override,
-    d.job_priority_code_effective,
-    d.max_attempts,
-    d.max_attempts_override,
-    d.max_attempts_effective,
-    d.concurrency_limit,
-    d.concurrency_limit_override,
-    d.concurrency_limit_effective,
-    d.rate_limit,
-    d.rate_limit_override,
-    d.rate_limit_effective,
-    d.rate_name,
-    d.backoff,
-    d.backoff_override,
-    d.backoff_effective,
-    d.execution_timeout_seconds,
-    d.execution_timeout_seconds_override,
-    d.execution_timeout_seconds_effective,
-    d.deadline_seconds,
-    d.deadline_seconds_override,
-    d.deadline_seconds_effective,
-    CASE d.deadline_behavior_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'strict' WHEN 20 THEN 'advisory' END AS deadline_behavior_effective,
-    d.deadline_behavior_code,
-    d.deadline_behavior_code_override,
-    d.deadline_behavior_code_effective,
-    d.retention_seconds,
-    d.retention_seconds_override,
-    d.retention_seconds_effective,
-    CASE d.event_recording_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
-    d.event_recording_code,
-    d.event_recording_code_override,
-    d.event_recording_code_effective,
-    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-terminal' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
-    d.alert_profile_code,
-    d.alert_profile_code_override,
-    d.alert_profile_code_effective,
-    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause-scheduling' END AS firing_failure_policy,
-    d.firing_failure_policy_code,
-    CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
-    d.scheduled_delivery_code,
-    d.alert_channel_name,
-    d.alert_channel_name_override,
-    d.alert_channel_name_effective,
-    d.runbook_url,
-    d.runbook_url_override,
-    d.runbook_url_effective,
-    d.created_at_utc,
-    d.modified_at_utc,
-    d.version
-FROM acta.definitions AS d
-JOIN acta.namespaces AS ns ON ns.namespace_id = d.namespace_id
-GO
-
-CREATE OR ALTER VIEW acta.deployments_view AS
-SELECT
-    ns.namespace_name,
-    d.deployment_version,
-    d.created_at_utc
-FROM acta.deployments AS d
-JOIN acta.namespaces AS ns ON ns.namespace_id = d.namespace_id
-GO
-
-CREATE OR ALTER VIEW acta.events_view AS
-SELECT
-    e.event_id,
-    e.created_at_utc,
-    ns.namespace_name,
-    e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
-    e.entity_code,
-    e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    e.definition_id,
-    d.definition_name,
-    e.tenant_id,
-    t.tenant_name,
-    e.lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.event_message,
-    e.actor,
-    CASE e.details_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE CONCAT('custom-', e.details_format_id)
-    END AS details_format,
-    CASE
-        WHEN
-            e.details_format_id = 1 /* JobPayloadFormat.Json */
-            THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS details_text
-FROM acta.events AS e
-JOIN acta.namespaces AS ns ON ns.namespace_id = e.namespace_id
-LEFT JOIN acta.definitions AS d ON d.definition_id = e.definition_id
-LEFT JOIN acta.tenants AS t
-    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
-LEFT JOIN acta.jobs AS root ON root.job_id = e.lineage_root_job_id
-LEFT JOIN acta.workers AS wkr ON wkr.worker_id = e.worker_id
-GO
-
-CREATE OR ALTER VIEW acta.jobs_view AS
-SELECT
-    j.job_id,
-    j.job_ref,
-    ns.namespace_name,
-    d.definition_name,
-    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent' END AS job_kind,
-    j.job_kind_code,
-    CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
-    r.job_status_code,
-    j.deduplication_key,
-    j.correlation_key,
-    j.concurrency_key,
-    lane.lane_name,
-    j.parent_job_id,
-    COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
-    j.schedule_id,
-    root.job_ref AS lineage_root_job_ref,
-    j.tenant_id,
-    t.tenant_name,
-    CASE r.job_priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
-    r.job_priority_code,
-    CASE j.input_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE CONCAT('custom-', j.input_format_id)
-    END AS input_format,
-    CASE
-        WHEN
-            j.input_format_id = 1 /* JobPayloadFormat.Json */
-            THEN CAST(j.input AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS input_text,
-    CASE r.result_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE CONCAT('custom-', r.result_format_id)
-    END AS result_format,
-    CASE
-        WHEN
-            r.result_format_id = 1 /* JobPayloadFormat.Json */
-            THEN CAST(r.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS result_text,
-    r.next_run_at_utc,
-    r.execution_number,
-    r.failure_count,
-    r.leased_by_worker_id,
-    w.host_name AS leased_by_worker_host_name,
-    r.lease_expires_at_utc,
-    r.retention_until_utc,
-    j.created_at_utc,
-    r.modified_at_utc,
-    r.version
-FROM acta.jobs AS j
-JOIN acta.jobs_state AS r ON r.job_id = j.job_id
-JOIN acta.namespaces AS ns ON ns.namespace_id = j.namespace_id
-JOIN acta.definitions AS d ON d.definition_id = j.definition_id
-LEFT JOIN acta.jobs AS root ON root.job_id = COALESCE(j.lineage_root_job_id, j.job_id)
-LEFT JOIN acta.tenants AS t ON t.tenant_id = j.tenant_id
-LEFT JOIN acta.workers AS w ON w.worker_id = r.leased_by_worker_id
-LEFT JOIN acta.lanes AS lane ON lane.lane_id = r.lane_id
-GO
-
-CREATE OR ALTER VIEW acta.schedules_view AS
-SELECT
-    s.schedule_id,
-    ns.namespace_name,
-    s.job_id,
-    j.job_ref,
-    s.definition_id,
-    d.definition_name,
-    s.schedule_name,
-    CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS schedule_status,
-    s.schedule_status_code,
-    s.expression,
-    s.time_zone_id,
-    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' WHEN 30 THEN 'calendar' END AS expression_kind,
-    s.expression_kind_code,
-    CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' WHEN 30 THEN 'catch-up-latest' WHEN 40 THEN 'catch-up-all' END AS misfire_strategy,
-    s.misfire_strategy_code,
-    st.next_occurrence_at_utc,
-    st.next_evaluation_at_utc,
-    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
-    st.evaluation_status_code,
-    CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
-    d.scheduled_delivery_code,
-    s.max_outstanding,
-    CASE s.full_behavior_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'wait' WHEN 20 THEN 'drop' END AS full_behavior,
-    s.full_behavior_code,
-    s.expire_after_seconds,
-    CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
-    s.expire_action_code,
-    s.availability_calendar_name,
-    s.start_at_utc,
-    s.end_before_utc,
-    st.outstanding_count,
-    s.paused_until_utc,
-    s.description,
-    s.pause_message,
-    s.created_at_utc,
-    s.modified_at_utc,
-    s.version
-FROM acta.schedules AS s
-JOIN acta.schedules_state AS st ON st.schedule_id = s.schedule_id
-JOIN acta.namespaces AS ns ON ns.namespace_id = s.namespace_id
-JOIN acta.definitions AS d ON d.definition_id = s.definition_id
-LEFT JOIN acta.jobs AS j ON j.job_id = s.job_id
-GO
-
-CREATE OR ALTER VIEW acta.steps_view AS
-SELECT
-    s.job_id,
-    j.job_ref,
-    ns.namespace_name,
-    d.definition_name,
-    s.step_name,
-    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 230 THEN 'interrupted' END AS step_status,
-    s.step_status_code,
-    s.failure_message,
-    CASE s.result_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE CONCAT('custom-', s.result_format_id)
-    END AS result_format,
-    CASE
-        WHEN
-            s.result_format_id = 1 /* JobPayloadFormat.Json */
-            THEN CAST(s.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS result_text,
-    s.created_at_utc,
-    s.modified_at_utc,
-    s.version
-FROM acta.steps AS s
-JOIN acta.jobs AS j ON j.job_id = s.job_id
-JOIN acta.namespaces AS ns ON ns.namespace_id = j.namespace_id
-JOIN acta.definitions AS d ON d.definition_id = j.definition_id
-GO
-
-CREATE OR ALTER VIEW acta.tags_view AS
-SELECT
-    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
-    t.entity_code,
-    t.entity_id,
-    t.tag_name,
-    t.tag_value,
-    t.tag_value_search
-FROM acta.tags AS t
-GO
-
-CREATE OR ALTER VIEW acta.workers_view AS
-SELECT
-    w.worker_id,
-    w.worker_ref,
-    ns.namespace_name,
-    CASE w.worker_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 80 THEN 'draining' WHEN 100 THEN 'stopped' WHEN 200 THEN 'dead' END AS worker_status,
-    w.worker_status_code,
-    w.deployment_version,
-    w.host_name,
-    w.engine_version,
-    w.dotnet_version,
-    w.process_id,
-    w.max_concurrent_executors,
-    w.last_seen_at_utc,
-    w.created_at_utc,
-    w.modified_at_utc,
-    w.version
-FROM acta.workers AS w
-JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111163142_init')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261111163142_init');
-GO
--- ===== END M20261111163142_init =====
-GO
--- ===== BEGIN M20261112231452_index_lanes_by_namespace =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-IF INDEXPROPERTY(OBJECT_ID(N'acta.lanes'), N'ix_lanes_namespace', 'IndexID') IS NULL
-    CREATE INDEX ix_lanes_namespace ON acta.lanes (namespace_id, lane_id);
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261112231452_index_lanes_by_namespace')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261112231452_index_lanes_by_namespace');
-GO
--- ===== END M20261112231452_index_lanes_by_namespace =====
-GO
--- ===== BEGIN M20261114214847_keep_first_signal_value =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-CREATE OR ALTER PROCEDURE acta.raise_job_signal
-    @p_job_id BIGINT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_event_message NVARCHAR(512),
-    @p_actor NVARCHAR(128),
-    @p_details_format_id TINYINT,
-    @p_details VARBINARY(MAX),
-    @p_child_job_id BIGINT,
-    @p_child_status TINYINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @existing TINYINT;
-        DECLARE @fmt TINYINT;
-        DECLARE @val VARBINARY(MAX);
-        DECLARE @expired BIT = 0;
-        DECLARE @message NVARCHAR(512);
-        DECLARE
-            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
-
-        -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        SELECT @existing = checkpoint_status_code, @fmt = value_format_id, @val = value
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        SELECT
-            @from_status = r.job_status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_job_id = j.lineage_root_job_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @event_recording = j.event_recording_code
-        FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.job_id = r.job_id
-        WHERE r.job_id = @p_job_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status;
-                GOTO Finish;
-            END;
-
-        -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
-        IF
-            @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
-        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
-        IF @p_child_job_id IS NOT NULL AND EXISTS (
-            SELECT 1 FROM acta.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
-            BEGIN
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- First raise wins: a signal never changes once raised, so a repeat writes nothing, already in state with the
-        -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
-        -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
-        IF
-            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
-            BEGIN
-                SELECT
-                    CAST(
-                        CASE
-                            WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
-                                AND @fmt = @p_value_format_id
-                                AND (
-                                    (@val IS NULL AND @p_value IS NULL)
-                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
-                                )
-                                THEN 6 /* ControlAction.AlreadyInState */
-                            ELSE 3 /* ControlAction.Rejected */
-                        END AS TINYINT
-                    ) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
-           value and releases no job. The landing still happened, so it is still recorded: the event below
-           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
-        SET @message = CASE
-            WHEN @expired = 1
-                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @p_event_message
-        END;
-
-        IF @expired = 0
-            BEGIN
-                IF @existing IS NULL
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    VALUES (
-                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
-                        @p_value_format_id, @p_value, @now, @now, 0
-                    );
-                ELSE
-                    UPDATE acta.checkpoints
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = @p_value_format_id,
-                        value = @p_value,
-                        modified_at_utc = @now,
-                        version = version + 1
-                    WHERE
-                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-            END
-
-        IF @event_recording = 20 /* EventRecordingCode.Audit */
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
-                event_message, actor, details_format_id, details
-            )
-            VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
-                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                @execution_number,
-                @message, @p_actor, @p_details_format_id, @p_details
-            );
-
-        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
-            BEGIN
-                UPDATE acta.jobs_state
-                SET
-                    job_status_code = 10 /* JobStatusCode.Ready */,
-                    next_run_at_utc = @now,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id;
-
-                IF @event_recording = 20 /* EventRecordingCode.Audit */
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, actor, details_format_id, details
-                    )
-                    VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        50 /* EntityCode.Job */, @p_job_id,
-                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                        @execution_number,
-                        @p_event_message, @p_actor, @p_details_format_id, @p_details
-                    );
-
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
-                GOTO Finish;
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261114214847_keep_first_signal_value')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261114214847_keep_first_signal_value');
-GO
--- ===== END M20261114214847_keep_first_signal_value =====
-GO
--- ===== BEGIN M20261114235108_repeat_raise_after_finish =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-CREATE OR ALTER PROCEDURE acta.raise_job_signal
-    @p_job_id BIGINT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_event_message NVARCHAR(512),
-    @p_actor NVARCHAR(128),
-    @p_details_format_id TINYINT,
-    @p_details VARBINARY(MAX),
-    @p_child_job_id BIGINT,
-    @p_child_status TINYINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @existing TINYINT;
-        DECLARE @fmt TINYINT;
-        DECLARE @val VARBINARY(MAX);
-        DECLARE @expired BIT = 0;
-        DECLARE @message NVARCHAR(512);
-        DECLARE
-            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
-
-        -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        SELECT @existing = checkpoint_status_code, @fmt = value_format_id, @val = value
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        SELECT
-            @from_status = r.job_status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_job_id = j.lineage_root_job_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @event_recording = j.event_recording_code
-        FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.job_id = r.job_id
-        WHERE r.job_id = @p_job_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status;
-                GOTO Finish;
-            END;
-
-        -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
-        -- It still takes a child's latch, which a restart of it reads, and is not woken.
-        IF
-            @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            BEGIN
-
-                SELECT
-                    CAST(
-                        CASE
-                            WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
-                                AND @fmt = @p_value_format_id
-                                AND (
-                                    (@val IS NULL AND @p_value IS NULL)
-                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
-                                )
-                                THEN 6 /* ControlAction.AlreadyInState */
-                            ELSE 3 /* ControlAction.Rejected */
-                        END AS TINYINT
-                    ) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
-        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
-        IF @p_child_job_id IS NOT NULL AND EXISTS (
-            SELECT 1 FROM acta.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
-            BEGIN
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- First raise wins: a signal never changes once raised, so a repeat writes nothing, already in state with the
-        -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
-        -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
-        IF
-            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
-            BEGIN
-                SELECT
-                    CAST(
-                        CASE
-                            WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
-                                AND @fmt = @p_value_format_id
-                                AND (
-                                    (@val IS NULL AND @p_value IS NULL)
-                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
-                                )
-                                THEN 6 /* ControlAction.AlreadyInState */
-                            ELSE 3 /* ControlAction.Rejected */
-                        END AS TINYINT
-                    ) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
-           value and releases no job. The landing still happened, so it is still recorded: the event below
-           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
-        SET @message = CASE
-            WHEN @expired = 1
-                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @p_event_message
-        END;
-
-        IF @expired = 0
-            BEGIN
-                IF @existing IS NULL
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    VALUES (
-                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
-                        @p_value_format_id, @p_value, @now, @now, 0
-                    );
-                ELSE
-                    UPDATE acta.checkpoints
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = @p_value_format_id,
-                        value = @p_value,
-                        modified_at_utc = @now,
-                        version = version + 1
-                    WHERE
-                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-            END
-
-        IF @event_recording = 20 /* EventRecordingCode.Audit */
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
-                event_message, actor, details_format_id, details
-            )
-            VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
-                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                @execution_number,
-                @message, @p_actor, @p_details_format_id, @p_details
-            );
-
-        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
-            BEGIN
-                UPDATE acta.jobs_state
-                SET
-                    job_status_code = 10 /* JobStatusCode.Ready */,
-                    next_run_at_utc = @now,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id;
-
-                IF @event_recording = 20 /* EventRecordingCode.Audit */
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, actor, details_format_id, details
-                    )
-                    VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        50 /* EntityCode.Job */, @p_job_id,
-                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                        @execution_number,
-                        @p_event_message, @p_actor, @p_details_format_id, @p_details
-                    );
-
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
-                GOTO Finish;
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261114235108_repeat_raise_after_finish')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261114235108_repeat_raise_after_finish');
-GO
--- ===== END M20261114235108_repeat_raise_after_finish =====
-GO
--- ===== BEGIN M20261115084424_refuse_cross_tenant_dedup =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
--- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
--- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
--- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
-CREATE OR ALTER PROCEDURE acta.enqueue_job
-    @p_job_ref UNIQUEIDENTIFIER = NULL,
-    @p_namespace_name VARCHAR(128) = NULL,
-    @p_job_name VARCHAR(128) = NULL,
-    @p_deduplication_key VARCHAR(128) = NULL,
-    @p_correlation_key VARCHAR(64) = NULL,
-    @p_job_priority_code_override TINYINT = NULL,
-    @p_input_format_id TINYINT = NULL,
-    @p_input VARBINARY(MAX) = NULL,
-    @p_concurrency_key VARCHAR(128) = NULL,
-    @p_next_run_at_utc DATETIME2(3) = NULL,
-    @p_delay_seconds INT = NULL,
-    @p_parent_job_id BIGINT = NULL,
-    @p_tenant_name VARCHAR(128) = NULL,
-    @p_tenant_override BIT = 0,
-    @p_tags acta.enqueue_tags READONLY,
-    @p_lane_name VARCHAR(128) = NULL,
-    @p_parent_execution_number BIGINT = NULL,
-    @p_parent_worker_id INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
-        DECLARE @def_event_recording TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
-        DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
-        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @existing_tenant INT, @job_id BIGINT;
-        DECLARE @lane VARCHAR(128), @lane_id BIGINT, @ancestor_lane_hits INT;
-
-        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
-        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
-        -- on error rethrow and let the caller roll back the whole transaction.
-
-        -- Server-generate the job ref when the caller omits it (a proc default cannot be NEWID()).
-        SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
-
-        -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
-        IF @p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
-            THROW 50014, 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).', 1;
-
-        -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
-        -- Strings compare padded here, so a key of spaces is refused with the empty one, as PostgreSQL's trim does.
-        IF @p_deduplication_key = '' OR @p_correlation_key = '' OR @p_concurrency_key = ''
-            THROW 50015, 'Enqueue rejected: a key is blank. Pass NULL for no key.', 1;
-
-        SELECT
-            @ns_id = ns.namespace_id,
-            @ns_status = ns.namespace_status_code,
-            @def_id = jd.definition_id,
-            @def_priority = jd.job_priority_code_effective,
-            @def_event_recording = jd.event_recording_code_effective,
-            @def_status = jd.definition_status_code,
-            @def_tenant_req = jd.tenant_requirement_code,
-            @lane = COALESCE(@p_lane_name, jd.lane_name)
-        -- Seeks its own namespace and definition: a caller's transaction at repeatable read or serializable keeps every
-        -- row a read touches locked to commit, so a scan would hold every namespace's row (docs/sql-internals.md,
-        -- "Locking reads seek").
-        FROM acta.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name)))
-        INNER JOIN acta.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
-            ON
-                jd.namespace_id = ns.namespace_id
-                AND jd.definition_name = @p_job_name
-        WHERE ns.namespace_name = @p_namespace_name;
-
-        IF @def_id IS NULL
-            BEGIN
-                DECLARE
-                    @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-                    + ' namespace or job. Have the jobs been deployed there (jobs deploy)?';
-                THROW 50001, @route_msg, 1;
-            END;
-
-        IF @ns_status <> 10 /* NamespaceStatusCode.Active */
-            BEGIN
-                THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
-            END;
-
-        IF @def_status <> 10 /* DefinitionStatusCode.Active */
-            BEGIN
-                THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
-            END;
-
-        IF @p_tenant_name IS NOT NULL
-            BEGIN
-                SELECT
-                    @tenant_id = t.tenant_id,
-                    @tenant_status = t.tenant_status_code
-                FROM acta.tenants t
-                WHERE t.tenant_name = @p_tenant_name;
-
-                IF @tenant_id IS NULL
-                    BEGIN
-                        THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
-                    END;
-
-                IF @tenant_status <> 10 /* TenantStatusCode.Active */
-                    BEGIN
-                        THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
-                    END;
-            END;
-
-        IF @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
-            BEGIN
-                THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
-            END;
-
-        -- The lane row is the lane's mutex, held to commit (docs/sql-internals.md, "Lane
-        -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
-        -- Ready versus Blocked is read after the lane lock, which a SNAPSHOT transaction (level 5) never sees.
-        IF @lane IS NOT NULL
-            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
-            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
-
-        DECLARE @lane_found BIGINT;
-        WHILE @lane IS NOT NULL AND @lane_id IS NULL
-            BEGIN
-                SET @lane_found = NULL;
-                SELECT @lane_found = l.lane_id
-                FROM acta.lanes l
-                WHERE
-                    l.namespace_id = @ns_id
-                    AND l.lane_name = @lane;
-
-                IF @lane_found IS NOT NULL
-                    SELECT @lane_id = l.lane_id
-                    FROM acta.lanes l WITH (UPDLOCK, ROWLOCK)
-                    WHERE l.lane_id = @lane_found;
-
-                IF @lane_found IS NULL
-                    BEGIN
-                        SET XACT_ABORT OFF;
-                        BEGIN TRY
-                            INSERT INTO acta.lanes (namespace_id, lane_name, created_at_utc)
-                            VALUES (@ns_id, @lane, @now);
-                        END TRY
-                        BEGIN CATCH
-                            SET XACT_ABORT ON;
-                            IF ERROR_NUMBER() NOT IN (2601, 2627)
-                                THROW;
-                        END CATCH;
-                        SET XACT_ABORT ON;
-                    END;
-            END;
-
-        IF @p_deduplication_key IS NOT NULL
-            BEGIN
-                -- The key's own lock serializes enqueues of one key to commit (docs/sql-internals.md,
-                -- "Deduplication lock"); the same name in enqueue_jobs.
-                DECLARE @dedup_lock NVARCHAR(255) = CONCAT(
-                    N'acta.dedup:',
-                    CASE WHEN @p_parent_job_id IS NULL THEN CONCAT(N'n', @ns_id) ELSE CONCAT(N'p', @p_parent_job_id) END,
-                    N':',
-                    @p_deduplication_key
-                );
-                DECLARE @dedup_lock_result INT;
-                -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
-                IF @dedup_lock_result < 0
-                    THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
-
-                -- Each probe seeks its dedup index, the index's filter restated: a scan under UPDLOCK locks every row it
-                -- reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
-                IF @p_parent_job_id IS NOT NULL
-                    BEGIN
-                        SELECT
-                            @existing_id = j.job_id,
-                            @existing_ref = j.job_ref
-                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
-                        WHERE
-                            j.parent_job_id = @p_parent_job_id
-                            AND j.deduplication_key = @p_deduplication_key
-                            AND j.parent_job_id IS NOT NULL
-                            AND j.deduplication_key IS NOT NULL;
-                    END
-                ELSE
-                    BEGIN
-                        SELECT
-                            @existing_id = j.job_id,
-                            @existing_ref = j.job_ref,
-                            @existing_tenant = j.tenant_id
-                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
-                        WHERE
-                            j.namespace_id = @ns_id
-                            AND j.deduplication_key = @p_deduplication_key
-                            AND j.parent_job_id IS NULL
-                            AND j.deduplication_key IS NOT NULL;
-                    END;
-
-                -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
-                IF @existing_tenant IS NOT NULL AND @tenant_id IS NOT NULL AND @existing_tenant <> @tenant_id
-                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.', 1;
-            END;
-
-        IF @p_parent_job_id IS NOT NULL
-            BEGIN
-                SELECT
-                    @lineage = COALESCE(pj.lineage_root_job_id, pj.job_id),
-                    @parent_corr = pj.correlation_key,
-                    @parent_tenant = pj.tenant_id
-                FROM acta.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-                INNER JOIN acta.jobs_state pr WITH (FORCESEEK) ON pr.job_id = pj.job_id
-                WHERE
-                    pj.job_id = @p_parent_job_id
-                    AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
-
-                -- A child its parent's handler starts lands only while that attempt holds the parent's row, update-locked
-                -- to commit after the parent's jobs row (docs/sql-internals.md, "Execution fence").
-                IF @p_parent_execution_number IS NOT NULL
-                    BEGIN
-                        IF NOT EXISTS (
-                            SELECT 1
-                            FROM acta.jobs_state fr WITH (UPDLOCK, ROWLOCK)
-                            WHERE
-                                fr.job_id = @p_parent_job_id
-                                AND fr.job_status_code = 50 /* JobStatusCode.Executing */
-                                AND fr.execution_number = @p_parent_execution_number
-                                AND fr.leased_by_worker_id = @p_parent_worker_id
-                        )
-                            THROW 50012, 'ACTA:EXECUTION_FENCED:enqueue_job: the parent job is no longer executing this attempt.', 1;
-                    END;
-
-                IF @lineage IS NULL
-                    BEGIN
-                        THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
-                    END;
-
-                IF @lane_id IS NOT NULL
-                    BEGIN
-                        WITH ancestors AS (
-                            SELECT a.job_id, a.parent_job_id
-                            FROM acta.jobs a WITH (FORCESEEK)
-                            WHERE a.job_id = @p_parent_job_id
-                            UNION ALL
-                            SELECT a.job_id, a.parent_job_id
-                            FROM acta.jobs a WITH (FORCESEEK)
-                            INNER JOIN ancestors c ON a.job_id = c.parent_job_id
-                        )
-
-                        SELECT @ancestor_lane_hits = COUNT(*)
-                        FROM ancestors c
-                        INNER JOIN acta.jobs_state ar WITH (FORCESEEK) ON ar.job_id = c.job_id
-                        WHERE
-                            ar.lane_id = @lane_id
-                            AND ar.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                        -- A lineage has no depth bound, so neither has the walk.
-                        OPTION (MAXRECURSION 0);
-
-                        IF @ancestor_lane_hits > 0
-                            BEGIN
-                                DECLARE
-                                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: a child names the lane of an'
-                                    + ' unfinished ancestor, so it would wait behind the ancestor that waits for it.';
-                                THROW 50010, @ancestor_msg, 1;
-                            END;
-                    END;
-            END;
-
-        IF @def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
-            BEGIN
-                THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
-            END;
-
-        IF @tenant_id IS NOT NULL AND @parent_tenant IS NOT NULL AND @tenant_id <> @parent_tenant AND @p_tenant_override = 0
-            BEGIN
-                THROW 50009,
-                'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantName differs from the parent tenant without an explicit override.',
-                1;
-            END;
-
-        IF @existing_id IS NULL
-            BEGIN
-                INSERT INTO acta.jobs (
-                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
-                    namespace_id, definition_id, tenant_id,
-                    input_format_id, input,
-                    concurrency_key, event_recording_code,
-                    created_at_utc
-                )
-                VALUES (
-                    10 /* JobKindCode.Ordinary */, @p_job_ref, @lineage, @p_parent_job_id,
-                    @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
-                    @ns_id, @def_id,
-                    CASE
-                        WHEN @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
-                        ELSE COALESCE(@tenant_id, @parent_tenant)
-                    END,
-                    COALESCE(
-                        @p_input_format_id,
-                        CASE WHEN @p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END
-                    ),
-                    @p_input,
-                    @p_concurrency_key, @def_event_recording,
-                    @now
-                );
-
-                SET @job_id = SCOPE_IDENTITY();
-
-                -- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits
-                -- as Blocked, keeping its due instant for when the settle ahead of it promotes it.
-                DECLARE @status TINYINT = 10 /* JobStatusCode.Ready */;
-                IF
-                    @lane_id IS NOT NULL
-                    AND EXISTS (
-                        SELECT 1
-                        FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                        WHERE
-                            m.lane_id = @lane_id
-                            AND m.lane_id IS NOT NULL
-                            AND m.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                    )
-                    SET @status = 15 /* JobStatusCode.Blocked */;
-
-                INSERT INTO acta.jobs_state (
-                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
-                    execution_number, failure_count, retention_until_utc,
-                    modified_at_utc, version
-                )
-                VALUES (
-                    @job_id, @ns_id, @lane_id, @status,
-                    COALESCE(@p_job_priority_code_override, @def_priority),
-                    COALESCE(@p_next_run_at_utc, DATEADD(SECOND, COALESCE(@p_delay_seconds, 0), @now)),
-                    0, 0, NULL,
-                    @now, 0
-                );
-
-                INSERT INTO acta.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-                SELECT
-                    50 /* EntityCode.Job */,
-                    @job_id,
-                    t.tag_name,
-                    t.tag_value,
-                    t.tag_value_search
-                FROM @p_tags t;
-            END;
-
-        SELECT
-            0 AS ordinal,
-            COALESCE(@job_id, @existing_id) AS job_id,
-            CASE WHEN @job_id IS NOT NULL THEN @p_job_ref ELSE @existing_ref END AS job_ref,
-            CASE
-                WHEN @job_id IS NOT NULL
-                    THEN 1 /* EnqueueJobAction.Inserted */
-                ELSE 2 /* EnqueueJobAction.Deduplicated */
-            END AS action;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
--- Lock order: the batch's lanes in id order, then job rows (docs/sql-internals.md,
--- "Lane lock order").
-CREATE OR ALTER PROCEDURE acta.enqueue_jobs
-    @p_batch acta.enqueue_jobs READONLY,
-    @p_tags acta.enqueue_tags READONLY
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
-        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
-        -- on error rethrow and let the caller roll back the whole transaction.
-
-        DECLARE @resolved TABLE (
-            ordinal INT PRIMARY KEY,
-            ns_id INT NOT NULL,
-            ns_status TINYINT NOT NULL,
-            def_id INT NOT NULL,
-            def_priority SMALLINT NOT NULL,
-            def_event_recording TINYINT NOT NULL,
-            def_status TINYINT NOT NULL,
-            def_tenant_req TINYINT NOT NULL,
-            tenant_id INT NULL,
-            lane VARCHAR(128) NULL,
-            lane_id BIGINT NULL,
-            lane_head BIT NOT NULL DEFAULT 0
-        );
-
-        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_event_recording, def_status, def_tenant_req, lane)
-        SELECT
-            b.ordinal,
-            ns.namespace_id,
-            ns.namespace_status_code,
-            jd.definition_id,
-            jd.job_priority_code_effective,
-            jd.event_recording_code_effective,
-            jd.definition_status_code,
-            jd.tenant_requirement_code,
-            COALESCE(b.lane_name, jd.lane_name)
-        -- Seeks each row's own namespace and definition, as enqueue_job does.
-        FROM @p_batch b
-        INNER JOIN acta.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name))) ON ns.namespace_name = b.namespace_name
-        INNER JOIN acta.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
-            ON
-                jd.namespace_id = ns.namespace_id
-                AND jd.definition_name = b.job_name;
-
-        IF (SELECT COUNT(*) FROM @resolved) < (SELECT COUNT(*) FROM @p_batch)
-            BEGIN
-                DECLARE
-                    @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-                    + ' namespace or job. Have the jobs been deployed there (jobs deploy)?';
-                THROW 50001, @route_msg, 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @resolved
-                WHERE ns_status <> 10 /* NamespaceStatusCode.Active */
-            )
-            BEGIN
-                THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @resolved
-                WHERE def_status <> 10 /* DefinitionStatusCode.Active */
-            )
-            BEGIN
-                THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @p_batch
-                WHERE tenant_name IS NOT NULL
-            )
-            BEGIN
-                -- A named tenant resolves by name alone, and the checks below judge the id resolved here, so a tenant
-                -- registered, suspended, or resumed in between can never leave the stored job without it.
-                UPDATE r
-                SET tenant_id = t.tenant_id
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                INNER JOIN acta.tenants t ON t.tenant_name = b.tenant_name
-                WHERE b.tenant_name IS NOT NULL;
-
-                IF
-                    EXISTS (
-                        SELECT 1
-                        FROM @p_batch b
-                        INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                        WHERE b.tenant_name IS NOT NULL AND r.tenant_id IS NULL
-                    )
-                    BEGIN
-                        THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
-                    END;
-                IF
-                    EXISTS (
-                        SELECT 1 FROM @resolved r JOIN acta.tenants t ON t.tenant_id = r.tenant_id
-                        WHERE t.tenant_status_code <> 10 /* TenantStatusCode.Active */
-                    )
-                    BEGIN
-                        THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
-                    END;
-            END;
-
-        -- Missing lanes are inserted in namespace and name order without a range lock, then every lane is locked one row
-        -- at a time in id order (docs/sql-internals.md, "Lane lock order").
-        DECLARE @lanes TABLE (
-            ns_id INT NOT NULL,
-            lane_name VARCHAR(128) NOT NULL,
-            lane_id BIGINT NULL,
-            PRIMARY KEY (ns_id, lane_name)
-        );
-
-        INSERT INTO @lanes (ns_id, lane_name)
-        SELECT DISTINCT r.ns_id, r.lane
-        FROM @resolved r
-        WHERE r.lane IS NOT NULL;
-
-        DECLARE @laned BIT = CASE WHEN EXISTS (SELECT 1 FROM @lanes) THEN 1 ELSE 0 END;
-        DECLARE @lanes_pending BIT = @laned;
-        DECLARE @lane_cursor BIGINT, @lane_next BIGINT, @lane_locked BIGINT;
-
-        -- Ready versus Blocked is read after the lane locks, which a SNAPSHOT transaction (level 5) never sees.
-        IF @lanes_pending = 1
-            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
-            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
-
-        WHILE @lanes_pending = 1
-            BEGIN
-                SET XACT_ABORT OFF;
-                BEGIN TRY
-                    INSERT INTO acta.lanes (namespace_id, lane_name, created_at_utc)
-                    SELECT e.ns_id, e.lane_name, @now
-                    FROM @lanes e
-                    WHERE NOT EXISTS (
-                        SELECT 1
-                        FROM acta.lanes l WITH (FORCESEEK)
-                        WHERE
-                            l.namespace_id = e.ns_id
-                            AND l.lane_name = e.lane_name
-                    )
-                    ORDER BY e.ns_id, e.lane_name;
-                END TRY
-                BEGIN CATCH
-                    SET XACT_ABORT ON;
-                    IF ERROR_NUMBER() NOT IN (2601, 2627)
-                        THROW;
-                END CATCH;
-                SET XACT_ABORT ON;
-
-                UPDATE e
-                SET lane_id = l.lane_id
-                -- Both lane reads seek their own names, so a caller's transaction never waits on another lane's insert.
-                FROM @lanes e
-                LEFT JOIN acta.lanes l WITH (FORCESEEK)
-                    ON
-                        l.namespace_id = e.ns_id
-                        AND l.lane_name = e.lane_name;
-
-                SET @lanes_pending = CASE WHEN EXISTS (SELECT 1 FROM @lanes WHERE lane_id IS NULL) THEN 1 ELSE 0 END;
-                SET @lane_cursor = 0;
-                WHILE @lanes_pending = 0
-                    BEGIN
-                        SET @lane_next = NULL;
-                        SELECT TOP (1) @lane_next = e.lane_id
-                        FROM @lanes e
-                        WHERE e.lane_id > @lane_cursor
-                        ORDER BY e.lane_id;
-
-                        IF @lane_next IS NULL
-                            BREAK;
-
-                        SET @lane_locked = NULL;
-                        SELECT @lane_locked = l.lane_id
-                        FROM acta.lanes l WITH (UPDLOCK, ROWLOCK)
-                        WHERE l.lane_id = @lane_next;
-
-                        IF @lane_locked IS NULL
-                            SET @lanes_pending = 1;
-                        SET @lane_cursor = @lane_next;
-                    END;
-            END;
-
-        UPDATE r
-        SET lane_id = e.lane_id
-        FROM @resolved r
-        INNER JOIN @lanes e
-            ON
-                e.ns_id = r.ns_id
-                AND e.lane_name = r.lane;
-
-        DECLARE @existing TABLE (
-            ordinal INT PRIMARY KEY,
-            job_id BIGINT NOT NULL,
-            job_ref UNIQUEIDENTIFIER NOT NULL
-        );
-
-        IF
-            EXISTS (
-                SELECT 1 FROM @p_batch
-                WHERE deduplication_key IS NOT NULL
-            )
-            BEGIN
-                -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
-                -- never deadlock (docs/sql-internals.md, "Deduplication lock").
-                DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                INSERT INTO @dedup_locks (name)
-                SELECT DISTINCT
-                    CONCAT(
-                        N'acta.dedup:',
-                        CASE WHEN b.parent_job_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_job_id) END,
-                        N':',
-                        b.deduplication_key
-                    )
-                FROM @p_batch b
-                LEFT JOIN @resolved r ON r.ordinal = b.ordinal
-                WHERE
-                    b.deduplication_key IS NOT NULL
-                    AND (b.parent_job_id IS NOT NULL OR r.ns_id IS NOT NULL);
-
-                DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks), @dedup_lock_result INT;
-                WHILE @dedup_lock IS NOT NULL
-                    BEGIN
-                        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                        EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
-                        IF @dedup_lock_result < 0
-                            THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
-                        SET @dedup_lock = (SELECT MIN(name) FROM @dedup_locks WHERE name > @dedup_lock);
-                    END;
-
-                -- Each probe seeks its dedup index on both key columns, the index's filter restated: a scan under UPDLOCK
-                -- locks every row it reads and escalates to a table lock on jobs, which a stale row estimate makes the
-                -- cheaper plan, and a seek on the leading column alone reads every key under it once per batch row.
-                INSERT INTO @existing (ordinal, job_id, job_ref)
-                SELECT
-                    b.ordinal,
-                    j.job_id,
-                    j.job_ref
-                FROM @p_batch b
-                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_job_id, deduplication_key)))
-                    ON
-                        j.parent_job_id = b.parent_job_id
-                        AND j.deduplication_key = b.deduplication_key
-                        AND j.parent_job_id IS NOT NULL
-                        AND j.deduplication_key IS NOT NULL
-                WHERE
-                    b.deduplication_key IS NOT NULL
-                    AND b.parent_job_id IS NOT NULL;
-
-                INSERT INTO @existing (ordinal, job_id, job_ref)
-                SELECT
-                    b.ordinal,
-                    j.job_id,
-                    j.job_ref
-                FROM @p_batch b
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
-                    ON
-                        j.namespace_id = r.ns_id
-                        AND j.deduplication_key = b.deduplication_key
-                        AND j.parent_job_id IS NULL
-                        AND j.deduplication_key IS NOT NULL
-                WHERE
-                    b.deduplication_key IS NOT NULL
-                    AND b.parent_job_id IS NULL;
-
-                -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it
-                -- is taken.
-                IF
-                    EXISTS (
-                        SELECT 1
-                        FROM @existing x
-                        INNER JOIN @resolved r ON r.ordinal = x.ordinal
-                        INNER JOIN acta.jobs j ON j.job_id = x.job_id
-                        WHERE j.parent_job_id IS NULL AND j.tenant_id <> r.tenant_id
-                    )
-                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.', 1;
-            END;
-
-        DECLARE @parents TABLE (
-            ordinal INT PRIMARY KEY,
-            lineage_root_job_id BIGINT NOT NULL,
-            correlation_key VARCHAR(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-            tenant_id INT NULL
-        );
-
-        INSERT INTO @parents (ordinal, lineage_root_job_id, correlation_key, tenant_id)
-        SELECT
-            b.ordinal,
-            COALESCE(pj.lineage_root_job_id, pj.job_id),
-            pj.correlation_key,
-            pj.tenant_id
-        FROM @p_batch b
-        INNER JOIN acta.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pj.job_id = b.parent_job_id
-        INNER JOIN acta.jobs_state pr WITH (FORCESEEK) ON pr.job_id = pj.job_id
-        WHERE
-            b.parent_job_id IS NOT NULL
-            AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        ORDER BY pj.job_id DESC;
-
-        IF (
-            SELECT COUNT(*) FROM @parents) < (
-            SELECT COUNT(*) FROM @p_batch
-            WHERE parent_job_id IS NOT NULL
-        )
-            BEGIN
-                THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                LEFT JOIN @parents p ON p.ordinal = b.ordinal
-                WHERE
-                    r.def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */
-                    AND r.tenant_id IS NULL
-                    AND p.tenant_id IS NULL
-            )
-            BEGIN
-                THROW 50007,
-                'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: one or more rows target a definition that requires a tenant and carry none.',
-                1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                WHERE
-                    r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */
-                    AND b.tenant_name IS NOT NULL
-            )
-            BEGIN
-                THROW 50008,
-                'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.',
-                1;
-            END;
-
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                INNER JOIN @parents p ON p.ordinal = b.ordinal
-                WHERE
-                    r.tenant_id IS NOT NULL
-                    AND p.tenant_id IS NOT NULL
-                    AND r.tenant_id <> p.tenant_id
-                    AND b.tenant_override = 0
-            )
-            BEGIN
-                DECLARE
-                    @tenant_msg NVARCHAR(2048) = 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a'
-                    + ' TenantName that differs from the parent tenant without an explicit override.';
-                THROW 50009, @tenant_msg, 1;
-            END;
-
-        -- A child may not wait behind an unfinished ancestor in its own lane: the ancestor waits for it.
-        DECLARE @ancestor_lane_hits INT = 0;
-        IF
-            EXISTS (
-                SELECT 1
-                FROM @resolved r
-                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                WHERE
-                    r.lane_id IS NOT NULL
-                    AND b.parent_job_id IS NOT NULL
-            )
-            BEGIN
-                WITH ancestors AS (
-                    SELECT r.lane_id, a.job_id, a.parent_job_id
-                    FROM @resolved r
-                    INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                    INNER JOIN acta.jobs a WITH (FORCESEEK) ON a.job_id = b.parent_job_id
-                    WHERE r.lane_id IS NOT NULL
-                    UNION ALL
-                    SELECT c.lane_id, a.job_id, a.parent_job_id
-                    FROM acta.jobs a WITH (FORCESEEK)
-                    INNER JOIN ancestors c ON a.job_id = c.parent_job_id
-                )
-
-                SELECT @ancestor_lane_hits = COUNT(*)
-                FROM ancestors c
-                INNER JOIN acta.jobs_state ar WITH (FORCESEEK) ON ar.job_id = c.job_id
-                WHERE
-                    ar.lane_id = c.lane_id
-                    AND ar.job_status_code IN (
-                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                        30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                    )
-                -- A lineage has no depth bound, so neither has the walk.
-                OPTION (MAXRECURSION 0);
-            END;
-
-        IF @ancestor_lane_hits > 0
-            BEGIN
-                DECLARE
-                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of'
-                    + ' an unfinished ancestor, so they would wait behind the ancestor that waits for them.';
-                THROW 50010, @ancestor_msg, 1;
-            END;
-
-        DECLARE @map TABLE (
-            job_ref UNIQUEIDENTIFIER PRIMARY KEY,
-            job_id BIGINT NOT NULL
-        );
-
-        -- An unlaned batch runs the plain inserts; only a laned one pays for batch order and lane heads.
-        -- Both jobs_state inserts force nested loops so the foreign-key checks seek their parent rows
-        -- (docs/sql-internals.md, "Foreign keys in set-based writes").
-        IF @laned = 0
-            BEGIN
-                INSERT INTO acta.jobs (
-                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
-                    namespace_id, definition_id, tenant_id,
-                    input_format_id, input,
-                    concurrency_key, event_recording_code,
-                    created_at_utc
-                )
-                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
-                SELECT
-                    10 /* JobKindCode.Ordinary */,
-                    b.job_ref,
-                    p.lineage_root_job_id,
-                    b.parent_job_id,
-                    b.deduplication_key,
-                    COALESCE(b.correlation_key, p.correlation_key),
-                    r.ns_id,
-                    r.def_id,
-                    CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
-                        ELSE COALESCE(r.tenant_id, p.tenant_id)
-                    END,
-                    b.input_format_id,
-                    b.input,
-                    b.concurrency_key,
-                    r.def_event_recording,
-                    @now
-                FROM @p_batch b
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                LEFT JOIN @parents p ON p.ordinal = b.ordinal
-                LEFT JOIN @existing e ON e.ordinal = b.ordinal
-                WHERE e.ordinal IS NULL;
-
-                INSERT INTO acta.jobs_state (
-                    job_id, namespace_id, job_status_code, job_priority_code, next_run_at_utc,
-                    execution_number, failure_count, retention_until_utc,
-                    modified_at_utc, version
-                )
-                SELECT
-                    m.job_id,
-                    r.ns_id,
-                    10 /* JobStatusCode.Ready */,
-                    COALESCE(b.job_priority_code_override, r.def_priority),
-                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
-                    0,
-                    0,
-                    NULL,
-                    @now,
-                    0
-                FROM @map m
-                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                OPTION (LOOP JOIN);
-            END
-        ELSE
-            BEGIN
-                INSERT INTO acta.jobs (
-                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
-                    namespace_id, definition_id, tenant_id,
-                    input_format_id, input,
-                    concurrency_key, event_recording_code,
-                    created_at_utc
-                )
-                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
-                SELECT
-                    10 /* JobKindCode.Ordinary */,
-                    b.job_ref,
-                    p.lineage_root_job_id,
-                    b.parent_job_id,
-                    b.deduplication_key,
-                    COALESCE(b.correlation_key, p.correlation_key),
-                    r.ns_id,
-                    r.def_id,
-                    CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
-                        ELSE COALESCE(r.tenant_id, p.tenant_id)
-                    END,
-                    b.input_format_id,
-                    b.input,
-                    b.concurrency_key,
-                    r.def_event_recording,
-                    @now
-                FROM @p_batch b
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                LEFT JOIN @parents p ON p.ordinal = b.ordinal
-                LEFT JOIN @existing e ON e.ordinal = b.ordinal
-                WHERE e.ordinal IS NULL
-                -- Identity values follow this order, so job-id order equals the caller's batch order, which
-                -- is the order a lane runs in.
-                ORDER BY b.ordinal;
-
-                -- A lane's head is its first inserted row, the lowest ordinal the dedup probe kept, and only
-                -- when no unfinished member is already there; every other laned row waits as Blocked. The
-                -- probe runs under the lane locks, before this batch has any jobs_state row.
-                UPDATE r
-                SET lane_head = 1
-                FROM @resolved r
-                INNER JOIN (
-                    SELECT MIN(h.ordinal) AS ordinal
-                    FROM @resolved h
-                    LEFT JOIN @existing x ON x.ordinal = h.ordinal
-                    WHERE
-                        h.lane_id IS NOT NULL
-                        AND x.ordinal IS NULL
-                    GROUP BY h.lane_id
-                ) f ON f.ordinal = r.ordinal
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM acta.jobs_state x WITH (FORCESEEK)
-                    WHERE
-                        x.lane_id = r.lane_id
-                        AND x.lane_id IS NOT NULL
-                        AND x.job_status_code IN (
-                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                        )
-                );
-
-                INSERT INTO acta.jobs_state (
-                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
-                    execution_number, failure_count, retention_until_utc,
-                    modified_at_utc, version
-                )
-                SELECT
-                    m.job_id,
-                    r.ns_id,
-                    r.lane_id,
-                    CASE
-                        WHEN r.lane_id IS NULL OR r.lane_head = 1 THEN 10 /* JobStatusCode.Ready */
-                        ELSE 15 /* JobStatusCode.Blocked */
-                    END,
-                    COALESCE(b.job_priority_code_override, r.def_priority),
-                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
-                    0,
-                    0,
-                    NULL,
-                    @now,
-                    0
-                FROM @map m
-                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
-                INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                OPTION (LOOP JOIN);
-            END;
-
-        INSERT INTO acta.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-        SELECT
-            50 /* EntityCode.Job */,
-            m.job_id,
-            t.tag_name,
-            t.tag_value,
-            t.tag_value_search
-        FROM @p_tags t
-        INNER JOIN @p_batch b ON b.ordinal = t.ordinal
-        INNER JOIN @map m ON m.job_ref = b.job_ref;
-
-        SELECT
-            b.ordinal,
-            COALESCE(m.job_id, e.job_id) AS job_id,
-            COALESCE(m.job_ref, e.job_ref) AS job_ref,
-            CASE
-                WHEN m.job_id IS NOT NULL
-                    THEN 1 /* EnqueueJobAction.Inserted */
-                ELSE 2 /* EnqueueJobAction.Deduplicated */
-            END AS action
-        FROM @p_batch b
-        LEFT JOIN @map m ON m.job_ref = b.job_ref
-        LEFT JOIN @existing e ON e.ordinal = b.ordinal
-        ORDER BY b.ordinal;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115084424_refuse_cross_tenant_dedup')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115084424_refuse_cross_tenant_dedup');
-GO
--- ===== END M20261115084424_refuse_cross_tenant_dedup =====
-GO
--- ===== BEGIN M20261115085724_carry_child_failure_message =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-CREATE OR ALTER PROCEDURE acta.complete_executions
-    @p_leased_by_worker_id INT,
-    @p_batch acta.complete_executions READONLY,
-    @p_plain BIT = 0
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @locked INT, @lanes BIT = 0, @children BIT = 0, @waits BIT = 0, @shapes BIT = 0, @recurring BIT = 0;
-        DECLARE @rows TABLE (
-            job_id BIGINT NOT NULL,
-            execution_number BIGINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            schedule_id INT NULL,
-            sig_state TINYINT NULL,
-            sig_due DATETIME2(3) NULL,
-            PRIMARY KEY (job_id, execution_number)
-        );
-        DECLARE @done TABLE (
-            job_id BIGINT NOT NULL PRIMARY KEY,
-            execution_number BIGINT NOT NULL,
-            job_status_code TINYINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            parent_released BIT NOT NULL DEFAULT 0,
-            lane_promoted BIT NOT NULL DEFAULT 0,
-            prior_failure_count INT NOT NULL
-        );
-
-        /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           reads no lane or parent and skips them all. Locks: a fire's schedule lock, lanes, checkpoint locks and rows, own jobs_state
-           rows, schedules, parent latches and rows, in key order (docs/sql-internals.md, "Lane lock order"); lane and parent ids never change. */
-        -- Every join from the batch into jobs or jobs_state seeks (same policy, "Locking reads seek").
-        IF @p_plain = 1
-            INSERT INTO @rows (job_id, execution_number)
-            SELECT c.job_id, c.execution_number
-            FROM @p_batch c;
-        ELSE
-            INSERT INTO @rows (job_id, execution_number, lane_id, parent_job_id, schedule_id)
-            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_job_id, j.schedule_id
-            FROM @p_batch c
-            INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-            INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = c.job_id;
-
-        IF @p_plain = 0
-            BEGIN
-            SELECT
-                @lanes = MAX(CASE WHEN lane_id IS NOT NULL THEN 1 ELSE 0 END),
-                @children = MAX(CASE WHEN parent_job_id IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @rows;
-
-            SELECT
-                @waits = MAX(CASE WHEN wait_signal_name IS NOT NULL THEN 1 ELSE 0 END),
-                @shapes = MAX(
-                    CASE
-                        WHEN reschedule_event_code IS NOT NULL OR handler_job_status_code IS NOT NULL OR final_job_status_code IS NOT NULL THEN 1
-                        ELSE 0
-                    END
-                ),
-                @recurring = MAX(CASE WHEN final_job_status_code IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @p_batch;
-            IF EXISTS (SELECT 1 FROM @rows WHERE schedule_id IS NOT NULL)
-                SET @recurring = 1;
-
-            -- Each fired slot's or charged root's namespace schedule lock, shared, before any other lock (same policy,
-            -- "Schedule lock").
-            IF @recurring = 1
-                BEGIN
-                    DECLARE @schedule_ns INT = (
-                        SELECT MIN(r.namespace_id)
-                        FROM @p_batch c
-                        INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                        WHERE c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL
-                    );
-                    DECLARE @schedule_lock NVARCHAR(255), @schedule_lock_result INT;
-                    WHILE @schedule_ns IS NOT NULL
-                        BEGIN
-                            SET @schedule_lock = N'acta.schedules.' + CAST(@schedule_ns AS NVARCHAR(12));
-                            EXEC @schedule_lock_result = sp_getapplock @schedule_lock, 'Shared', 'Transaction', -1;
-                            IF @schedule_lock_result < 0
-                                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @schedule_ns = (
-                                SELECT MIN(r.namespace_id)
-                                FROM @p_batch c
-                                INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                                INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                                WHERE (c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL) AND r.namespace_id > @schedule_ns
-                            );
-                        END;
-                END
-
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #lanes (lane_id BIGINT NOT NULL PRIMARY KEY);
-                    INSERT INTO #lanes (lane_id)
-                    SELECT DISTINCT lane_id FROM @rows WHERE lane_id IS NOT NULL;
-
-                    SELECT @locked = COUNT(*)
-                    FROM #lanes x
-                    INNER JOIN acta.lanes l WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON l.lane_id = x.lane_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-                END
-
-            /* Each checkpoint this batch may read or write takes its own lock, as wait_job_signal and raise_job_signal name it, in
-               name order and before any checkpoint or jobs_state row (docs/sql-internals.md, "Step, checkpoint and rate locks"):
-               each awaited checkpoint under both wait kinds, and each parent's latch for a child here, terminal or not. */
-            IF @waits = 1 OR @children = 1
-                BEGIN
-                    DECLARE @checkpoint_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                    INSERT INTO @checkpoint_locks (name)
-                    SELECT CONCAT(N'acta.checkpoint:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
-                    FROM @p_batch c
-                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
-                    WHERE c.wait_signal_name IS NOT NULL
-                    UNION
-                    SELECT CONCAT(N'acta.checkpoint:', x.parent_job_id, N':50:sys.child.', x.job_id)
-                    FROM @rows x
-                    WHERE x.parent_job_id IS NOT NULL;
-                    DECLARE @checkpoint_lock NVARCHAR(255) = (SELECT MIN(name) FROM @checkpoint_locks), @checkpoint_lock_result INT;
-                    WHILE @checkpoint_lock IS NOT NULL
-                        BEGIN
-                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                            EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-                            IF @checkpoint_lock_result < 0
-                                THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @checkpoint_lock = (SELECT MIN(name) FROM @checkpoint_locks WHERE name > @checkpoint_lock);
-                        END;
-                END
-
-            -- The awaited checkpoint is the only place a wait's deadline lives; its lock lets a raise that won the race land the
-            -- job Ready. A wait with no checkpoint has nothing to wait on and lands Ready too, so a raise that creates the
-            -- missing checkpoint, which waits for this landing, has no job left to wake.
-            IF @waits = 1
-                UPDATE x
-                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
-                FROM @rows x
-                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                    ON
-                        s.job_id = x.job_id
-                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-                        AND s.checkpoint_name = c.wait_signal_name
-                OPTION (FORCE ORDER, LOOP JOIN);
-            END
-
-        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires stays Executing and
-           leased here and takes its status, and a fire its result (ck_jobs_state_result_idle), with its next run below: it enters
-           ix_jobs_state_claim_ready once, and a consumed timer never meets ck_jobs_state_ready_due. A terminal landing clears its next run here. */
-        UPDATE r
-        SET
-            job_status_code = CASE WHEN s.shaped = 1 THEN r.job_status_code ELSE s.to_status END,
-            next_run_at_utc = CASE
-                WHEN s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
-                ELSE r.next_run_at_utc
-            END,
-            failure_count = COALESCE(c.failure_count, r.failure_count),
-            leased_by_worker_id = CASE WHEN s.shaped = 1 THEN r.leased_by_worker_id END,
-            lease_expires_at_utc = CASE WHEN s.shaped = 1 THEN r.lease_expires_at_utc END,
-            retention_until_utc = CASE
-                WHEN
-                    s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    AND c.retention_seconds IS NOT NULL
-                    THEN DATEADD(SECOND, c.retention_seconds, @now)
-                ELSE r.retention_until_utc
-            END,
-            result_format_id = CASE WHEN s.shaped = 1 THEN r.result_format_id ELSE c.result_format_id END,
-            result = CASE WHEN s.shaped = 1 THEN r.result ELSE c.result END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT
-            INSERTED.job_id, INSERTED.execution_number, s.to_status, x.lane_id, x.parent_job_id, DELETED.failure_count
-        INTO @done (job_id, execution_number, job_status_code, lane_id, parent_job_id, prior_failure_count)
-        FROM @rows x
-        INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = x.job_id
-        INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
-                WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
-                WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
-                WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
-                WHEN c.final_job_status_code IS NOT NULL THEN c.final_job_status_code
-                WHEN c.succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
-                ELSE 200 /* JobStatusCode.Failed */
-            END AS to_status,
-            CASE
-                WHEN c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL OR c.final_job_status_code IS NOT NULL THEN 1
-                ELSE 0
-            END AS shaped
-        ) s
-        WHERE
-            r.execution_number = x.execution_number
-            AND r.job_status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id = @p_leased_by_worker_id
-        OPTION (FORCE ORDER);
-
-        -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
-        IF @shapes = 1
-            UPDATE r
-            SET
-                job_status_code = d.job_status_code,
-                leased_by_worker_id = NULL,
-                lease_expires_at_utc = NULL,
-                next_run_at_utc = CASE
-                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
-                    WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
-                    WHEN c.reschedule_event_code IS NOT NULL
-                        THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                    -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
-                    WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN @now
-                    ELSE NULL
-                END
-            FROM @done d
-            INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
-            INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-            INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-            WHERE (c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL) AND c.final_job_status_code IS NULL;
-
-        IF @p_plain = 0
-            BEGIN
-            IF @recurring = 1
-                BEGIN
-                    /* A slot's final landing: the status the finalizer said, the lease goes, the next run is what it said (none
-                       for Idle), and a success keeps its result. */
-                    UPDATE r
-                    SET
-                        job_status_code = d.job_status_code,
-                        next_run_at_utc = c.job_next_run_at_utc,
-                        leased_by_worker_id = NULL,
-                        lease_expires_at_utc = NULL,
-                        result_format_id = c.result_format_id,
-                        result = c.result
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-                    WHERE c.final_job_status_code IS NOT NULL;
-
-                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing, so every member schedule
-                       parked on the slot evaluates again; completion never moves a cursor. */
-                    UPDATE st
-                    SET
-                        next_evaluation_at_utc = @now,
-                        evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id AND js.job_id IS NOT NULL
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
-                        AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
-
-                    DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
-
-                    /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
-                       when the root lands terminal. */
-                    UPDATE cp
-                    SET
-                        checkpoint_status_code = CASE
-                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
-                            ELSE 110 /* CheckpointStatusCode.Succeeded */
-                        END,
-                        modified_at_utc = @now,
-                        version = cp.version + 1
-                    OUTPUT INSERTED.job_id, j.schedule_id INTO @settled (job_id, schedule_id)
-                    FROM acta.checkpoints cp WITH (FORCESEEK)
-                    INNER JOIN @done d ON d.job_id = cp.job_id
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-                        AND cp.checkpoint_name = 'sys.firing'
-                        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                        AND (
-                            (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                            OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                        );
-
-                    /* A charged root releases its schedule's capacity for the envelope it settled above, and wakes the
-                       schedule when it waited for that capacity. */
-                    UPDATE st
-                    SET
-                        outstanding_count = st.outstanding_count - s.settled,
-                        next_evaluation_at_utc = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
-                            ELSE st.next_evaluation_at_utc
-                        END,
-                        evaluation_status_code = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
-                            ELSE st.evaluation_status_code
-                        END,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN (
-                        SELECT x.schedule_id, COUNT(*) AS settled
-                        FROM @settled x
-                        WHERE x.schedule_id IS NOT NULL
-                        GROUP BY x.schedule_id
-                    ) s ON s.schedule_id = st.schedule_id;
-
-                    /* The firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle; a charged
-                       root landed Failed) pauses every active schedule of the definition, with the reason as the pause message,
-                       until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
-                    DECLARE @policy_paused TABLE (
-                        schedule_id INT NOT NULL PRIMARY KEY,
-                        schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
-                        job_id BIGINT NOT NULL
-                    );
-
-                    UPDATE js
-                    SET
-                        schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
-                        paused_until_utc = NULL,
-                        pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
-                        modified_at_utc = @now,
-                        version = js.version + 1
-                    OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, f.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-                    FROM acta.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
-                    INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
-                    INNER JOIN (
-                        SELECT j.job_id, j.definition_id, j.job_kind_code, j.schedule_id, d.job_status_code, c.succeeded
-                        FROM @done d
-                        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    ) f ON f.definition_id = jd.definition_id
-                    WHERE
-                        js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
-                        AND (
-                            (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
-                            OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
-                        )
-                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
-                        AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
-
-                    UPDATE st
-                    SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id, entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
-                    SELECT
-                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 50 /* EntityCode.Job */, p.job_id,
-                        j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
-                        1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
-                    FROM @policy_paused p
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
-                    INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id;
-                END
-            END
-
-        /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
-           success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
-           fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            entity_code, entity_id,
-            definition_id, tenant_id, lineage_root_job_id,
-            worker_id, execution_number, duration_ms,
-            event_message, details_format_id, details
-        )
-        SELECT
-            c.event_code, @now, j.namespace_id,
-            50 /* EntityCode.Job */, d.job_id,
-            j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-            @p_leased_by_worker_id, d.execution_number, c.duration_ms,
-            c.event_message,
-            CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-            CAST(x.details AS VARBINARY(MAX))
-        FROM @done d
-        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-        INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.event_code = 41 /* EventCode.JobExecutionFailed */
-                    THEN ',"to":"' + CASE d.job_status_code
-                        WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
-                        WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
-                        WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
-                    END + '"'
-                WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
-                    THEN ',"outcome":"' + CASE
-                        WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
-                        WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
-                        WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        ELSE 'cancelled'
-                    END + '"'
-            END AS head
-        ) h
-        CROSS APPLY (
-            SELECT NULLIF(CONCAT('{', STUFF(CONCAT(h.head, ',"reason":"' + c.reason + '"'), 1, 1, ''), '}'), '{}') AS details
-        ) x
-        WHERE
-            j.event_recording_code = 20 /* EventRecordingCode.Audit */
-            OR (
-                j.event_recording_code = 10 /* EventRecordingCode.Failures */
-                AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (c.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
-                )
-            )
-            OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
-                AND d.execution_number > 1
-                AND c.final_job_status_code IS NULL
-            );
-
-        IF @p_plain = 0
-            BEGIN
-            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its
-               handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
-            IF @shapes = 1
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    entity_code, entity_id,
-                    definition_id, tenant_id, lineage_root_job_id,
-                    worker_id, execution_number,
-                    event_message, details_format_id, details
-                )
-                SELECT
-                    k.event_code, @now, j.namespace_id,
-                    50 /* EntityCode.Job */, d.job_id,
-                    j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-                    @p_leased_by_worker_id, d.execution_number,
-                    c.event_message,
-                    CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                    CAST(x.details AS VARBINARY(MAX))
-                FROM @done d
-                INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                CROSS APPLY (
-                    VALUES
-                    (
-                        1,
-                        -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
-                        CASE c.final_job_status_code
-                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                        END
-                    ),
-                    (
-                        2,
-                        -- A wait whose signal had already arrived landed Ready and re-armed nothing.
-                        CASE
-                            WHEN c.reschedule_event_code IS NOT NULL AND NOT (c.wait_signal_name IS NOT NULL AND d.job_status_code = 10 /* JobStatusCode.Ready */)
-                                THEN c.reschedule_event_code
-                        END
-                    ),
-                    (
-                        3,
-                        CASE
-                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                        END
-                    )
-                ) k (ord, event_code)
-                CROSS APPLY (
-                    SELECT NULLIF(
-                        CONCAT(
-                            '{',
-                            STUFF(
-                                CONCAT(
-                                    CASE
-                                        WHEN k.event_code = 60 /* EventCode.JobSuspended */
-                                            THEN CASE d.job_status_code
-                                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                                            END
-                                    END,
-                                    ',"reason":"' + c.reason + '"'
-                                ),
-                                1, 1, ''
-                            ),
-                            '}'
-                        ),
-                        '{}'
-                    ) AS details
-                ) x
-                WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
-                ORDER BY d.job_id, k.ord;
-
-            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent that waits on it: only a
-            -- latch that was Pending releases, so another child landing costs the parent no execution.
-            IF @children = 1
-                BEGIN
-                    CREATE TABLE #parents (
-                        parent_job_id BIGINT NOT NULL,
-                        child_job_id BIGINT NOT NULL,
-                        latch_name VARCHAR(128) NOT NULL,
-                        envelope VARBINARY(MAX) NOT NULL,
-                        reason VARCHAR(64) NULL,
-                        event_message NVARCHAR(512) NULL,
-                        latch_state TINYINT NULL,
-                        parent_status TINYINT NULL,
-                        parent_execution BIGINT NULL,
-                        -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
-                        PRIMARY KEY (parent_job_id, latch_name)
-                    );
-
-                    INSERT INTO #parents (parent_job_id, child_job_id, latch_name, envelope, reason, event_message)
-                    SELECT
-                        d.parent_job_id,
-                        d.job_id,
-                        'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
-                        -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
-                        CAST(
-                            CAST(
-                                (
-                                    N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
-                                    + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                    + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20))
-                                    -- A failed landing carries its message, so the parent's outcome can say why.
-                                    + CASE
-                                        WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ AND c.event_message IS NOT NULL
-                                            THEN N',"failureMessage":"' + STRING_ESCAPE(c.event_message, 'json') + N'"'
-                                        ELSE N''
-                                    END
-                                    + N'}'
-                                ) COLLATE latin1_general_100_bin2_utf8
-                                AS VARCHAR(MAX)
-                            ) AS VARBINARY(MAX)
-                        ),
-                        c.reason,
-                        c.event_message
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    WHERE
-                        d.parent_job_id IS NOT NULL
-                        AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
-
-                    UPDATE p
-                    SET latch_state = s.checkpoint_status_code
-                    FROM #parents p
-                    LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    UPDATE p
-                    SET parent_status = pr.job_status_code, parent_execution = pr.execution_number
-                    FROM #parents p
-                    INNER JOIN acta.jobs_state pr WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pr.job_id = p.parent_job_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    /* No revival: an Expired latch already timed the parent's wait out under this same checkpoint lock, so a later
-                       child writes no latch and wakes no one, though the audit event records it. A finished parent takes
-                       the latch too, for a restart to read, and is not woken; a parent that is gone has no status. */
-                    UPDATE s
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = 1 /* JobPayloadFormat.Json */,
-                        value = p.envelope,
-                        modified_at_utc = @now,
-                        version = s.version + 1
-                    FROM #parents p
-                    INNER JOIN acta.checkpoints s WITH (FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
-
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    SELECT
-                        p.parent_job_id, 50 /* CheckpointKindCode.ChildLatch */, p.latch_name,
-                        20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
-                        @now, @now, 0
-                    FROM #parents p
-                    WHERE p.latch_state IS NULL AND p.parent_status IS NOT NULL
-                    OPTION (LOOP JOIN);
-
-                    -- The child's reason and message ride the parent's event, the message capped because it can already sit at the column width.
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, details_format_id, details
-                    )
-                    SELECT
-                        80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, p.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
-                        p.parent_execution,
-                        CASE
-                            WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
-                                THEN LEFT(
-                                    COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
-                                    512
-                                )
-                            ELSE p.event_message
-                        END,
-                        CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                        CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
-                    FROM #parents p
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
-                    ORDER BY p.parent_job_id, p.child_job_id;
-
-                    UPDATE pr
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = @now,
-                        modified_at_utc = @now,
-                        version = pr.version + 1
-                    FROM (
-                        SELECT DISTINCT parent_job_id
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs_state pr WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON pr.job_id = w.parent_job_id
-                    WHERE pr.job_status_code = 20 /* JobStatusCode.Suspended */;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        details_format_id, details
-                    )
-                    SELECT
-                        72 /* EventCode.JobResumed */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, w.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
-                        w.parent_execution,
-                        1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS VARBINARY(MAX))
-                    FROM (
-                        SELECT DISTINCT parent_job_id, parent_execution
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = w.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
-
-                    UPDATE d
-                    SET parent_released = 1
-                    FROM @done d
-                    INNER JOIN #parents p ON p.child_job_id = d.job_id
-                    WHERE
-                        p.parent_status = 20 /* JobStatusCode.Suspended */
-                        AND p.latch_state = 10 /* CheckpointStatusCode.Pending */;
-                END
-
-            /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
-               unfinished member becomes Ready at its own due instant or now when it is Blocked, and any other head keeps
-               the lane. The lane lock taken above makes the read and the write one step. */
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #promoted (lane_id BIGINT NOT NULL PRIMARY KEY);
-
-                    UPDATE m
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = CASE WHEN m.next_run_at_utc > @now THEN m.next_run_at_utc ELSE @now END,
-                        modified_at_utc = @now,
-                        version = m.version + 1
-                    OUTPUT INSERTED.lane_id INTO #promoted (lane_id)
-                    FROM (
-                        SELECT DISTINCT d.lane_id
-                        FROM @done d
-                        WHERE
-                            d.lane_id IS NOT NULL
-                            AND d.job_status_code IN (
-                                30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */,
-                                220 /* JobStatusCode.Cancelled */
-                            )
-                    ) settled
-                    CROSS APPLY (
-                        SELECT TOP (1) h.job_id, h.job_status_code
-                        FROM acta.jobs_state h WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                        WHERE
-                            h.lane_id = settled.lane_id
-                            AND h.lane_id IS NOT NULL
-                            AND h.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY h.job_id
-                    ) head
-                    INNER JOIN acta.jobs_state m WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON m.job_id = head.job_id
-                    WHERE head.job_status_code = 15 /* JobStatusCode.Blocked */ AND m.job_status_code = 15 /* JobStatusCode.Blocked */;
-
-                    UPDATE d
-                    SET lane_promoted = 1
-                    FROM @done d
-                    INNER JOIN #promoted p ON p.lane_id = d.lane_id;
-                END
-            END
-
-        SELECT
-            c.job_id,
-            c.execution_number,
-            CASE
-                WHEN d.job_id IS NOT NULL THEN 1 /* CompleteExecutionsAction.Completed */
-                WHEN
-                    r.job_status_code IS NULL
-                    OR r.job_status_code IN (
-                        100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
-                    )
-                    THEN 3 /* CompleteExecutionsAction.AlreadyTerminal */
-                WHEN r.leased_by_worker_id IS NULL OR r.leased_by_worker_id <> @p_leased_by_worker_id
-                    THEN 2 /* CompleteExecutionsAction.NotOwner */
-                ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
-            END AS action,
-            r.job_status_code AS final_job_status_code,
-            r.next_run_at_utc AS final_next_run_at_utc,
-            @now AS db_now,
-            CAST(COALESCE(d.parent_released, 0) AS TINYINT) AS parent_released,
-            CAST(COALESCE(d.lane_promoted, 0) AS TINYINT) AS lane_promoted
-        FROM @p_batch c
-        LEFT JOIN @done d ON d.job_id = c.job_id AND d.execution_number = c.execution_number
-        LEFT JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115085724_carry_child_failure_message')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115085724_carry_child_failure_message');
-GO
--- ===== END M20261115085724_carry_child_failure_message =====
-GO
--- ===== BEGIN M20261115090220_answer_the_checked_dedup_job =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115090220_answer_the_checked_dedup_job')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115090220_answer_the_checked_dedup_job');
-GO
--- ===== END M20261115090220_answer_the_checked_dedup_job =====
-GO
--- ===== BEGIN M20261115092119_rename_the_enqueue_staging_table =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115092119_rename_the_enqueue_staging_table')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115092119_rename_the_enqueue_staging_table');
-GO
--- ===== END M20261115092119_rename_the_enqueue_staging_table =====
-GO
--- ===== BEGIN M20261115101053_decode_the_signal_cleared_event =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-CREATE OR ALTER VIEW acta.events_view AS
-SELECT
-    e.event_id,
-    e.created_at_utc,
-    ns.namespace_name,
-    e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
-    e.entity_code,
-    e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    e.definition_id,
-    d.definition_name,
-    e.tenant_id,
-    t.tenant_name,
-    e.lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.event_message,
-    e.actor,
-    CASE e.details_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE CONCAT('custom-', e.details_format_id)
-    END AS details_format,
-    CASE
-        WHEN
-            e.details_format_id = 1 /* JobPayloadFormat.Json */
-            THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS details_text
-FROM acta.events AS e
-JOIN acta.namespaces AS ns ON ns.namespace_id = e.namespace_id
-LEFT JOIN acta.definitions AS d ON d.definition_id = e.definition_id
-LEFT JOIN acta.tenants AS t
-    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
-LEFT JOIN acta.jobs AS root ON root.job_id = e.lineage_root_job_id
-LEFT JOIN acta.workers AS wkr ON wkr.worker_id = e.worker_id
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115101053_decode_the_signal_cleared_event')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115101053_decode_the_signal_cleared_event');
-GO
--- ===== END M20261115101053_decode_the_signal_cleared_event =====
-GO
--- ===== BEGIN M20261115113558_name_a_landed_child =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-CREATE OR ALTER PROCEDURE acta.complete_executions
-    @p_leased_by_worker_id INT,
-    @p_batch acta.complete_executions READONLY,
-    @p_plain BIT = 0
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @locked INT, @lanes BIT = 0, @children BIT = 0, @waits BIT = 0, @shapes BIT = 0, @recurring BIT = 0;
-        DECLARE @rows TABLE (
-            job_id BIGINT NOT NULL,
-            execution_number BIGINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            schedule_id INT NULL,
-            sig_state TINYINT NULL,
-            sig_due DATETIME2(3) NULL,
-            PRIMARY KEY (job_id, execution_number)
-        );
-        DECLARE @done TABLE (
-            job_id BIGINT NOT NULL PRIMARY KEY,
-            execution_number BIGINT NOT NULL,
-            job_status_code TINYINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            parent_released BIT NOT NULL DEFAULT 0,
-            lane_promoted BIT NOT NULL DEFAULT 0,
-            prior_failure_count INT NOT NULL
-        );
-
-        /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           reads no lane or parent and skips them all. Locks: a fire's schedule lock, lanes, checkpoint locks and rows, own jobs_state
-           rows, schedules, parent latches and rows, in key order (docs/sql-internals.md, "Lane lock order"); lane and parent ids never change. */
-        -- Every join from the batch into jobs or jobs_state seeks (same policy, "Locking reads seek").
-        IF @p_plain = 1
-            INSERT INTO @rows (job_id, execution_number)
-            SELECT c.job_id, c.execution_number
-            FROM @p_batch c;
-        ELSE
-            INSERT INTO @rows (job_id, execution_number, lane_id, parent_job_id, schedule_id)
-            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_job_id, j.schedule_id
-            FROM @p_batch c
-            INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-            INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = c.job_id;
-
-        IF @p_plain = 0
-            BEGIN
-            SELECT
-                @lanes = MAX(CASE WHEN lane_id IS NOT NULL THEN 1 ELSE 0 END),
-                @children = MAX(CASE WHEN parent_job_id IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @rows;
-
-            SELECT
-                @waits = MAX(CASE WHEN wait_signal_name IS NOT NULL THEN 1 ELSE 0 END),
-                @shapes = MAX(
-                    CASE
-                        WHEN reschedule_event_code IS NOT NULL OR handler_job_status_code IS NOT NULL OR final_job_status_code IS NOT NULL THEN 1
-                        ELSE 0
-                    END
-                ),
-                @recurring = MAX(CASE WHEN final_job_status_code IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @p_batch;
-            IF EXISTS (SELECT 1 FROM @rows WHERE schedule_id IS NOT NULL)
-                SET @recurring = 1;
-
-            -- Each fired slot's or charged root's namespace schedule lock, shared, before any other lock (same policy,
-            -- "Schedule lock").
-            IF @recurring = 1
-                BEGIN
-                    DECLARE @schedule_ns INT = (
-                        SELECT MIN(r.namespace_id)
-                        FROM @p_batch c
-                        INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                        WHERE c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL
-                    );
-                    DECLARE @schedule_lock NVARCHAR(255), @schedule_lock_result INT;
-                    WHILE @schedule_ns IS NOT NULL
-                        BEGIN
-                            SET @schedule_lock = N'acta.schedules.' + CAST(@schedule_ns AS NVARCHAR(12));
-                            EXEC @schedule_lock_result = sp_getapplock @schedule_lock, 'Shared', 'Transaction', -1;
-                            IF @schedule_lock_result < 0
-                                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @schedule_ns = (
-                                SELECT MIN(r.namespace_id)
-                                FROM @p_batch c
-                                INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                                INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                                WHERE (c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL) AND r.namespace_id > @schedule_ns
-                            );
-                        END;
-                END
-
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #lanes (lane_id BIGINT NOT NULL PRIMARY KEY);
-                    INSERT INTO #lanes (lane_id)
-                    SELECT DISTINCT lane_id FROM @rows WHERE lane_id IS NOT NULL;
-
-                    SELECT @locked = COUNT(*)
-                    FROM #lanes x
-                    INNER JOIN acta.lanes l WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON l.lane_id = x.lane_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-                END
-
-            /* Each checkpoint this batch may read or write takes its own lock, as wait_job_signal and raise_job_signal name it, in
-               name order and before any checkpoint or jobs_state row (docs/sql-internals.md, "Step, checkpoint and rate locks"):
-               each awaited checkpoint under both wait kinds, and each parent's latch for a child here, terminal or not. */
-            IF @waits = 1 OR @children = 1
-                BEGIN
-                    DECLARE @checkpoint_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                    INSERT INTO @checkpoint_locks (name)
-                    SELECT CONCAT(N'acta.checkpoint:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
-                    FROM @p_batch c
-                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
-                    WHERE c.wait_signal_name IS NOT NULL
-                    UNION
-                    SELECT CONCAT(N'acta.checkpoint:', x.parent_job_id, N':50:sys.child.', x.job_id)
-                    FROM @rows x
-                    WHERE x.parent_job_id IS NOT NULL;
-                    DECLARE @checkpoint_lock NVARCHAR(255) = (SELECT MIN(name) FROM @checkpoint_locks), @checkpoint_lock_result INT;
-                    WHILE @checkpoint_lock IS NOT NULL
-                        BEGIN
-                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                            EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-                            IF @checkpoint_lock_result < 0
-                                THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @checkpoint_lock = (SELECT MIN(name) FROM @checkpoint_locks WHERE name > @checkpoint_lock);
-                        END;
-                END
-
-            -- The awaited checkpoint is the only place a wait's deadline lives; its lock lets a raise that won the race land the
-            -- job Ready. A wait with no checkpoint has nothing to wait on and lands Ready too, so a raise that creates the
-            -- missing checkpoint, which waits for this landing, has no job left to wake.
-            IF @waits = 1
-                UPDATE x
-                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
-                FROM @rows x
-                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                    ON
-                        s.job_id = x.job_id
-                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-                        AND s.checkpoint_name = c.wait_signal_name
-                OPTION (FORCE ORDER, LOOP JOIN);
-            END
-
-        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires stays Executing and
-           leased here and takes its status, and a fire its result (ck_jobs_state_result_idle), with its next run below: it enters
-           ix_jobs_state_claim_ready once, and a consumed timer never meets ck_jobs_state_ready_due. A terminal landing clears its next run here. */
-        UPDATE r
-        SET
-            job_status_code = CASE WHEN s.shaped = 1 THEN r.job_status_code ELSE s.to_status END,
-            next_run_at_utc = CASE
-                WHEN s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
-                ELSE r.next_run_at_utc
-            END,
-            failure_count = COALESCE(c.failure_count, r.failure_count),
-            leased_by_worker_id = CASE WHEN s.shaped = 1 THEN r.leased_by_worker_id END,
-            lease_expires_at_utc = CASE WHEN s.shaped = 1 THEN r.lease_expires_at_utc END,
-            retention_until_utc = CASE
-                WHEN
-                    s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    AND c.retention_seconds IS NOT NULL
-                    THEN DATEADD(SECOND, c.retention_seconds, @now)
-                ELSE r.retention_until_utc
-            END,
-            result_format_id = CASE WHEN s.shaped = 1 THEN r.result_format_id ELSE c.result_format_id END,
-            result = CASE WHEN s.shaped = 1 THEN r.result ELSE c.result END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT
-            INSERTED.job_id, INSERTED.execution_number, s.to_status, x.lane_id, x.parent_job_id, DELETED.failure_count
-        INTO @done (job_id, execution_number, job_status_code, lane_id, parent_job_id, prior_failure_count)
-        FROM @rows x
-        INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = x.job_id
-        INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
-                WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
-                WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
-                WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
-                WHEN c.final_job_status_code IS NOT NULL THEN c.final_job_status_code
-                WHEN c.succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
-                ELSE 200 /* JobStatusCode.Failed */
-            END AS to_status,
-            CASE
-                WHEN c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL OR c.final_job_status_code IS NOT NULL THEN 1
-                ELSE 0
-            END AS shaped
-        ) s
-        WHERE
-            r.execution_number = x.execution_number
-            AND r.job_status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id = @p_leased_by_worker_id
-        OPTION (FORCE ORDER);
-
-        -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
-        IF @shapes = 1
-            UPDATE r
-            SET
-                job_status_code = d.job_status_code,
-                leased_by_worker_id = NULL,
-                lease_expires_at_utc = NULL,
-                next_run_at_utc = CASE
-                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
-                    WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
-                    WHEN c.reschedule_event_code IS NOT NULL
-                        THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                    -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
-                    WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN @now
-                    ELSE NULL
-                END
-            FROM @done d
-            INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
-            INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-            INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-            WHERE (c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL) AND c.final_job_status_code IS NULL;
-
-        IF @p_plain = 0
-            BEGIN
-            IF @recurring = 1
-                BEGIN
-                    /* A slot's final landing: the status the finalizer said, the lease goes, the next run is what it said (none
-                       for Idle), and a success keeps its result. */
-                    UPDATE r
-                    SET
-                        job_status_code = d.job_status_code,
-                        next_run_at_utc = c.job_next_run_at_utc,
-                        leased_by_worker_id = NULL,
-                        lease_expires_at_utc = NULL,
-                        result_format_id = c.result_format_id,
-                        result = c.result
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-                    WHERE c.final_job_status_code IS NOT NULL;
-
-                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing, so every member schedule
-                       parked on the slot evaluates again; completion never moves a cursor. */
-                    UPDATE st
-                    SET
-                        next_evaluation_at_utc = @now,
-                        evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id AND js.job_id IS NOT NULL
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
-                        AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
-
-                    DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
-
-                    /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
-                       when the root lands terminal. */
-                    UPDATE cp
-                    SET
-                        checkpoint_status_code = CASE
-                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
-                            ELSE 110 /* CheckpointStatusCode.Succeeded */
-                        END,
-                        modified_at_utc = @now,
-                        version = cp.version + 1
-                    OUTPUT INSERTED.job_id, j.schedule_id INTO @settled (job_id, schedule_id)
-                    FROM acta.checkpoints cp WITH (FORCESEEK)
-                    INNER JOIN @done d ON d.job_id = cp.job_id
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-                        AND cp.checkpoint_name = 'sys.firing'
-                        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                        AND (
-                            (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                            OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                        );
-
-                    /* A charged root releases its schedule's capacity for the envelope it settled above, and wakes the
-                       schedule when it waited for that capacity. */
-                    UPDATE st
-                    SET
-                        outstanding_count = st.outstanding_count - s.settled,
-                        next_evaluation_at_utc = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
-                            ELSE st.next_evaluation_at_utc
-                        END,
-                        evaluation_status_code = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
-                            ELSE st.evaluation_status_code
-                        END,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN (
-                        SELECT x.schedule_id, COUNT(*) AS settled
-                        FROM @settled x
-                        WHERE x.schedule_id IS NOT NULL
-                        GROUP BY x.schedule_id
-                    ) s ON s.schedule_id = st.schedule_id;
-
-                    /* The firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle; a charged
-                       root landed Failed) pauses every active schedule of the definition, with the reason as the pause message,
-                       until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
-                    DECLARE @policy_paused TABLE (
-                        schedule_id INT NOT NULL PRIMARY KEY,
-                        schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
-                        job_id BIGINT NOT NULL
-                    );
-
-                    UPDATE js
-                    SET
-                        schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
-                        paused_until_utc = NULL,
-                        pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
-                        modified_at_utc = @now,
-                        version = js.version + 1
-                    OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, f.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-                    FROM acta.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
-                    INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
-                    INNER JOIN (
-                        SELECT j.job_id, j.definition_id, j.job_kind_code, j.schedule_id, d.job_status_code, c.succeeded
-                        FROM @done d
-                        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    ) f ON f.definition_id = jd.definition_id
-                    WHERE
-                        js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
-                        AND (
-                            (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
-                            OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
-                        )
-                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
-                        AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
-
-                    UPDATE st
-                    SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id, entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
-                    SELECT
-                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 50 /* EntityCode.Job */, p.job_id,
-                        j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
-                        1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
-                    FROM @policy_paused p
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
-                    INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id;
-                END
-            END
-
-        /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
-           success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
-           fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            entity_code, entity_id,
-            definition_id, tenant_id, lineage_root_job_id,
-            worker_id, execution_number, duration_ms,
-            event_message, details_format_id, details
-        )
-        SELECT
-            c.event_code, @now, j.namespace_id,
-            50 /* EntityCode.Job */, d.job_id,
-            j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-            @p_leased_by_worker_id, d.execution_number, c.duration_ms,
-            c.event_message,
-            CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-            CAST(x.details AS VARBINARY(MAX))
-        FROM @done d
-        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-        INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.event_code = 41 /* EventCode.JobExecutionFailed */
-                    THEN ',"to":"' + CASE d.job_status_code
-                        WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
-                        WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
-                        WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
-                    END + '"'
-                WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
-                    THEN ',"outcome":"' + CASE
-                        WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
-                        WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
-                        WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        ELSE 'cancelled'
-                    END + '"'
-            END AS head
-        ) h
-        CROSS APPLY (
-            SELECT NULLIF(CONCAT('{', STUFF(CONCAT(h.head, ',"reason":"' + c.reason + '"'), 1, 1, ''), '}'), '{}') AS details
-        ) x
-        WHERE
-            j.event_recording_code = 20 /* EventRecordingCode.Audit */
-            OR (
-                j.event_recording_code = 10 /* EventRecordingCode.Failures */
-                AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (c.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
-                )
-            )
-            OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
-                AND d.execution_number > 1
-                AND c.final_job_status_code IS NULL
-            );
-
-        IF @p_plain = 0
-            BEGIN
-            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its
-               handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
-            IF @shapes = 1
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    entity_code, entity_id,
-                    definition_id, tenant_id, lineage_root_job_id,
-                    worker_id, execution_number,
-                    event_message, details_format_id, details
-                )
-                SELECT
-                    k.event_code, @now, j.namespace_id,
-                    50 /* EntityCode.Job */, d.job_id,
-                    j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-                    @p_leased_by_worker_id, d.execution_number,
-                    c.event_message,
-                    CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                    CAST(x.details AS VARBINARY(MAX))
-                FROM @done d
-                INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                CROSS APPLY (
-                    VALUES
-                    (
-                        1,
-                        -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
-                        CASE c.final_job_status_code
-                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                        END
-                    ),
-                    (
-                        2,
-                        -- A wait whose signal had already arrived landed Ready and re-armed nothing.
-                        CASE
-                            WHEN c.reschedule_event_code IS NOT NULL AND NOT (c.wait_signal_name IS NOT NULL AND d.job_status_code = 10 /* JobStatusCode.Ready */)
-                                THEN c.reschedule_event_code
-                        END
-                    ),
-                    (
-                        3,
-                        CASE
-                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                        END
-                    )
-                ) k (ord, event_code)
-                CROSS APPLY (
-                    SELECT NULLIF(
-                        CONCAT(
-                            '{',
-                            STUFF(
-                                CONCAT(
-                                    CASE
-                                        WHEN k.event_code = 60 /* EventCode.JobSuspended */
-                                            THEN CASE d.job_status_code
-                                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                                            END
-                                    END,
-                                    ',"reason":"' + c.reason + '"'
-                                ),
-                                1, 1, ''
-                            ),
-                            '}'
-                        ),
-                        '{}'
-                    ) AS details
-                ) x
-                WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
-                ORDER BY d.job_id, k.ord;
-
-            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent that waits on it: only a
-            -- latch that was Pending releases, so another child landing costs the parent no execution.
-            IF @children = 1
-                BEGIN
-                    CREATE TABLE #parents (
-                        parent_job_id BIGINT NOT NULL,
-                        child_job_id BIGINT NOT NULL,
-                        latch_name VARCHAR(128) NOT NULL,
-                        envelope VARBINARY(MAX) NOT NULL,
-                        reason VARCHAR(64) NULL,
-                        event_message NVARCHAR(512) NULL,
-                        latch_state TINYINT NULL,
-                        parent_status TINYINT NULL,
-                        parent_execution BIGINT NULL,
-                        -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
-                        PRIMARY KEY (parent_job_id, latch_name)
-                    );
-
-                    INSERT INTO #parents (parent_job_id, child_job_id, latch_name, envelope, reason, event_message)
-                    SELECT
-                        d.parent_job_id,
-                        d.job_id,
-                        'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
-                        -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
-                        CAST(
-                            CAST(
-                                (
-                                    N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
-                                    + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                    + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20))
-                                    -- A failed landing carries its message, so the parent's outcome can say why.
-                                    + CASE
-                                        WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ AND c.event_message IS NOT NULL
-                                            THEN N',"failureMessage":"' + STRING_ESCAPE(c.event_message, 'json') + N'"'
-                                        ELSE N''
-                                    END
-                                    + N'}'
-                                ) COLLATE latin1_general_100_bin2_utf8
-                                AS VARCHAR(MAX)
-                            ) AS VARBINARY(MAX)
-                        ),
-                        c.reason,
-                        -- The landing names the child as its parent named it, how it ended, and the child's own message.
-                        LEFT(
-                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
-                            + CASE d.job_status_code
-                                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
-                                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
-                                ELSE N'cancelled'
-                            END + COALESCE(N': ' + c.event_message, N'.'),
-                            512
-                        )
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        d.parent_job_id IS NOT NULL
-                        AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
-
-                    UPDATE p
-                    SET latch_state = s.checkpoint_status_code
-                    FROM #parents p
-                    LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    UPDATE p
-                    SET parent_status = pr.job_status_code, parent_execution = pr.execution_number
-                    FROM #parents p
-                    INNER JOIN acta.jobs_state pr WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pr.job_id = p.parent_job_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    /* No revival: an Expired latch already timed the parent's wait out under this same checkpoint lock, so a later
-                       child writes no latch and wakes no one, though the audit event records it. A finished parent takes
-                       the latch too, for a restart to read, and is not woken; a parent that is gone has no status. */
-                    UPDATE s
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = 1 /* JobPayloadFormat.Json */,
-                        value = p.envelope,
-                        modified_at_utc = @now,
-                        version = s.version + 1
-                    FROM #parents p
-                    INNER JOIN acta.checkpoints s WITH (FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
-
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    SELECT
-                        p.parent_job_id, 50 /* CheckpointKindCode.ChildLatch */, p.latch_name,
-                        20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
-                        @now, @now, 0
-                    FROM #parents p
-                    WHERE p.latch_state IS NULL AND p.parent_status IS NOT NULL
-                    OPTION (LOOP JOIN);
-
-                    -- The child's reason and message ride the parent's event, the message capped because it can already sit at the column width.
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, details_format_id, details
-                    )
-                    SELECT
-                        80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, p.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
-                        p.parent_execution,
-                        CASE
-                            WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
-                                THEN LEFT(
-                                    COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
-                                    512
-                                )
-                            ELSE p.event_message
-                        END,
-                        CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                        CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
-                    FROM #parents p
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
-                    ORDER BY p.parent_job_id, p.child_job_id;
-
-                    UPDATE pr
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = @now,
-                        modified_at_utc = @now,
-                        version = pr.version + 1
-                    FROM (
-                        SELECT DISTINCT parent_job_id
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs_state pr WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON pr.job_id = w.parent_job_id
-                    WHERE pr.job_status_code = 20 /* JobStatusCode.Suspended */;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        details_format_id, details
-                    )
-                    SELECT
-                        72 /* EventCode.JobResumed */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, w.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
-                        w.parent_execution,
-                        1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS VARBINARY(MAX))
-                    FROM (
-                        SELECT DISTINCT parent_job_id, parent_execution
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = w.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
-
-                    UPDATE d
-                    SET parent_released = 1
-                    FROM @done d
-                    INNER JOIN #parents p ON p.child_job_id = d.job_id
-                    WHERE
-                        p.parent_status = 20 /* JobStatusCode.Suspended */
-                        AND p.latch_state = 10 /* CheckpointStatusCode.Pending */;
-                END
-
-            /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
-               unfinished member becomes Ready at its own due instant or now when it is Blocked, and any other head keeps
-               the lane. The lane lock taken above makes the read and the write one step. */
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #promoted (lane_id BIGINT NOT NULL PRIMARY KEY);
-
-                    UPDATE m
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = CASE WHEN m.next_run_at_utc > @now THEN m.next_run_at_utc ELSE @now END,
-                        modified_at_utc = @now,
-                        version = m.version + 1
-                    OUTPUT INSERTED.lane_id INTO #promoted (lane_id)
-                    FROM (
-                        SELECT DISTINCT d.lane_id
-                        FROM @done d
-                        WHERE
-                            d.lane_id IS NOT NULL
-                            AND d.job_status_code IN (
-                                30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */,
-                                220 /* JobStatusCode.Cancelled */
-                            )
-                    ) settled
-                    CROSS APPLY (
-                        SELECT TOP (1) h.job_id, h.job_status_code
-                        FROM acta.jobs_state h WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                        WHERE
-                            h.lane_id = settled.lane_id
-                            AND h.lane_id IS NOT NULL
-                            AND h.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY h.job_id
-                    ) head
-                    INNER JOIN acta.jobs_state m WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON m.job_id = head.job_id
-                    WHERE head.job_status_code = 15 /* JobStatusCode.Blocked */ AND m.job_status_code = 15 /* JobStatusCode.Blocked */;
-
-                    UPDATE d
-                    SET lane_promoted = 1
-                    FROM @done d
-                    INNER JOIN #promoted p ON p.lane_id = d.lane_id;
-                END
-            END
-
-        SELECT
-            c.job_id,
-            c.execution_number,
-            CASE
-                WHEN d.job_id IS NOT NULL THEN 1 /* CompleteExecutionsAction.Completed */
-                WHEN
-                    r.job_status_code IS NULL
-                    OR r.job_status_code IN (
-                        100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
-                    )
-                    THEN 3 /* CompleteExecutionsAction.AlreadyTerminal */
-                WHEN r.leased_by_worker_id IS NULL OR r.leased_by_worker_id <> @p_leased_by_worker_id
-                    THEN 2 /* CompleteExecutionsAction.NotOwner */
-                ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
-            END AS action,
-            r.job_status_code AS final_job_status_code,
-            r.next_run_at_utc AS final_next_run_at_utc,
-            @now AS db_now,
-            CAST(COALESCE(d.parent_released, 0) AS TINYINT) AS parent_released,
-            CAST(COALESCE(d.lane_promoted, 0) AS TINYINT) AS lane_promoted
-        FROM @p_batch c
-        LEFT JOIN @done d ON d.job_id = c.job_id AND d.execution_number = c.execution_number
-        LEFT JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE acta.raise_job_signal
-    @p_job_id BIGINT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_event_message NVARCHAR(512),
-    @p_actor NVARCHAR(128),
-    @p_details_format_id TINYINT,
-    @p_details VARBINARY(MAX),
-    @p_child_job_id BIGINT,
-    @p_child_status TINYINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @existing TINYINT;
-        DECLARE @fmt TINYINT;
-        DECLARE @val VARBINARY(MAX);
-        DECLARE @expired BIT = 0;
-        DECLARE @message NVARCHAR(512);
-        DECLARE @landing NVARCHAR(512);
-        DECLARE
-            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
-
-        -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        SELECT @existing = checkpoint_status_code, @fmt = value_format_id, @val = value
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        SELECT
-            @from_status = r.job_status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_job_id = j.lineage_root_job_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @event_recording = j.event_recording_code
-        FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.job_id = r.job_id
-        WHERE r.job_id = @p_job_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status;
-                GOTO Finish;
-            END;
-
-        -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
-        -- It still takes a child's latch, which a restart of it reads, and is not woken.
-        IF
-            @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            BEGIN
-
-                SELECT
-                    CAST(
-                        CASE
-                            WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
-                                AND @fmt = @p_value_format_id
-                                AND (
-                                    (@val IS NULL AND @p_value IS NULL)
-                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
-                                )
-                                THEN 6 /* ControlAction.AlreadyInState */
-                            ELSE 3 /* ControlAction.Rejected */
-                        END AS TINYINT
-                    ) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
-        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
-        IF @p_child_job_id IS NOT NULL AND EXISTS (
-            SELECT 1 FROM acta.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
-            BEGIN
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- First raise wins: a signal never changes once raised, so a repeat writes nothing, already in state with the
-        -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
-        -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
-        IF
-            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
-            BEGIN
-                SELECT
-                    CAST(
-                        CASE
-                            WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
-                                AND @fmt = @p_value_format_id
-                                AND (
-                                    (@val IS NULL AND @p_value IS NULL)
-                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
-                                )
-                                THEN 6 /* ControlAction.AlreadyInState */
-                            ELSE 3 /* ControlAction.Rejected */
-                        END AS TINYINT
-                    ) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
-           value and releases no job. The landing still happened, so it is still recorded: the event below
-           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
-        -- A child's landing names the child as its parent named it, and how it ended.
-        SET @landing = COALESCE(@p_event_message, (
-            SELECT
-                N'Child ' + COALESCE(N'''' + c.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CONVERT(NVARCHAR(20), c.job_id)) + N' '
-                + CASE @p_child_status
-                    WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
-                    WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
-                    ELSE N'cancelled'
-                END + N'.'
-            FROM acta.jobs c
-            WHERE c.job_id = @p_child_job_id
-        ));
-        SET @message = CASE
-            WHEN @expired = 1
-                THEN LEFT(COALESCE(@landing + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @landing
-        END;
-
-        IF @expired = 0
-            BEGIN
-                IF @existing IS NULL
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    VALUES (
-                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
-                        @p_value_format_id, @p_value, @now, @now, 0
-                    );
-                ELSE
-                    UPDATE acta.checkpoints
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = @p_value_format_id,
-                        value = @p_value,
-                        modified_at_utc = @now,
-                        version = version + 1
-                    WHERE
-                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-            END
-
-        IF @event_recording = 20 /* EventRecordingCode.Audit */
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
-                event_message, actor, details_format_id, details
-            )
-            VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
-                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                @execution_number,
-                @message, @p_actor, @p_details_format_id, @p_details
-            );
-
-        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
-            BEGIN
-                UPDATE acta.jobs_state
-                SET
-                    job_status_code = 10 /* JobStatusCode.Ready */,
-                    next_run_at_utc = @now,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id;
-
-                IF @event_recording = 20 /* EventRecordingCode.Audit */
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, actor, details_format_id, details
-                    )
-                    VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        50 /* EntityCode.Job */, @p_job_id,
-                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                        @execution_number,
-                        @landing, @p_actor, @p_details_format_id, @p_details
-                    );
-
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
-                GOTO Finish;
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115113558_name_a_landed_child')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115113558_name_a_landed_child');
-GO
--- ===== END M20261115113558_name_a_landed_child =====
-GO
--- ===== BEGIN M20261115114815_keep_a_child_landing_whole =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-CREATE OR ALTER PROCEDURE acta.complete_executions
-    @p_leased_by_worker_id INT,
-    @p_batch acta.complete_executions READONLY,
-    @p_plain BIT = 0
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @locked INT, @lanes BIT = 0, @children BIT = 0, @waits BIT = 0, @shapes BIT = 0, @recurring BIT = 0;
-        DECLARE @rows TABLE (
-            job_id BIGINT NOT NULL,
-            execution_number BIGINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            schedule_id INT NULL,
-            sig_state TINYINT NULL,
-            sig_due DATETIME2(3) NULL,
-            PRIMARY KEY (job_id, execution_number)
-        );
-        DECLARE @done TABLE (
-            job_id BIGINT NOT NULL PRIMARY KEY,
-            execution_number BIGINT NOT NULL,
-            job_status_code TINYINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            parent_released BIT NOT NULL DEFAULT 0,
-            lane_promoted BIT NOT NULL DEFAULT 0,
-            prior_failure_count INT NOT NULL
-        );
-
-        /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           reads no lane or parent and skips them all. Locks: a fire's schedule lock, lanes, checkpoint locks and rows, own jobs_state
-           rows, schedules, parent latches and rows, in key order (docs/sql-internals.md, "Lane lock order"); lane and parent ids never change. */
-        -- Every join from the batch into jobs or jobs_state seeks (same policy, "Locking reads seek").
-        IF @p_plain = 1
-            INSERT INTO @rows (job_id, execution_number)
-            SELECT c.job_id, c.execution_number
-            FROM @p_batch c;
-        ELSE
-            INSERT INTO @rows (job_id, execution_number, lane_id, parent_job_id, schedule_id)
-            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_job_id, j.schedule_id
-            FROM @p_batch c
-            INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-            INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = c.job_id;
-
-        IF @p_plain = 0
-            BEGIN
-            SELECT
-                @lanes = MAX(CASE WHEN lane_id IS NOT NULL THEN 1 ELSE 0 END),
-                @children = MAX(CASE WHEN parent_job_id IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @rows;
-
-            SELECT
-                @waits = MAX(CASE WHEN wait_signal_name IS NOT NULL THEN 1 ELSE 0 END),
-                @shapes = MAX(
-                    CASE
-                        WHEN reschedule_event_code IS NOT NULL OR handler_job_status_code IS NOT NULL OR final_job_status_code IS NOT NULL THEN 1
-                        ELSE 0
-                    END
-                ),
-                @recurring = MAX(CASE WHEN final_job_status_code IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @p_batch;
-            IF EXISTS (SELECT 1 FROM @rows WHERE schedule_id IS NOT NULL)
-                SET @recurring = 1;
-
-            -- Each fired slot's or charged root's namespace schedule lock, shared, before any other lock (same policy,
-            -- "Schedule lock").
-            IF @recurring = 1
-                BEGIN
-                    DECLARE @schedule_ns INT = (
-                        SELECT MIN(r.namespace_id)
-                        FROM @p_batch c
-                        INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                        WHERE c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL
-                    );
-                    DECLARE @schedule_lock NVARCHAR(255), @schedule_lock_result INT;
-                    WHILE @schedule_ns IS NOT NULL
-                        BEGIN
-                            SET @schedule_lock = N'acta.schedules.' + CAST(@schedule_ns AS NVARCHAR(12));
-                            EXEC @schedule_lock_result = sp_getapplock @schedule_lock, 'Shared', 'Transaction', -1;
-                            IF @schedule_lock_result < 0
-                                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @schedule_ns = (
-                                SELECT MIN(r.namespace_id)
-                                FROM @p_batch c
-                                INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                                INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                                WHERE (c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL) AND r.namespace_id > @schedule_ns
-                            );
-                        END;
-                END
-
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #lanes (lane_id BIGINT NOT NULL PRIMARY KEY);
-                    INSERT INTO #lanes (lane_id)
-                    SELECT DISTINCT lane_id FROM @rows WHERE lane_id IS NOT NULL;
-
-                    SELECT @locked = COUNT(*)
-                    FROM #lanes x
-                    INNER JOIN acta.lanes l WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON l.lane_id = x.lane_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-                END
-
-            /* Each checkpoint this batch may read or write takes its own lock, as wait_job_signal and raise_job_signal name it, in
-               name order and before any checkpoint or jobs_state row (docs/sql-internals.md, "Step, checkpoint and rate locks"):
-               each awaited checkpoint under both wait kinds, and each parent's latch for a child here, terminal or not. */
-            IF @waits = 1 OR @children = 1
-                BEGIN
-                    DECLARE @checkpoint_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                    INSERT INTO @checkpoint_locks (name)
-                    SELECT CONCAT(N'acta.checkpoint:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
-                    FROM @p_batch c
-                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
-                    WHERE c.wait_signal_name IS NOT NULL
-                    UNION
-                    SELECT CONCAT(N'acta.checkpoint:', x.parent_job_id, N':50:sys.child.', x.job_id)
-                    FROM @rows x
-                    WHERE x.parent_job_id IS NOT NULL;
-                    DECLARE @checkpoint_lock NVARCHAR(255) = (SELECT MIN(name) FROM @checkpoint_locks), @checkpoint_lock_result INT;
-                    WHILE @checkpoint_lock IS NOT NULL
-                        BEGIN
-                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                            EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-                            IF @checkpoint_lock_result < 0
-                                THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @checkpoint_lock = (SELECT MIN(name) FROM @checkpoint_locks WHERE name > @checkpoint_lock);
-                        END;
-                END
-
-            -- The awaited checkpoint is the only place a wait's deadline lives; its lock lets a raise that won the race land the
-            -- job Ready. A wait with no checkpoint has nothing to wait on and lands Ready too, so a raise that creates the
-            -- missing checkpoint, which waits for this landing, has no job left to wake.
-            IF @waits = 1
-                UPDATE x
-                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
-                FROM @rows x
-                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                    ON
-                        s.job_id = x.job_id
-                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-                        AND s.checkpoint_name = c.wait_signal_name
-                OPTION (FORCE ORDER, LOOP JOIN);
-            END
-
-        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires stays Executing and
-           leased here and takes its status, and a fire its result (ck_jobs_state_result_idle), with its next run below: it enters
-           ix_jobs_state_claim_ready once, and a consumed timer never meets ck_jobs_state_ready_due. A terminal landing clears its next run here. */
-        UPDATE r
-        SET
-            job_status_code = CASE WHEN s.shaped = 1 THEN r.job_status_code ELSE s.to_status END,
-            next_run_at_utc = CASE
-                WHEN s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
-                ELSE r.next_run_at_utc
-            END,
-            failure_count = COALESCE(c.failure_count, r.failure_count),
-            leased_by_worker_id = CASE WHEN s.shaped = 1 THEN r.leased_by_worker_id END,
-            lease_expires_at_utc = CASE WHEN s.shaped = 1 THEN r.lease_expires_at_utc END,
-            retention_until_utc = CASE
-                WHEN
-                    s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    AND c.retention_seconds IS NOT NULL
-                    THEN DATEADD(SECOND, c.retention_seconds, @now)
-                ELSE r.retention_until_utc
-            END,
-            result_format_id = CASE WHEN s.shaped = 1 THEN r.result_format_id ELSE c.result_format_id END,
-            result = CASE WHEN s.shaped = 1 THEN r.result ELSE c.result END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT
-            INSERTED.job_id, INSERTED.execution_number, s.to_status, x.lane_id, x.parent_job_id, DELETED.failure_count
-        INTO @done (job_id, execution_number, job_status_code, lane_id, parent_job_id, prior_failure_count)
-        FROM @rows x
-        INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = x.job_id
-        INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
-                WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
-                WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
-                WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
-                WHEN c.final_job_status_code IS NOT NULL THEN c.final_job_status_code
-                WHEN c.succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
-                ELSE 200 /* JobStatusCode.Failed */
-            END AS to_status,
-            CASE
-                WHEN c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL OR c.final_job_status_code IS NOT NULL THEN 1
-                ELSE 0
-            END AS shaped
-        ) s
-        WHERE
-            r.execution_number = x.execution_number
-            AND r.job_status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id = @p_leased_by_worker_id
-        OPTION (FORCE ORDER);
-
-        -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
-        IF @shapes = 1
-            UPDATE r
-            SET
-                job_status_code = d.job_status_code,
-                leased_by_worker_id = NULL,
-                lease_expires_at_utc = NULL,
-                next_run_at_utc = CASE
-                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
-                    WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
-                    WHEN c.reschedule_event_code IS NOT NULL
-                        THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                    -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
-                    WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN @now
-                    ELSE NULL
-                END
-            FROM @done d
-            INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
-            INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-            INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-            WHERE (c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL) AND c.final_job_status_code IS NULL;
-
-        IF @p_plain = 0
-            BEGIN
-            IF @recurring = 1
-                BEGIN
-                    /* A slot's final landing: the status the finalizer said, the lease goes, the next run is what it said (none
-                       for Idle), and a success keeps its result. */
-                    UPDATE r
-                    SET
-                        job_status_code = d.job_status_code,
-                        next_run_at_utc = c.job_next_run_at_utc,
-                        leased_by_worker_id = NULL,
-                        lease_expires_at_utc = NULL,
-                        result_format_id = c.result_format_id,
-                        result = c.result
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-                    WHERE c.final_job_status_code IS NOT NULL;
-
-                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing, so every member schedule
-                       parked on the slot evaluates again; completion never moves a cursor. */
-                    UPDATE st
-                    SET
-                        next_evaluation_at_utc = @now,
-                        evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id AND js.job_id IS NOT NULL
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
-                        AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
-
-                    DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
-
-                    /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
-                       when the root lands terminal. */
-                    UPDATE cp
-                    SET
-                        checkpoint_status_code = CASE
-                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
-                            ELSE 110 /* CheckpointStatusCode.Succeeded */
-                        END,
-                        modified_at_utc = @now,
-                        version = cp.version + 1
-                    OUTPUT INSERTED.job_id, j.schedule_id INTO @settled (job_id, schedule_id)
-                    FROM acta.checkpoints cp WITH (FORCESEEK)
-                    INNER JOIN @done d ON d.job_id = cp.job_id
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-                        AND cp.checkpoint_name = 'sys.firing'
-                        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                        AND (
-                            (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                            OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                        );
-
-                    /* A charged root releases its schedule's capacity for the envelope it settled above, and wakes the
-                       schedule when it waited for that capacity. */
-                    UPDATE st
-                    SET
-                        outstanding_count = st.outstanding_count - s.settled,
-                        next_evaluation_at_utc = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
-                            ELSE st.next_evaluation_at_utc
-                        END,
-                        evaluation_status_code = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
-                            ELSE st.evaluation_status_code
-                        END,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN (
-                        SELECT x.schedule_id, COUNT(*) AS settled
-                        FROM @settled x
-                        WHERE x.schedule_id IS NOT NULL
-                        GROUP BY x.schedule_id
-                    ) s ON s.schedule_id = st.schedule_id;
-
-                    /* The firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle; a charged
-                       root landed Failed) pauses every active schedule of the definition, with the reason as the pause message,
-                       until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
-                    DECLARE @policy_paused TABLE (
-                        schedule_id INT NOT NULL PRIMARY KEY,
-                        schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
-                        job_id BIGINT NOT NULL
-                    );
-
-                    UPDATE js
-                    SET
-                        schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
-                        paused_until_utc = NULL,
-                        pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
-                        modified_at_utc = @now,
-                        version = js.version + 1
-                    OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, f.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-                    FROM acta.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
-                    INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
-                    INNER JOIN (
-                        SELECT j.job_id, j.definition_id, j.job_kind_code, j.schedule_id, d.job_status_code, c.succeeded
-                        FROM @done d
-                        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    ) f ON f.definition_id = jd.definition_id
-                    WHERE
-                        js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
-                        AND (
-                            (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
-                            OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
-                        )
-                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
-                        AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
-
-                    UPDATE st
-                    SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id, entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
-                    SELECT
-                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 50 /* EntityCode.Job */, p.job_id,
-                        j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
-                        1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
-                    FROM @policy_paused p
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
-                    INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id;
-                END
-            END
-
-        /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
-           success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
-           fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            entity_code, entity_id,
-            definition_id, tenant_id, lineage_root_job_id,
-            worker_id, execution_number, duration_ms,
-            event_message, details_format_id, details
-        )
-        SELECT
-            c.event_code, @now, j.namespace_id,
-            50 /* EntityCode.Job */, d.job_id,
-            j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-            @p_leased_by_worker_id, d.execution_number, c.duration_ms,
-            c.event_message,
-            CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-            CAST(x.details AS VARBINARY(MAX))
-        FROM @done d
-        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-        INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.event_code = 41 /* EventCode.JobExecutionFailed */
-                    THEN ',"to":"' + CASE d.job_status_code
-                        WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
-                        WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
-                        WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
-                    END + '"'
-                WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
-                    THEN ',"outcome":"' + CASE
-                        WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
-                        WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
-                        WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        ELSE 'cancelled'
-                    END + '"'
-            END AS head
-        ) h
-        CROSS APPLY (
-            SELECT NULLIF(CONCAT('{', STUFF(CONCAT(h.head, ',"reason":"' + c.reason + '"'), 1, 1, ''), '}'), '{}') AS details
-        ) x
-        WHERE
-            j.event_recording_code = 20 /* EventRecordingCode.Audit */
-            OR (
-                j.event_recording_code = 10 /* EventRecordingCode.Failures */
-                AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (c.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
-                )
-            )
-            OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
-                AND d.execution_number > 1
-                AND c.final_job_status_code IS NULL
-            );
-
-        IF @p_plain = 0
-            BEGIN
-            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its
-               handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
-            IF @shapes = 1
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    entity_code, entity_id,
-                    definition_id, tenant_id, lineage_root_job_id,
-                    worker_id, execution_number,
-                    event_message, details_format_id, details
-                )
-                SELECT
-                    k.event_code, @now, j.namespace_id,
-                    50 /* EntityCode.Job */, d.job_id,
-                    j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-                    @p_leased_by_worker_id, d.execution_number,
-                    c.event_message,
-                    CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                    CAST(x.details AS VARBINARY(MAX))
-                FROM @done d
-                INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                CROSS APPLY (
-                    VALUES
-                    (
-                        1,
-                        -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
-                        CASE c.final_job_status_code
-                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                        END
-                    ),
-                    (
-                        2,
-                        -- A wait whose signal had already arrived landed Ready and re-armed nothing.
-                        CASE
-                            WHEN c.reschedule_event_code IS NOT NULL AND NOT (c.wait_signal_name IS NOT NULL AND d.job_status_code = 10 /* JobStatusCode.Ready */)
-                                THEN c.reschedule_event_code
-                        END
-                    ),
-                    (
-                        3,
-                        CASE
-                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                        END
-                    )
-                ) k (ord, event_code)
-                CROSS APPLY (
-                    SELECT NULLIF(
-                        CONCAT(
-                            '{',
-                            STUFF(
-                                CONCAT(
-                                    CASE
-                                        WHEN k.event_code = 60 /* EventCode.JobSuspended */
-                                            THEN CASE d.job_status_code
-                                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                                            END
-                                    END,
-                                    ',"reason":"' + c.reason + '"'
-                                ),
-                                1, 1, ''
-                            ),
-                            '}'
-                        ),
-                        '{}'
-                    ) AS details
-                ) x
-                WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
-                ORDER BY d.job_id, k.ord;
-
-            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent that waits on it: only a
-            -- latch that was Pending releases, so another child landing costs the parent no execution.
-            IF @children = 1
-                BEGIN
-                    CREATE TABLE #parents (
-                        parent_job_id BIGINT NOT NULL,
-                        child_job_id BIGINT NOT NULL,
-                        latch_name VARCHAR(128) NOT NULL,
-                        envelope VARBINARY(MAX) NOT NULL,
-                        reason VARCHAR(64) NULL,
-                        event_message NVARCHAR(512) NULL,
-                        latch_state TINYINT NULL,
-                        parent_status TINYINT NULL,
-                        parent_execution BIGINT NULL,
-                        -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
-                        PRIMARY KEY (parent_job_id, latch_name)
-                    );
-
-                    INSERT INTO #parents (parent_job_id, child_job_id, latch_name, envelope, reason, event_message)
-                    SELECT
-                        d.parent_job_id,
-                        d.job_id,
-                        'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
-                        -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
-                        CAST(
-                            CAST(
-                                (
-                                    N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
-                                    + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                    + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20))
-                                    -- A failed landing carries its message, so the parent's outcome can say why.
-                                    + CASE
-                                        WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ AND c.event_message IS NOT NULL
-                                            THEN N',"failureMessage":"' + STRING_ESCAPE(c.event_message, 'json') + N'"'
-                                        ELSE N''
-                                    END
-                                    + N'}'
-                                ) COLLATE latin1_general_100_bin2_utf8
-                                AS VARCHAR(MAX)
-                            ) AS VARBINARY(MAX)
-                        ),
-                        c.reason,
-                        -- The landing names the child as its parent named it, how it ended, and the child's own message; the cast
-                        -- caps it in UTF-16 units, which LEFT does not count under a supplementary-character collation.
-                        CAST(LEFT(
-                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
-                            + CASE d.job_status_code
-                                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
-                                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
-                                ELSE N'cancelled'
-                            END + COALESCE(N': ' + c.event_message, N'.'),
-                            512
-                        ) AS NVARCHAR(512))
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        d.parent_job_id IS NOT NULL
-                        AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
-
-                    UPDATE p
-                    SET latch_state = s.checkpoint_status_code
-                    FROM #parents p
-                    LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    UPDATE p
-                    SET parent_status = pr.job_status_code, parent_execution = pr.execution_number
-                    FROM #parents p
-                    INNER JOIN acta.jobs_state pr WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pr.job_id = p.parent_job_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    /* No revival: an Expired latch already timed the parent's wait out under this same checkpoint lock, so a later
-                       child writes no latch and wakes no one, though the audit event records it. A finished parent takes
-                       the latch too, for a restart to read, and is not woken; a parent that is gone has no status. */
-                    UPDATE s
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = 1 /* JobPayloadFormat.Json */,
-                        value = p.envelope,
-                        modified_at_utc = @now,
-                        version = s.version + 1
-                    FROM #parents p
-                    INNER JOIN acta.checkpoints s WITH (FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
-
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    SELECT
-                        p.parent_job_id, 50 /* CheckpointKindCode.ChildLatch */, p.latch_name,
-                        20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
-                        @now, @now, 0
-                    FROM #parents p
-                    WHERE p.latch_state IS NULL AND p.parent_status IS NOT NULL
-                    OPTION (LOOP JOIN);
-
-                    -- The child's reason and message ride the parent's event, the message capped because it can already sit at the column width.
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, details_format_id, details
-                    )
-                    SELECT
-                        80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, p.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
-                        p.parent_execution,
-                        CASE
-                            WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
-                                THEN CAST(LEFT(
-                                    COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
-                                    512
-                                ) AS NVARCHAR(512))
-                            ELSE p.event_message
-                        END,
-                        CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                        CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
-                    FROM #parents p
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
-                    ORDER BY p.parent_job_id, p.child_job_id;
-
-                    UPDATE pr
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = @now,
-                        modified_at_utc = @now,
-                        version = pr.version + 1
-                    FROM (
-                        SELECT DISTINCT parent_job_id
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs_state pr WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON pr.job_id = w.parent_job_id
-                    WHERE pr.job_status_code = 20 /* JobStatusCode.Suspended */;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        details_format_id, details
-                    )
-                    SELECT
-                        72 /* EventCode.JobResumed */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, w.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
-                        w.parent_execution,
-                        1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS VARBINARY(MAX))
-                    FROM (
-                        SELECT DISTINCT parent_job_id, parent_execution
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = w.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
-
-                    UPDATE d
-                    SET parent_released = 1
-                    FROM @done d
-                    INNER JOIN #parents p ON p.child_job_id = d.job_id
-                    WHERE
-                        p.parent_status = 20 /* JobStatusCode.Suspended */
-                        AND p.latch_state = 10 /* CheckpointStatusCode.Pending */;
-                END
-
-            /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
-               unfinished member becomes Ready at its own due instant or now when it is Blocked, and any other head keeps
-               the lane. The lane lock taken above makes the read and the write one step. */
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #promoted (lane_id BIGINT NOT NULL PRIMARY KEY);
-
-                    UPDATE m
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = CASE WHEN m.next_run_at_utc > @now THEN m.next_run_at_utc ELSE @now END,
-                        modified_at_utc = @now,
-                        version = m.version + 1
-                    OUTPUT INSERTED.lane_id INTO #promoted (lane_id)
-                    FROM (
-                        SELECT DISTINCT d.lane_id
-                        FROM @done d
-                        WHERE
-                            d.lane_id IS NOT NULL
-                            AND d.job_status_code IN (
-                                30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */,
-                                220 /* JobStatusCode.Cancelled */
-                            )
-                    ) settled
-                    CROSS APPLY (
-                        SELECT TOP (1) h.job_id, h.job_status_code
-                        FROM acta.jobs_state h WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                        WHERE
-                            h.lane_id = settled.lane_id
-                            AND h.lane_id IS NOT NULL
-                            AND h.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY h.job_id
-                    ) head
-                    INNER JOIN acta.jobs_state m WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON m.job_id = head.job_id
-                    WHERE head.job_status_code = 15 /* JobStatusCode.Blocked */ AND m.job_status_code = 15 /* JobStatusCode.Blocked */;
-
-                    UPDATE d
-                    SET lane_promoted = 1
-                    FROM @done d
-                    INNER JOIN #promoted p ON p.lane_id = d.lane_id;
-                END
-            END
-
-        SELECT
-            c.job_id,
-            c.execution_number,
-            CASE
-                WHEN d.job_id IS NOT NULL THEN 1 /* CompleteExecutionsAction.Completed */
-                WHEN
-                    r.job_status_code IS NULL
-                    OR r.job_status_code IN (
-                        100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
-                    )
-                    THEN 3 /* CompleteExecutionsAction.AlreadyTerminal */
-                WHEN r.leased_by_worker_id IS NULL OR r.leased_by_worker_id <> @p_leased_by_worker_id
-                    THEN 2 /* CompleteExecutionsAction.NotOwner */
-                ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
-            END AS action,
-            r.job_status_code AS final_job_status_code,
-            r.next_run_at_utc AS final_next_run_at_utc,
-            @now AS db_now,
-            CAST(COALESCE(d.parent_released, 0) AS TINYINT) AS parent_released,
-            CAST(COALESCE(d.lane_promoted, 0) AS TINYINT) AS lane_promoted
-        FROM @p_batch c
-        LEFT JOIN @done d ON d.job_id = c.job_id AND d.execution_number = c.execution_number
-        LEFT JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE acta.raise_job_signal
-    @p_job_id BIGINT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_event_message NVARCHAR(512),
-    @p_actor NVARCHAR(128),
-    @p_details_format_id TINYINT,
-    @p_details VARBINARY(MAX),
-    @p_child_job_id BIGINT,
-    @p_child_status TINYINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @existing TINYINT;
-        DECLARE @fmt TINYINT;
-        DECLARE @val VARBINARY(MAX);
-        DECLARE @expired BIT = 0;
-        DECLARE @message NVARCHAR(512);
-        DECLARE @landing NVARCHAR(512);
-        DECLARE
-            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
-
-        -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        SELECT @existing = checkpoint_status_code, @fmt = value_format_id, @val = value
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        SELECT
-            @from_status = r.job_status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_job_id = j.lineage_root_job_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @event_recording = j.event_recording_code
-        FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.job_id = r.job_id
-        WHERE r.job_id = @p_job_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status;
-                GOTO Finish;
-            END;
-
-        -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
-        -- It still takes a child's latch, which a restart of it reads, and is not woken.
-        IF
-            @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            BEGIN
-
-                SELECT
-                    CAST(
-                        CASE
-                            WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
-                                AND @fmt = @p_value_format_id
-                                AND (
-                                    (@val IS NULL AND @p_value IS NULL)
-                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
-                                )
-                                THEN 6 /* ControlAction.AlreadyInState */
-                            ELSE 3 /* ControlAction.Rejected */
-                        END AS TINYINT
-                    ) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
-        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
-        IF @p_child_job_id IS NOT NULL AND EXISTS (
-            SELECT 1 FROM acta.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
-            BEGIN
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        -- First raise wins: a signal never changes once raised, so a repeat writes nothing, already in state with the
-        -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
-        -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
-        IF
-            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
-            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
-            BEGIN
-                SELECT
-                    CAST(
-                        CASE
-                            WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
-                                AND @fmt = @p_value_format_id
-                                AND (
-                                    (@val IS NULL AND @p_value IS NULL)
-                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
-                                )
-                                THEN 6 /* ControlAction.AlreadyInState */
-                            ELSE 3 /* ControlAction.Rejected */
-                        END AS TINYINT
-                    ) AS action,
-                    @from_status AS status;
-                GOTO Finish;
-            END;
-
-        /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
-           value and releases no job. The landing still happened, so it is still recorded: the event below
-           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
-        -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
-        SET @landing = COALESCE(
-            @p_event_message,
-            N'Child '
-            + COALESCE(
-                (SELECT N'''' + c.deduplication_key COLLATE DATABASE_DEFAULT + N'''' FROM acta.jobs c WHERE c.job_id = @p_child_job_id),
-                N'job ' + CONVERT(NVARCHAR(20), @p_child_job_id)
-            )
-            + N' '
-            + CASE @p_child_status
-                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
-                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
-                ELSE N'cancelled'
-            END + N'.'
-        );
-        SET @message = CASE
-            WHEN @expired = 1
-                THEN LEFT(COALESCE(@landing + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @landing
-        END;
-
-        IF @expired = 0
-            BEGIN
-                IF @existing IS NULL
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    VALUES (
-                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
-                        @p_value_format_id, @p_value, @now, @now, 0
-                    );
-                ELSE
-                    UPDATE acta.checkpoints
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = @p_value_format_id,
-                        value = @p_value,
-                        modified_at_utc = @now,
-                        version = version + 1
-                    WHERE
-                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-            END
-
-        IF @event_recording = 20 /* EventRecordingCode.Audit */
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
-                event_message, actor, details_format_id, details
-            )
-            VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
-                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                @execution_number,
-                @message, @p_actor, @p_details_format_id, @p_details
-            );
-
-        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
-            BEGIN
-                UPDATE acta.jobs_state
-                SET
-                    job_status_code = 10 /* JobStatusCode.Ready */,
-                    next_run_at_utc = @now,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id;
-
-                IF @event_recording = 20 /* EventRecordingCode.Audit */
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, actor, details_format_id, details
-                    )
-                    VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        50 /* EntityCode.Job */, @p_job_id,
-                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                        @execution_number,
-                        @landing, @p_actor, @p_details_format_id, @p_details
-                    );
-
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
-                GOTO Finish;
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115114815_keep_a_child_landing_whole')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115114815_keep_a_child_landing_whole');
-GO
--- ===== END M20261115114815_keep_a_child_landing_whole =====
-GO
--- ===== BEGIN M20261115115355_record_a_wait_expiry =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-/* Lock-first arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. */
-/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
-   group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
-   is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* The read below needs no re-read after a lost insert the way pg's does: the checkpoint's own lock, taken
-   first (docs/sql-internals.md, "Step, checkpoint and rate locks"), makes a concurrent first arrival wait
-   here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
-/* A wait this call armed with a length suspends once: the length is positive and the arm is the last
-   act of its branch. A checkpoint this call arms at or past an instant is armed Expired, so a child landing
-   after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
-CREATE OR ALTER PROCEDURE acta.wait_job_signal
-    @p_job_id BIGINT,
-    @p_execution_number BIGINT,
-    @p_leased_by_worker_id INT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_timeout_seconds INT = NULL,
-    @p_due_at_utc DATETIME2(3) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @state TINYINT, @fmt TINYINT = 0;
-        DECLARE @val VARBINARY(MAX) = NULL;
-        DECLARE @due DATETIME2(3) = NULL;
-        DECLARE @outcome SMALLINT;
-        DECLARE @expired_due DATETIME2(3) = NULL;
-        DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
-        DECLARE @arm_state TINYINT = CASE
-            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
-            ELSE 10 /* CheckpointStatusCode.Pending */
-        END;
-
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        -- The wait changes the checkpoint only while this attempt holds the job's row, update-locked to commit after the
-        -- checkpoint lock (docs/sql-internals.md, "Execution fence").
-        IF NOT EXISTS (
-            SELECT 1
-            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-            WHERE
-                r.job_id = @p_job_id
-                AND r.job_status_code = 50 /* JobStatusCode.Executing */
-                AND r.execution_number = @p_execution_number
-                AND r.leased_by_worker_id = @p_leased_by_worker_id
-        )
-            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_job_signal: the job is no longer executing this attempt.', 1;
-
-        SELECT
-            @state = checkpoint_status_code,
-            @fmt = value_format_id,
-            @val = value,
-            @due = due_at_utc
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        IF @state = 20 /* CheckpointStatusCode.Set */
-            BEGIN
-                SET @outcome = 2 /* WaitJobSignalOutcomeCode.ContinueSet */;
-            END
-        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
-            BEGIN
-                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
-            BEGIN
-                UPDATE acta.checkpoints
-                SET
-                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                SET @expired_due = @due;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE
-            BEGIN
-                SET @outcome = 1 /* WaitJobSignalOutcomeCode.SuspendPending */;
-                IF @state IS NULL
-                    BEGIN
-                        INSERT INTO acta.checkpoints (
-                            job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id, value,
-                            created_at_utc, modified_at_utc, version
-                        )
-                        VALUES (
-                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
-                            0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
-                        );
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            BEGIN
-                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                                SET @expired_due = @arm_due;
-                            END
-                    END
-                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
-                    BEGIN
-                        UPDATE acta.checkpoints
-                        SET
-                            checkpoint_status_code = @arm_state,
-                            due_at_utc = @arm_due,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
-                            AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                            AND due_at_utc IS NULL;
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            BEGIN
-                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                                SET @expired_due = @arm_due;
-                            END
-                    END
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-
-        -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
-        IF @expired_due IS NOT NULL
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
-                event_message, details_format_id, details
-            )
-            SELECT
-                83 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
-                50 /* EntityCode.Job */, j.job_id,
-                j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
-                @p_execution_number,
-                N'The wait for '
-                + CASE
-                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
-                        THEN N'child ' + COALESCE(
-                            N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
-                            N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
-                        )
-                    ELSE N'signal ''' + @p_checkpoint_name + N''''
-                END + N' expired.',
-                1 /* JobPayloadFormat.Json */,
-                CAST(
-                    '{"kind":"'
-                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END
-                    + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
-                    AS VARBINARY(MAX)
-                )
-            FROM acta.jobs j
-            LEFT JOIN acta.jobs ch
-                ON
-                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
-                    AND ch.parent_job_id = j.job_id
-                    AND CONCAT('sys.child.', ch.job_id) = @p_checkpoint_name
-            WHERE j.job_id = @p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
-
-        SELECT
-            @outcome AS outcome_code,
-            @fmt AS value_format_id,
-            @val AS value;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-CREATE OR ALTER VIEW acta.events_view AS
-SELECT
-    e.event_id,
-    e.created_at_utc,
-    ns.namespace_name,
-    e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
-    e.entity_code,
-    e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    e.definition_id,
-    d.definition_name,
-    e.tenant_id,
-    t.tenant_name,
-    e.lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.event_message,
-    e.actor,
-    CASE e.details_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        ELSE CONCAT('custom-', e.details_format_id)
-    END AS details_format,
-    CASE
-        WHEN
-            e.details_format_id = 1 /* JobPayloadFormat.Json */
-            THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS details_text
-FROM acta.events AS e
-JOIN acta.namespaces AS ns ON ns.namespace_id = e.namespace_id
-LEFT JOIN acta.definitions AS d ON d.definition_id = e.definition_id
-LEFT JOIN acta.tenants AS t
-    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
-LEFT JOIN acta.jobs AS root ON root.job_id = e.lineage_root_job_id
-LEFT JOIN acta.workers AS wkr ON wkr.worker_id = e.worker_id
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115115355_record_a_wait_expiry')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115115355_record_a_wait_expiry');
-GO
--- ===== END M20261115115355_record_a_wait_expiry =====
-GO
--- ===== BEGIN M20261115144330_seek_a_waited_child =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-/* Lock-first arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. */
-/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
-   group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
-   is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* The read below needs no re-read after a lost insert the way pg's does: the checkpoint's own lock, taken
-   first (docs/sql-internals.md, "Step, checkpoint and rate locks"), makes a concurrent first arrival wait
-   here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
-/* A wait this call armed with a length suspends once: the length is positive and the arm is the last
-   act of its branch. A checkpoint this call arms at or past an instant is armed Expired, so a child landing
-   after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
-CREATE OR ALTER PROCEDURE acta.wait_job_signal
-    @p_job_id BIGINT,
-    @p_execution_number BIGINT,
-    @p_leased_by_worker_id INT,
-    @p_checkpoint_kind_code TINYINT,
-    @p_checkpoint_name VARCHAR(128),
-    @p_timeout_seconds INT = NULL,
-    @p_due_at_utc DATETIME2(3) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @state TINYINT, @fmt TINYINT = 0;
-        DECLARE @val VARBINARY(MAX) = NULL;
-        DECLARE @due DATETIME2(3) = NULL;
-        DECLARE @outcome SMALLINT;
-        DECLARE @expired_due DATETIME2(3) = NULL;
-        DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
-        DECLARE @arm_state TINYINT = CASE
-            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
-            ELSE 10 /* CheckpointStatusCode.Pending */
-        END;
-
-        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @checkpoint_lock_result INT;
-        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-        IF @checkpoint_lock_result < 0
-            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-
-        -- The wait changes the checkpoint only while this attempt holds the job's row, update-locked to commit after the
-        -- checkpoint lock (docs/sql-internals.md, "Execution fence").
-        IF NOT EXISTS (
-            SELECT 1
-            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
-            WHERE
-                r.job_id = @p_job_id
-                AND r.job_status_code = 50 /* JobStatusCode.Executing */
-                AND r.execution_number = @p_execution_number
-                AND r.leased_by_worker_id = @p_leased_by_worker_id
-        )
-            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_job_signal: the job is no longer executing this attempt.', 1;
-
-        SELECT
-            @state = checkpoint_status_code,
-            @fmt = value_format_id,
-            @val = value,
-            @due = due_at_utc
-        FROM acta.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-        IF @state = 20 /* CheckpointStatusCode.Set */
-            BEGIN
-                SET @outcome = 2 /* WaitJobSignalOutcomeCode.ContinueSet */;
-            END
-        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
-            BEGIN
-                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
-            BEGIN
-                UPDATE acta.checkpoints
-                SET
-                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
-
-                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                SET @expired_due = @due;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE
-            BEGIN
-                SET @outcome = 1 /* WaitJobSignalOutcomeCode.SuspendPending */;
-                IF @state IS NULL
-                    BEGIN
-                        INSERT INTO acta.checkpoints (
-                            job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id, value,
-                            created_at_utc, modified_at_utc, version
-                        )
-                        VALUES (
-                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
-                            0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
-                        );
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            BEGIN
-                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                                SET @expired_due = @arm_due;
-                            END
-                    END
-                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
-                    BEGIN
-                        UPDATE acta.checkpoints
-                        SET
-                            checkpoint_status_code = @arm_state,
-                            due_at_utc = @arm_due,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
-                            AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                            AND due_at_utc IS NULL;
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            BEGIN
-                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
-                                SET @expired_due = @arm_due;
-                            END
-                    END
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-
-        -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
-        IF @expired_due IS NOT NULL
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                worker_id, execution_number,
-                event_message, details_format_id, details
-            )
-            SELECT
-                83 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
-                50 /* EntityCode.Job */, j.job_id,
-                j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
-                @p_leased_by_worker_id, @p_execution_number,
-                N'The wait for '
-                + CASE
-                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
-                        THEN N'child ' + COALESCE(
-                            N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
-                            N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
-                        )
-                    ELSE N'signal ''' + @p_checkpoint_name + N''''
-                END + N' expired.',
-                1 /* JobPayloadFormat.Json */,
-                CAST(
-                    '{"kind":"'
-                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END
-                    + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
-                    AS VARBINARY(MAX)
-                )
-            FROM acta.jobs j
-            LEFT JOIN acta.jobs ch
-                ON
-                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
-                    AND ch.parent_job_id = j.job_id
-                    -- A seek on the child's id, the latch name's tail, so no sibling row is read or waited on.
-                    AND ch.job_id = TRY_CAST(SUBSTRING(@p_checkpoint_name, 11, 20) AS BIGINT)
-            WHERE j.job_id = @p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
-
-        SELECT
-            @outcome AS outcome_code,
-            @fmt AS value_format_id,
-            @val AS value;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115144330_seek_a_waited_child')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115144330_seek_a_waited_child');
-GO
--- ===== END M20261115144330_seek_a_waited_child =====
-GO
--- ===== BEGIN M20261115144345_seek_a_held_job =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115144345_seek_a_held_job')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115144345_seek_a_held_job');
-GO
--- ===== END M20261115144345_seek_a_held_job =====
-GO
--- ===== BEGIN M20261115163155_admit_children_in_a_suspended_namespace =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
 
 -- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
 -- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
@@ -10866,23 +3082,13 @@ BEGIN
 END;
 GO
 
-
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115163155_admit_children_in_a_suspended_namespace')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115163155_admit_children_in_a_suspended_namespace');
-GO
--- ===== END M20261115163155_admit_children_in_a_suspended_namespace =====
-GO
--- ===== BEGIN M20261115163733_name_the_raised_signal =====
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
-
-
-CREATE OR ALTER PROCEDURE acta.complete_executions
+CREATE OR ALTER PROCEDURE acta.extend_worker_leases
     @p_leased_by_worker_id INT,
-    @p_batch acta.complete_executions READONLY,
-    @p_plain BIT = 0
+    @p_lease_ttl_seconds INT,
+    @p_draining BIT,
+    @p_executions NVARCHAR(MAX),
+    @p_locks NVARCHAR(MAX),
+    @p_recovery_interval_seconds INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -10894,750 +3100,558 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @locked INT, @lanes BIT = 0, @children BIT = 0, @waits BIT = 0, @shapes BIT = 0, @recurring BIT = 0;
-        DECLARE @rows TABLE (
-            job_id BIGINT NOT NULL,
-            execution_number BIGINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            schedule_id INT NULL,
-            sig_state TINYINT NULL,
-            sig_due DATETIME2(3) NULL,
-            PRIMARY KEY (job_id, execution_number)
-        );
-        DECLARE @done TABLE (
-            job_id BIGINT NOT NULL PRIMARY KEY,
-            execution_number BIGINT NOT NULL,
-            job_status_code TINYINT NOT NULL,
-            lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL,
-            parent_released BIT NOT NULL DEFAULT 0,
-            lane_promoted BIT NOT NULL DEFAULT 0,
-            prior_failure_count INT NOT NULL
-        );
+        DECLARE @new_expiry DATETIME2(7) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
+        DECLARE @namespace_id INT = (SELECT w.namespace_id FROM acta.workers w WHERE w.worker_id = @p_leased_by_worker_id);
 
-        /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           reads no lane or parent and skips them all. Locks: a fire's schedule lock, lanes, checkpoint locks and rows, own jobs_state
-           rows, schedules, parent latches and rows, in key order (docs/sql-internals.md, "Lane lock order"); lane and parent ids never change. */
-        -- Every join from the batch into jobs or jobs_state seeks (same policy, "Locking reads seek").
-        IF @p_plain = 1
-            INSERT INTO @rows (job_id, execution_number)
-            SELECT c.job_id, c.execution_number
-            FROM @p_batch c;
-        ELSE
-            INSERT INTO @rows (job_id, execution_number, lane_id, parent_job_id, schedule_id)
-            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_job_id, j.schedule_id
-            FROM @p_batch c
-            INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-            INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = c.job_id;
+        -- The status the heartbeat replaces comes from the update itself, so a mark-dead that landed first is seen.
+        DECLARE @replaced TABLE (worker_status_code TINYINT NOT NULL);
 
-        IF @p_plain = 0
-            BEGIN
-            SELECT
-                @lanes = MAX(CASE WHEN lane_id IS NOT NULL THEN 1 ELSE 0 END),
-                @children = MAX(CASE WHEN parent_job_id IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @rows;
-
-            SELECT
-                @waits = MAX(CASE WHEN wait_signal_name IS NOT NULL THEN 1 ELSE 0 END),
-                @shapes = MAX(
-                    CASE
-                        WHEN reschedule_event_code IS NOT NULL OR handler_job_status_code IS NOT NULL OR final_job_status_code IS NOT NULL THEN 1
-                        ELSE 0
-                    END
-                ),
-                @recurring = MAX(CASE WHEN final_job_status_code IS NOT NULL THEN 1 ELSE 0 END)
-            FROM @p_batch;
-            IF EXISTS (SELECT 1 FROM @rows WHERE schedule_id IS NOT NULL)
-                SET @recurring = 1;
-
-            -- Each fired slot's or charged root's namespace schedule lock, shared, before any other lock (same policy,
-            -- "Schedule lock").
-            IF @recurring = 1
-                BEGIN
-                    DECLARE @schedule_ns INT = (
-                        SELECT MIN(r.namespace_id)
-                        FROM @p_batch c
-                        INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                        WHERE c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL
-                    );
-                    DECLARE @schedule_lock NVARCHAR(255), @schedule_lock_result INT;
-                    WHILE @schedule_ns IS NOT NULL
-                        BEGIN
-                            SET @schedule_lock = N'acta.schedules.' + CAST(@schedule_ns AS NVARCHAR(12));
-                            EXEC @schedule_lock_result = sp_getapplock @schedule_lock, 'Shared', 'Transaction', -1;
-                            IF @schedule_lock_result < 0
-                                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @schedule_ns = (
-                                SELECT MIN(r.namespace_id)
-                                FROM @p_batch c
-                                INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
-                                INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                                WHERE (c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL) AND r.namespace_id > @schedule_ns
-                            );
-                        END;
-                END
-
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #lanes (lane_id BIGINT NOT NULL PRIMARY KEY);
-                    INSERT INTO #lanes (lane_id)
-                    SELECT DISTINCT lane_id FROM @rows WHERE lane_id IS NOT NULL;
-
-                    SELECT @locked = COUNT(*)
-                    FROM #lanes x
-                    INNER JOIN acta.lanes l WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON l.lane_id = x.lane_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-                END
-
-            /* Each checkpoint this batch may read or write takes its own lock, as wait_job_signal and raise_job_signal name it, in
-               name order and before any checkpoint or jobs_state row (docs/sql-internals.md, "Step, checkpoint and rate locks"):
-               each awaited checkpoint under both wait kinds, and each parent's latch for a child here, terminal or not. */
-            IF @waits = 1 OR @children = 1
-                BEGIN
-                    DECLARE @checkpoint_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                    INSERT INTO @checkpoint_locks (name)
-                    SELECT CONCAT(N'acta.checkpoint:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
-                    FROM @p_batch c
-                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
-                    WHERE c.wait_signal_name IS NOT NULL
-                    UNION
-                    SELECT CONCAT(N'acta.checkpoint:', x.parent_job_id, N':50:sys.child.', x.job_id)
-                    FROM @rows x
-                    WHERE x.parent_job_id IS NOT NULL;
-                    DECLARE @checkpoint_lock NVARCHAR(255) = (SELECT MIN(name) FROM @checkpoint_locks), @checkpoint_lock_result INT;
-                    WHILE @checkpoint_lock IS NOT NULL
-                        BEGIN
-                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                            EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
-                            IF @checkpoint_lock_result < 0
-                                THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @checkpoint_lock = (SELECT MIN(name) FROM @checkpoint_locks WHERE name > @checkpoint_lock);
-                        END;
-                END
-
-            -- The awaited checkpoint is the only place a wait's deadline lives; its lock lets a raise that won the race land the
-            -- job Ready. A wait with no checkpoint has nothing to wait on and lands Ready too, so a raise that creates the
-            -- missing checkpoint, which waits for this landing, has no job left to wake.
-            IF @waits = 1
-                UPDATE x
-                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
-                FROM @rows x
-                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                    ON
-                        s.job_id = x.job_id
-                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-                        AND s.checkpoint_name = c.wait_signal_name
-                OPTION (FORCE ORDER, LOOP JOIN);
-            END
-
-        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires stays Executing and
-           leased here and takes its status, and a fire its result (ck_jobs_state_result_idle), with its next run below: it enters
-           ix_jobs_state_claim_ready once, and a consumed timer never meets ck_jobs_state_ready_due. A terminal landing clears its next run here. */
-        UPDATE r
+        UPDATE acta.workers
         SET
-            job_status_code = CASE WHEN s.shaped = 1 THEN r.job_status_code ELSE s.to_status END,
-            next_run_at_utc = CASE
-                WHEN s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
-                ELSE r.next_run_at_utc
+            last_seen_at_utc = @now,
+            -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
+            -- moment it heartbeats; Stopped stays Stopped.
+            worker_status_code = CASE
+                WHEN @p_draining = 1 AND worker_status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
+                    THEN 80 /* WorkerStatusCode.Draining */
+                WHEN worker_status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
+                ELSE worker_status_code
             END,
-            failure_count = COALESCE(c.failure_count, r.failure_count),
-            leased_by_worker_id = CASE WHEN s.shaped = 1 THEN r.leased_by_worker_id END,
-            lease_expires_at_utc = CASE WHEN s.shaped = 1 THEN r.lease_expires_at_utc END,
-            retention_until_utc = CASE
-                WHEN
-                    s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    AND c.retention_seconds IS NOT NULL
-                    THEN DATEADD(SECOND, c.retention_seconds, @now)
-                ELSE r.retention_until_utc
-            END,
-            result_format_id = CASE WHEN s.shaped = 1 THEN r.result_format_id ELSE c.result_format_id END,
-            result = CASE WHEN s.shaped = 1 THEN r.result ELSE c.result END,
             modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT
-            INSERTED.job_id, INSERTED.execution_number, s.to_status, x.lane_id, x.parent_job_id, DELETED.failure_count
-        INTO @done (job_id, execution_number, job_status_code, lane_id, parent_job_id, prior_failure_count)
-        FROM @rows x
-        INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = x.job_id
-        INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
-                WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
-                WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
-                WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
-                WHEN c.final_job_status_code IS NOT NULL THEN c.final_job_status_code
-                WHEN c.succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
-                ELSE 200 /* JobStatusCode.Failed */
-            END AS to_status,
-            CASE
-                WHEN c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL OR c.final_job_status_code IS NOT NULL THEN 1
-                ELSE 0
-            END AS shaped
-        ) s
-        WHERE
-            r.execution_number = x.execution_number
-            AND r.job_status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id = @p_leased_by_worker_id
-        OPTION (FORCE ORDER);
+            version = version + 1
+        OUTPUT DELETED.worker_status_code INTO @replaced (worker_status_code)
+        WHERE worker_id = @p_leased_by_worker_id;
 
-        -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
-        IF @shapes = 1
-            UPDATE r
-            SET
-                job_status_code = d.job_status_code,
-                leased_by_worker_id = NULL,
-                lease_expires_at_utc = NULL,
-                next_run_at_utc = CASE
-                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
-                    WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
-                    WHEN c.reschedule_event_code IS NOT NULL
-                        THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                    -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
-                    WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN @now
-                    ELSE NULL
-                END
-            FROM @done d
-            INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
-            INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-            INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-            WHERE (c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL) AND c.final_job_status_code IS NULL;
-
-        IF @p_plain = 0
-            BEGIN
-            IF @recurring = 1
-                BEGIN
-                    /* A slot's final landing: the status the finalizer said, the lease goes, the next run is what it said (none
-                       for Idle), and a success keeps its result. */
-                    UPDATE r
-                    SET
-                        job_status_code = d.job_status_code,
-                        next_run_at_utc = c.job_next_run_at_utc,
-                        leased_by_worker_id = NULL,
-                        lease_expires_at_utc = NULL,
-                        result_format_id = c.result_format_id,
-                        result = c.result
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-                    WHERE c.final_job_status_code IS NOT NULL;
-
-                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing, so every member schedule
-                       parked on the slot evaluates again; completion never moves a cursor. */
-                    UPDATE st
-                    SET
-                        next_evaluation_at_utc = @now,
-                        evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id AND js.job_id IS NOT NULL
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
-                        AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
-
-                    DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
-
-                    /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
-                       when the root lands terminal. */
-                    UPDATE cp
-                    SET
-                        checkpoint_status_code = CASE
-                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
-                            ELSE 110 /* CheckpointStatusCode.Succeeded */
-                        END,
-                        modified_at_utc = @now,
-                        version = cp.version + 1
-                    OUTPUT INSERTED.job_id, j.schedule_id INTO @settled (job_id, schedule_id)
-                    FROM acta.checkpoints cp WITH (FORCESEEK)
-                    INNER JOIN @done d ON d.job_id = cp.job_id
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-                        AND cp.checkpoint_name = 'sys.firing'
-                        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                        AND (
-                            (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                            OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                        );
-
-                    /* A charged root releases its schedule's capacity for the envelope it settled above, and wakes the
-                       schedule when it waited for that capacity. */
-                    UPDATE st
-                    SET
-                        outstanding_count = st.outstanding_count - s.settled,
-                        next_evaluation_at_utc = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
-                            ELSE st.next_evaluation_at_utc
-                        END,
-                        evaluation_status_code = CASE
-                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
-                            ELSE st.evaluation_status_code
-                        END,
-                        modified_at_utc = @now,
-                        version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN (
-                        SELECT x.schedule_id, COUNT(*) AS settled
-                        FROM @settled x
-                        WHERE x.schedule_id IS NOT NULL
-                        GROUP BY x.schedule_id
-                    ) s ON s.schedule_id = st.schedule_id;
-
-                    /* The firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle; a charged
-                       root landed Failed) pauses every active schedule of the definition, with the reason as the pause message,
-                       until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
-                    DECLARE @policy_paused TABLE (
-                        schedule_id INT NOT NULL PRIMARY KEY,
-                        schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
-                        job_id BIGINT NOT NULL
-                    );
-
-                    UPDATE js
-                    SET
-                        schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
-                        paused_until_utc = NULL,
-                        pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
-                        modified_at_utc = @now,
-                        version = js.version + 1
-                    OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, f.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-                    FROM acta.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
-                    INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
-                    INNER JOIN (
-                        SELECT j.job_id, j.definition_id, j.job_kind_code, j.schedule_id, d.job_status_code, c.succeeded
-                        FROM @done d
-                        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    ) f ON f.definition_id = jd.definition_id
-                    WHERE
-                        js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
-                        AND (
-                            (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
-                            OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
-                        )
-                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
-                        AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
-
-                    UPDATE st
-                    SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
-                    FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id, entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
-                    SELECT
-                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 50 /* EntityCode.Job */, p.job_id,
-                        j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
-                        1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
-                    FROM @policy_paused p
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
-                    INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id;
-                END
-            END
-
-        /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
-           success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
-           fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            entity_code, entity_id,
-            definition_id, tenant_id, lineage_root_job_id,
-            worker_id, execution_number, duration_ms,
-            event_message, details_format_id, details
-        )
-        SELECT
-            c.event_code, @now, j.namespace_id,
-            50 /* EntityCode.Job */, d.job_id,
-            j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-            @p_leased_by_worker_id, d.execution_number, c.duration_ms,
-            c.event_message,
-            CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-            CAST(x.details AS VARBINARY(MAX))
-        FROM @done d
-        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-        INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
-        CROSS APPLY (
-            SELECT CASE
-                WHEN c.event_code = 41 /* EventCode.JobExecutionFailed */
-                    THEN ',"to":"' + CASE d.job_status_code
-                        WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
-                        WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
-                        WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
-                    END + '"'
-                WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
-                    THEN ',"outcome":"' + CASE
-                        WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
-                        WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
-                        WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
-                        ELSE 'cancelled'
-                    END + '"'
-            END AS head
-        ) h
-        CROSS APPLY (
-            SELECT NULLIF(CONCAT('{', STUFF(CONCAT(h.head, ',"reason":"' + c.reason + '"'), 1, 1, ''), '}'), '{}') AS details
-        ) x
-        WHERE
-            j.event_recording_code = 20 /* EventRecordingCode.Audit */
-            OR (
-                j.event_recording_code = 10 /* EventRecordingCode.Failures */
-                AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (c.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
-                )
-            )
-            OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
-                AND d.execution_number > 1
-                AND c.final_job_status_code IS NULL
+        -- A worker marked Dead that heartbeats is alive again, and says so as its registration did.
+        IF EXISTS (SELECT 1 FROM @replaced WHERE worker_status_code = 200 /* WorkerStatusCode.Dead */)
+            INSERT INTO acta.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
+            VALUES (
+                120 /* EventCode.WorkerStarted */, @now, @namespace_id, @p_leased_by_worker_id,
+                130 /* EntityCode.Worker */, @p_leased_by_worker_id
             );
 
-        IF @p_plain = 0
-            BEGIN
-            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its
-               handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
-            IF @shapes = 1
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    entity_code, entity_id,
-                    definition_id, tenant_id, lineage_root_job_id,
-                    worker_id, execution_number,
-                    event_message, details_format_id, details
-                )
-                SELECT
-                    k.event_code, @now, j.namespace_id,
-                    50 /* EntityCode.Job */, d.job_id,
-                    j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-                    @p_leased_by_worker_id, d.execution_number,
-                    c.event_message,
-                    CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                    CAST(x.details AS VARBINARY(MAX))
-                FROM @done d
-                INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                CROSS APPLY (
-                    VALUES
-                    (
-                        1,
-                        -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
-                        CASE c.final_job_status_code
-                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                        END
-                    ),
-                    (
-                        2,
-                        -- A wait whose signal had already arrived landed Ready and re-armed nothing.
-                        CASE
-                            WHEN c.reschedule_event_code IS NOT NULL AND NOT (c.wait_signal_name IS NOT NULL AND d.job_status_code = 10 /* JobStatusCode.Ready */)
-                                THEN c.reschedule_event_code
-                        END
-                    ),
-                    (
-                        3,
-                        CASE
-                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                        END
-                    )
-                ) k (ord, event_code)
-                CROSS APPLY (
-                    SELECT NULLIF(
-                        CONCAT(
-                            '{',
-                            STUFF(
-                                CONCAT(
-                                    CASE
-                                        WHEN k.event_code = 60 /* EventCode.JobSuspended */
-                                            THEN CASE d.job_status_code
-                                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                                            END
-                                    END,
-                                    ',"reason":"' + c.reason + '"'
-                                ),
-                                1, 1, ''
-                            ),
-                            '}'
-                        ),
-                        '{}'
-                    ) AS details
-                ) x
-                WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
-                ORDER BY d.job_id, k.ord;
+        /* The held executions and lock holds arrive as JSON array text, expanded once into keyed tables. A process
+           can hold two executions of one job, or two holds on one key, while a stale attempt unwinds. */
+        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number BIGINT NOT NULL, PRIMARY KEY (job_id, execution_number));
+        INSERT INTO @held (job_id, execution_number)
+        SELECT job_id, execution_number
+        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number BIGINT '$.execution_number');
 
-            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent that waits on it: only a
-            -- latch that was Pending releases, so another child landing costs the parent no execution.
-            IF @children = 1
-                BEGIN
-                    CREATE TABLE #parents (
-                        parent_job_id BIGINT NOT NULL,
-                        child_job_id BIGINT NOT NULL,
-                        child_ref UNIQUEIDENTIFIER NOT NULL,
-                        child_status TINYINT NOT NULL,
-                        latch_name VARCHAR(128) NOT NULL,
-                        envelope VARBINARY(MAX) NOT NULL,
-                        reason VARCHAR(64) NULL,
-                        event_message NVARCHAR(512) NULL,
-                        latch_state TINYINT NULL,
-                        parent_status TINYINT NULL,
-                        parent_execution BIGINT NULL,
-                        -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
-                        PRIMARY KEY (parent_job_id, latch_name)
-                    );
+        DECLARE @lock_held TABLE (
+            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+            hold_token UNIQUEIDENTIFIER NOT NULL,
+            PRIMARY KEY (lock_key, hold_token)
+        );
+        INSERT INTO @lock_held (lock_key, hold_token)
+        SELECT lock_key, hold_token
+        FROM OPENJSON(@p_locks) WITH (
+            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 '$.lock_key',
+            hold_token UNIQUEIDENTIFIER '$.hold_token'
+        );
 
-                    INSERT INTO #parents (parent_job_id, child_job_id, child_ref, child_status, latch_name, envelope, reason, event_message)
-                    SELECT
-                        d.parent_job_id,
-                        d.job_id,
-                        j.job_ref,
-                        d.job_status_code,
-                        'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
-                        -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
-                        CAST(
-                            CAST(
-                                (
-                                    N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
-                                    + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                    + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20))
-                                    -- A failed landing carries its message, so the parent's outcome can say why.
-                                    + CASE
-                                        WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ AND c.event_message IS NOT NULL
-                                            THEN N',"failureMessage":"' + STRING_ESCAPE(c.event_message, 'json') + N'"'
-                                        ELSE N''
-                                    END
-                                    + N'}'
-                                ) COLLATE latin1_general_100_bin2_utf8
-                                AS VARCHAR(MAX)
-                            ) AS VARBINARY(MAX)
-                        ),
-                        c.reason,
-                        -- The landing names the child as its parent named it, how it ended, and the child's own message; the cast
-                        -- caps it in UTF-16 units, which LEFT does not count under a supplementary-character collation.
-                        CAST(LEFT(
-                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
-                            + CASE d.job_status_code
-                                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
-                                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
-                                ELSE N'cancelled'
-                            END + COALESCE(N': ' + c.event_message, N'.'),
-                            512
-                        ) AS NVARCHAR(512))
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        d.parent_job_id IS NOT NULL
-                        AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+        -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A renewed hold is
+        -- answered by its token, so a process holding a stale and a current hold on one key tells them apart; a hold
+        -- whose token moved is not answered, and the attempt that relied on it stops.
+        DECLARE @lock_renewed TABLE (hold_token UNIQUEIDENTIFIER NOT NULL PRIMARY KEY);
+        UPDATE k
+        SET expires_at_utc = @new_expiry
+        OUTPUT INSERTED.hold_token INTO @lock_renewed (hold_token)
+        FROM acta.locks k WITH (FORCESEEK)
+        INNER JOIN @lock_held h ON h.lock_key = k.lock_key AND h.hold_token = k.hold_token;
 
-                    UPDATE p
-                    SET latch_state = s.checkpoint_status_code
-                    FROM #parents p
-                    LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    UPDATE p
-                    SET parent_status = pr.job_status_code, parent_execution = pr.execution_number
-                    FROM #parents p
-                    INNER JOIN acta.jobs_state pr WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pr.job_id = p.parent_job_id
-                    OPTION (FORCE ORDER, LOOP JOIN);
-
-                    /* No revival: an Expired latch already timed the parent's wait out under this same checkpoint lock, so a later
-                       child writes no latch and wakes no one, though the audit event records it. A finished parent takes
-                       the latch too, for a restart to read, and is not woken; a parent that is gone has no status. */
-                    UPDATE s
-                    SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
-                        value_format_id = 1 /* JobPayloadFormat.Json */,
-                        value = p.envelope,
-                        modified_at_utc = @now,
-                        version = s.version + 1
-                    FROM #parents p
-                    INNER JOIN acta.checkpoints s WITH (FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
-
-                    INSERT INTO acta.checkpoints (
-                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    SELECT
-                        p.parent_job_id, 50 /* CheckpointKindCode.ChildLatch */, p.latch_name,
-                        20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
-                        @now, @now, 0
-                    FROM #parents p
-                    WHERE p.latch_state IS NULL AND p.parent_status IS NOT NULL
-                    OPTION (LOOP JOIN);
-
-                    -- The child's reason and message ride the parent's event, the message capped because it can already sit at the column width.
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, details_format_id, details
-                    )
-                    SELECT
-                        80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, p.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
-                        p.parent_execution,
-                        CASE
-                            WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
-                                THEN CAST(LEFT(
-                                    COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
-                                    512
-                                ) AS NVARCHAR(512))
-                            ELSE p.event_message
-                        END,
-                        -- The details name the child by its ref and how it ended, beside the reason it ended with.
-                        1 /* JobPayloadFormat.Json */,
-                        CAST(
-                            '{' + COALESCE('"reason":"' + p.reason + '",', '')
-                            + '"child":"job_' + LOWER(REPLACE(CONVERT(CHAR(36), p.child_ref), '-', ''))
-                            + '","status":"'
-                            + CASE p.child_status
-                                WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
-                                WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
-                                ELSE 'cancelled'
-                            END
-                            + '"}'
-                            AS VARBINARY(MAX)
-                        )
-                    FROM #parents p
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
-                    ORDER BY p.parent_job_id, p.child_job_id;
-
-                    UPDATE pr
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = @now,
-                        modified_at_utc = @now,
-                        version = pr.version + 1
-                    FROM (
-                        SELECT DISTINCT parent_job_id
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs_state pr WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON pr.job_id = w.parent_job_id
-                    WHERE pr.job_status_code = 20 /* JobStatusCode.Suspended */;
-
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        details_format_id, details
-                    )
-                    SELECT
-                        72 /* EventCode.JobResumed */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, w.parent_job_id,
-                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
-                        w.parent_execution,
-                        1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS VARBINARY(MAX))
-                    FROM (
-                        SELECT DISTINCT parent_job_id, parent_execution
-                        FROM #parents
-                        WHERE
-                            parent_status = 20 /* JobStatusCode.Suspended */
-                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
-                    ) w
-                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = w.parent_job_id
-                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
-
-                    UPDATE d
-                    SET parent_released = 1
-                    FROM @done d
-                    INNER JOIN #parents p ON p.child_job_id = d.job_id
-                    WHERE
-                        p.parent_status = 20 /* JobStatusCode.Suspended */
-                        AND p.latch_state = 10 /* CheckpointStatusCode.Pending */;
-                END
-
-            /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
-               unfinished member becomes Ready at its own due instant or now when it is Blocked, and any other head keeps
-               the lane. The lane lock taken above makes the read and the write one step. */
-            IF @lanes = 1
-                BEGIN
-                    CREATE TABLE #promoted (lane_id BIGINT NOT NULL PRIMARY KEY);
-
-                    UPDATE m
-                    SET
-                        job_status_code = 10 /* JobStatusCode.Ready */,
-                        next_run_at_utc = CASE WHEN m.next_run_at_utc > @now THEN m.next_run_at_utc ELSE @now END,
-                        modified_at_utc = @now,
-                        version = m.version + 1
-                    OUTPUT INSERTED.lane_id INTO #promoted (lane_id)
-                    FROM (
-                        SELECT DISTINCT d.lane_id
-                        FROM @done d
-                        WHERE
-                            d.lane_id IS NOT NULL
-                            AND d.job_status_code IN (
-                                30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */,
-                                220 /* JobStatusCode.Cancelled */
-                            )
-                    ) settled
-                    CROSS APPLY (
-                        SELECT TOP (1) h.job_id, h.job_status_code
-                        FROM acta.jobs_state h WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
-                        WHERE
-                            h.lane_id = settled.lane_id
-                            AND h.lane_id IS NOT NULL
-                            AND h.job_status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY h.job_id
-                    ) head
-                    INNER JOIN acta.jobs_state m WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON m.job_id = head.job_id
-                    WHERE head.job_status_code = 15 /* JobStatusCode.Blocked */ AND m.job_status_code = 15 /* JobStatusCode.Blocked */;
-
-                    UPDATE d
-                    SET lane_promoted = 1
-                    FROM @done d
-                    INNER JOIN #promoted p ON p.lane_id = d.lane_id;
-                END
+        /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
+           process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
+           version bump: a lease refresh is not a claim-generation change. */
+        -- Read the held rows first so the update locks base rows only, never an index key; complete_executions locks in
+        -- the other order. A row another transaction holds is skipped and answered unrenewed, so the read never waits;
+        -- only a row read that no longer matches goes unanswered, which stops its attempt (docs/sql-internals.md).
+        DECLARE @seen TABLE (
+            job_id BIGINT NOT NULL,
+            execution_number BIGINT NOT NULL,
+            matched BIT NOT NULL,
+            PRIMARY KEY (job_id, execution_number)
+        );
+        INSERT INTO @seen (job_id, execution_number, matched)
+        SELECT
+            h.job_id,
+            h.execution_number,
+            CASE
+                WHEN r.execution_number = h.execution_number
+                    AND r.leased_by_worker_id = @p_leased_by_worker_id
+                    AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                    THEN 1
+                ELSE 0
             END
+        FROM @held h
+        INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, READCOMMITTEDLOCK, READPAST) ON r.job_id = h.job_id;
+
+        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+        -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
+        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+        UPDATE r
+        SET lease_expires_at_utc = @new_expiry
+        OUTPUT INSERTED.job_id INTO @renewed (job_id)
+        FROM acta.jobs_state r WITH (INDEX(pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
+        INNER JOIN @seen m ON m.job_id = r.job_id AND m.execution_number = r.execution_number AND m.matched = 1
+        WHERE
+            r.leased_by_worker_id = @p_leased_by_worker_id
+            AND r.job_status_code = 50 /* JobStatusCode.Executing */;
+
+        -- Takes the namespace's recovery pass when it is due, moving the next one an interval out; this worker runs it.
+        -- A namespace row another transaction holds is skipped, so the heartbeat never waits on it.
+        DECLARE @recovery_claimed BIT = 0;
+        IF @p_recovery_interval_seconds IS NOT NULL
+            BEGIN
+                UPDATE n
+                SET recovery_due_at_utc = DATEADD(SECOND, @p_recovery_interval_seconds, @now)
+                FROM acta.namespaces n WITH (ROWLOCK, READPAST)
+                WHERE n.namespace_id = @namespace_id AND (n.recovery_due_at_utc IS NULL OR n.recovery_due_at_utc <= @now);
+                SET @recovery_claimed = CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END;
+            END;
 
         SELECT
-            c.job_id,
-            c.execution_number,
-            CASE
-                WHEN d.job_id IS NOT NULL THEN 1 /* CompleteExecutionsAction.Completed */
-                WHEN
-                    r.job_status_code IS NULL
-                    OR r.job_status_code IN (
-                        100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
+            CAST(NULL AS BIGINT) AS job_id,
+            CAST(NULL AS BIGINT) AS execution_number,
+            l.hold_token,
+            CAST(1 AS BIT) AS renewed,
+            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc,
+            CAST(0 AS BIT) AS recovery_claimed
+        FROM @lock_renewed l
+        UNION ALL
+        SELECT
+            h.job_id,
+            h.execution_number,
+            CAST(NULL AS UNIQUEIDENTIFIER),
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
+            CAST(NULL AS DATETIME2(3)),
+            CAST(0 AS BIT)
+        FROM @held h
+        LEFT JOIN @seen s ON s.job_id = h.job_id AND s.execution_number = h.execution_number
+        LEFT JOIN @renewed n ON n.job_id = h.job_id
+        WHERE s.job_id IS NULL OR s.matched = 1
+        UNION ALL
+        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves. A definition
+        -- another transaction holds is skipped, which at worst delays that re-read by one beat.
+        SELECT
+            CAST(NULL AS BIGINT) AS job_id,
+            CAST(NULL AS BIGINT) AS execution_number,
+            CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token,
+            CAST(0 AS BIT) AS renewed,
+            MAX(d.modified_at_utc) AS definitions_modified_at_utc,
+            @recovery_claimed AS recovery_claimed
+        FROM acta.definitions d WITH (FORCESEEK, READCOMMITTEDLOCK, READPAST)
+        WHERE d.namespace_id = @namespace_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+/* One section, one bounded atomic batch; section numbers match RetentionSection. Alert-required events above the
+   namespace floor stay with their jobs (PurgeExpiredDataCommand). */
+CREATE OR ALTER PROCEDURE acta.purge_expired_data
+    @p_namespace_id INT,
+    @p_section INT,
+    @p_cutoff_utc DATETIME2(7),
+    @p_batch_size INT,
+    @p_before_created_utc DATETIME2(7) = NULL,
+    @p_before_job_id BIGINT = 0,
+    @p_alert_floor_utc DATETIME2(7) = NULL,
+    @p_alert_floor_event_id BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        IF @p_batch_size <= 0 OR @p_section NOT BETWEEN 1 AND 7
+            THROW 50002, 'Invalid retention section or batch size.', 1;
+
+        DECLARE @rows INT = 0;
+        DECLARE @next_created_utc DATETIME2(3) = NULL;
+        DECLARE @next_job_id BIGINT = 0;
+        DECLARE @job_del TABLE (job_id BIGINT NOT NULL, created_at_utc DATETIME2(3) NOT NULL);
+        DECLARE @event_del TABLE (worker_id INT NOT NULL, event_id BIGINT NOT NULL, PRIMARY KEY (worker_id, event_id));
+        DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
+        DECLARE @alert_del TABLE (alert_id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
+        DECLARE @alert_seen TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @alert_locked TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @worker_del TABLE (worker_id BIGINT NOT NULL);
+        DECLARE @lane_del TABLE (lane_id BIGINT NOT NULL);
+        DECLARE @floor_utc DATETIME2(7) = COALESCE(@p_alert_floor_utc, @p_cutoff_utc);
+        DECLARE @floor_id BIGINT = COALESCE(@p_alert_floor_event_id, 9223372036854775807);
+        IF @p_section = 1
+            BEGIN
+                DELETE @job_del;
+
+                /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten
+                   batches a slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers
+                   no cursor; a full batch ends the slice at its last job, so the walk moves on past what it took. */
+                DECLARE @below DATETIME2(3) = @p_before_created_utc;
+                DECLARE @below_id BIGINT = @p_before_job_id;
+                IF @below IS NULL
+                    BEGIN
+                        /* A cycle starts at the newest job old enough to have expired: none expires sooner than the
+                           shortest retention any definition of the namespace has, a retired one included. The framework's own
+                           are left out: they run only permanent jobs, and their default would hold a longer-keeping walk to it. */
+                        SELECT @below = DATEADD(SECOND, -COALESCE(MIN(d.retention_seconds_effective), 0), @p_cutoff_utc)
+                        FROM acta.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+                        WHERE d.namespace_id = @p_namespace_id AND d.definition_name NOT LIKE 'sys.%';
+                        SET @below_id = 9223372036854775807;
+                    END;
+
+                -- The walk skips a row another transaction holds; the delete below locks and re-checks its own.
+                DECLARE @slice_end DATETIME2(3), @slice_end_id BIGINT;
+                SELECT TOP (1) @slice_end = s.created_at_utc, @slice_end_id = s.job_id
+                FROM (
+                    SELECT TOP (@p_batch_size * 10) w.created_at_utc, w.job_id
+                    FROM acta.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
+                    WHERE
+                        w.namespace_id = @p_namespace_id
+                        AND w.created_at_utc <= @below
+                        AND (w.created_at_utc < @below OR w.job_id < @below_id)
+                    ORDER BY w.created_at_utc DESC, w.job_id DESC
+                ) s
+                ORDER BY s.created_at_utc, s.job_id;
+
+                /* A locking read seeks (docs/sql-internals.md, "Locking reads seek"). The walk reads the index without
+                   update locks, so a slice of live jobs holds none; a job is locked through its state row, where the
+                   status and the deadline are read, and then its own row. */
+                INSERT INTO @job_del (job_id, created_at_utc)
+                SELECT TOP (@p_batch_size) j.job_id, w.created_at_utc
+                FROM acta.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
+                INNER JOIN acta.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK) ON r.job_id = w.job_id
+                INNER JOIN acta.jobs j WITH (UPDLOCK, READPAST, FORCESEEK) ON j.job_id = r.job_id
+                WHERE
+                    w.namespace_id = @p_namespace_id
+                    AND w.created_at_utc <= @below
+                    AND (w.created_at_utc < @below OR w.job_id < @below_id)
+                    AND w.created_at_utc >= @slice_end
+                    AND (w.created_at_utc > @slice_end OR w.job_id >= @slice_end_id)
+                    AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    AND r.retention_until_utc IS NOT NULL
+                    AND r.retention_until_utc <= @p_cutoff_utc
+                    -- Lineage guard: parent_job_id carries no FK, so purging a parent whose children still
+                    -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
+                    -- delete; a fully-expired subtree drains bottom-up across iterations.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM acta.jobs c WITH (FORCESEEK (ix_jobs_parent (parent_job_id)))
+                        WHERE c.parent_job_id = j.job_id AND c.parent_job_id IS NOT NULL
                     )
-                    THEN 3 /* CompleteExecutionsAction.AlreadyTerminal */
-                WHEN r.leased_by_worker_id IS NULL OR r.leased_by_worker_id <> @p_leased_by_worker_id
-                    THEN 2 /* CompleteExecutionsAction.NotOwner */
-                ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
-            END AS action,
-            r.job_status_code AS final_job_status_code,
-            r.next_run_at_utc AS final_next_run_at_utc,
-            @now AS db_now,
-            CAST(COALESCE(d.parent_released, 0) AS TINYINT) AS parent_released,
-            CAST(COALESCE(d.lane_promoted, 0) AS TINYINT) AS lane_promoted
-        FROM @p_batch c
-        LEFT JOIN @done d ON d.job_id = c.job_id AND d.execution_number = c.execution_number
-        LEFT JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id;
+                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
+                    -- and reads its result, so purging it would run the child again. The tree drains once
+                    -- the parent is terminal.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM acta.jobs_state p WITH (FORCESEEK)
+                        WHERE p.job_id = j.parent_job_id
+                            AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    )
+                    -- A stopped recurring job stays while its definition is live: the next deploy would register
+                    -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
+                    -- it drain.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM acta.schedules s WITH (FORCESEEK (ix_schedules_job (job_id)))
+                        INNER JOIN acta.definitions d WITH (FORCESEEK) ON d.definition_id = j.definition_id
+                        WHERE
+                            s.job_id = j.job_id
+                            AND s.job_id IS NOT NULL
+                            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                    )
+                    -- A job stays while the projector still owes one of its events, since raising an alert reads the job row.
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM acta.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
+                        INNER JOIN acta.definitions d WITH (FORCESEEK) ON d.definition_id = e.definition_id
+                        WHERE
+                            e.entity_code = 50 /* EntityCode.Job */
+                            AND e.entity_id = j.job_id
+                            AND e.created_at_utc >= @floor_utc
+                            AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
+                            AND (
+                                e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                                OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                            )
+                            AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                    )
+                ORDER BY w.created_at_utc DESC, w.job_id DESC
+                OPTION (FORCE ORDER, LOOP JOIN);
+
+                IF (SELECT COUNT(*) FROM @job_del) = @p_batch_size
+                    SELECT TOP (1) @next_created_utc = d.created_at_utc, @next_job_id = d.job_id
+                    FROM @job_del d
+                    ORDER BY d.created_at_utc, d.job_id;
+                ELSE IF @slice_end IS NOT NULL
+                    SELECT @next_created_utc = @slice_end, @next_job_id = @slice_end_id;
+
+                /* A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet. The
+                   batch has given the walk its place, so a job kept here is passed. The batch's alert ids come from
+                   ix_alerts_job alone and their rows by primary key (docs/sql-internals.md, "Alert lock order"). */
+                DELETE @alert_seen;
+                INSERT INTO @alert_seen (alert_id)
+                SELECT k.alert_id
+                FROM @job_del d
+                INNER JOIN acta.alerts k WITH (FORCESEEK (ix_alerts_job (job_id))) ON k.job_id = d.job_id AND k.job_id IS NOT NULL;
+                DELETE d
+                FROM @job_del d
+                WHERE d.job_id IN (
+                    SELECT a.job_id
+                    FROM @alert_seen s
+                    INNER JOIN acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) ON a.alert_id = s.alert_id
+                    WHERE a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                );
+
+                -- Each delete below seeks its rows by job id: an unhinted plan can scan
+                -- the whole child table under update locks
+                -- (docs/sql-internals.md, "Foreign keys in set-based writes").
+                DELETE t FROM acta.tags t WITH (FORCESEEK (pk_tags (entity_code, entity_id)))
+                INNER JOIN @job_del d ON t.entity_code = 50 /* EntityCode.Job */ AND t.entity_id = d.job_id;
+
+                /* The jobs' settled alerts go with them, so no alert outlives its job: the held job rows let none join since
+                   the ids were read. Each identity row is locked before its row (docs/sql-internals.md, "Alert lock
+                   order"), and the delete rechecks the job, since a deduplicated raise moves an open alert. */
+                DELETE @alert_del;
+                INSERT INTO @alert_del (alert_id, deduplication_key)
+                SELECT a.alert_id, a.deduplication_key
+                FROM @alert_seen s
+                INNER JOIN acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) ON a.alert_id = s.alert_id
+                WHERE EXISTS (SELECT 1 FROM @job_del j WHERE j.job_id = a.job_id);
+                DECLARE @alert_identities INT = (
+                    SELECT COUNT(*)
+                    FROM @alert_del d
+                    INNER JOIN acta.alerts a WITH (UPDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+                        ON
+                            a.namespace_id = @p_namespace_id
+                            AND a.deduplication_key = d.deduplication_key
+                            AND a.alert_id = d.alert_id
+                    WHERE d.deduplication_key IS NOT NULL
+                );
+                DELETE a FROM acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) INNER JOIN @alert_del d ON d.alert_id = a.alert_id
+                WHERE EXISTS (SELECT 1 FROM @job_del j WHERE j.job_id = a.job_id);
+                DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
+                DELETE r FROM acta.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
+                DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE st FROM acta.schedules_state st WITH (FORCESEEK (pk_schedules_state (schedule_id)))
+                INNER JOIN acta.schedules s WITH (FORCESEEK (ix_schedules_job (job_id))) ON s.schedule_id = st.schedule_id
+                INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE s FROM acta.schedules s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = j.job_id;
+                SET @rows = (SELECT COUNT(*) FROM @job_del);
+
+            END;
+
+        ELSE IF @p_section = 2
+            BEGIN
+                DELETE @event_del;
+
+                -- Collected by the clustered key, so each delete is a direct seek on pk_events.
+                -- Events still owed to the alert projector stay past the cutoff; see the floor above.
+                INSERT INTO @event_del (worker_id, event_id)
+                SELECT TOP (@p_batch_size) e.worker_id, e.event_id
+                FROM acta.events e WITH (UPDLOCK, READPAST, FORCESEEK (ix_events_namespace_created (namespace_id)))
+                WHERE
+                    e.namespace_id = @p_namespace_id
+                    AND e.created_at_utc <= @p_cutoff_utc
+                    AND NOT (
+                        e.entity_code = 50 /* EntityCode.Job */
+                        AND e.created_at_utc >= @floor_utc
+                        AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
+                        AND (
+                            e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                            OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                        )
+                        AND EXISTS (
+                            SELECT 1
+                            FROM acta.definitions d
+                            WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                        )
+                    )
+                ORDER BY e.created_at_utc, e.event_id;
+                DELETE e FROM acta.events e WITH (FORCESEEK) INNER JOIN @event_del d ON d.worker_id = e.worker_id AND d.event_id = e.event_id;
+                SET @rows = (SELECT COUNT(*) FROM @event_del);
+
+            END;
+
+        ELSE IF @p_section = 3
+            BEGIN
+                DELETE @alert_del;
+                DELETE @alert_locked;
+
+                INSERT INTO @alert_del (alert_id, deduplication_key)
+                SELECT TOP (@p_batch_size) alert_id, deduplication_key
+                FROM acta.alerts WITH (READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND created_at_utc <= @p_cutoff_utc
+                    AND delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    )
+                ORDER BY created_at_utc, alert_id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/sql-internals.md, "Alert lock order").
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.deduplication_key = d.deduplication_key
+                        AND a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NOT NULL;
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NULL;
+
+                DELETE a
+                FROM acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id)))
+                INNER JOIN @alert_locked l ON l.alert_id = a.alert_id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    );
+                SET @rows = @@ROWCOUNT;
+
+            END;
+
+        ELSE IF @p_section = 4
+            BEGIN
+                DELETE @alert_del;
+                DELETE @alert_locked;
+
+                INSERT INTO @alert_del (alert_id, deduplication_key)
+                SELECT TOP (@p_batch_size) alert_id, deduplication_key
+                FROM acta.alerts WITH (READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND created_at_utc <= @p_cutoff_utc
+                    AND delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    )
+                ORDER BY created_at_utc, alert_id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/sql-internals.md, "Alert lock order").
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.deduplication_key = d.deduplication_key
+                        AND a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NOT NULL;
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NULL;
+
+                DELETE a
+                FROM acta.alerts a WITH (FORCESEEK (pk_alerts (alert_id)))
+                INNER JOIN @alert_locked l ON l.alert_id = a.alert_id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    );
+                SET @rows = @@ROWCOUNT;
+
+            END;
+
+        ELSE IF @p_section = 5
+            BEGIN
+                DELETE @worker_del;
+
+                -- Events about a terminal worker land after its last heartbeat, and each one stamps modified_at_utc, so
+                -- the row goes once both are past the window and no Executing job it leases is left for recovery.
+                INSERT INTO @worker_del (worker_id)
+                SELECT TOP (@p_batch_size) w.worker_id
+                FROM acta.workers w WITH (UPDLOCK, READPAST)
+                WHERE
+                    w.namespace_id = @p_namespace_id
+                    AND w.worker_status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                    AND w.last_seen_at_utc <= @p_cutoff_utc
+                    AND w.modified_at_utc <= @p_cutoff_utc
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM acta.jobs_state r
+                        WHERE
+                            r.leased_by_worker_id = w.worker_id
+                            -- ix_jobs_state_worker_inflight's filter restated: a filtered index serves only a query that states it.
+                            AND r.leased_by_worker_id IS NOT NULL
+                            AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY w.last_seen_at_utc, w.worker_id;
+                DELETE w FROM acta.workers w WITH (FORCESEEK) INNER JOIN @worker_del d ON d.worker_id = w.worker_id;
+                SET @rows = (SELECT COUNT(*) FROM @worker_del);
+
+            END;
+
+        ELSE IF @p_section = 6
+            BEGIN
+            -- The batch is staged without holding locks, then the delete seeks each row by clustered key, first
+            -- as every lock writer does, skipping a row a writer holds and re-checking its expiry. Taking the
+            -- expiry index key first deadlocks against reserve_rate moving a bucket's expiry.
+                DELETE @lock_del;
+                INSERT INTO @lock_del (lock_key)
+                SELECT TOP (@p_batch_size) lock_key
+                FROM acta.locks WITH (READPAST)
+                WHERE
+                    expires_at_utc <= @p_cutoff_utc
+                ORDER BY expires_at_utc;
+                DELETE t
+                FROM acta.locks t WITH (READPAST, FORCESEEK (pk_locks (lock_key)))
+                INNER JOIN @lock_del d ON d.lock_key = t.lock_key
+                WHERE t.expires_at_utc <= @p_cutoff_utc;
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        ELSE IF @p_section = 7
+            BEGIN
+            -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
+            -- holds, then re-checked under the lock (docs/sql-internals.md, "Lane lock order").
+                DELETE @lane_del;
+                INSERT INTO @lane_del (lane_id)
+                SELECT l.lane_id
+                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
+                WHERE l.lane_id IN (
+                    SELECT TOP (@p_batch_size) c.lane_id
+                    FROM acta.lanes c WITH (READCOMMITTEDLOCK, READPAST)
+                    WHERE
+                        c.namespace_id = @p_namespace_id
+                        AND NOT EXISTS (SELECT 1 FROM acta.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) WHERE r.lane_id = c.lane_id)
+                    ORDER BY c.lane_id
+                );
+                DELETE l
+                FROM acta.lanes l WITH (FORCESEEK)
+                INNER JOIN @lane_del d ON d.lane_id = l.lane_id
+                WHERE NOT EXISTS (SELECT 1 FROM acta.jobs_state r WHERE r.lane_id = l.lane_id)
+                OPTION (LOOP JOIN);
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        SELECT @rows AS deleted_count, @next_created_utc AS next_created_utc, @next_job_id AS next_job_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -11914,12 +3928,1357 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROCEDURE acta.reclaim_stuck_jobs
+    @p_namespace_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115163733_name_the_raised_signal')
-INSERT INTO acta.migrations (name)
-VALUES ('M20261115163733_name_the_raised_signal');
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        DECLARE
+            @reclaimed TABLE
+            (
+                job_id BIGINT NOT NULL PRIMARY KEY,
+                namespace_id INT NOT NULL,
+                execution_number BIGINT NOT NULL,
+                lineage_root_job_id BIGINT NULL,
+                definition_id INT NOT NULL,
+                tenant_id INT NULL,
+                worker_id INT NOT NULL,
+                to_status_code TINYINT NOT NULL,
+                event_recording_code TINYINT NOT NULL,
+                parent_job_id BIGINT NULL,
+                schedule_id INT NULL
+            );
+
+        /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
+           most 100 stranded ones in visiting order (docs/sql-internals.md, "Lane lock order").
+           Each head is sought through ix_jobs_state_lane, named because a small jobs_state table tempts a scan. */
+        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, lane_id BIGINT NOT NULL);
+        DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
+        -- The walk skips a lane or member another transaction holds: the repair re-reads each lane under its lock.
+        SET @min_lane = (SELECT MIN(l.lane_id) FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST));
+        SET @max_lane = (SELECT MAX(l.lane_id) FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST));
+        IF @max_lane IS NOT NULL
+            BEGIN
+                SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
+                INSERT INTO @window (lane_id)
+                SELECT TOP (1000) l.lane_id
+                FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST)
+                WHERE l.namespace_id = @p_namespace_id AND l.lane_id >= @start_lane
+                ORDER BY l.lane_id;
+                SET @window_count = @@ROWCOUNT;
+                INSERT INTO @window (lane_id)
+                SELECT TOP (1000 - @window_count) l.lane_id
+                FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST)
+                WHERE l.namespace_id = @p_namespace_id AND l.lane_id < @start_lane
+                ORDER BY l.lane_id;
+
+                INSERT INTO @stranded (lane_id)
+                SELECT TOP (100) w.lane_id
+                FROM @window w
+                CROSS APPLY (
+                    SELECT TOP (1) m.job_status_code
+                    FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
+                    WHERE
+                        m.lane_id = w.lane_id
+                        AND m.lane_id IS NOT NULL
+                        AND m.job_status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                        )
+                    ORDER BY m.job_id
+                ) h
+                WHERE
+                    h.job_status_code = 15 /* JobStatusCode.Blocked */
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
+                        WHERE
+                            o.lane_id = w.lane_id
+                            AND o.lane_id IS NOT NULL
+                            AND o.job_status_code IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                                50 /* JobStatusCode.Executing */
+                            )
+                    )
+                ORDER BY w.ord;
+            END;
+
+        /* Stuck candidates are read through the filtered ix_jobs_state_worker_inflight without holding locks,
+           and only those rows are locked below, by primary key: the index is shared by every namespace, so
+           holding its keys would make another namespace's sweep skip its own rows under READPAST. */
+        DECLARE @stuck TABLE (job_id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL, worker_id INT NOT NULL);
+        INSERT INTO @stuck (job_id, lane_id, worker_id)
+        SELECT r.job_id, r.lane_id, r.leased_by_worker_id
+        FROM acta.jobs_state r WITH (INDEX (ix_jobs_state_worker_inflight), READPAST)
+        WHERE
+            r.job_status_code = 50 /* JobStatusCode.Executing */
+            AND r.leased_by_worker_id IS NOT NULL
+            AND r.lease_expires_at_utc < @now
+            AND r.namespace_id = @p_namespace_id;
+
+        /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
+           whose stuck rows and repair wait for a later pass. */
+        DECLARE @candidates TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (lane_id)
+        SELECT k.lane_id
+        FROM @stuck k
+        WHERE k.lane_id IS NOT NULL
+        UNION
+        SELECT s.lane_id
+        FROM @stranded s;
+
+        DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
+        WHILE 1 = 1
+            BEGIN
+                SET @lane_next = NULL;
+                SELECT TOP (1) @lane_next = c.lane_id
+                FROM @candidates c
+                WHERE c.lane_id > @lane_cursor
+                ORDER BY c.lane_id;
+
+                IF @lane_next IS NULL
+                    BREAK;
+
+                SET @lane_locked = NULL;
+                SELECT @lane_locked = l.lane_id
+                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
+                WHERE l.lane_id = @lane_next;
+
+                IF @lane_locked IS NOT NULL
+                    INSERT INTO @lanes (lane_id) VALUES (@lane_locked);
+
+                SET @lane_cursor = @lane_next;
+            END;
+
+        /* Each worker a stuck row names is stamped at the instant of the Orphaned event below, so the purge keeps it
+           while that event lasts. Workers lock before any jobs_state row, the order the heartbeat takes them. */
+        UPDATE w
+        SET
+            modified_at_utc = @now,
+            version = w.version + 1
+        FROM acta.workers w WITH (FORCESEEK, ROWLOCK)
+        INNER JOIN (
+            SELECT DISTINCT k.worker_id
+            FROM @stuck k
+            WHERE
+                k.lane_id IS NULL
+                OR k.lane_id IN (SELECT e.lane_id FROM @lanes e)
+        ) s ON s.worker_id = w.worker_id;
+
+        /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
+           only while it is still Blocked and no member runs. */
+        UPDATE r
+        SET
+            job_status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT INSERTED.job_id INTO @repaired (job_id)
+        FROM @stranded s
+        INNER JOIN @lanes e ON e.lane_id = s.lane_id
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.job_status_code
+            FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+            WHERE
+                m.lane_id = s.lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.job_status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = s.lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.job_status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        50 /* JobStatusCode.Executing */
+                    )
+            );
+
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            entity_code,
+            entity_id,
+            definition_id,
+            tenant_id,
+            lineage_root_job_id,
+            execution_number,
+            event_message,
+            details_format_id,
+            details
+        )
+        SELECT
+            72 /* EventCode.JobResumed */,
+            @now,
+            j.namespace_id,
+            50 /* EntityCode.Job */,
+            j.job_id,
+            j.definition_id,
+            j.tenant_id,
+            COALESCE(j.lineage_root_job_id, j.job_id),
+            r.execution_number,
+            N'Lane had no live head; crash recovery released its lowest Blocked member.',
+            1 /* JobPayloadFormat.Json */,
+            CAST('{"reason":"lane-repaired"}' AS VARBINARY(MAX))
+        FROM @repaired x
+        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = x.job_id
+        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = x.job_id;
+
+        WITH stuck AS (
+            SELECT
+                r.job_id,
+                -- Saturates at 32767, the ceiling WorkerFinalizer.FailureCountCeiling names; registration caps MaxAttempts there.
+                CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
+                jd.max_attempts_effective AS max_attempts,
+                jd.retention_seconds_effective AS retention_seconds,
+                /* The job was parked on THIS checkpoint: the suspend copied its due into
+                   next_run_at_utc, so the equality names the wait this attempt woke for, and an
+                   unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM acta.checkpoints c WITH (FORCESEEK)
+                    WHERE
+                        c.job_id = r.job_id
+                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+                        AND c.due_at_utc = r.next_run_at_utc
+                ) THEN 1 ELSE 0 END AS wait_resolved,
+                -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
+                CASE WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 1 ELSE 0 END AS is_slot
+            FROM @stuck k
+            INNER JOIN acta.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
+            INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id
+            INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
+            WHERE
+                r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.leased_by_worker_id IS NOT NULL
+                AND r.lease_expires_at_utc < @now
+                AND r.namespace_id = @p_namespace_id
+                AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.lane_id FROM @lanes e))
+        )
+
+        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
+           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
+           and the replay lands whatever outcome the waiting overload chooses. */
+        UPDATE r
+        SET
+            job_status_code = CASE
+                WHEN s.wait_resolved = 1
+                    THEN 20 /* JobStatusCode.Suspended */
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot = 1 THEN 40 /* JobStatusCode.Idle */ ELSE 200 /* JobStatusCode.Failed */ END
+                ELSE 10  /* JobStatusCode.Ready */
+            END,
+            failure_count = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.failure_count
+                ELSE s.new_failure_count
+            END,
+            next_run_at_utc = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.next_run_at_utc
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN NULL
+                ELSE @now
+            END,
+            leased_by_worker_id = NULL,
+            lease_expires_at_utc = NULL,
+            retention_until_utc = CASE
+                WHEN s.wait_resolved = 0 AND s.is_slot = 0 AND s.new_failure_count >= s.max_attempts
+                    THEN DATEADD(SECOND, s.retention_seconds, @now)
+                ELSE r.retention_until_utc
+            END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT
+            INSERTED.job_id, j.namespace_id, INSERTED.execution_number,
+            j.lineage_root_job_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
+            INSERTED.job_status_code, j.event_recording_code,
+            j.parent_job_id, j.schedule_id
+        INTO
+            @reclaimed (
+                job_id, namespace_id, execution_number, lineage_root_job_id,
+                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, parent_job_id,
+                schedule_id
+            )
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
+        -- see docs/sql-internals.md.
+        FROM acta.jobs_state r WITH (FORCESEEK)
+        INNER JOIN stuck s ON s.job_id = r.job_id
+        INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id;
+
+        /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
+           wait. Every recording level records it in this transaction, so the projector meets every lease-loss
+           transition it alerts on. */
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            entity_code,
+            entity_id,
+            definition_id,
+            tenant_id,
+            lineage_root_job_id,
+            worker_id,
+            execution_number,
+            event_message,
+            details_format_id,
+            details
+        )
+        SELECT
+            CASE WHEN to_status_code = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
+            @now,
+            namespace_id,
+            50 /* EntityCode.Job */,
+            job_id,
+            definition_id,
+            tenant_id,
+            COALESCE(lineage_root_job_id, job_id),
+            worker_id,
+            execution_number,
+            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
+               what tells the two messages apart. */
+            CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
+                THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+                ELSE N'Worker lease expired; reclaimed by crash recovery.'
+            END,
+            1 /* JobPayloadFormat.Json */,
+            CAST(
+                CASE to_status_code
+                    WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
+                    WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
+                    ELSE '{"reason":"lease-expired","to":"ready"}'
+                END AS VARBINARY(MAX)
+            )
+        FROM @reclaimed;
+
+        DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
+
+        -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on
+        -- the slot, or a charged root's, which releases its schedule's capacity.
+        UPDATE cp
+        SET
+            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            modified_at_utc = @now,
+            version = cp.version + 1
+        OUTPUT INSERTED.job_id, r.schedule_id INTO @settled (job_id, schedule_id)
+        FROM acta.checkpoints cp WITH (FORCESEEK)
+        INNER JOIN @reclaimed r ON r.job_id = cp.job_id
+        WHERE
+            cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+            AND cp.checkpoint_name = 'sys.firing'
+            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+            AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL));
+
+        UPDATE st
+        SET
+            next_evaluation_at_utc = @now,
+            evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM acta.schedules_state st WITH (FORCESEEK)
+        INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
+        INNER JOIN @reclaimed r ON r.job_id = js.job_id AND js.job_id IS NOT NULL
+        WHERE
+            r.to_status_code = 40 /* JobStatusCode.Idle */
+            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
+
+        UPDATE st
+        SET
+            outstanding_count = st.outstanding_count - s.settled,
+            next_evaluation_at_utc = CASE
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
+                ELSE st.next_evaluation_at_utc
+            END,
+            evaluation_status_code = CASE
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
+                ELSE st.evaluation_status_code
+            END,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM acta.schedules_state st WITH (FORCESEEK)
+        INNER JOIN (
+            SELECT x.schedule_id, COUNT(*) AS settled
+            FROM @settled x
+            WHERE x.schedule_id IS NOT NULL
+            GROUP BY x.schedule_id
+        ) s ON s.schedule_id = st.schedule_id;
+
+        /* A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy
+           applies as it does on a completion. */
+        DECLARE @policy_paused TABLE (
+            schedule_id INT NOT NULL PRIMARY KEY,
+            schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+            job_id BIGINT NOT NULL
+        );
+
+        UPDATE js
+        SET
+            schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
+            paused_until_utc = NULL,
+            pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
+            modified_at_utc = @now,
+            version = js.version + 1
+        OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, r.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
+        FROM acta.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+        INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
+        INNER JOIN @reclaimed r ON r.definition_id = jd.definition_id
+        WHERE
+            js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+            AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
+            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+            AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
+
+        UPDATE st
+        SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
+        FROM acta.schedules_state st WITH (FORCESEEK)
+        INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
+
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, entity_code, entity_id,
+            definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
+        SELECT
+            100 /* EventCode.SchedulePaused */, @now, r.namespace_id, 50 /* EntityCode.Job */, r.job_id,
+            r.definition_id, r.tenant_id, COALESCE(r.lineage_root_job_id, r.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
+            1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
+        FROM @policy_paused p
+        INNER JOIN @reclaimed r ON r.job_id = p.job_id;
+
+        /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
+           under the lane locks and re-reads each head rather than trusting the walk. */
+        UPDATE r
+        SET
+            job_status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM @lanes e
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.job_status_code
+            FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+            WHERE
+                m.lane_id = e.lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.job_status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN acta.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = e.lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.job_status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        50 /* JobStatusCode.Executing */
+                    )
+            );
+
+        SELECT
+            job_id,
+            to_status_code AS to_status,
+            parent_job_id,
+            CAST(0 AS TINYINT) AS lane_repaired
+        FROM @reclaimed
+        UNION ALL
+        SELECT
+            job_id,
+            CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS to_status,
+            NULL AS parent_job_id,
+            CAST(1 AS TINYINT) AS lane_repaired
+        FROM @repaired;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
 GO
--- ===== END M20261115163733_name_the_raised_signal =====
+
+-- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
+-- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
+-- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
+
+-- The meter's own lock serializes the calls on one meter to commit (docs/sql-internals.md,
+-- "Step, checkpoint and rate locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
+-- next meters fall in.
+
+-- The bucket row stays locked to commit once read or inserted, so the sweep's READPAST delete skips it
+-- rather than races it, and the charge this call books is always persisted before it admits anything.
+
+-- The clock is read once the bucket row is locked, not when the call began: judged against a stale
+-- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
+-- freed, four times the contract in one second under a flood of metered claims.
+CREATE OR ALTER PROCEDURE acta.reserve_rate
+    @p_lock_key VARCHAR(256),
+    @p_job_id BIGINT,
+    @p_rate_interval_ms INT,
+    @p_rate_burst INT,
+    @p_grace_seconds INT,
+    @p_hold_token UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        -- Everything is judged at the column's precision: a 7-digit reading rounds when it is stored,
+        -- so a meter read back can sit half a millisecond ahead of an unrounded now and refuse a
+        -- burst's last job. PostgreSQL and SQLite keep one precision in both places by construction.
+        DECLARE @now DATETIME2(3);
+        DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
+        -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
+        -- interval short of a whole period, so the burst-th request lands on now and the next waits.
+        DECLARE @lookback_ms INT = (@p_rate_burst - 1) * @p_rate_interval_ms;
+        -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup
+        -- at any rate, and a slower meter keeps its whole interval, so the window is the larger.
+        DECLARE @window_ms INT = CASE WHEN @p_rate_interval_ms > 1000 THEN @p_rate_interval_ms ELSE 1000 END;
+        DECLARE @consumed TABLE (expires_at_utc DATETIME2(3));
+        DECLARE @stored DATETIME2(3);
+        DECLARE @due DATETIME2(3);
+        DECLARE @turn DATETIME2(3);
+
+        -- Held for the rest of the call, so consume, hand back and allocate all decide against one
+        -- serialized meter and no instant is ever handed to two jobs.
+        DECLARE @meter_lock NVARCHAR(255) = CONCAT(N'acta.rate:', @p_lock_key);
+        DECLARE @meter_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @meter_lock_result = sp_getapplock @meter_lock, 'Exclusive', 'Transaction', -1;
+        IF @meter_lock_result < 0
+            THROW 51205, 'ACTA:RATE_LOCK:The rate meter lock was not granted (deadlock victim or cancelled).', 1;
+
+        SELECT @stored = b.expires_at_utc
+        FROM acta.locks AS b WITH (UPDLOCK)
+        WHERE b.lock_key = @p_lock_key;
+
+        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
+        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
+        IF @@ROWCOUNT = 0
+            BEGIN
+                SET @stored = SYSUTCDATETIME();
+                INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+                VALUES (@p_lock_key, @p_job_id, @stored, @p_hold_token);
+            END;
+
+        SET @now = SYSUTCDATETIME();
+
+        -- The OUTPUT decides consumption, never a later absence: the sweep cannot slip between a read
+        -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
+        DELETE FROM acta.locks
+        OUTPUT DELETED.expires_at_utc INTO @consumed
+        WHERE
+            lock_key = @reservation
+            AND expires_at_utc <= DATEADD(SECOND, @p_grace_seconds, @now);
+
+        SELECT @due = DATEADD(SECOND, -@p_grace_seconds, c.expires_at_utc) FROM @consumed AS c;
+
+        IF @due IS NOT NULL AND @due >= DATEADD(MILLISECOND, -@window_ms, @now)
+            -- Back on time: the bucket counted this job when it allocated the turn, so charging it
+            -- again would meter one job twice.
+            SELECT @due AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
+        ELSE
+            BEGIN
+                IF @due IS NULL
+                    -- A turn still ahead of now: the job is early, not owed a new instant.
+                    SELECT @turn = DATEADD(SECOND, -@p_grace_seconds, r.expires_at_utc)
+                    FROM acta.locks AS r
+                    WHERE r.lock_key = @reservation;
+
+                IF @turn IS NOT NULL
+                    SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
+                ELSE
+                    BEGIN
+                        IF @stored < @now
+                            SET @stored = @now;
+                        SET @turn = DATEADD(MILLISECOND, -@lookback_ms, @stored);
+
+                        UPDATE acta.locks
+                        SET
+                            job_id = @p_job_id,
+                            expires_at_utc = DATEADD(MILLISECOND, @p_rate_interval_ms, @stored),
+                            hold_token = @p_hold_token
+                        WHERE lock_key = @p_lock_key;
+
+                        IF @turn <= @now
+                            SELECT @turn AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
+                        ELSE
+                            BEGIN
+                                UPDATE acta.locks
+                                SET
+                                    job_id = @p_job_id,
+                                    expires_at_utc = DATEADD(SECOND, @p_grace_seconds, @turn),
+                                    hold_token = @p_hold_token
+                                WHERE lock_key = @reservation;
+
+                                IF @@ROWCOUNT = 0
+                                    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+                                    VALUES (@reservation, @p_job_id, DATEADD(SECOND, @p_grace_seconds, @turn), @p_hold_token);
+
+                                -- Measured on this clock so the caller never subtracts a host reading from a database one.
+                                SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
+                            END;
+                    END;
+            END;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE acta.start_job_step
+    @p_job_id BIGINT,
+    @p_execution_number BIGINT,
+    @p_leased_by_worker_id INT,
+    @p_step_name VARCHAR(128),
+    @p_at_most_once BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @outcome SMALLINT;
+        DECLARE @version INT;
+        DECLARE @rfid TINYINT = 0;
+        DECLARE @result VARBINARY(MAX) = NULL;
+        DECLARE @rmsg NVARCHAR(512) = NULL;
+        DECLARE @state TINYINT;
+
+        -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
+        -- "Step, checkpoint and rate locks"); a range lock on a step not yet stored would hold the gap every running job's next step
+        -- falls in.
+        DECLARE @step_lock NVARCHAR(255) = CONCAT(N'acta.step:', @p_job_id, N':', @p_step_name);
+        DECLARE @step_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
+        IF @step_lock_result < 0
+            THROW 51205, 'ACTA:STEP_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit after the step lock
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:start_job_step: the job is no longer executing this attempt.', 1;
+
+        SELECT
+            @state = step_status_code,
+            @version = version,
+            @rfid = result_format_id,
+            @result = result,
+            @rmsg = failure_message
+        FROM acta.steps WITH (UPDLOCK)
+        WHERE job_id = @p_job_id AND step_name = @p_step_name;
+
+        IF @state IS NULL
+            BEGIN
+                INSERT INTO acta.steps (
+                    job_id, step_name, step_status_code,
+                    result_format_id, created_at_utc, modified_at_utc, version
+                )
+                VALUES (
+                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */,
+                    0 /* JobPayloadFormat.None */, @now, @now, 0
+                );
+
+                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
+                SET @version = 0;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rmsg = NULL;
+            END
+        ELSE IF @state = 100 /* StepStatusCode.Succeeded */
+            BEGIN
+                SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
+                SET @rmsg = NULL;
+            END
+        ELSE IF @state = 200 /* StepStatusCode.Failed */
+            BEGIN
+                SET @outcome = 4 /* StartJobStepOutcomeCode.Failed */;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+            END
+        ELSE IF @state = 230 /* StepStatusCode.Interrupted */
+            BEGIN
+            -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
+                SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rmsg = NULL;
+            END
+        ELSE IF @p_at_most_once = 1
+            BEGIN
+            -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
+            -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
+            -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
+                UPDATE acta.steps
+                SET
+                    step_status_code = 230 /* StepStatusCode.Interrupted */,
+                    failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND step_name = @p_step_name;
+
+                SET @version = @version + 1;
+                SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rmsg = NULL;
+            END
+        ELSE
+            BEGIN
+                -- An ordinary step with no success recorded runs again, its row unchanged.
+                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rmsg = NULL;
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @version AS version,
+            @rfid AS result_format_id,
+            @result AS result,
+            @rmsg AS failure_message;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+/* Lock-first arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
+   group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
+   is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* The read below needs no re-read after a lost insert the way pg's does: the checkpoint's own lock, taken
+   first (docs/sql-internals.md, "Step, checkpoint and rate locks"), makes a concurrent first arrival wait
+   here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
+/* A wait this call armed with a length suspends once: the length is positive and the arm is the last
+   act of its branch. A checkpoint this call arms at or past an instant is armed Expired, so a child landing
+   after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
+CREATE OR ALTER PROCEDURE acta.wait_job_signal
+    @p_job_id BIGINT,
+    @p_execution_number BIGINT,
+    @p_leased_by_worker_id INT,
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
+    @p_timeout_seconds INT = NULL,
+    @p_due_at_utc DATETIME2(3) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @state TINYINT, @fmt TINYINT = 0;
+        DECLARE @val VARBINARY(MAX) = NULL;
+        DECLARE @due DATETIME2(3) = NULL;
+        DECLARE @outcome SMALLINT;
+        DECLARE @expired_due DATETIME2(3) = NULL;
+        DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
+        DECLARE @arm_state TINYINT = CASE
+            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
+            ELSE 10 /* CheckpointStatusCode.Pending */
+        END;
+
+        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+        DECLARE @checkpoint_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
+        IF @checkpoint_lock_result < 0
+            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
+
+        -- The wait changes the checkpoint only while this attempt holds the job's row, update-locked to commit after the
+        -- checkpoint lock (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_job_signal: the job is no longer executing this attempt.', 1;
+
+        SELECT
+            @state = checkpoint_status_code,
+            @fmt = value_format_id,
+            @val = value,
+            @due = due_at_utc
+        FROM acta.checkpoints WITH (UPDLOCK)
+        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+
+        IF @state = 20 /* CheckpointStatusCode.Set */
+            BEGIN
+                SET @outcome = 2 /* WaitJobSignalOutcomeCode.ContinueSet */;
+            END
+        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
+            BEGIN
+                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+        ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
+            BEGIN
+                UPDATE acta.checkpoints
+                SET
+                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+
+                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                SET @expired_due = @due;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+        ELSE
+            BEGIN
+                SET @outcome = 1 /* WaitJobSignalOutcomeCode.SuspendPending */;
+                IF @state IS NULL
+                    BEGIN
+                        INSERT INTO acta.checkpoints (
+                            job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id, value,
+                            created_at_utc, modified_at_utc, version
+                        )
+                        VALUES (
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
+                            0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
+                        );
+                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                            BEGIN
+                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                                SET @expired_due = @arm_due;
+                            END
+                    END
+                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
+                    BEGIN
+                        UPDATE acta.checkpoints
+                        SET
+                            checkpoint_status_code = @arm_state,
+                            due_at_utc = @arm_due,
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE
+                            job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
+                            AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+                            AND due_at_utc IS NULL;
+                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                            BEGIN
+                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                                SET @expired_due = @arm_due;
+                            END
+                    END
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+
+        -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
+        IF @expired_due IS NOT NULL
+            INSERT INTO acta.events (
+                event_code, created_at_utc, namespace_id,
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                worker_id, execution_number,
+                event_message, details_format_id, details
+            )
+            SELECT
+                83 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
+                50 /* EntityCode.Job */, j.job_id,
+                j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
+                @p_leased_by_worker_id, @p_execution_number,
+                N'The wait for '
+                + CASE
+                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                        THEN N'child ' + COALESCE(
+                            N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
+                            N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
+                        )
+                    ELSE N'signal ''' + @p_checkpoint_name + N''''
+                END + N' expired.',
+                1 /* JobPayloadFormat.Json */,
+                CAST(
+                    '{"kind":"'
+                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END
+                    + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
+                    AS VARBINARY(MAX)
+                )
+            FROM acta.jobs j
+            LEFT JOIN acta.jobs ch
+                ON
+                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    AND ch.parent_job_id = j.job_id
+                    -- A seek on the child's id, the latch name's tail, so no sibling row is read or waited on.
+                    AND ch.job_id = TRY_CAST(SUBSTRING(@p_checkpoint_name, 11, 20) AS BIGINT)
+            WHERE j.job_id = @p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
+
+        SELECT
+            @outcome AS outcome_code,
+            @fmt AS value_format_id,
+            @val AS value;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER VIEW acta.alerts_view AS
+SELECT
+    a.alert_id,
+    a.alert_ref,
+    ns.namespace_name,
+    a.job_id,
+    a.job_ref,
+    j.definition_id,
+    d.definition_name,
+    CASE a.alert_severity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'info' WHEN 20 THEN 'warning' WHEN 30 THEN 'error' WHEN 40 THEN 'critical' END AS alert_severity,
+    a.alert_severity_code,
+    CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS alert_kind,
+    a.alert_kind_code,
+    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retry-after' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
+    a.delivery_status_code,
+    a.title,
+    a.alert_message,
+    a.channel_name,
+    a.deduplication_key,
+    a.occurrence_count,
+    a.resolved_at_utc,
+    a.acknowledged_at_utc,
+    a.retry_count,
+    a.retry_after_utc,
+    a.created_at_utc,
+    a.modified_at_utc,
+    a.version
+FROM acta.alerts AS a
+JOIN acta.namespaces AS ns ON ns.namespace_id = a.namespace_id
+LEFT JOIN acta.jobs AS j ON j.job_id = a.job_id
+LEFT JOIN acta.definitions AS d ON d.definition_id = j.definition_id
+GO
+
+CREATE OR ALTER VIEW acta.calendars_view AS
+SELECT
+    c.calendar_id,
+    ns.namespace_name,
+    c.calendar_name,
+    c.version,
+    CASE c.calendar_role_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'occurrence' WHEN 20 THEN 'availability' END AS calendar_role,
+    c.calendar_role_code,
+    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 30 THEN 'superseded' WHEN 240 THEN 'archived' END AS calendar_status,
+    c.calendar_status_code,
+    c.content_hash,
+    c.created_at_utc,
+    c.published_at_utc,
+    c.modified_at_utc
+FROM acta.calendars AS c
+JOIN acta.namespaces AS ns ON ns.namespace_id = c.namespace_id
+GO
+
+CREATE OR ALTER VIEW acta.checkpoints_view AS
+SELECT
+    c.job_id,
+    j.job_ref,
+    ns.namespace_name,
+    d.definition_name,
+    c.checkpoint_name,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS checkpoint_kind,
+    c.checkpoint_kind_code,
+    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
+    c.checkpoint_status_code,
+    c.due_at_utc,
+    CASE c.value_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', c.value_format_id)
+    END AS value_format,
+    CASE
+        WHEN
+            c.value_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(c.value AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS value_text,
+    c.created_at_utc,
+    c.modified_at_utc,
+    c.version
+FROM acta.checkpoints AS c
+JOIN acta.jobs AS j ON j.job_id = c.job_id
+JOIN acta.namespaces AS ns ON ns.namespace_id = j.namespace_id
+JOIN acta.definitions AS d ON d.definition_id = j.definition_id
+GO
+
+CREATE OR ALTER VIEW acta.definitions_view AS
+SELECT
+    d.definition_id,
+    ns.namespace_name,
+    d.definition_name,
+    CASE d.definition_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 240 THEN 'retired' END AS definition_status,
+    d.definition_status_code,
+    d.definition_hash,
+    d.created_deployment_version,
+    d.input_type_name,
+    d.input_format_name,
+    d.result_type_name,
+    d.result_format_name,
+    CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
+    d.job_priority_code,
+    d.job_priority_code_override,
+    d.job_priority_code_effective,
+    d.max_attempts,
+    d.max_attempts_override,
+    d.max_attempts_effective,
+    d.concurrency_limit,
+    d.concurrency_limit_override,
+    d.concurrency_limit_effective,
+    d.rate_limit,
+    d.rate_limit_override,
+    d.rate_limit_effective,
+    d.rate_name,
+    d.backoff,
+    d.backoff_override,
+    d.backoff_effective,
+    d.execution_timeout_seconds,
+    d.execution_timeout_seconds_override,
+    d.execution_timeout_seconds_effective,
+    d.deadline_seconds,
+    d.deadline_seconds_override,
+    d.deadline_seconds_effective,
+    CASE d.deadline_behavior_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'strict' WHEN 20 THEN 'advisory' END AS deadline_behavior_effective,
+    d.deadline_behavior_code,
+    d.deadline_behavior_code_override,
+    d.deadline_behavior_code_effective,
+    d.retention_seconds,
+    d.retention_seconds_override,
+    d.retention_seconds_effective,
+    CASE d.event_recording_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
+    d.event_recording_code,
+    d.event_recording_code_override,
+    d.event_recording_code_effective,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-terminal' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
+    d.alert_profile_code,
+    d.alert_profile_code_override,
+    d.alert_profile_code_effective,
+    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause-scheduling' END AS firing_failure_policy,
+    d.firing_failure_policy_code,
+    CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
+    d.scheduled_delivery_code,
+    d.alert_channel_name,
+    d.alert_channel_name_override,
+    d.alert_channel_name_effective,
+    d.runbook_url,
+    d.runbook_url_override,
+    d.runbook_url_effective,
+    d.created_at_utc,
+    d.modified_at_utc,
+    d.version
+FROM acta.definitions AS d
+JOIN acta.namespaces AS ns ON ns.namespace_id = d.namespace_id
+GO
+
+CREATE OR ALTER VIEW acta.deployments_view AS
+SELECT
+    ns.namespace_name,
+    d.deployment_version,
+    d.created_at_utc
+FROM acta.deployments AS d
+JOIN acta.namespaces AS ns ON ns.namespace_id = d.namespace_id
+GO
+
+CREATE OR ALTER VIEW acta.events_view AS
+SELECT
+    e.event_id,
+    e.created_at_utc,
+    ns.namespace_name,
+    e.namespace_id,
+    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
+    e.entity_code,
+    e.entity_id,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    e.event_code,
+    e.definition_id,
+    d.definition_name,
+    e.tenant_id,
+    t.tenant_name,
+    e.lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    e.worker_id,
+    wkr.worker_ref,
+    e.execution_number,
+    e.duration_ms,
+    e.event_message,
+    e.actor,
+    CASE e.details_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', e.details_format_id)
+    END AS details_format,
+    CASE
+        WHEN
+            e.details_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS details_text
+FROM acta.events AS e
+JOIN acta.namespaces AS ns ON ns.namespace_id = e.namespace_id
+LEFT JOIN acta.definitions AS d ON d.definition_id = e.definition_id
+LEFT JOIN acta.tenants AS t
+    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
+LEFT JOIN acta.jobs AS root ON root.job_id = e.lineage_root_job_id
+LEFT JOIN acta.workers AS wkr ON wkr.worker_id = e.worker_id
+GO
+
+CREATE OR ALTER VIEW acta.jobs_view AS
+SELECT
+    j.job_id,
+    j.job_ref,
+    ns.namespace_name,
+    d.definition_name,
+    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent' END AS job_kind,
+    j.job_kind_code,
+    CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
+    r.job_status_code,
+    j.deduplication_key,
+    j.correlation_key,
+    j.concurrency_key,
+    lane.lane_name,
+    j.parent_job_id,
+    COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
+    j.schedule_id,
+    root.job_ref AS lineage_root_job_ref,
+    j.tenant_id,
+    t.tenant_name,
+    CASE r.job_priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
+    r.job_priority_code,
+    CASE j.input_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', j.input_format_id)
+    END AS input_format,
+    CASE
+        WHEN
+            j.input_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(j.input AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS input_text,
+    CASE r.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', r.result_format_id)
+    END AS result_format,
+    CASE
+        WHEN
+            r.result_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(r.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS result_text,
+    r.next_run_at_utc,
+    r.execution_number,
+    r.failure_count,
+    r.leased_by_worker_id,
+    w.host_name AS leased_by_worker_host_name,
+    r.lease_expires_at_utc,
+    r.retention_until_utc,
+    j.created_at_utc,
+    r.modified_at_utc,
+    r.version
+FROM acta.jobs AS j
+JOIN acta.jobs_state AS r ON r.job_id = j.job_id
+JOIN acta.namespaces AS ns ON ns.namespace_id = j.namespace_id
+JOIN acta.definitions AS d ON d.definition_id = j.definition_id
+LEFT JOIN acta.jobs AS root ON root.job_id = COALESCE(j.lineage_root_job_id, j.job_id)
+LEFT JOIN acta.tenants AS t ON t.tenant_id = j.tenant_id
+LEFT JOIN acta.workers AS w ON w.worker_id = r.leased_by_worker_id
+LEFT JOIN acta.lanes AS lane ON lane.lane_id = r.lane_id
+GO
+
+CREATE OR ALTER VIEW acta.schedules_view AS
+SELECT
+    s.schedule_id,
+    ns.namespace_name,
+    s.job_id,
+    j.job_ref,
+    s.definition_id,
+    d.definition_name,
+    s.schedule_name,
+    CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS schedule_status,
+    s.schedule_status_code,
+    s.expression,
+    s.time_zone_id,
+    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' WHEN 30 THEN 'calendar' END AS expression_kind,
+    s.expression_kind_code,
+    CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' WHEN 30 THEN 'catch-up-latest' WHEN 40 THEN 'catch-up-all' END AS misfire_strategy,
+    s.misfire_strategy_code,
+    st.next_occurrence_at_utc,
+    st.next_evaluation_at_utc,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
+    st.evaluation_status_code,
+    CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
+    d.scheduled_delivery_code,
+    s.max_outstanding,
+    CASE s.full_behavior_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'wait' WHEN 20 THEN 'drop' END AS full_behavior,
+    s.full_behavior_code,
+    s.expire_after_seconds,
+    CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
+    s.expire_action_code,
+    s.availability_calendar_name,
+    s.start_at_utc,
+    s.end_before_utc,
+    st.outstanding_count,
+    s.paused_until_utc,
+    s.description,
+    s.pause_message,
+    s.created_at_utc,
+    s.modified_at_utc,
+    s.version
+FROM acta.schedules AS s
+JOIN acta.schedules_state AS st ON st.schedule_id = s.schedule_id
+JOIN acta.namespaces AS ns ON ns.namespace_id = s.namespace_id
+JOIN acta.definitions AS d ON d.definition_id = s.definition_id
+LEFT JOIN acta.jobs AS j ON j.job_id = s.job_id
+GO
+
+CREATE OR ALTER VIEW acta.steps_view AS
+SELECT
+    s.job_id,
+    j.job_ref,
+    ns.namespace_name,
+    d.definition_name,
+    s.step_name,
+    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 230 THEN 'interrupted' END AS step_status,
+    s.step_status_code,
+    s.failure_message,
+    CASE s.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', s.result_format_id)
+    END AS result_format,
+    CASE
+        WHEN
+            s.result_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(s.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS result_text,
+    s.created_at_utc,
+    s.modified_at_utc,
+    s.version
+FROM acta.steps AS s
+JOIN acta.jobs AS j ON j.job_id = s.job_id
+JOIN acta.namespaces AS ns ON ns.namespace_id = j.namespace_id
+JOIN acta.definitions AS d ON d.definition_id = j.definition_id
+GO
+
+CREATE OR ALTER VIEW acta.tags_view AS
+SELECT
+    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
+    t.entity_code,
+    t.entity_id,
+    t.tag_name,
+    t.tag_value,
+    t.tag_value_search
+FROM acta.tags AS t
+GO
+
+CREATE OR ALTER VIEW acta.workers_view AS
+SELECT
+    w.worker_id,
+    w.worker_ref,
+    ns.namespace_name,
+    CASE w.worker_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 80 THEN 'draining' WHEN 100 THEN 'stopped' WHEN 200 THEN 'dead' END AS worker_status,
+    w.worker_status_code,
+    w.deployment_version,
+    w.host_name,
+    w.engine_version,
+    w.dotnet_version,
+    w.process_id,
+    w.max_concurrent_executors,
+    w.last_seen_at_utc,
+    w.created_at_utc,
+    w.modified_at_utc,
+    w.version
+FROM acta.workers AS w
+JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
+GO
+
+
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117133534_init')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261117133534_init');
+GO
+-- ===== END M20261117133534_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.lanes (
     created_at_utc timestamptz DEFAULT now() NOT NULL
     , CONSTRAINT pk_lanes PRIMARY KEY (lane_id)
 );
+CREATE INDEX IF NOT EXISTS ix_lanes_namespace ON {{schema}}.lanes (namespace_id, lane_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_lanes_namespace_name ON {{schema}}.lanes (namespace_id, lane_name);
 
 -- jobs_state
@@ -1412,10 +1413,21 @@ BEGIN
             SELECT
                 j.parent_job_id,
                 r.job_id AS child_job_id,
+                j.job_ref AS child_ref,
                 r.job_status_code AS child_status,
                 r.execution_number AS child_execution,
                 c.reason,
                 c.event_message,
+                -- The landing names the child as its parent named it, how it ended, and the child's own message.
+                LEFT(
+                    'Child ' || COALESCE('''' || j.deduplication_key || '''', 'job ' || r.job_id) || ' '
+                    || CASE r.job_status_code
+                        WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                        WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                        ELSE 'cancelled'
+                    END || COALESCE(': ' || c.event_message, '.'),
+                    512
+                ) AS landing,
                 COALESCE(l.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
                 COALESCE(l.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */, FALSE) AS latch_pending,
                 pr.job_status_code AS parent_status,
@@ -1451,8 +1463,16 @@ BEGIN
                 'sys.child.' || s.child_job_id::text,
                 20 /* CheckpointStatusCode.Set */,
                 1 /* JobPayloadFormat.Json */,
+                -- A failed landing carries its message, so the parent's outcome can say why without reading the child's timeline.
                 convert_to(
-                    json_build_object('childJobId', s.child_job_id, 'status', s.child_status, 'executionNumber', s.child_execution)::text,
+                    CASE
+                        WHEN s.child_status = 200 /* JobStatusCode.Failed */ AND s.event_message IS NOT NULL
+                            THEN json_build_object(
+                                'childJobId', s.child_job_id, 'status', s.child_status, 'executionNumber', s.child_execution,
+                                'failureMessage', s.event_message
+                            )
+                        ELSE json_build_object('childJobId', s.child_job_id, 'status', s.child_status, 'executionNumber', s.child_execution)
+                    END::text,
                     'UTF8'
                 ),
                 now(),
@@ -1483,11 +1503,23 @@ BEGIN
                 s.parent_execution,
                 CASE
                     WHEN s.latch_expired
-                        THEN LEFT(COALESCE(s.event_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 512)
-                    ELSE s.event_message
+                        THEN LEFT(s.landing || ' Child outcome not applied: the wait had already expired.', 512)
+                    ELSE s.landing
                 END,
-                CASE WHEN s.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                convert_to('{"reason":"' || s.reason || '"}', 'UTF8')
+                -- The details name the child by its ref and how it ended, beside the reason it ended with.
+                1 /* JobPayloadFormat.Json */,
+                convert_to(
+                    json_strip_nulls(json_build_object(
+                        'reason', s.reason,
+                        'child', 'job_' || replace(s.child_ref::text, '-', ''),
+                        'status', CASE s.child_status
+                            WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                            WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                            ELSE 'cancelled'
+                        END
+                    ))::text,
+                    'UTF8'
+                )
             FROM settled s
             WHERE s.event_recording_code = 20 /* EventRecordingCode.Audit */
             ORDER BY s.parent_job_id, s.child_job_id
@@ -1692,6 +1724,9 @@ DECLARE
     v_parent_corr VARCHAR;
     v_parent_tenant INT;
     v_job_id BIGINT;
+    v_held_id BIGINT;
+    v_held_ref UUID;
+    v_held_tenant INT;
     v_lane VARCHAR;
     v_lane_id BIGINT;
 BEGIN
@@ -1727,7 +1762,8 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    IF v_ns_status <> 10 /* NamespaceStatusCode.Active */ THEN
+    -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
+    IF v_ns_status <> 10 /* NamespaceStatusCode.Active */ AND p_parent_job_id IS NULL THEN
         RAISE EXCEPTION 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -1984,8 +2020,8 @@ BEGIN
 
         RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;
     ELSE
-        RETURN QUERY
-        SELECT 0, j.job_id, j.job_ref, 2 /* EnqueueJobAction.Deduplicated */
+        -- One read both checks and answers the held job, so a purge and a new holder between two reads cannot swap it.
+        SELECT j.job_id, j.job_ref, j.tenant_id INTO v_held_id, v_held_ref, v_held_tenant
         FROM {{schema}}.jobs j
         WHERE
             (p_parent_job_id IS NULL
@@ -1995,6 +2031,16 @@ BEGIN
             OR (p_parent_job_id IS NOT NULL
                 AND j.parent_job_id = p_parent_job_id
                 AND j.deduplication_key = p_deduplication_key);
+
+        -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
+        IF p_parent_job_id IS NULL AND v_held_tenant <> v_tenant_id THEN
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
+        IF v_held_id IS NOT NULL THEN
+            RETURN QUERY SELECT 0, v_held_id, v_held_ref, 2 /* EnqueueJobAction.Deduplicated */;
+        END IF;
     END IF;
 END;
 $$;
@@ -2060,12 +2106,13 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
+    -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
     SELECT COUNT(*)
     INTO ns_active_count
-    FROM unnest(p_b_namespace_name, p_b_job_name) AS b(namespace_name, job_name)
+    FROM unnest(p_b_namespace_name, p_b_job_name, p_b_parent_job_id) AS b(namespace_name, job_name, parent_job_id)
     INNER JOIN {{schema}}.namespaces ns
         ON ns.namespace_name = b.namespace_name
-        AND ns.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+        AND (ns.namespace_status_code = 10 /* NamespaceStatusCode.Active */ OR b.parent_job_id IS NOT NULL)
     INNER JOIN {{schema}}.definitions jd
         ON jd.namespace_id = ns.namespace_id
         AND jd.definition_name = b.job_name;
@@ -2253,7 +2300,9 @@ BEGIN
     -- Resolve catalog + pre-allocate the job id ONCE into a temp table keyed by that id, so the inserts
     -- below read a staged, ANALYZEd set instead of re-joining a catalog CTE the planner sizes at ~1 row
     -- (which forces batch-rescanning Nested Loops once the job state sits in its own table).
-    CREATE TEMP TABLE IF NOT EXISTS _enq_batch (
+
+    -- An open transaction keeps the temp table an older routine made across a migration, so new columns take a new name.
+    CREATE TEMP TABLE IF NOT EXISTS _enq_rows (
         job_id BIGINT PRIMARY KEY,
         ordinal INT NOT NULL,
         job_ref UUID NOT NULL,
@@ -2273,9 +2322,12 @@ BEGIN
         is_child BOOLEAN NOT NULL,
         lane VARCHAR,
         lane_id BIGINT,
-        lane_busy BOOLEAN
+        lane_busy BOOLEAN,
+        held_id BIGINT,
+        held_ref UUID,
+        held_tenant INT
     ) ON COMMIT DROP;
-    TRUNCATE _enq_batch;
+    TRUNCATE _enq_rows;
 
     -- Ids are drawn first and handed out by rank, so job-id order equals ordinal order however the
     -- sequence calls interleave: a lane runs in job-id order, which must be the caller's batch order.
@@ -2301,7 +2353,7 @@ BEGIN
             input_format_id, input, concurrency_key, next_run_at_utc,
             delay_seconds, parent_job_id, tenant_name, lane)
     )
-    INSERT INTO _enq_batch (
+    INSERT INTO _enq_rows (
         job_id,
         ordinal,
         job_ref,
@@ -2354,7 +2406,7 @@ BEGIN
     LEFT JOIN {{schema}}.jobs pj ON pj.job_id = b.parent_job_id;
 
     IF lane_count > 0 THEN
-        UPDATE _enq_batch e
+        UPDATE _enq_rows e
         SET lane_id = el.lane_id, lane_busy = el.busy
         FROM _enq_lanes el
         WHERE el.namespace_id = e.namespace_id AND el.lane_name = e.lane;
@@ -2364,7 +2416,7 @@ BEGIN
             IF EXISTS (
                 WITH RECURSIVE ancestors AS (
                     SELECT e.lane_id, a.job_id, a.parent_job_id
-                    FROM _enq_batch e
+                    FROM _enq_rows e
                     INNER JOIN {{schema}}.jobs a ON a.job_id = e.parent_job_id
                     WHERE e.lane_id IS NOT NULL
                     UNION ALL
@@ -2389,7 +2441,7 @@ BEGIN
     END IF;
 
     -- Give the planner real row counts for the staged set so the inserts below stay hash/index joins.
-    ANALYZE _enq_batch;
+    ANALYZE _enq_rows;
 
     -- The inserts run as one statement and the outcomes are read by the next: a row skipped because a
     -- concurrent producer committed its key while this one waited is invisible to this statement's snapshot,
@@ -2428,7 +2480,7 @@ BEGIN
             e.concurrency_key,
             e.event_recording_code,
             now()
-        FROM _enq_batch e
+        FROM _enq_rows e
         WHERE NOT e.is_child
         ON CONFLICT (namespace_id, deduplication_key)
             WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL
@@ -2469,7 +2521,7 @@ BEGIN
             e.concurrency_key,
             e.event_recording_code,
             now()
-        FROM _enq_batch e
+        FROM _enq_rows e
         WHERE e.is_child
         ON CONFLICT (parent_job_id, deduplication_key)
             WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL
@@ -2517,40 +2569,57 @@ BEGIN
             now(),
             0
         FROM inserted i
-        INNER JOIN _enq_batch e ON e.job_id = i.job_id
+        INNER JOIN _enq_rows e ON e.job_id = i.job_id
         RETURNING 1
     ),
     tag_insert AS (
         INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
         SELECT 50 /* EntityCode.Job */, e.job_id, t.tag_name, t.tag_value, t.tag_value_search
         FROM unnest(p_tag_ordinal, p_tag_name, p_tag_value, p_tag_value_search) AS t(ordinal, tag_name, tag_value, tag_value_search)
-        INNER JOIN _enq_batch e ON e.ordinal = t.ordinal
+        INNER JOIN _enq_rows e ON e.ordinal = t.ordinal
         INNER JOIN inserted i ON i.job_id = e.job_id
         RETURNING 1
     )
     SELECT count(*) INTO inserted_count FROM inserted;
 
+    -- One read both checks and answers each held job, so a purge and a new holder between two reads cannot swap it. A root
+    -- key and a child key each probe their own unique index, so the two arms are two statements.
+    UPDATE _enq_rows e
+    SET held_id = h.job_id, held_ref = h.job_ref, held_tenant = h.tenant_id
+    FROM {{schema}}.jobs h
+    WHERE
+        NOT e.is_child
+        AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs mine WHERE mine.job_id = e.job_id)
+        AND h.namespace_id = e.namespace_id
+        AND h.deduplication_key = e.deduplication_key
+        AND h.deduplication_key IS NOT NULL
+        AND h.parent_job_id IS NULL;
+    UPDATE _enq_rows e
+    SET held_id = h.job_id, held_ref = h.job_ref, held_tenant = h.tenant_id
+    FROM {{schema}}.jobs h
+    WHERE
+        e.is_child
+        AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs mine WHERE mine.job_id = e.job_id)
+        AND h.parent_job_id = e.parent_job_id
+        AND h.deduplication_key = e.deduplication_key
+        AND h.deduplication_key IS NOT NULL;
+
+    -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it is taken.
+    IF EXISTS (SELECT 1 FROM _enq_rows e WHERE NOT e.is_child AND e.held_tenant <> e.tenant_id) THEN
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.'
+            USING ERRCODE = 'P0001';
+    END IF;
+
     RETURN QUERY
     SELECT
         e.ordinal,
-        COALESCE(mine.job_id, root.job_id, child.job_id) AS job_id,
-        COALESCE(mine.job_ref, root.job_ref, child.job_ref) AS job_ref,
+        COALESCE(mine.job_id, e.held_id) AS job_id,
+        COALESCE(mine.job_ref, e.held_ref) AS job_ref,
         CASE WHEN mine.job_id IS NOT NULL
             THEN 1 /* EnqueueJobAction.Inserted */
             ELSE 2 /* EnqueueJobAction.Deduplicated */ END AS action
-    FROM _enq_batch e
+    FROM _enq_rows e
     LEFT JOIN {{schema}}.jobs mine ON mine.job_id = e.job_id
-    LEFT JOIN {{schema}}.jobs root
-        ON mine.job_id IS NULL
-        AND NOT e.is_child
-        AND root.namespace_id = e.namespace_id
-        AND root.deduplication_key = e.deduplication_key
-        AND root.parent_job_id IS NULL
-    LEFT JOIN {{schema}}.jobs child
-        ON mine.job_id IS NULL
-        AND e.is_child
-        AND child.parent_job_id = e.parent_job_id
-        AND child.deduplication_key = e.deduplication_key
     ORDER BY e.ordinal;
 END;
 $$;
@@ -2967,8 +3036,11 @@ AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
     v_existing SMALLINT;
+    v_fmt SMALLINT;
+    v_val BYTEA;
     v_expired BOOLEAN := FALSE;
     v_message VARCHAR;
+    v_landing VARCHAR;
     v_from_status SMALLINT;
     v_namespace_id INT;
     v_lineage_root_job_id BIGINT;
@@ -2976,6 +3048,7 @@ DECLARE
     v_tenant_id INT;
     v_execution_number BIGINT;
     v_event_recording SMALLINT;
+    v_details BYTEA;
 BEGIN
 
     SELECT js.checkpoint_status_code INTO v_existing
@@ -3005,17 +3078,34 @@ BEGIN
         RETURN;
     END IF;
 
-    -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
+    -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
+    -- It still takes a child's latch, which a restart of it reads, and is not woken.
     IF
         v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
     THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
+        RETURN QUERY SELECT
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.checkpoints js
+                    WHERE
+                        js.job_id = p_job_id
+                        AND js.checkpoint_kind_code = p_checkpoint_kind_code
+                        AND js.checkpoint_name = p_checkpoint_name
+                        AND js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
+                        AND js.value_format_id = p_value_format_id
+                        AND js.value IS NOT DISTINCT FROM p_value
+                )
+                    THEN 6 /* ControlAction.AlreadyInState */
+                ELSE 3 /* ControlAction.Rejected */
+            END::SMALLINT,
+            v_from_status;
         RETURN;
     END IF;
 
     -- Read again under the job's lock: a wait that expired while this call waited for it inserted its Expired row then.
-    SELECT js.checkpoint_status_code INTO v_existing
+    SELECT js.checkpoint_status_code, js.value_format_id, js.value INTO v_existing, v_fmt, v_val
     FROM {{schema}}.checkpoints js
     WHERE
         js.job_id = p_job_id
@@ -3031,16 +3121,45 @@ BEGIN
         RETURN;
     END IF;
 
-    /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no value
-       and releases no job. The raise still happened, so it is still recorded: the event below carries
+    -- First raise wins: a signal never changes once raised, so a repeat writes nothing. The same value again is already
+    -- in state, and another value, or any raise at a wait that expired, is rejected. A child's latch keeps rewriting,
+    -- since a restarted child's next landing must reach its parent.
+    IF
+        p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+        AND v_existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+    THEN
+        RETURN QUERY SELECT
+            CASE
+                WHEN v_existing = 20 /* CheckpointStatusCode.Set */ AND v_fmt = p_value_format_id AND v_val IS NOT DISTINCT FROM p_value
+                    THEN 6 /* ControlAction.AlreadyInState */
+                ELSE 3 /* ControlAction.Rejected */
+            END::SMALLINT,
+            v_from_status;
+        RETURN;
+    END IF;
+
+    /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no value
+       and releases no job. The landing still happened, so it is still recorded: the event below carries
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
     -- COALESCE, not a bare comparison: a first raise has no checkpoint at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
     v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
+    -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
+    v_landing := COALESCE(
+        p_event_message,
+        'Child '
+        || COALESCE((SELECT '''' || c.deduplication_key || '''' FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id), 'job ' || p_child_job_id)
+        || ' '
+        || CASE p_child_status
+            WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+            WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+            ELSE 'cancelled'
+        END || '.'
+    );
     v_message := CASE
         WHEN v_expired
-            THEN LEFT(COALESCE(p_event_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
-        ELSE p_event_message END;
+            THEN LEFT(COALESCE(v_landing || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
+        ELSE v_landing END;
 
     IF NOT v_expired THEN
         INSERT INTO {{schema}}.checkpoints (
@@ -3072,6 +3191,22 @@ BEGIN
     END IF;
 
     IF v_event_recording = 20 /* EventRecordingCode.Audit */ THEN
+        -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
+        v_details := CASE
+            WHEN p_child_job_id IS NULL THEN p_details
+            ELSE convert_to(
+                json_strip_nulls(json_build_object(
+                    'reason', convert_from(p_details, 'UTF8')::json ->> 'reason',
+                    'child', (SELECT 'job_' || replace(c.job_ref::text, '-', '') FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id),
+                    'status', CASE p_child_status
+                        WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                        WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                        ELSE 'cancelled'
+                    END
+                ))::text,
+                'UTF8'
+            )
+        END;
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
@@ -3098,8 +3233,8 @@ BEGIN
             v_execution_number,
             v_message,
             p_actor,
-            p_details_format_id,
-            p_details);
+            CASE WHEN v_details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+            v_details);
     END IF;
 
     -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
@@ -3137,7 +3272,7 @@ BEGIN
                 v_tenant_id,
                 COALESCE(v_lineage_root_job_id, p_job_id),
                 v_execution_number,
-                p_event_message,
+                v_landing,
                 p_actor,
                 p_details_format_id,
                 p_details);
@@ -3898,6 +4033,8 @@ DECLARE
     v_val BYTEA;
     v_due TIMESTAMPTZ;
     v_armed INT;
+    v_outcome SMALLINT := 1 /* WaitJobSignalOutcomeCode.SuspendPending */;
+    v_expired_due TIMESTAMPTZ;
 BEGIN
     /* A checkpoint this call arms at or past its due is armed Expired, so a child landing after it cannot
        revive the wait, and the wait times out now. Only an instant can be due already: a length is
@@ -3953,39 +4090,33 @@ BEGIN
         ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO NOTHING;
         GET DIAGNOSTICS v_armed = ROW_COUNT;
 
-        /* Returning here rather than resolving is what keeps a wait this call armed with a length
-           suspending once on all three providers; mssql and sqlite reach that by construction. */
-        IF v_armed = 1 THEN
-            RETURN QUERY SELECT
-                CASE
-                    WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitJobSignalOutcomeCode.TimedOut */
-                    ELSE 1 /* WaitJobSignalOutcomeCode.SuspendPending */
-                END::SMALLINT,
-                0 /* JobPayloadFormat.None */::SMALLINT,
-                NULL::BYTEA;
-            RETURN;
-        END IF;
-
         /* Lost the race, so DO NOTHING waited the winner out and its row is committed. The re-read
            sees it because this runs at READ COMMITTED - the repo sets no isolation level - where each
            statement takes a fresh snapshot; under Serializable it would abort, which is also correct. */
-        SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
-        INTO v_state, v_fmt, v_val, v_due
-        FROM {{schema}}.checkpoints js
-        WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
-        FOR UPDATE;
+        IF v_armed = 0 THEN
+            SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
+            INTO v_state, v_fmt, v_val, v_due
+            FROM {{schema}}.checkpoints js
+            WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
+            FOR UPDATE;
+        END IF;
     END IF;
 
-    IF v_state = 20 /* CheckpointStatusCode.Set */ THEN
+    /* A wait this call armed is not resolved further, which keeps one armed with a length suspending once on all
+       three providers; mssql and sqlite reach that by construction. */
+    IF v_armed = 1 THEN
+        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+            v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+            v_expired_due := v_arm_due;
+        END IF;
+    ELSIF v_state = 20 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
             2 /* WaitJobSignalOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
+        RETURN;
     ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
-        RETURN QUERY SELECT
-            3 /* WaitJobSignalOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
+        v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
 
         UPDATE {{schema}}.checkpoints js
@@ -3995,10 +4126,8 @@ BEGIN
             version = js.version + 1
         WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name;
 
-        RETURN QUERY SELECT
-            3 /* WaitJobSignalOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
+        v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+        v_expired_due := v_due;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NULL AND v_arm_due IS NOT NULL THEN
 
         UPDATE {{schema}}.checkpoints js
@@ -4014,19 +4143,55 @@ BEGIN
             AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND js.due_at_utc IS NULL;
 
-        RETURN QUERY SELECT
-            CASE
-                WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitJobSignalOutcomeCode.TimedOut */
-                ELSE 1 /* WaitJobSignalOutcomeCode.SuspendPending */
-            END::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSE
-        RETURN QUERY SELECT
-            1 /* WaitJobSignalOutcomeCode.SuspendPending */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
+        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+            v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+            v_expired_due := v_arm_due;
+        END IF;
     END IF;
+
+    -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
+    IF v_expired_due IS NOT NULL THEN
+        INSERT INTO {{schema}}.events (
+            event_code, created_at_utc, namespace_id,
+            entity_code, entity_id,
+            definition_id, tenant_id, lineage_root_job_id,
+            worker_id, execution_number,
+            event_message, details_format_id, details
+        )
+        SELECT
+            83 /* EventCode.JobWaitExpired */, v_now, j.namespace_id,
+            50 /* EntityCode.Job */, j.job_id,
+            j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
+            p_leased_by_worker_id, p_execution_number,
+            'The wait for '
+            || CASE
+                WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(p_checkpoint_name, 11))
+                ELSE 'signal ''' || p_checkpoint_name || ''''
+            END || ' expired.',
+            1 /* JobPayloadFormat.Json */,
+            convert_to(
+                json_build_object(
+                    'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END,
+                    'name', p_checkpoint_name,
+                    'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+                )::text,
+                'UTF8'
+            )
+        FROM {{schema}}.jobs j
+        -- A seek on the child's id, the latch name's tail, so no sibling row is read.
+        LEFT JOIN {{schema}}.jobs ch
+            ON
+                p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                AND ch.job_id = substring(p_checkpoint_name FROM '^sys\.child\.([0-9]{1,18})$')::BIGINT
+                AND ch.parent_job_id = j.job_id
+        WHERE j.job_id = p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
+    END IF;
+
+    RETURN QUERY SELECT
+        v_outcome,
+        0 /* JobPayloadFormat.None */::SMALLINT,
+        NULL::BYTEA;
 END;
 $$;
 
@@ -4190,7 +4355,7 @@ SELECT
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name,
@@ -4376,5 +4541,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111163142_init')
+VALUES ('M20261117133534_init')
 ON CONFLICT (name) DO NOTHING;
