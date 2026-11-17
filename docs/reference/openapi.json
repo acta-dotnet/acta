@@ -20980,14 +20980,14 @@
       },
       "MisfireStrategyCode": {
         "examples": [
-          "catch-up-once"
+          "skip"
         ],
         "type": "string",
-        "description": "What a schedule does about occurrences it missed during downtime.\n\nKnown values:\n- unspecified: Misfire strategy not recognized by this build; the row was written by a newer Acta.\n- catch-up-once: After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now.\n- skip: After downtime, skip the missed occurrences, except the latest when it is less than a minute overdue, which fires.\n- catch-up-latest: After downtime, fire once for the latest missed occurrence, however late, the earlier ones skipped, then resume from the next occurrence after now.\n- catch-up-all: After downtime, fire every missed occurrence in order, one per settlement, subject to the schedule's capacity.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What a schedule does about occurrences it missed during downtime.\n\nKnown values:\n- unspecified: Misfire strategy not recognized by this build; the row was written by a newer Acta.\n- skip: After downtime, skip the missed occurrences, except the latest when it is less than a minute overdue, which fires.\n- catch-up-once: After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now.\n- catch-up-latest: After downtime, fire once for the latest missed occurrence, however late, the earlier ones skipped, then resume from the next occurrence after now.\n- catch-up-all: After downtime, fire every missed occurrence in order, one per settlement, subject to the schedule's capacity.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
-          "catch-up-once",
           "skip",
+          "catch-up-once",
           "catch-up-latest",
           "catch-up-all"
         ]

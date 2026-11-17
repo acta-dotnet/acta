@@ -307,8 +307,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Misfire strategy not recognized by this build; the row was written by a newer Acta. | Active |
-| `CatchUpOnce` | 10 | `catch-up-once` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
-| `Skip` | 20 | `skip` | After downtime, skip the missed occurrences, except the latest when it is less than a minute overdue, which fires. | Active |
+| `Skip` | 10 | `skip` | After downtime, skip the missed occurrences, except the latest when it is less than a minute overdue, which fires. | Active |
+| `CatchUpOnce` | 20 | `catch-up-once` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
 | `CatchUpLatest` | 30 | `catch-up-latest` | After downtime, fire once for the latest missed occurrence, however late, the earlier ones skipped, then resume from the next occurrence after now. | Active |
 | `CatchUpAll` | 40 | `catch-up-all` | After downtime, fire every missed occurrence in order, one per settlement, subject to the schedule's capacity. | Active |
 

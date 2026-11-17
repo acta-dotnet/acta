@@ -143,8 +143,8 @@ public sealed class PersistedCodeContractTests
         NamespaceStatusCode.Active=10|active
         NamespaceStatusCode.Suspended=20|suspended
         MisfireStrategyCode.Unspecified=0|unspecified
-        MisfireStrategyCode.CatchUpOnce=10|catch-up-once
-        MisfireStrategyCode.Skip=20|skip
+        MisfireStrategyCode.Skip=10|skip
+        MisfireStrategyCode.CatchUpOnce=20|catch-up-once
         MisfireStrategyCode.CatchUpLatest=30|catch-up-latest
         MisfireStrategyCode.CatchUpAll=40|catch-up-all
         ScheduleExpressionKindCode.Unspecified=0|unspecified
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "C7F077372A2BFD1604BFCB205E424F5DFD0A141C2912F75068973F5D2355462B";
+    private const string ExpectedDescriptionHash = "B46F3CB1FCD2A0E5D6F529ED447BB74A3D0E19A32F57B8BE217EDBB570171E3F";
 
     [Fact]
     public void Frozen_contract_covers_every_family_and_value()

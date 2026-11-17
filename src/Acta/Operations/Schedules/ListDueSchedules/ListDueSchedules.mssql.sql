@@ -22,7 +22,7 @@ WITH due AS (
             30 /* ScheduleExpressionKindCode.Calendar */
         )
         AND ds.misfire_strategy_code IN (
-            10 /* MisfireStrategyCode.CatchUpOnce */, 20 /* MisfireStrategyCode.Skip */,
+            20 /* MisfireStrategyCode.CatchUpOnce */, 10 /* MisfireStrategyCode.Skip */,
             30 /* MisfireStrategyCode.CatchUpLatest */, 40 /* MisfireStrategyCode.CatchUpAll */
         )
         AND ds.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Skip */)
@@ -87,7 +87,7 @@ WHERE
         30 /* ScheduleExpressionKindCode.Calendar */
     )
     AND s.misfire_strategy_code IN (
-        10 /* MisfireStrategyCode.CatchUpOnce */, 20 /* MisfireStrategyCode.Skip */,
+        20 /* MisfireStrategyCode.CatchUpOnce */, 10 /* MisfireStrategyCode.Skip */,
         30 /* MisfireStrategyCode.CatchUpLatest */, 40 /* MisfireStrategyCode.CatchUpAll */
     )
     AND s.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Skip */)

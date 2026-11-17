@@ -46,7 +46,7 @@ internal static class ScheduleReader
             // generated descriptor so persistence never receives an empty time-zone sentinel.
             string? timeZone = "UTC";
             string? description = null;
-            byte misfireStrategyId = 20;
+            byte misfireStrategyId = 10;
             var environments = ImmutableArray<string>.Empty;
             var maxOutstanding = 1;
             byte fullBehaviorId = 10;

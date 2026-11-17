@@ -225,8 +225,8 @@ internal static class JobPolicyValues
     internal static string? MisfireStrategyIdToName(byte id) =>
         id switch
         {
-            10 => "CatchUpOnce",
-            20 => "Skip",
+            10 => "Skip",
+            20 => "CatchUpOnce",
             30 => "CatchUpLatest",
             40 => "CatchUpAll",
             _ => null,

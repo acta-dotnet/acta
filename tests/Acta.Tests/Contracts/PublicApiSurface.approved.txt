@@ -2184,8 +2184,8 @@ sealed record Acta.MapOutcome<TKey, TResult> : Acta.MapOutcome<TKey> where TKey 
 enum Acta.MisfireStrategyCode : System.Byte
     CatchUpAll = 40
     CatchUpLatest = 30
-    CatchUpOnce = 10
-    Skip = 20
+    CatchUpOnce = 20
+    Skip = 10
     Unspecified = 0
 static class Acta.MisfireStrategyCodeExtensions
     static Acta.MisfireStrategyCode FromCode(System.String code)

@@ -10,14 +10,14 @@ public enum MisfireStrategyCode : byte
     [Code("unspecified", "Misfire strategy not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
+    [Code("skip", "After downtime, skip the missed occurrences, except the latest when it is less than a minute overdue, which fires.")]
+    Skip = 10,
+
     [Code(
         "catch-up-once",
         "After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now."
     )]
-    CatchUpOnce = 10,
-
-    [Code("skip", "After downtime, skip the missed occurrences, except the latest when it is less than a minute overdue, which fires.")]
-    Skip = 20,
+    CatchUpOnce = 20,
 
     [Code(
         "catch-up-latest",
