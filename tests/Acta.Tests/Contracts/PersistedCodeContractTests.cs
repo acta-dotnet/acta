@@ -308,6 +308,31 @@ public sealed class PersistedCodeContractTests
     }
 
     [Fact]
+    public void Every_family_keeps_id_zero_for_unspecified() =>
+        Assert.All(CodeManifests.All.Where(entry => entry.Id == 0), entry => Assert.Equal("unspecified", entry.Code));
+
+    [Fact]
+    public void A_status_word_has_one_id_in_every_status_family()
+    {
+        var words = CodeManifests
+            .All.Where(entry => entry.CodeKind.EndsWith("-status", StringComparison.Ordinal))
+            .GroupBy(entry => entry.Code, entry => entry.Id);
+
+        Assert.All(words, word => Assert.Single(word.Distinct()));
+    }
+
+    [Theory]
+    [InlineData(typeof(EventCode))]
+    [InlineData(typeof(EntityCode))]
+    public void A_catalogue_family_is_one_run_from_one(Type family)
+    {
+        // Unspecified is 0 and the members follow without a gap, so a new one takes the highest id plus one.
+        var ids = Enum.GetValuesAsUnderlyingType(family).Cast<byte>().Order().ToArray();
+
+        Assert.Equal(Enumerable.Range(0, ids.Length).Select(id => (byte)id), ids);
+    }
+
+    [Fact]
     public void Payload_boundaries_are_enforced()
     {
         Assert.All(CodeFamilies(), family =>

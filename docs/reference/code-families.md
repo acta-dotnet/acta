@@ -12,23 +12,25 @@ This release: **32 families**, **192 values**.
 > An id this build does not know reads back as the family's id-0 member. `255` is never assigned, except as a consumer-defined `JobPayloadFormat`.
 > Assigned, deprecated, retired, and permanently reserved identities are never reused.
 
-## Human-readable ordering
+## How the ids are arranged
 
-The numbers are arranged so a raw value gives you a quick hint about the state you are looking at:
-
-- `0` means nothing is selected, enabled, or present.
-- Values below `100` represent work that is still active or waiting.
-- `100` represents normal successful completion.
-- Values between `150` and `199` represent controlled completion, such as rescheduling, suppression, or administrative closure.
-- `200` represents failure or death.
-- `220` represents cancellation.
-- `230` represents interruption or an unknown outcome.
-- `240` represents retirement or deprecation.
+- `0` is `unspecified` in every family: Acta never writes it, and an id this build does not know reads back as it.
+- A status family uses the lifecycle ids, so a raw value says what kind of state a row is in:
+  - below `100`, live or waiting;
+  - `100`, normal success, with a family's other successes after it;
+  - `150`, controlled completion, such as suppression, supersession, or expiry;
+  - `200`, failure or death;
+  - `220`, cancellation;
+  - `230`, interruption;
+  - `240`, retirement.
+- The same word has the same id in every status family.
+- A kind or policy family is spaced by ten from `10`.
+- `EventCode` and `EntityCode` are one run from `1`, sorted by code at the 1.0 freeze; a new member takes the highest id plus one.
 - `255` is reserved and rejected in closed code families.
 
-This pattern makes raw values easier to scan in database rows, logs, and diagnostics. Treat it as a visual guide only. Application code must check explicit enum members and must not infer behavior from numeric comparisons.
+Treat the arrangement as a reading aid. Only `JobPriorityCode`, `AlertSeverityCode` and `CheckpointKindCode` are ordered; application code reads every other family by member and must not compare its ids.
 
-`JobPayloadFormat` is the one exception: consumer-defined formats may use IDs from `128` through `255`.
+`JobPayloadFormat` is the one exception, a registry more than a family: its `0` is `none`, and consumer-defined formats may use IDs from `128` through `255`.
 
 ## Code-family inventory
 

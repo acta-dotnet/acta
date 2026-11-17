@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>Where a row of a producer's outbox table stands with the relay.</summary>
+/// <remarks>The ids are stored in producers' own tables, which no Acta migration reaches.</remarks>
 [JsonConverter(typeof(OutboxStatusCodeJsonConverter))]
 [CodeKind("outbox-status")]
 public enum OutboxStatusCode : byte

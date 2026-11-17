@@ -46,27 +46,31 @@ internal static class CodeFamilyEmitter
         );
         sb.AppendLine("> Assigned, deprecated, retired, and permanently reserved identities are never reused.");
         sb.AppendLine();
-        sb.AppendLine("## Human-readable ordering");
+        sb.AppendLine("## How the ids are arranged");
         sb.AppendLine();
-        sb.AppendLine("The numbers are arranged so a raw value gives you a quick hint about the state you are looking at:");
-        sb.AppendLine();
-        sb.AppendLine("- `0` means nothing is selected, enabled, or present.");
-        sb.AppendLine("- Values below `100` represent work that is still active or waiting.");
-        sb.AppendLine("- `100` represents normal successful completion.");
+        sb.AppendLine("- `0` is `unspecified` in every family: Acta never writes it, and an id this build does not know reads back as it.");
+        sb.AppendLine("- A status family uses the lifecycle ids, so a raw value says what kind of state a row is in:");
+        sb.AppendLine("  - below `100`, live or waiting;");
+        sb.AppendLine("  - `100`, normal success, with a family's other successes after it;");
+        sb.AppendLine("  - `150`, controlled completion, such as suppression, supersession, or expiry;");
+        sb.AppendLine("  - `200`, failure or death;");
+        sb.AppendLine("  - `220`, cancellation;");
+        sb.AppendLine("  - `230`, interruption;");
+        sb.AppendLine("  - `240`, retirement.");
+        sb.AppendLine("- The same word has the same id in every status family.");
+        sb.AppendLine("- A kind or policy family is spaced by ten from `10`.");
         sb.AppendLine(
-            "- Values between `150` and `199` represent controlled completion, such as rescheduling, suppression, or administrative closure."
+            "- `EventCode` and `EntityCode` are one run from `1`, sorted by code at the 1.0 freeze; a new member takes the highest id plus one."
         );
-        sb.AppendLine("- `200` represents failure or death.");
-        sb.AppendLine("- `220` represents cancellation.");
-        sb.AppendLine("- `230` represents interruption or an unknown outcome.");
-        sb.AppendLine("- `240` represents retirement or deprecation.");
         sb.AppendLine("- `255` is reserved and rejected in closed code families.");
         sb.AppendLine();
         sb.AppendLine(
-            "This pattern makes raw values easier to scan in database rows, logs, and diagnostics. Treat it as a visual guide only. Application code must check explicit enum members and must not infer behavior from numeric comparisons."
+            "Treat the arrangement as a reading aid. Only `JobPriorityCode`, `AlertSeverityCode` and `CheckpointKindCode` are ordered; application code reads every other family by member and must not compare its ids."
         );
         sb.AppendLine();
-        sb.AppendLine("`JobPayloadFormat` is the one exception: consumer-defined formats may use IDs from `128` through `255`.");
+        sb.AppendLine(
+            "`JobPayloadFormat` is the one exception, a registry more than a family: its `0` is `none`, and consumer-defined formats may use IDs from `128` through `255`."
+        );
         sb.AppendLine();
     }
 

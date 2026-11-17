@@ -285,10 +285,13 @@ and the schema scripts; it never touches a database. `BaselineInstallSpec` appli
 to a fresh database and compares its tables and columns with the model, and each `*ProvisionScriptSpec`
 runs its published script twice, so a hand edit that drifts or loses a guard fails the suite.
 
-Persisted-code changes are family-scoped: annotated byte-backed enums are authoritative. Never
-perform a blind numeric replacement, reuse retired/reserved identities, assign `255` in a closed
-family, or derive behavior from numeric ordering. Update symbolic SQL literals
-(`/* Type.Member */`), regenerate docs/schema artifacts, and run all provider code-policy tests.
+Persisted-code changes are family-scoped: annotated byte-backed enums are authoritative, and the rules
+for a family's name and ids are in [architecture decisions](./docs/architecture-decisions.md), "Codes".
+A code is only ever appended: never rename or renumber one, reuse a retired or reserved identity,
+assign `255` in a closed family, or derive behavior from numeric order outside the three ordered
+families. Never perform a blind numeric replacement: update symbolic SQL literals
+(`/* Type.Member */`) by the member each comment names, regenerate docs/schema artifacts, and run all
+provider code-policy tests.
 Adding a value needs no table change, because no CHECK limits a column to the codes it knows (a shape
 CHECK binds only the codes it names) and an unknown id decodes as the family's id-0 member, but it does
 ship a migration: the operator views decode every code by name. A value that changes engine behaviour ships readers first and writers a release later.
@@ -479,9 +482,10 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
   is either enqueued (`EnqueueAsync`, `ctx.EnqueueChildAsync`) or called (`CallAsync`,
   `ctx.CallChildAsync`), and a handler's call waits durably. A child is a job on any worker with its
   own retries, so it is called, never run.
-- **`pause` stops a runnable thing's progress; `suspend` closes admission of new work.** This is
-  why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay would
-  pause rather than suspend.
+- **`pause` stops a runnable thing's progress; `suspend` closes a tenant or a namespace to new work.**
+  This is why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay
+  would pause rather than suspend. A job's `suspended` status keeps the word for a second meaning: the
+  job is on a durable wait for a signal or for child jobs.
 - **A scheduled definition's one reusable job row is a permanent job** (`JobKindCode.Permanent`), by that name
   in everything a user reads: docs, the site, code descriptions, the dashboard, public XML docs, and messages.
   "slot" never names it there; SQL, internal identifiers, and body comments may keep the word. A counted lock's

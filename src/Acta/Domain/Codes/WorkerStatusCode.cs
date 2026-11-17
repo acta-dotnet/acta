@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>Where a worker process is in its life.</summary>
-/// <remarks>Ids follow the bands of <see cref="JobStatusCode"/>: live states in 10..90, clean stop at 100, failure from 200.</remarks>
 [JsonConverter(typeof(WorkerStatusCodeJsonConverter))]
 [CodeKind("worker-status")]
 public enum WorkerStatusCode : byte

@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>Whether enqueues that name a tenant are accepted.</summary>
-/// <remarks>Ids are spaced by 10, with live states in 10..80.</remarks>
 [JsonConverter(typeof(TenantStatusCodeJsonConverter))]
 [CodeKind("tenant-status")]
 public enum TenantStatusCode : byte

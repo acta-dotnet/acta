@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>What condition an alert reports.</summary>
-/// <remarks>Sparse ids leave room to insert; numeric order carries no behavior.</remarks>
 [JsonConverter(typeof(AlertKindCodeJsonConverter))]
 [CodeKind("alert-kind")]
 public enum AlertKindCode : byte

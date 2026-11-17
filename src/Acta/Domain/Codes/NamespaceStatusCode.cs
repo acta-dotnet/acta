@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>Whether a namespace accepts enqueues.</summary>
-/// <remarks>Ids are spaced by 10, with live states in 10..80, as in <see cref="TenantStatusCode"/>.</remarks>
 [JsonConverter(typeof(NamespaceStatusCodeJsonConverter))]
 [CodeKind("namespace-status")]
 public enum NamespaceStatusCode : byte

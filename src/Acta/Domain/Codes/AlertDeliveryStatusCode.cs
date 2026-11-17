@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>Where an alert stands with its delivery to its channel.</summary>
-/// <remarks>Numeric bands are a readability convention only; behavior follows the explicit members.</remarks>
 [JsonConverter(typeof(AlertDeliveryStatusCodeJsonConverter))]
 [CodeKind("alert-delivery-status")]
 public enum AlertDeliveryStatusCode : byte

@@ -2,11 +2,56 @@
 
 ## 1.0.0-rc.14
 
-Not yet released.
+Not yet released. rc.14 gives every persisted code its final name and id before the 1.0.0 freeze, and folds the candidates' migrations into one baseline. The schema changes: reprovision.
 
 ### What a consumer must change
 
-Nothing.
+**Drop and reprovision every database an earlier candidate provisioned**: the baseline is re-cut as `M20261117170648_init`, one migration in place of rc.12's history, and nothing translates it. No table, column, index or constraint is added, dropped or renamed; what changed is the stored id of the codes below. A paging cursor an earlier candidate issued is refused, so start a list again.
+
+**Drain a producer's outbox before upgrading**: an outbox row stores the priority it was staged with, and one staged at `bulk` (0) or `critical` (85) carries an id rc.14 does not take, so the relay refuses and quarantines it. A row staged at another priority, or with none, relays as before, and the outbox table itself is unchanged.
+
+**Rename the codes that changed**, in a request body, a query string, and any text matched against a view or a response:
+
+| Family | Was | Is |
+|---|---|---|
+| event | `job.input-amended` | `job.input-updated` |
+| schedule full behavior | `drop` | `skip` |
+| overdue decision of a calendar publication | `discard` | `skip` |
+| schedule expire action | `discard` | `continue` |
+| firing failure policy | `pause-scheduling` | `pause` |
+| alert profile | `on-terminal` | `on-final-failure` |
+| alert delivery status | `retry-after` | `retrying` |
+| schedule evaluation status | `evaluation-error` | `failing` |
+| checkpoint kind | `child-latch` | `child` |
+
+The C# members follow: `EventCode.JobInputUpdated`, `ScheduleFullBehaviorCode.Skip`, `OverdueDecisionCode.Skip`, `ScheduleExpireActionCode.Continue`, `FiringFailurePolicyCode.Pause`, `AlertProfileCode.OnFinalFailure`, `AlertDeliveryStatusCode.Retrying`, `ScheduleEvaluationStatusCode.Failing` and `CheckpointKindCode.Child`. What each does is unchanged: an expired occurrence is skipped under either expire action, and `Continue` and `Pause` say what the schedule does next.
+
+**Rename `DefinitionTenantRequirementCode` to `TenantRequirementCode`**, in C# and in a client generated from the OpenAPI document, whose schema carries the name. Five code kinds lose their `job-` prefix with it and read `checkpoint-kind`, `checkpoint-status`, `definition-status`, `step-status` and `tenant-requirement`.
+
+**Read `IsFinished` where code read `IsTerminal`** on a `JobStatusCode`, and `ReleasedChildWaits` where a test read `ActaRecoveryReport.ReleasedChildLatches`.
+
+**Filter and read events by `entity`**: `ListEventsQuery.EntityKind` and `ListEventsItem.EntityKind` are `Entity`, the HTTP filter is `?entity=`, and an event in a response carries `entity`. An unknown query parameter is ignored, so a client that still sends `entityKind` alone gets every event back, not an error; sent with `entityId` it is refused with a 400. `EntityCode` keeps the kinds an event can be about, `alert`, `calendar`, `definition`, `job`, `namespace`, `tenant` and `worker`. The filter refuses the ones it drops, `checkpoint`, `event`, `lane`, `lock`, `schedule`, `step` and `tag`, which no event ever carried.
+
+**Find a durable sleep under `job.slept`**: a sleep wrote the events of a durable wait, `job.execution-yielded` with the outcome `suspended` and `job.suspended` with `"to":"ready"` in its details. It now writes the outcome `slept` and its own event, `job.slept`. `job.suspended` is a wait on a signal or on child jobs and nothing else, and neither event's details carry `to`. The `acta.executions` and `acta.executions.duration` metrics tag a sleep `outcome="slept"`, where it counted under `suspended`.
+
+**Name a priority, an alert profile and a tenant requirement where code left one to `default`**: id 0 is `unspecified` in every family, where it was `bulk`, `none` and `optional` in these three, so `default(JobPriorityCode)` is no longer `Bulk` and `default(AlertProfileCode)` no longer `None`. No door takes `Unspecified`: an enqueue or a reprioritize with it is refused, with a 400 over HTTP, a `[Job]` that declares it is a build error (ACTA0105), a hand-built `JobDescriptor` with it fails registration, and a definition override of it overrides nothing. What `[Job]` defaults to is unchanged.
+
+**Set `Enabled = false` to switch an alert channel off**: `AlertChannelOptions.Status` and `AlertChannelStatusCode` are gone, and `o.Enabled = false` does what `o.Status = AlertChannelStatusCode.Disabled` did. `[ReservedCodeRange]` is gone too; only Acta's own event family used it.
+
+**Take a raw id from [code-families.md](./reference/code-families.md), or read a view's decoded column**: the ids below changed, so SQL of your own that compares one needs the new value. The views decode every code by name, and their columns are unchanged.
+
+| Family | Ids |
+|---|---|
+| `JobPriorityCode` | `bulk` 10 (was 0), `critical` 90 (was 85) |
+| `AlertProfileCode` | `none` 10, `on-failure` 20, `info` 30, `on-final-failure` 40, `sys-critical` 50 (each was ten lower) |
+| `TenantRequirementCode` | `optional` 10, `required` 20, `forbidden` 30 (each was ten lower) |
+| `CheckpointStatusCode` | `succeeded` 100, `set` 110, `consumed` 120, `expired` 150, `failed` 200, `cancelled` 220 |
+| `AlertDeliveryStatusCode` | `suppressed` 150 (was 30) |
+| `CalendarStatusCode` | `superseded` 150 (was 30) |
+| `ScheduleStatusCode` | `orphaned` 240 (was 230) |
+| `MisfireStrategyCode` | `skip` 10, `catch-up-once` 20 (they changed places) |
+| `EntityCode` | 1 to 7, in code order |
+| `EventCode` | 1 to 48, in code order; a new event takes the next id |
 
 ### Additions
 
