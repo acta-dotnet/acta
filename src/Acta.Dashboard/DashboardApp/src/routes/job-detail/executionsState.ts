@@ -2,7 +2,6 @@ import type { EventItem } from '../../api.ts';
 import { eventFacts } from '../../lib/eventFacts.ts';
 import type { JobDetail } from './types.ts';
 import type { TimelineTone } from '../../components/jobTimelineState.ts';
-import { executionSlept } from '../../components/jobTimelineState.ts';
 
 // One row per execution whose outcome the ledger holds: the event that closed the attempt, which carries
 // the worker and the handler's duration. The claim writes no event, so the execution in flight takes its
@@ -43,12 +42,19 @@ const CLOSING_CODES: ReadonlyMap<string, ExecutionOutcome | 'yielded'> = new Map
   ['job.failed', 'failed']
 ]);
 
-const YIELD_OUTCOMES: ReadonlySet<string> = new Set(['rescheduled', 'suspended', 'paused', 'cancelled']);
+// A yield's details.outcome, by the outcome the page shows for it.
+const YIELD_OUTCOMES: ReadonlyMap<string, ExecutionOutcome> = new Map([
+  ['rescheduled', 'rescheduled'],
+  ['slept', 'sleeping'],
+  ['suspended', 'suspended'],
+  ['paused', 'paused'],
+  ['cancelled', 'cancelled']
+]);
 
 function outcomeOf(eventCode: string, yielded: string | undefined): ExecutionOutcome {
   const recorded = CLOSING_CODES.get(eventCode);
   if (recorded !== 'yielded') return recorded ?? 'unknown';
-  return yielded !== undefined && YIELD_OUTCOMES.has(yielded) ? (yielded as ExecutionOutcome) : 'unknown';
+  return (yielded !== undefined && YIELD_OUTCOMES.get(yielded)) || 'unknown';
 }
 
 export function deriveExecutions(events: EventItem[]): ExecutionSummary[] {
@@ -70,7 +76,7 @@ export function deriveExecutions(events: EventItem[]): ExecutionSummary[] {
       finishedAtUtc: end.createdAtUtc,
       durationMs: end.durationMs,
       workerRef: end.workerRef,
-      outcome: outcome === 'suspended' && executionSlept(events, executionNumber) ? 'sleeping' : outcome,
+      outcome,
       reason: facts.reason ?? null,
       message: end.message,
     };

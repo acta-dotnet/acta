@@ -77,7 +77,7 @@ public enum EventCode : byte
 
     [Code(
         "job.execution-yielded",
-        "The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason."
+        "The attempt ended without succeeding or failing: rescheduled, slept, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason."
     )]
     JobExecutionYielded = 43,
 
@@ -89,7 +89,7 @@ public enum EventCode : byte
 
     [Code(
         "job.suspended",
-        "The attempt stopped on a durable wait: a sleep timer made the job ready again at its due time, or a wait on a signal or on child jobs left it suspended. It spends no retry budget; the details carry the key to."
+        "The attempt stopped on a durable wait for a signal or for child jobs, and the job is suspended until one arrives or the wait expires. It spends no retry budget."
     )]
     JobSuspended = 60,
 
@@ -98,6 +98,12 @@ public enum EventCode : byte
         "The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it, who is then the event's actor. The details carry the reason when there is one."
     )]
     JobRescheduled = 61,
+
+    [Code(
+        "job.slept",
+        "The attempt stopped on a durable sleep: the job is ready again at the sleep's due time, and its handler then runs on past the sleep. It spends no retry budget."
+    )]
+    JobSlept = 62,
 
     [Code("job.cancelled", "The job was cancelled, which is final.")]
     JobCancelled = 70,

@@ -114,7 +114,7 @@
         </div>
         <ol class="rail">
           {#each steps as evt (evt.eventId)}
-            {@const p = timelinePresentation(evt, events)}
+            {@const p = timelinePresentation(evt)}
             {@const facts = eventFacts(evt.detailsText)}
             {@const actor = timelineActor(evt)}
             <li class={'t-' + p.tone}>

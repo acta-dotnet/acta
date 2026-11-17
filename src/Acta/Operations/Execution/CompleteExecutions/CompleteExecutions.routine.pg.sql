@@ -431,6 +431,7 @@ BEGIN
             WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
                 THEN ',"outcome":"' || CASE
                     WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
+                    WHEN c.reschedule_event_code = 62 /* EventCode.JobSlept */ THEN 'slept'
                     WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
                     WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
                     ELSE 'cancelled'
@@ -459,7 +460,7 @@ BEGIN
             )
         );
 
-    /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
+    /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler. */
     IF
         cardinality(array_remove(p_reschedule_event_codes, NULL)) > 0
         OR cardinality(array_remove(p_handler_job_status_codes, NULL)) > 0
@@ -511,26 +512,7 @@ BEGIN
                 END
             )
         ) AS k (ord, event_code)
-        CROSS JOIN LATERAL (
-            SELECT NULLIF(
-                '{'
-                || substr(
-                    concat(
-                        CASE
-                            WHEN k.event_code = 60 /* EventCode.JobSuspended */
-                                THEN CASE r.job_status_code
-                                    WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                    WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                                END
-                        END,
-                        ',"reason":"' || c.reason || '"'
-                    ),
-                    2
-                )
-                || '}',
-                '{}'
-            ) AS details
-        ) x
+        CROSS JOIN LATERAL (SELECT '{"reason":"' || c.reason || '"}' AS details) x
         WHERE c.job_id = ANY (v_done) AND j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
         ORDER BY r.job_id, k.ord;
     END IF;

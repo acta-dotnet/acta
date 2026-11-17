@@ -284,6 +284,7 @@ FROM (
                         WHEN d.event_code = 43 /* EventCode.JobExecutionYielded */
                             THEN ',"outcome":"' || CASE
                                 WHEN d.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
+                                WHEN d.reschedule_event_code = 62 /* EventCode.JobSlept */ THEN 'slept'
                                 WHEN d.reschedule_event_code IS NOT NULL THEN 'rescheduled'
                                 WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
                                 ELSE 'cancelled'
@@ -316,8 +317,7 @@ WHERE
     );
 
 -- begin shapes
-/* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler.
-   A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
+/* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler. */
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
     definition_id, tenant_id, lineage_root_job_id, worker_id, execution_number,
@@ -326,54 +326,31 @@ SELECT
     k.shape_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), k.namespace_id, 50 /* EntityCode.Job */, k.job_id,
     k.definition_id, k.tenant_id, COALESCE(k.lineage_root_job_id, k.job_id), @p_leased_by_worker_id, k.execution_number,
     k.event_message,
-    CASE WHEN k.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-    CAST(k.details AS BLOB)
+    CASE WHEN k.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+    CAST('{"reason":"' || k.reason || '"}' AS BLOB)
 FROM (
     SELECT
-        s.*,
-        NULLIF(
-            '{'
-            || substr(
-                COALESCE(
-                    CASE
-                        WHEN s.shape_code = 60 /* EventCode.JobSuspended */
-                            THEN CASE s.to_status
-                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                            END
-                    END,
-                    ''
-                )
-                || COALESCE(',"reason":"' || s.reason || '"', ''),
-                2
-            )
-            || '}',
-            '{}'
-        ) AS details
-    FROM (
-        SELECT
-            d.*,
-            n.ord,
-            CASE n.ord
-                -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
-                WHEN 1 THEN CASE d.final_job_status_code
-                    WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                    WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                END
-                -- A wait whose signal had already arrived landed Ready and re-armed nothing.
-                WHEN 2 THEN CASE
-                    WHEN d.reschedule_event_code IS NOT NULL AND NOT (d.wait_signal_name IS NOT NULL AND d.to_status = 10 /* JobStatusCode.Ready */)
-                        THEN d.reschedule_event_code
-                END
-                ELSE CASE
-                    WHEN d.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                    WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                END
-            END AS shape_code
-        FROM temp._ces_done d
-        CROSS JOIN (SELECT 1 AS ord UNION ALL SELECT 2 UNION ALL SELECT 3) n
-        WHERE d.event_recording_code = 20 /* EventRecordingCode.Audit */
-    ) s
+        d.*,
+        n.ord,
+        CASE n.ord
+            -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
+            WHEN 1 THEN CASE d.final_job_status_code
+                WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+            END
+            -- A wait whose signal had already arrived landed Ready and re-armed nothing.
+            WHEN 2 THEN CASE
+                WHEN d.reschedule_event_code IS NOT NULL AND NOT (d.wait_signal_name IS NOT NULL AND d.to_status = 10 /* JobStatusCode.Ready */)
+                    THEN d.reschedule_event_code
+            END
+            ELSE CASE
+                WHEN d.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+            END
+        END AS shape_code
+    FROM temp._ces_done d
+    CROSS JOIN (SELECT 1 AS ord UNION ALL SELECT 2 UNION ALL SELECT 3) n
+    WHERE d.event_recording_code = 20 /* EventRecordingCode.Audit */
 ) k
 WHERE k.shape_code IS NOT NULL
 ORDER BY k.job_id, k.ord;

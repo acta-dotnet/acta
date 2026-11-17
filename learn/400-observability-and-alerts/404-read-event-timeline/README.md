@@ -3,5 +3,5 @@
 ## Remember
 
 - A timeline starts at the first attempt. The enqueue is the job's row, `CreatedAtUtc`, not an event.
-- A wait writes two events at one instant: `job.execution-yielded` and `job.suspended`.
+- A wait writes two events at one instant: `job.execution-yielded` and `job.suspended`. A sleep writes `job.execution-yielded` and `job.slept`.
 - `new ListEventsQuery(LineageRoot: root.JobRef)` reads a whole tree's timeline in one query, children included.

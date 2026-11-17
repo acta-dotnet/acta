@@ -162,7 +162,11 @@ internal sealed partial class WorkerFinalizer
             return command with
             {
                 EventCode = EventCode.JobExecutionYielded,
-                RescheduleEventCode = s.Outcome == CompletionKind.Suspended ? EventCode.JobSuspended : EventCode.JobRescheduled,
+                // A suspension that names no signal is a sleep: it carries the instant its timer is due.
+                RescheduleEventCode =
+                    s.Outcome != CompletionKind.Suspended ? EventCode.JobRescheduled
+                    : s.WaitSignalName is null ? EventCode.JobSlept
+                    : EventCode.JobSuspended,
                 RescheduleDelaySeconds = s.RescheduleDelaySeconds,
                 RescheduleResumeAtUtc = s.RescheduleResumeAtUtc,
                 WaitSignalName = s.WaitSignalName,

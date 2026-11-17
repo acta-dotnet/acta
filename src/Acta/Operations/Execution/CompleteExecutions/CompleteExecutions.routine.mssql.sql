@@ -397,6 +397,7 @@ BEGIN
                 WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
                     THEN ',"outcome":"' + CASE
                         WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
+                        WHEN c.reschedule_event_code = 62 /* EventCode.JobSlept */ THEN 'slept'
                         WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
                         WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
                         ELSE 'cancelled'
@@ -424,8 +425,7 @@ BEGIN
 
         IF @p_plain = 0
             BEGIN
-            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its
-               handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
+            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler. */
             IF @shapes = 1
                 INSERT INTO {{schema}}.events (
                     event_code, created_at_utc, namespace_id,
@@ -471,28 +471,7 @@ BEGIN
                         END
                     )
                 ) k (ord, event_code)
-                CROSS APPLY (
-                    SELECT NULLIF(
-                        CONCAT(
-                            '{',
-                            STUFF(
-                                CONCAT(
-                                    CASE
-                                        WHEN k.event_code = 60 /* EventCode.JobSuspended */
-                                            THEN CASE d.job_status_code
-                                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                                            END
-                                    END,
-                                    ',"reason":"' + c.reason + '"'
-                                ),
-                                1, 1, ''
-                            ),
-                            '}'
-                        ),
-                        '{}'
-                    ) AS details
-                ) x
+                CROSS APPLY (SELECT '{"reason":"' + c.reason + '"}' AS details) x
                 WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
                 ORDER BY d.job_id, k.ord;
 

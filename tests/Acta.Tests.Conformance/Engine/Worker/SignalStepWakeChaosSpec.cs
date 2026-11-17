@@ -68,7 +68,6 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var suspended = Assert.Single(events, e => e.EventCode == EventCode.JobSuspended);
-        Assert.Equal(JobStatusCode.Suspended.Code, suspended.To);
         // RaiseJobSignal records the raise without moving status; the Suspended->Ready transition is the
         // separate JobResumed event that follows it.
         var raised = Assert.Single(events, e => e.EventCode == EventCode.JobSignalRaised);

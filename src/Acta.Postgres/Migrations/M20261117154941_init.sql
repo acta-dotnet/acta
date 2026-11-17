@@ -1286,6 +1286,7 @@ BEGIN
             WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
                 THEN ',"outcome":"' || CASE
                     WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
+                    WHEN c.reschedule_event_code = 62 /* EventCode.JobSlept */ THEN 'slept'
                     WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
                     WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
                     ELSE 'cancelled'
@@ -1314,7 +1315,7 @@ BEGIN
             )
         );
 
-    /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
+    /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler. */
     IF
         cardinality(array_remove(p_reschedule_event_codes, NULL)) > 0
         OR cardinality(array_remove(p_handler_job_status_codes, NULL)) > 0
@@ -1366,26 +1367,7 @@ BEGIN
                 END
             )
         ) AS k (ord, event_code)
-        CROSS JOIN LATERAL (
-            SELECT NULLIF(
-                '{'
-                || substr(
-                    concat(
-                        CASE
-                            WHEN k.event_code = 60 /* EventCode.JobSuspended */
-                                THEN CASE r.job_status_code
-                                    WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
-                                    WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
-                                END
-                        END,
-                        ',"reason":"' || c.reason || '"'
-                    ),
-                    2
-                )
-                || '}',
-                '{}'
-            ) AS details
-        ) x
+        CROSS JOIN LATERAL (SELECT '{"reason":"' || c.reason || '"}' AS details) x
         WHERE c.job_id = ANY (v_done) AND j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
         ORDER BY r.job_id, k.ord;
     END IF;
@@ -4355,7 +4337,7 @@ SELECT
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-updated' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 62 THEN 'job.slept' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-updated' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name,
@@ -4541,5 +4523,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117145837_init')
+VALUES ('M20261117154941_init')
 ON CONFLICT (name) DO NOTHING;

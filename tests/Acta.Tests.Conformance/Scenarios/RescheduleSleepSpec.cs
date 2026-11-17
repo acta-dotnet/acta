@@ -92,11 +92,11 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(nap.DueAtUtc, job.NextRunAtUtc);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "suspended", ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
+        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "slept", ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSlept, ct));
 
         // The sleep's reason is the timeline's line.
-        Assert.Equal("waiting", (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSuspended, ct)).EventMessage);
+        Assert.Equal("waiting", (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSlept, ct)).EventMessage);
     }
 
     [Fact(DisplayName = "A sleep given no reason names its timer and the instant it lasts until on the timeline")]
@@ -108,8 +108,8 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-reject", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var suspended = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSuspended, ct);
-        Assert.StartsWith("Timer 'second-name' until ", suspended.EventMessage ?? "", StringComparison.Ordinal);
+        var slept = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSlept, ct);
+        Assert.StartsWith("Timer 'second-name' until ", slept.EventMessage ?? "", StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Sleep rerun before due does not extend or duplicate the timer")]

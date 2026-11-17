@@ -31,7 +31,7 @@ internal sealed record BoundCompletion(
             { Succeeded: true } => CompletionKind.Succeeded,
             { HandlerStatusCode: (byte)JobStatusCode.Cancelled } => CompletionKind.Cancelled,
             { HandlerStatusCode: (byte)JobStatusCode.Paused } => CompletionKind.Paused,
-            { RescheduleEventCode: EventCode.JobSuspended } => CompletionKind.Suspended,
+            { RescheduleEventCode: EventCode.JobSuspended or EventCode.JobSlept } => CompletionKind.Suspended,
             { RescheduleEventCode: not null, FailureCount: null } => CompletionKind.Rescheduled,
             _ => CompletionKind.Failed,
         };

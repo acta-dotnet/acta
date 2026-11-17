@@ -176,7 +176,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
             .CountAsync(ct);
     }
 
-    /// <summary>How many of the job's attempts yielded with <paramref name="outcome"/> (rescheduled, suspended, paused, cancelled).</summary>
+    /// <summary>How many of the job's attempts yielded with <paramref name="outcome"/> (rescheduled, slept, suspended, paused, cancelled).</summary>
     protected async Task<int> CountYieldedAsync(long jobId, string outcome, CancellationToken ct) =>
         (
             await Db.From<EventEntity>()

@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **32 families**, **195 values**.
+This release: **32 families**, **196 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -206,10 +206,11 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobExecutionSucceeded` | 40 | `job.execution-succeeded` | The attempt's handler returned successfully; durationMs is set. Recorded for every success under audit, under failures only for a success after counted failures, and under an enabled alert profile also for a one-shot job's success past its first attempt. | Active |
 | `JobExecutionFailed` | 41 | `job.execution-failed` | The attempt failed and the job lives on: a retry within budget, or a permanent job's firing that spent its budget and returned the job to idle. durationMs and the failure's message are set; the details carry the keys reason and to. | Active |
 | `JobExecutionOrphaned` | 42 | `job.execution-orphaned` | The lease of the attempt's worker expired and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to. | Active |
-| `JobExecutionYielded` | 43 | `job.execution-yielded` | The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason. | Active |
+| `JobExecutionYielded` | 43 | `job.execution-yielded` | The attempt ended without succeeding or failing: rescheduled, slept, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason. | Active |
 | `JobFailed` | 44 | `job.failed` | The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. durationMs is set when an attempt ran; the details carry the key reason. | Active |
-| `JobSuspended` | 60 | `job.suspended` | The attempt stopped on a durable wait: a sleep timer made the job ready again at its due time, or a wait on a signal or on child jobs left it suspended. It spends no retry budget; the details carry the key to. | Active |
+| `JobSuspended` | 60 | `job.suspended` | The attempt stopped on a durable wait for a signal or for child jobs, and the job is suspended until one arrives or the wait expires. It spends no retry budget. | Active |
 | `JobRescheduled` | 61 | `job.rescheduled` | The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it, who is then the event's actor. The details carry the reason when there is one. | Active |
+| `JobSlept` | 62 | `job.slept` | The attempt stopped on a durable sleep: the job is ready again at the sleep's due time, and its handler then runs on past the sleep. It spends no retry budget. | Active |
 | `JobCancelled` | 70 | `job.cancelled` | The job was cancelled, which is final. | Active |
 | `JobPaused` | 71 | `job.paused` | The job was paused. | Active |
 | `JobResumed` | 72 | `job.resumed` | The job was resumed: it is ready again, idle for a permanent job with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane. | Active |

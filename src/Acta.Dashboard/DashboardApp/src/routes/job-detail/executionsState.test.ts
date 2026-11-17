@@ -82,12 +82,10 @@ test('a yielded attempt takes its outcome from the details', () => {
   assert.deepEqual(outcomes, ['rescheduled', 'suspended', 'paused', 'cancelled']);
 });
 
-test('a suspended execution sleeps when its job.suspended event re-armed the job Ready, and waits otherwise', () => {
+test('an execution that slept reads Sleeping, and one that waits Waiting', () => {
   const runs = deriveExecutions([
-    event({ executionNumber: 2, eventCode: 'job.execution-yielded', detailsText: '{"outcome":"suspended"}' }),
-    event({ executionNumber: 2, eventCode: 'job.suspended', detailsText: '{"to":"ready"}' }),
+    event({ executionNumber: 2, eventCode: 'job.execution-yielded', detailsText: '{"outcome":"slept"}' }),
     event({ executionNumber: 1, eventCode: 'job.execution-yielded', detailsText: '{"outcome":"suspended"}' }),
-    event({ executionNumber: 1, eventCode: 'job.suspended', detailsText: '{"to":"suspended"}' }),
   ]);
   assert.deepEqual(runs.map((run) => executionPresentation(run.outcome).label), ['Sleeping', 'Waiting']);
 });

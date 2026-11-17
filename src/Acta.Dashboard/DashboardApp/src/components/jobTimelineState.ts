@@ -34,18 +34,8 @@ export interface TimelinePresentation {
   title: string;
 }
 
-/**
- * Whether the execution suspended into a sleep. Its yield does not say; the job.suspended event it wrote does: a sleep
- * re-arms the job Ready at its timer, and a wait on a signal or on children leaves it Suspended.
- */
-export function executionSlept(events: readonly TimelineEvent[], executionNumber: number | null | undefined): boolean {
-  return events.some(
-    (evt) => evt.executionNumber === executionNumber && evt.eventCode === 'job.suspended' && eventFacts(evt.detailsText).to === 'ready'
-  );
-}
-
 /** Rail node presentation for an event: icon, tone, and a plain-verb title. The exact eventCode stays visible as a sub-line. */
-export function timelinePresentation(evt: TimelineEvent, events: readonly TimelineEvent[] = []): TimelinePresentation {
+export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
   const code = String(evt.eventCode ?? '').toLowerCase();
   switch (code) {
     case 'job.execution-succeeded':
@@ -55,10 +45,11 @@ export function timelinePresentation(evt: TimelineEvent, events: readonly Timeli
     case 'job.execution-orphaned':
       return { icon: 'warn', tone: 'warn', title: 'Orphaned' };
     case 'job.execution-yielded':
-      // details.outcome names how the attempt yielded; a suspend reads as its job.suspended sibling among the loaded events.
+      // details.outcome names how the attempt yielded.
       switch (eventFacts(evt.detailsText).outcome) {
         case 'rescheduled': return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'Attempt rescheduled' };
-        case 'suspended': return { icon: 'clock', tone: 'held', title: executionSlept(events, evt.executionNumber) ? 'Sleeping' : 'Waiting' };
+        case 'slept': return { icon: 'clock', tone: 'held', title: 'Sleeping' };
+        case 'suspended': return { icon: 'clock', tone: 'held', title: 'Waiting' };
         case 'paused': return { icon: 'pause', tone: 'warn', title: 'Paused' };
         case 'cancelled': return { icon: 'x', tone: 'bad', title: 'Cancelled' };
         default: return { icon: 'minus-circle', tone: 'neutral', title: 'Attempt yielded' };
@@ -67,8 +58,10 @@ export function timelinePresentation(evt: TimelineEvent, events: readonly Timeli
       return { icon: 'x-circle', tone: 'bad', title: 'Job failed' };
     case 'job.rescheduled':
       return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'Rescheduled' };
+    case 'job.slept':
+      return { icon: 'clock', tone: 'held', title: 'Sleeping' };
     case 'job.suspended':
-      return { icon: 'clock', tone: 'held', title: executionSlept([evt], evt.executionNumber) ? 'Sleeping' : 'Waiting' };
+      return { icon: 'clock', tone: 'held', title: 'Waiting' };
     case 'job.cancelled':
       return { icon: 'x', tone: 'bad', title: 'Cancelled' };
     case 'job.paused':
