@@ -139,7 +139,9 @@ public static class ActaTestHost
                 throw new InvalidOperationException($"Namespace '{jobNamespace}' has no id yet. Call InitializeAsync before recovery.");
             }
 
-            var outcome = await provider.GetRequiredService<RecoveryPass>().RunAsync(namespaceId, jobNamespace, ct);
+            var outcome = await provider
+                .GetRequiredService<RecoveryPass>()
+                .RunAsync(namespaceId, jobNamespace, releasedWorkerIds: null, ct);
             return new ActaRecoveryReport(outcome.DeadWorkersMarked, outcome.ReclaimedJobs, outcome.ReleasedChildLatches);
         }
 

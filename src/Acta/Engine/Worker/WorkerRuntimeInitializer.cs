@@ -129,10 +129,11 @@ internal sealed class WorkerRuntimeInitializer(
                 return;
             }
 
-            await _workers.ReleaseGoneWorkersAsync([.. gone.Select(w => w.WorkerId)], ct);
+            int[] goneIds = [.. gone.Select(w => w.WorkerId)];
+            await _workers.ReleaseGoneWorkersAsync(goneIds, ct);
             var released = string.Join(", ", gone.Select(w => $"{w.WorkerRef} (process {w.ProcessId})"));
             ActaLog.RecoveryPassChangedWork(_log, ns, $"released this machine's workers whose process has ended: {released}");
-            await _recoveryPass.RunAsync(namespaceId, ns, ct);
+            await _recoveryPass.RunAsync(namespaceId, ns, goneIds, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {

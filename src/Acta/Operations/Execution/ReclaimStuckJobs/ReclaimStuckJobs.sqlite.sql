@@ -113,6 +113,7 @@ SELECT
     s.job_id,
     s.parent_job_id,
     s.worker_id,
+    s.released,
     s.wait_resolved,
     s.new_failure_count,
     /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no cost, so
@@ -127,6 +128,8 @@ FROM (
         r.job_id,
         j.parent_job_id,
         r.leased_by_worker_id AS worker_id,
+        -- A worker the starting host released because its process had ended; a pass of the heartbeat names none.
+        CASE WHEN r.leased_by_worker_id IN (SELECT g.value FROM json_each(@p_worker_ids) g) THEN 1 ELSE 0 END AS released,
         -- Saturates at 32767, the ceiling WorkerFinalizer.FailureCountCeiling names; registration caps MaxAttempts there.
         CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
         jd.max_attempts_effective AS max_attempts,
@@ -181,16 +184,30 @@ SELECT
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.leased_by_worker_id,
     r.execution_number,
-    CASE WHEN rj.wait_resolved = 1
-        THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+    CASE
+        WHEN rj.wait_resolved = 1 AND rj.released = 1
+            THEN 'Worker''s process ended while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+        WHEN rj.wait_resolved = 1
+            THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+        WHEN rj.released = 1 THEN 'Worker''s process ended; released when this host started.'
         ELSE 'Worker lease expired; reclaimed by crash recovery.' END,
     1 /* JobPayloadFormat.Json */,
     CAST(
-        CASE rj.to_status
-            WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
-            WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
-            WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
-            ELSE '{"reason":"lease-expired","to":"ready"}'
+        CASE
+            WHEN rj.released = 1 THEN
+                CASE rj.to_status
+                    WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"process-ended"}'
+                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"process-ended","to":"idle"}'
+                    WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"process-ended","to":"suspended"}'
+                    ELSE '{"reason":"process-ended","to":"ready"}'
+                END
+            ELSE
+                CASE rj.to_status
+                    WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
+                    WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
+                    ELSE '{"reason":"lease-expired","to":"ready"}'
+                END
         END AS BLOB
     )
 FROM {{schema}}.jobs j

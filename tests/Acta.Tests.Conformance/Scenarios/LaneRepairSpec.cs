@@ -88,7 +88,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         var otherName = Unique("other");
         var otherId = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(otherName, "test", ct);
 
-        await Services.GetRequiredService<RecoveryPass>().RunAsync(otherId, otherName, ct);
+        await Services.GetRequiredService<RecoveryPass>().RunAsync(otherId, otherName, releasedWorkerIds: null, ct);
 
         await AssertUntouchedAsync(follower, ct);
     }
@@ -119,7 +119,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Job
             ct
         );
 
-        await Services.GetRequiredService<RecoveryPass>().RunAsync(ns, TestNamespace, ct);
+        await Services.GetRequiredService<RecoveryPass>().RunAsync(ns, TestNamespace, releasedWorkerIds: null, ct);
 
         Assert.Equal(
             100,
@@ -130,7 +130,9 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     }
 
     private Task PassAsync(CancellationToken ct) =>
-        Services.GetRequiredService<RecoveryPass>().RunAsync(Runtime.RegisteredNamespaceIds[TestNamespace], TestNamespace, ct);
+        Services
+            .GetRequiredService<RecoveryPass>()
+            .RunAsync(Runtime.RegisteredNamespaceIds[TestNamespace], TestNamespace, releasedWorkerIds: null, ct);
 
     private EnqueueJobRequest Step(string lane, string label) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane);

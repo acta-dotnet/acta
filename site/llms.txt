@@ -33,7 +33,7 @@ it spent the last attempt. With the default 45-second heartbeat a lost attempt c
 three to about seven minutes after its worker's last heartbeat (one to two leases, plus up to a heartbeat for the
 recovery pass). On SQLite, with crash recovery on (the default), a restart brings it back at once: a starting
 worker releases its namespace's workers on the same machine whose process has ended, with their jobs' locks and
-concurrency slots, and runs the recovery pass (server databases wait out the lease, because replicas that share a
+concurrency slots, and runs the recovery pass, whose reclaim of those jobs carries the reason `process-ended` (server databases wait out the lease, because replicas that share a
 host name have process ids of their own). A clean stop is not a crash: running handlers finish first, up to the host's
 `HostOptions.ShutdownTimeout` (30 seconds by default), and only then is their token cancelled.
 

@@ -62,7 +62,10 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.True(workerAfter!.LastSeenAtUtc > lastSeenBefore, "heartbeat should advance last_seen_at_utc");
 
         // A live (heartbeat-fresh) lease is not stuck - reclaim finds nothing and leaves it claimed.
-        Assert.Equal(0, (await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, ct)).Reclaimed);
+        Assert.Equal(
+            0,
+            (await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, releasedWorkerIds: null, ct)).Reclaimed
+        );
         var still = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, still!.Status);
         Assert.Equal(workerId, still.LeasedByWorkerId);

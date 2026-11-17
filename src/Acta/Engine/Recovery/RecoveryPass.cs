@@ -36,22 +36,24 @@ internal sealed class RecoveryPass(
     /// the rows are claimable - Ready, or Suspended on a deadline already past for the one arm that
     /// re-arms a resolved wait uncharged - and nothing else will announce them, so a live worker should
     /// pick them up without waiting out the safety poll. Answers what the pass changed, for the test host's recovery drive.
+    /// <paramref name="releasedWorkerIds"/> are the workers the start released just before its pass.
     /// </summary>
     public async Task<(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches)> RunAsync(
         int namespaceId,
         string namespaceName,
+        IReadOnlyList<int>? releasedWorkerIds,
         CancellationToken ct
     )
     {
         var deadWorkers = (await workers.MarkDeadWorkersAsync(_deadAfterSeconds, ct)).Marked;
-        var result = await execution.ReclaimStuckJobsAsync(namespaceId, ct);
+        var result = await execution.ReclaimStuckJobsAsync(namespaceId, releasedWorkerIds, ct);
         if (deadWorkers > 0 || result.Reclaimed > 0 || result.RepairedLanes > 0)
         {
             // The rare event an operator tailing the log needs: a worker stopped heartbeating, or its work came back.
             ActaLog.RecoveryPassChangedWork(
                 _log,
                 namespaceName,
-                $"dead workers marked (all namespaces): {deadWorkers}, jobs reclaimed after their lease expired: {result.Reclaimed}, stranded lanes released: {result.RepairedLanes}"
+                $"dead workers marked (all namespaces): {deadWorkers}, jobs reclaimed: {result.Reclaimed}, stranded lanes released: {result.RepairedLanes}"
                     + (
                         result.Reclaimed > 0
                             ? "; a reclaimed job's timeline records job.execution-orphaned, or job.failed on its last attempt"

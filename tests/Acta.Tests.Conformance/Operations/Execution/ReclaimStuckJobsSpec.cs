@@ -162,7 +162,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         );
 
         // One direct reclaim pass: must NOT touch the live-lease Executing row.
-        var result = await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, ct);
+        var result = await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, releasedWorkerIds: null, ct);
         Assert.Equal(0, result.Reclaimed);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);

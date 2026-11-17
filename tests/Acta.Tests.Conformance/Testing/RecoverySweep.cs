@@ -17,7 +17,7 @@ internal static class RecoverySweep
     /// <summary>Sweeps until one sweep reclaims at least one row, and returns that sweep's answer.</summary>
     public static Task<ReclaimStuckJobsResponse> ReclaimAtLeastOneAsync(IServiceProvider services, int namespaceId, CancellationToken ct) =>
         SpecWaits.RepeatUntilAsync(
-            () => services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(namespaceId, ct),
+            () => services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(namespaceId, releasedWorkerIds: null, ct),
             result => result.Reclaimed > 0,
             ct
         );
@@ -30,7 +30,7 @@ internal static class RecoverySweep
         SpecWaits.RepeatUntilAsync(
             async () =>
             {
-                await services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(namespaceId, ct);
+                await services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(namespaceId, releasedWorkerIds: null, ct);
                 return await settled();
             },
             done => done,

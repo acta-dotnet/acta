@@ -130,7 +130,7 @@ public sealed class RecoveryPassSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var started = Stopwatch.GetTimestamp();
         while (true)
         {
-            await pass.RunAsync(TestNamespaceId, TestNamespace, ct);
+            await pass.RunAsync(TestNamespaceId, TestNamespace, releasedWorkerIds: null, ct);
 
             var settled =
                 (await ReadJobAsync(strandedId, ct)).Status == JobStatusCode.Ready

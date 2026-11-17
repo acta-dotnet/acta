@@ -285,7 +285,7 @@ internal sealed class WorkerHeartbeat(
                 var outcome = "completed";
                 try
                 {
-                    await recoveryPass.RunAsync(namespaceId, namespaceName, ct);
+                    await recoveryPass.RunAsync(namespaceId, namespaceName, releasedWorkerIds: null, ct);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {

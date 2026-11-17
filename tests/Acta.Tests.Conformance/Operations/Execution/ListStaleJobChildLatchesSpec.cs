@@ -53,7 +53,7 @@ public sealed class ListStaleJobChildLatchesSpec : ActaRuntimeTestBase<Conforman
 
         Assert.DoesNotContain((await StaleAsync(ct)).Latches, l => l.ParentJobId == parent);
 
-        await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, ct);
+        await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, releasedWorkerIds: null, ct);
         var after = Assert.Single(await ReadSignalsAsync(parent, ct));
         Assert.Equal((cancelled.Status, cancelled.Version), (after.Status, after.Version));
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(parent, ct)).Status);
@@ -85,7 +85,7 @@ public sealed class ListStaleJobChildLatchesSpec : ActaRuntimeTestBase<Conforman
 
         Assert.DoesNotContain((await StaleAsync(ct)).Latches, l => l.ParentJobId == parent);
 
-        await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, ct);
+        await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, releasedWorkerIds: null, ct);
         Assert.Equal(CheckpointStatusCode.Pending, Assert.Single(await ReadSignalsAsync(parent, ct)).Status);
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent, ct)).Status);
     }

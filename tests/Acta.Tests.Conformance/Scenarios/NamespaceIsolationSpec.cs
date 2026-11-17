@@ -164,7 +164,9 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         await other.Check("recover a stranded job", async t =>
             Assert.True(
-                (await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, t)).ReclaimedJobs > 0,
+                (
+                    await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, releasedWorkerIds: null, t)
+                ).ReclaimedJobs > 0,
                 "the recovery pass reclaimed nothing"
             )
         );

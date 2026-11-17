@@ -59,8 +59,11 @@ internal sealed class ExecutionOperations(
     /// surviving path never spends that retry: it returns to Suspended on the same past deadline, and the replay
     /// resolves the timeout as the waiting overload defines it.
     /// </summary>
-    public Task<ReclaimStuckJobsResponse> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
-        reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
+    public Task<ReclaimStuckJobsResponse> ReclaimStuckJobsAsync(
+        int namespaceId,
+        IReadOnlyList<int>? releasedWorkerIds,
+        CancellationToken ct
+    ) => reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId, releasedWorkerIds), ct);
 
     /// <summary>
     /// Reads or inserts the <c>(job_id, name)</c> step under the attempt's fence and decides

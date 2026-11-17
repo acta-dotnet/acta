@@ -19,7 +19,7 @@ public sealed class RecoveryPassTests
         // 45.1s of heartbeat derives 315.7s; flooring it would tombstone a live worker early.
         var pass = Pass(workers, ExecutionStore(), SignalStore(releases: false), TimeSpan.FromSeconds(315.7));
 
-        await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
+        await pass.RunAsync(namespaceId: 1, namespaceName: "payments", releasedWorkerIds: null, TestContext.Current.CancellationToken);
 
         Assert.Equal(316, Assert.Single(workers.Calls).Get(ActaSchema.Sql.DeadAfterSeconds));
     }
@@ -31,7 +31,12 @@ public sealed class RecoveryPassTests
         var log = new RecordingLog();
         var pass = Pass(WorkerSweep(), ExecutionStore(), SignalStore(releases: false), wakeup: wakeups, log: log);
 
-        var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
+        var outcome = await pass.RunAsync(
+            namespaceId: 1,
+            namespaceName: "payments",
+            releasedWorkerIds: null,
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal((0, 0, 0), outcome);
         Assert.Empty(wakeups.Channels);
@@ -54,7 +59,12 @@ public sealed class RecoveryPassTests
         var log = new RecordingLog();
         var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups, log: log);
 
-        var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
+        var outcome = await pass.RunAsync(
+            namespaceId: 1,
+            namespaceName: "payments",
+            releasedWorkerIds: null,
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal((3, 2, 2), outcome);
         Assert.Equal(
@@ -69,11 +79,7 @@ public sealed class RecoveryPassTests
         // One warning per pass that changed work, so an operator tailing the log sees the crash and its recovery.
         var line = Assert.Single(log.Lines);
         Assert.Equal(LogLevel.Warning, line.Level);
-        Assert.Contains(
-            "dead workers marked (all namespaces): 3, jobs reclaimed after their lease expired: 2",
-            line.Message,
-            StringComparison.Ordinal
-        );
+        Assert.Contains("dead workers marked (all namespaces): 3, jobs reclaimed: 2", line.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -85,7 +91,12 @@ public sealed class RecoveryPassTests
         );
         var pass = Pass(WorkerSweep(), execution, SignalStore(releases: false), wakeup: wakeups);
 
-        var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
+        var outcome = await pass.RunAsync(
+            namespaceId: 1,
+            namespaceName: "payments",
+            releasedWorkerIds: null,
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal((0, 0, 0), outcome);
         Assert.Equal([WorkerWakeupChannelKind.WorkerNamespace], wakeups.Channels.Select(c => c.Kind));

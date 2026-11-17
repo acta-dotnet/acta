@@ -7,7 +7,18 @@ internal sealed class ReclaimStuckJobsHandler(IDbSession session, ISqlDialect di
         Map(
             await session.ExecuteAsync(
                 new StoreCommand("ReclaimStuckJobs"),
-                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, command.NamespaceId)),
+                cmd =>
+                {
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, command.NamespaceId));
+
+                    // Only a start on SQLite releases workers, so only its statement reads them.
+                    if (dialect.Provider == DbProvider.Sqlite)
+                    {
+                        cmd.Parameters.Add(
+                            dialect.CreateParameter(ActaSchema.Sql.WorkerIdsJson, DbParams.JsonIdArray(command.ReleasedWorkerIds))
+                        );
+                    }
+                },
                 DbProjectionResolver.Resolve<ReclaimStuckJobsRow>(),
                 ct
             )

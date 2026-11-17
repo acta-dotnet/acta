@@ -104,10 +104,9 @@ public sealed class ReleaseGoneWorkersSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(released ? JobStatusCode.Ready : JobStatusCode.Executing, (await ReadJobAsync(job, ct)).Status);
         if (released)
         {
-            Assert.Equal(
-                EventReason.LeaseExpired,
-                EventDetail(await ReadSingleEventAsync(job, EventCode.JobExecutionOrphaned, ct), "reason")
-            );
+            var orphaned = await ReadSingleEventAsync(job, EventCode.JobExecutionOrphaned, ct);
+            Assert.Equal(EventReason.ProcessEnded, EventDetail(orphaned, "reason"));
+            Assert.Equal("Worker's process ended; released when this host started.", orphaned.EventMessage);
         }
     }
 

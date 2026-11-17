@@ -16,6 +16,7 @@ public sealed partial class EventReasonContractTests
     private const string Frozen = """
         UnhandledException=unhandled-exception
         LeaseExpired=lease-expired
+        ProcessEnded=process-ended
         ExecutionTimeout=execution-timeout
         NonRetryableException=non-retryable-exception
         DeadlineExceeded=deadline-exceeded

@@ -63,7 +63,7 @@ mid-drain, until recovery marks it `Dead` - which is why a kill and a crash are 
 here, and correctly so. On SQLite, where one process owns the file, that wait ends at the next start when crash
 recovery is on: a worker starting in the namespace on the same machine marks `Dead` each worker there whose process has ended (no process
 has its id, or the one that has it started after the worker), lapses the leases, locks, and concurrency slots of
-its jobs, and runs a recovery pass, so they run again within the start. A worker cut off by a database outage longer than `WorkerDeadAfter` is
+its jobs, and runs a recovery pass, so they run again within the start; each such job's `job.execution-orphaned` carries the reason `process-ended`, where a lease that ran out carries `lease-expired`. A worker cut off by a database outage longer than `WorkerDeadAfter` is
 marked `Dead` too, and its first heartbeat after the outage makes it `Active` again and records
 `worker.started`, so every `worker.died` of a worker that lived on has a start after it.
 

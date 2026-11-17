@@ -12,6 +12,9 @@ internal static class EventReason
     /// <summary>The worker's lease expired and crash recovery reclaimed the job.</summary>
     public const string LeaseExpired = "lease-expired";
 
+    /// <summary>The worker's process had ended, and a host starting on the same machine released the job.</summary>
+    public const string ProcessEnded = "process-ended";
+
     /// <summary>The attempt exceeded the definition's execution timeout.</summary>
     public const string ExecutionTimeout = "execution-timeout";
 

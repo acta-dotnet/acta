@@ -206,7 +206,7 @@ dotnet run --project learn/100-scheduling/109-continuous-synchronization -- cras
 # 4. Inspect the durable state the dead worker left behind.
 dotnet run --project learn/100-scheduling/109-continuous-synchronization -- inspect
 
-# 5. Terminal one: restart the worker. Its heartbeat finds the lease lapsed and reclaims the firing.
+# 5. Terminal one: restart the worker. Its start finds the killed worker's process gone and reclaims the firing.
 dotnet run --project learn/100-scheduling/109-continuous-synchronization -- worker
 
 # 6. Inspect again: the same job and firing, one more execution, the watermark at the feed's head.
@@ -256,12 +256,12 @@ checkpoint_name | checkpoint_kind | value_text | modified_at_utc
 watermark       | variable        | 160        | 2026-10-30 12:14:04.877Z
 
 feed head: change 180; local orders: 40 (newest change 160)</code></pre></figure>
-<p><b>After the restart (step 6).</b> The restarted worker's heartbeat found the lease lapsed, reclaimed the firing, and the claim ran it as execution 8 of the same job and the same firing. The handler re-entered from the top, read watermark 160, and applied the twenty changes the dead process never reached; the firings after it found nothing to do.</p>
+<p><b>After the restart (step 6).</b> The restarted worker found the killed worker's process gone, released its lease and reclaimed the firing, and the claim ran it as execution 8 of the same job and the same firing. The handler re-entered from the top, read watermark 160, and applied the twenty changes the dead process never reached; the firings after it found nothing to do.</p>
 <figure class="listing"><figcaption><span class="note">Text</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[sync-orders] execution 8: 20 changes applied, watermark 180
 [sync-orders] execution 9: up to date at change 180
 
 event_id | event                   | execution_number | event_message                        | details_text
-19       | job.execution-orphaned  | 7                | Worker lease expired; reclaimed by … | {&quot;reason&quot;:&quot;lease-expired&quot;,&quot;to&quot;:&quot;rea…
+19       | job.execution-orphaned  | 7                | Worker's process ended; released wh… | {&quot;reason&quot;:&quot;process-ended&quot;,&quot;to&quot;:&quot;rea…
 20       | job.execution-succeeded | 8                | NULL                                 | NULL
 21       | schedule.skipped        | 8                | NULL                                 | {&quot;schedule&quot;:&quot;every-5s&quot;,&quot;from&quot;:&quot;2026…
 22       | schedule.admitted       | 8                | NULL                                 | {&quot;schedule&quot;:&quot;every-5s&quot;,&quot;occurrence&quot;…
@@ -274,7 +274,7 @@ job_ref                              | job_status | execution_number | failure_c
 01a18cba-b966-7a5a-aaf2-83061ba0af99 | idle       | 12               | 0             | NULL                       | NULL
 
 feed head: change 180; local orders: 40 (newest change 180)</code></pre></figure>
-<p><code>job.execution-orphaned</code> is the reclaim: attempt 7 lost its lease and the job went back to <code>Ready</code> (<code>&quot;to&quot;:&quot;ready&quot;</code>). No admission sits between the reclaim and execution 8, so execution 8 ran the firing execution 7 lost, not a new one; the envelope that was <code>pending</code> under execution 7 settled under execution 8. <code>schedule.skipped</code> is the misfire policy at work: the occurrences that fell due while no worker ran were skipped, not queued, which is the default and the right one for a controller that catches up by itself. Event 22 admits the next firing, with an id of its own. Nothing was applied twice: the destination holds forty orders at change 180, one row per order, and the watermark equals the feed's head.</p>
+<p><code>job.execution-orphaned</code> is the reclaim: attempt 7 lost its worker and the job went back to <code>Ready</code> (<code>&quot;to&quot;:&quot;ready&quot;</code>). No admission sits between the reclaim and execution 8, so execution 8 ran the firing execution 7 lost, not a new one; the envelope that was <code>pending</code> under execution 7 settled under execution 8. <code>schedule.skipped</code> is the misfire policy at work: the occurrences that fell due while no worker ran were skipped, not queued, which is the default and the right one for a controller that catches up by itself. Event 22 admits the next firing, with an id of its own. Nothing was applied twice: the destination holds forty orders at change 180, one row per order, and the watermark equals the feed's head.</p>
 <h3>Break it</h3>
 <p>Move <code>crash.AfterBatchAsync</code> in <code>SyncOrdersJob.cs</code> between <code>store.ApplyAsync</code> and <code>ctx.SetVariableAsync</code> and arm a crash: the orders hold the batch, the watermark does not, and the recovered firing applies the same batch again, which the upsert absorbs. That is the replay at-least-once allows, and the reason the orders land first. Then swap the two lines so the watermark is written before the orders, and crash between them: the recovered firing starts after a batch the orders never received, forty changes short, which is the bug. Finally drop the <code>WHERE excluded.last_change_id &gt; local_orders.last_change_id</code> clause from the upsert and replay a batch: an older change overwrites a newer order, which is what the clause is for.</p>
 <h3>When not to use</h3>

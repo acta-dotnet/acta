@@ -106,7 +106,7 @@ dotnet run --project learn/100-scheduling/109-continuous-synchronization -- cras
 # 4. Inspect the durable state the dead worker left behind.
 dotnet run --project learn/100-scheduling/109-continuous-synchronization -- inspect
 
-# 5. Terminal one: restart the worker. Its heartbeat finds the lease lapsed and reclaims the firing.
+# 5. Terminal one: restart the worker. Its start finds the killed worker's process gone and reclaims the firing.
 dotnet run --project learn/100-scheduling/109-continuous-synchronization -- worker
 
 # 6. Inspect again: the same job and firing, one more execution, the watermark at the feed's head.
@@ -195,8 +195,8 @@ watermark       | variable        | 160        | 2026-10-30 12:14:04.877Z
 feed head: change 180; local orders: 40 (newest change 160)
 ```
 
-**After the restart (step 6).** The restarted worker's heartbeat found the lease lapsed, reclaimed
-the firing, and the claim ran it as execution 8 of the same job and the same firing. The handler
+**After the restart (step 6).** The restarted worker found the killed worker's process gone, released
+its lease and reclaimed the firing, and the claim ran it as execution 8 of the same job and the same firing. The handler
 re-entered from the top, read watermark 160, and applied the twenty changes the dead process never
 reached; the firings after it found nothing to do.
 
@@ -205,7 +205,7 @@ reached; the firings after it found nothing to do.
 [sync-orders] execution 9: up to date at change 180
 
 event_id | event                   | execution_number | event_message                        | details_text
-19       | job.execution-orphaned  | 7                | Worker lease expired; reclaimed by … | {"reason":"lease-expired","to":"rea…
+19       | job.execution-orphaned  | 7                | Worker's process ended; released wh… | {"reason":"process-ended","to":"rea…
 20       | job.execution-succeeded | 8                | NULL                                 | NULL
 21       | schedule.skipped        | 8                | NULL                                 | {"schedule":"every-5s","from":"2026…
 22       | schedule.admitted       | 8                | NULL                                 | {"schedule":"every-5s","occurrence"…
@@ -220,7 +220,7 @@ job_ref                              | job_status | execution_number | failure_c
 feed head: change 180; local orders: 40 (newest change 180)
 ```
 
-`job.execution-orphaned` is the reclaim: attempt 7 lost its lease and the job went back to `Ready`
+`job.execution-orphaned` is the reclaim: attempt 7 lost its worker and the job went back to `Ready`
 (`"to":"ready"`). No admission sits between the reclaim and execution 8, so execution 8 ran the
 firing execution 7 lost, not a new one; the envelope that was `pending` under execution 7 settled
 under execution 8. `schedule.skipped` is the misfire policy at work: the occurrences that fell due
