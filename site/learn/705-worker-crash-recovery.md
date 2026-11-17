@@ -102,7 +102,7 @@ Proven by other suites. The release check does not run this program. Needs Postg
 
 ## Next
 
-- [How to run jobs under Native AOT](/learn/901-native-aot-json.md)
+- [How to give Acta a JSON context for Native AOT](/learn/901-native-aot-json.md)
 
 ## More
 

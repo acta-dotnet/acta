@@ -1,4 +1,4 @@
-# The whole program: choose a payload format for a job
+# The whole program: store a job's payload in a custom format
 
 The how-to is [/learn/501-payload-formats.md](/learn/501-payload-formats.md). This file holds every source file of `learn/500-payloads/501-payload-formats` as it is compiled, and the notes kept beside the code.
 
@@ -11,7 +11,7 @@ The how-to is [/learn/501-payload-formats.md](/learn/501-payload-formats.md). Th
 ### Program.cs
 
 ```csharp
-// How to choose a payload format for a job
+// How to store a job's payload in a custom format
 // A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two
 // custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each.
 using Acta;

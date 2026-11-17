@@ -111,7 +111,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to choose a payload format for a job](/learn/501-payload-formats.md)
+- [How to store a job's payload in a custom format](/learn/501-payload-formats.md)
 
 ## More
 

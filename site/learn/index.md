@@ -83,7 +83,7 @@ Every way to start work: now, later, once only, by name, or many at a time.
 - [How to run urgent jobs first](/learn/017-priority.md): A priority on the enqueue decides which of the jobs that are due at once a worker claims first
 - [How to label jobs so you can find them](/learn/018-tags.md): Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard
 - [How to pass a large file by reference](/learn/025-large-payload-reference.md): Keep a big file in blob storage and enqueue a reference to it, with its checksum and size, instead of the bytes
-- [How to choose a payload format for a job](/learn/501-payload-formats.md): A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each
+- [How to store a job's payload in a custom format](/learn/501-payload-formats.md): A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each
 
 ## Run work on a schedule
 
@@ -114,7 +114,7 @@ Steps and variables record what a handler finished, so a retry or a restart carr
 
 - [How to keep finished work from repeating on a retry](/learn/202-durable-step.md): A named step records its outcome, so a retry returns it instead of doing the work again
 - [How to feed one step's result into the next](/learn/206-step-chain.md): A step can return a value. Each result is recorded once, so the next step takes it as its input and a replay rebuilds the chain from the records
-- [How to compute a value once and reuse it](/learn/216-variable-lifecycle.md): `GetOrSetVariableAsync` computes a value on its first call and stores it with the job; later calls return the stored value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw `JobPayload`
+- [How to check, delete, and default a job's variables](/learn/216-variable-lifecycle.md): Beyond `GetOrSetVariableAsync`, shown across a retry in 203, a handler can check for a variable, delete it, read it with a default, and store a raw `JobPayload`
 - [How to compensate when the last attempt fails](/learn/210-step-retry.md): A failing step retries through its job, and a `catch` on `EndsJob` compensates before the failure ends the job
 - [How to refuse to repeat a side effect after a crash](/learn/220-at-most-once-step.md): An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is unknown, and reconciles
 - [How to build a checkout that waits for a review and a timer](/learn/201-durable-checkout.md): One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart
@@ -212,7 +212,7 @@ Split the API from the worker, add workers, and tune them.
 - [How to run two namespaces in one process](/learn/703-namespaces-in-one-process.md): Each `Run` starts a worker for one namespace. Two of them in one process share the process and the database, and never each other's jobs
 - [How to restart a crashed app on SQLite and get its work back](/learn/706-sqlite-restart.md): On SQLite a starting worker releases the work of processes on the same machine that have ended, so a restarted app takes a lost job back at once. Nothing has to be written for it; the crash spends one attempt
 - [How to recover the work of a killed worker](/learn/705-worker-crash-recovery.md): A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server
-- [How to run jobs under Native AOT](/learn/901-native-aot-json.md): A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate
+- [How to give Acta a JSON context for Native AOT](/learn/901-native-aot-json.md): A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate
 - [How to wake workers across processes with Redis](/learn/903-redis-wakeup.md): `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within milliseconds instead of at its next poll
 - [How to set how many jobs a worker runs at once](/learn/904-worker-tuning.md): `MaxConcurrentExecutors` caps how many jobs one worker runs at once, and `SafetyPollInterval` bounds how long an idle worker sleeps between looks at the database
 

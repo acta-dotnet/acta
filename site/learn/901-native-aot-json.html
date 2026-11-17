@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>How to run jobs under Native AOT · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate." />
+  <title>How to give Acta a JSON context for Native AOT · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to give Acta a JSON context for Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate." />
   <link rel="canonical" href="https://useacta.net/learn/901-native-aot-json" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="How to run jobs under Native AOT · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate." />
+  <meta property="og:title" content="How to give Acta a JSON context for Native AOT · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to give Acta a JSON context for Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate." />
   <meta property="og:url" content="https://useacta.net/learn/901-native-aot-json" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to run jobs under Native AOT","description":"How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.","url":"https://useacta.net/learn/901-native-aot-json","inLanguage":"en","articleSection":"Deploy and scale","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Deploy and scale","item":"https://useacta.net/learn#s-deploy"},{"@type":"ListItem","position":3,"name":"How to run jobs under Native AOT","item":"https://useacta.net/learn/901-native-aot-json"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to give Acta a JSON context for Native AOT","description":"How to give Acta a JSON context for Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.","url":"https://useacta.net/learn/901-native-aot-json","inLanguage":"en","articleSection":"Deploy and scale","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Deploy and scale","item":"https://useacta.net/learn#s-deploy"},{"@type":"ListItem","position":3,"name":"How to give Acta a JSON context for Native AOT","item":"https://useacta.net/learn/901-native-aot-json"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
   <link rel="alternate" type="text/markdown" href="/learn/901-native-aot-json.md" title="This page as Markdown, for coding agents" />
@@ -60,7 +60,7 @@
   <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-deploy">deploy and scale</a></p>
-      <h1>How to run jobs under Native AOT</h1>
+      <h1>How to give Acta a JSON context for Native AOT</h1>
       <p class="lede">A source-generated <code>JsonSerializerContext</code> given to <code>UseJsonPayloads</code> serializes payloads with no runtime reflection, and <code>JobPayload.Json(value, typeInfo)</code> builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
@@ -120,7 +120,7 @@ Status: Succeeded</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/900-runtime-and-tuning/901-native-aot-json"><code>learn/900-runtime-and-tuning/901-native-aot-json</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">native-aot-json.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run jobs under Native AOT</span>
+<details class="source-file"><summary><span class="file-name">native-aot-json.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to give Acta a JSON context for Native AOT</span>
 <span class="c">// A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime</span>
 <span class="c">// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT:</span>
 <span class="c">// it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.</span>
@@ -207,7 +207,7 @@ Console.WriteLine(<span class="s">$&quot;Status: {snapshot!.Status}&quot;</span>
             <li><a href="/learn/703-namespaces-in-one-process" data-id="703"><span class="rail-n">2</span>Run two namespaces in one process</a></li>
             <li><a href="/learn/706-sqlite-restart" data-id="706"><span class="rail-n">3</span>Restart a crashed app on SQLite and get its work back</a></li>
             <li><a href="/learn/705-worker-crash-recovery" data-id="705"><span class="rail-n">4</span>Recover the work of a killed worker</a></li>
-            <li aria-current="page"><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">5</span>Run jobs under Native AOT</a></li>
+            <li aria-current="page"><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">5</span>Give Acta a JSON context for Native AOT</a></li>
             <li><a href="/learn/903-redis-wakeup" data-id="903"><span class="rail-n">6</span>Wake workers across processes with Redis</a></li>
             <li><a href="/learn/904-worker-tuning" data-id="904"><span class="rail-n">7</span>Set how many jobs a worker runs at once</a></li>
         </ol>

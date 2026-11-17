@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>How to choose a payload format for a job · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to choose a payload format for a job with Acta, durable execution for .NET. A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, scalar-v1 and json-gzip, and runs the same echo job through each." />
+  <title>How to store a job's payload in a custom format · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to store a job's payload in a custom format with Acta, durable execution for .NET. A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, scalar-v1 and json-gzip, and runs the same echo job through each." />
   <link rel="canonical" href="https://useacta.net/learn/501-payload-formats" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="How to choose a payload format for a job · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to choose a payload format for a job with Acta, durable execution for .NET. A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, scalar-v1 and json-gzip, and runs the same echo job through each." />
+  <meta property="og:title" content="How to store a job's payload in a custom format · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to store a job's payload in a custom format with Acta, durable execution for .NET. A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, scalar-v1 and json-gzip, and runs the same echo job through each." />
   <meta property="og:url" content="https://useacta.net/learn/501-payload-formats" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to choose a payload format for a job","description":"How to choose a payload format for a job with Acta, durable execution for .NET. A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, scalar-v1 and json-gzip, and runs the same echo job through each.","url":"https://useacta.net/learn/501-payload-formats","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Start jobs","item":"https://useacta.net/learn#s-start"},{"@type":"ListItem","position":3,"name":"How to choose a payload format for a job","item":"https://useacta.net/learn/501-payload-formats"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to store a job's payload in a custom format","description":"How to store a job's payload in a custom format with Acta, durable execution for .NET. A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, scalar-v1 and json-gzip, and runs the same echo job through each.","url":"https://useacta.net/learn/501-payload-formats","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Start jobs","item":"https://useacta.net/learn#s-start"},{"@type":"ListItem","position":3,"name":"How to store a job's payload in a custom format","item":"https://useacta.net/learn/501-payload-formats"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
   <link rel="alternate" type="text/markdown" href="/learn/501-payload-formats.md" title="This page as Markdown, for coding agents" />
@@ -60,7 +60,7 @@
   <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
-      <h1>How to choose a payload format for a job</h1>
+      <h1>How to store a job's payload in a custom format</h1>
       <p class="lede">A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, <code>scalar-v1</code> and <code>json-gzip</code>, and runs the same echo job through each.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
@@ -161,7 +161,7 @@ echo-gzip      [250/250]</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/500-payloads/501-payload-formats"><code>learn/500-payloads/501-payload-formats</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose a payload format for a job</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to store a job's payload in a custom format</span>
 <span class="c">// A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two</span>
 <span class="c">// custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each.</span>
 <span class="k">using</span> Acta;
@@ -630,7 +630,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
             <li><a href="/learn/017-priority" data-id="017"><span class="rail-n">15</span>Run urgent jobs first</a></li>
             <li><a href="/learn/018-tags" data-id="018"><span class="rail-n">16</span>Label jobs so you can find them</a></li>
             <li><a href="/learn/025-large-payload-reference" data-id="025"><span class="rail-n">17</span>Pass a large file by reference</a></li>
-            <li aria-current="page"><a href="/learn/501-payload-formats" data-id="501"><span class="rail-n">18</span>Choose a payload format for a job</a></li>
+            <li aria-current="page"><a href="/learn/501-payload-formats" data-id="501"><span class="rail-n">18</span>Store a job's payload in a custom format</a></li>
         </ol>
         <button class="button done-toggle" type="button" data-done-toggle="501" aria-pressed="false">Mark as done</button>
         <p class="rail-turn"><a href="/learn/025-large-payload-reference" rel="prev">Previous</a></p>

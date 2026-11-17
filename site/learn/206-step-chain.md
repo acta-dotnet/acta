@@ -68,7 +68,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to compute a value once and reuse it](/learn/216-variable-lifecycle.md)
+- [How to check, delete, and default a job's variables](/learn/216-variable-lifecycle.md)
 
 ## More
 

@@ -1,4 +1,4 @@
-# The whole program: compute a value once and reuse it
+# The whole program: check, delete, and default a job's variables
 
 The how-to is [/learn/216-variable-lifecycle.md](/learn/216-variable-lifecycle.md). This file holds every source file of `learn/200-durable-execution/216-variable-lifecycle` as it is compiled.
 
@@ -11,9 +11,9 @@ The how-to is [/learn/216-variable-lifecycle.md](/learn/216-variable-lifecycle.m
 ### variable-lifecycle.cs
 
 ```csharp
-// How to compute a value once and reuse it
-// `GetOrSetVariableAsync` computes a value on its first call and stores it with the job; later calls return the stored
-// value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw `JobPayload`.
+// How to check, delete, and default a job's variables
+// Beyond `GetOrSetVariableAsync`, shown across a retry in 203, a handler can check for a variable, delete it, read it
+// with a default, and store a raw `JobPayload`.
 using Acta;
 using Acta.Learn.VariableLifecycle;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,4 @@
-# How to compute a value once and reuse it
+# How to check, delete, and default a job's variables
 
 ## Remember
 

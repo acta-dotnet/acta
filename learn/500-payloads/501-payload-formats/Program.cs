@@ -1,4 +1,4 @@
-// How to choose a payload format for a job
+// How to store a job's payload in a custom format
 // A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two
 // custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each.
 using Acta;

@@ -1,6 +1,6 @@
-# How to compute a value once and reuse it
+# How to check, delete, and default a job's variables
 
-`GetOrSetVariableAsync` computes a value on its first call and stores it with the job; later calls return the stored value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw `JobPayload`.
+Beyond `GetOrSetVariableAsync`, shown across a retry in 203, a handler can check for a variable, delete it, read it with a default, and store a raw `JobPayload`.
 
 - Section: Make work survive a crash, step 3
 - Program: `learn/200-durable-execution/216-variable-lifecycle` in https://github.com/acta-dotnet/acta (one compiled project)

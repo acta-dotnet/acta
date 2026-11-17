@@ -1,4 +1,4 @@
-# The whole program: run jobs under Native AOT
+# The whole program: give Acta a JSON context for Native AOT
 
 The how-to is [/learn/901-native-aot-json.md](/learn/901-native-aot-json.md). This file holds every source file of `learn/900-runtime-and-tuning/901-native-aot-json` as it is compiled.
 
@@ -11,7 +11,7 @@ The how-to is [/learn/901-native-aot-json.md](/learn/901-native-aot-json.md). Th
 ### native-aot-json.cs
 
 ```csharp
-// How to run jobs under Native AOT
+// How to give Acta a JSON context for Native AOT
 // A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime
 // reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT:
 // it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.
