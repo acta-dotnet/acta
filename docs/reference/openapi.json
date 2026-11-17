@@ -18781,7 +18781,7 @@
             "format": "int32"
           },
           "fullBehavior": {
-            "description": "What a due occurrence does while the schedule is at maxOutstanding: wait or drop.",
+            "description": "What a due occurrence does while the schedule is at maxOutstanding: wait or skip.",
             "$ref": "#/components/schemas/ScheduleFullBehaviorCode"
           },
           "scheduledDelivery": {
@@ -20589,7 +20589,7 @@
             "format": "int32"
           },
           "fullBehavior": {
-            "description": "What a due occurrence does while the schedule is at maxOutstanding: wait or drop.",
+            "description": "What a due occurrence does while the schedule is at maxOutstanding: wait or skip.",
             "$ref": "#/components/schemas/ScheduleFullBehaviorCode"
           },
           "scheduledDelivery": {

@@ -116,7 +116,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     [DbColumn("max_outstanding", DbKind.Int32)]
     public int MaxOutstanding { get; init; }
 
-    /// <summary>What a due occurrence does while the schedule is at <see cref="MaxOutstanding"/>: wait or drop.</summary>
+    /// <summary>What a due occurrence does while the schedule is at <see cref="MaxOutstanding"/>: wait or skip.</summary>
     [DbColumn("full_behavior_code")]
     public ScheduleFullBehaviorCode FullBehavior { get; init; }
 
@@ -127,7 +127,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     [DbColumn("expire_after_seconds", DbKind.Int32)]
     public int? ExpireAfterSeconds { get; init; }
 
-    /// <summary>What an occurrence older than <see cref="ExpireAfterSeconds"/> does when evaluated: continue or pause.</summary>
+    /// <summary>What follows an occurrence older than <see cref="ExpireAfterSeconds"/>, skipped either way: the schedule continues or pauses.</summary>
     [DbColumn("expire_action_code")]
     public ScheduleExpireActionCode? ExpireAction { get; init; }
 

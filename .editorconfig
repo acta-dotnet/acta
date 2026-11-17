@@ -512,13 +512,6 @@ dotnet_diagnostic.CA1805.severity = none
 [src/Acta/Operations/Definitions/IDefinitions.cs]
 dotnet_diagnostic.CA1716.severity = none
 
-# CA1024: GetBehavior(), which CA1024 wants as a property. It is the one member of that extension
-# block that throws - its switch closes with ArgumentOutOfRangeException for a code outside the
-# family - and .NET's own property guidance is that a getter should not throw. Its neighbour,
-# IsFinished, is total over the enum and is a property for exactly that reason; the split follows the guidance rather than ignoring it.
-[src/Acta/Domain/Codes/ExecutionStatusExtensions.cs]
-dotnet_diagnostic.CA1024.severity = none
-
 # CA1711: JobHandlerInvokeDelegate is a delegate declaration, so the suffix reports what the type is.
 # CA1711's reserved-suffix list exists to stop a type borrowing a word it does not earn; this one
 # earns it, and the name distinguishes the dispatch delegate from the generated invoker it points at.

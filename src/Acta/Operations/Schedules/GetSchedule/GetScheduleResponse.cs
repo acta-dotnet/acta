@@ -30,7 +30,7 @@ namespace Acta;
 /// schedule in detailsText.</param>
 /// <param name="MaxOutstanding">How many admitted occurrences may be unsettled at once.</param>
 /// <param name="OutstandingCount">How many admitted occurrences are unsettled now.</param>
-/// <param name="FullBehavior">What a due occurrence does while the schedule is at maxOutstanding: wait or drop.</param>
+/// <param name="FullBehavior">What a due occurrence does while the schedule is at maxOutstanding: wait or skip.</param>
 /// <param name="ScheduledDelivery">How the schedule delivers work: by firing the definition's permanent job, or by enqueueing a new
 /// job for each occurrence.</param>
 /// <param name="ExpireAfterSeconds">How old an occurrence may get before it expires unadmitted, in seconds; null means it never

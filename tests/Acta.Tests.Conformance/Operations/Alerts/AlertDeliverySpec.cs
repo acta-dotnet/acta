@@ -58,7 +58,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     }
 
     [Fact(DisplayName = "Retrying redelivers only when due")]
-    public async Task Retryable_settle_parks_in_retry_after_and_redelivers_when_due()
+    public async Task Retryable_settle_parks_retrying_and_redelivers_when_due()
     {
         var ct = TestContext.Current.CancellationToken;
 
