@@ -6,7 +6,8 @@ namespace Acta.Tests.Runtime;
 /// Timezone-aware cron math, no DB: a zoned schedule keeps its wall-clock meaning across DST
 /// transitions (pinned to the documented Europe/Ljubljana switches on 2026-03-29 and 2026-10-25),
 /// a fire inside the skipped hour shifts to the first valid instant, a fire inside the ambiguous
-/// hour happens once, Windows ids resolve like IANA ids, and an unknown id throws.
+/// hour happens once while a cron that steps through that hour fires in both of its passes, Windows
+/// ids resolve like IANA ids, and an unknown id throws.
 /// </summary>
 public sealed class NextOccurrenceCalculatorTimeZoneTests
 {
@@ -40,6 +41,9 @@ public sealed class NextOccurrenceCalculatorTimeZoneTests
         // 2026-03-29 02:30 local does not exist (02:00 CET jumps to 03:00 CEST). The fire shifts to
         // the first valid instant after the gap: 03:00 CEST = 01:00Z.
         Assert.Equal(Utc(2026, 3, 29, 1), NextCron(SkippedHour, Ljubljana, Utc(2026, 3, 29)));
+
+        // The day after, 02:30 exists again, now in summer time: 00:30Z.
+        Assert.Equal(Utc(2026, 3, 30, 0, 30), NextCron(SkippedHour, Ljubljana, Utc(2026, 3, 29, 1)));
     }
 
     [Fact]
@@ -51,6 +55,21 @@ public sealed class NextOccurrenceCalculatorTimeZoneTests
         Assert.Equal(Utc(2026, 10, 25, 0, 30), first);
 
         Assert.Equal(Utc(2026, 10, 26, 1, 30), NextCron(SkippedHour, Ljubljana, first!.Value));
+    }
+
+    [Fact]
+    public void Cron_that_steps_through_the_ambiguous_hour_fires_in_both_passes()
+    {
+        // Half an hour apart on the UTC clock all the way through 2026-10-25: 02:00 and 02:30 local each come twice.
+        var at = Utc(2026, 10, 25);
+        var fires = new List<DateTime>();
+        for (var n = 0; n < 4; n++)
+        {
+            at = NextCron("*/30 * * * *", Ljubljana, at)!.Value;
+            fires.Add(at);
+        }
+
+        Assert.Equal([Utc(2026, 10, 25, 0, 30), Utc(2026, 10, 25, 1), Utc(2026, 10, 25, 1, 30), Utc(2026, 10, 25, 2)], fires);
     }
 
     [Fact]
