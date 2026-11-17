@@ -6,6 +6,7 @@
   "namespaces": 2,
   "rates": {
     "pg": [
+      12500,
       15000
     ],
     "mssql": [
