@@ -42,7 +42,7 @@ Console.WriteLine($"[{order.OrderId}] approval observed by handler; reviewer={de
 
 Normal durable steps replay completed outcomes, but an in-flight body can run again after a crash. These simulated external calls therefore carry stable deduplication keys. A real inventory, payment, or mail service must persist and honor the same contract.
 
-`Checkout.cs` (excerpt):
+The lines that matter:
 
 ```csharp
 await context.RunStepAsync(
@@ -54,6 +54,46 @@ await context.RunStepAsync(
     },
     ct
 );
+
+var charge = await context.RunStepAsync(
+    "charge-card",
+    async innerCt =>
+    {
+        await Task.Delay(150, innerCt);
+        Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
+        return new ChargeResult($"ch_{order.OrderId}");
+    },
+    ct
+);
+```
+
+In `Checkout.cs` (excerpt):
+
+```csharp
+await context.RunStepAsync(
+    "reserve-inventory",
+    async innerCt =>
+    {
+        await Task.Delay(150, innerCt);
+        Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
+    },
+    ct
+);
+
+var charge = await context.RunStepAsync(
+    "charge-card",
+    async innerCt =>
+    {
+        await Task.Delay(150, innerCt);
+        Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
+        return new ChargeResult($"ch_{order.OrderId}");
+    },
+    ct
+);
+
+var chargeId = await context.GetOrSetVariableAsync("charge-id", () => charge.ChargeId, ct);
+
+await context.SleepAsync("settlement-delay", TimeSpan.FromSeconds(5), "simulated settlement window", ct);
 ```
 
 ## 3. Keep a value in a variable

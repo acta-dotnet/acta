@@ -42,7 +42,7 @@ var outcome = await jobs.EnqueueAsync(
     new ProcessExport(BlobUri: new Uri(exportPath).AbsoluteUri, Sha256: sha256, SizeBytes: bytes.LongLength, ContentType: "text/csv")
 );
 
-Console.WriteLine($"Job {outcome.JobRef} enqueued with a {bytes.LongLength}-byte reference (not the bytes).");
+Console.WriteLine($"Job {outcome.JobRef} enqueued with a reference to a {bytes.LongLength}-byte file (not the bytes).");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();
@@ -99,7 +99,7 @@ dotnet run --project learn/000-fundamentals/025-large-payload-reference
 Its output must contain:
 
 ```text
-enqueued with a 21-byte reference (not the bytes).
+enqueued with a reference to a 21-byte file (not the bytes).
 : 2 rows, 21 bytes (text/csv)
 ```
 

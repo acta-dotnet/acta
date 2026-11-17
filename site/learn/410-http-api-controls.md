@@ -17,9 +17,7 @@ Every route that changes a job is off until the host sets `EnableControls`.
 The lines that matter:
 
 ```csharp
-app.MapActaApi("/acta/api", options =>
-{
-    options.EnableControls = true;
+options.EnableControls = true;
 ```
 
 In `http-api-controls.cs` (excerpt):
@@ -41,7 +39,7 @@ app.MapActaApi("/acta/api", options =>
 
 ## 2. Confirm the control request
 
-A control passes with the `X-Acta-Control: true` header, a JSON content type, or a Bearer authorization header. A form post from another site can send none of the three.
+A control passes with the `X-Acta-Control: true` header, a JSON content type, or a Bearer authorization header. A form post from another site can send none of the three. The same POST without the header is refused with 400; the program sends that one first.
 
 The lines that matter:
 
@@ -110,4 +108,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/410-http-api-controls.program.md): every file as compiled, 108 lines.
+- [The whole program](/learn/410-http-api-controls.program.md): every file as compiled, 109 lines.

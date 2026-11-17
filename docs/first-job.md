@@ -93,6 +93,10 @@ using Acta.Sqlite;
 using Shipping; // the generated manifest lands in your project's root namespace
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The handlers take `Carrier` and `LabelPrinter` in their constructor, so both are registered: a service DI cannot
+// build fails the job on its first attempt. `Run<ShippingJobs>("shipping")` runs every job of the project under the
+// namespace `shipping`, and `MapActa` serves the dashboard at /acta.
 builder.Services.AddSingleton<Carrier>();
 builder.Services.AddSingleton<LabelPrinter>();
 
@@ -379,7 +383,8 @@ public sealed class ShippingTests : IAsyncLifetime
 
         Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(job, Ct));
 
-        // The retry is due about a minute out under the default backoff; the test makes it due now.
+        // The first booking times out (`TimeoutsLeft = 1`), so the first tick fails and re-arms. The retry is due about a
+        // minute out under the default backoff; the test makes it due now.
         await _host.ForceJobDueAsync(job, Ct);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
         Assert.Equal("AP00001044", (await job.GetResultAsync(Ct)).TrackingNumber);

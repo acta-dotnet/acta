@@ -33,7 +33,7 @@ public static class FlakyWorkJob
 
 ## 2. Read how the job ended
 
-The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed.
+The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed. The program sleeps long enough for its three instant attempts; an application waits for the end with `await handle.WaitAsync()`.
 
 The lines that matter:
 
@@ -100,4 +100,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/016-max-attempts.program.md): every file as compiled, 44 lines.
+- [The whole program](/learn/016-max-attempts.program.md): every file as compiled, 46 lines.

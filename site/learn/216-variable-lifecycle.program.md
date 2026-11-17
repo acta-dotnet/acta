@@ -57,7 +57,6 @@ namespace Acta.Learn.VariableLifecycle
                 },
                 ct
             );
-            // learn: end
             var v2 = await context.GetOrSetVariableAsync(
                 "counter",
                 () =>
@@ -67,6 +66,7 @@ namespace Acta.Learn.VariableLifecycle
                 },
                 ct
             );
+            // learn: end
             Console.WriteLine($"get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}");
 
             // ExistsVariableAsync: the variable is present right after get-or-set.

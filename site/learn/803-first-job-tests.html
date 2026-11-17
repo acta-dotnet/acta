@@ -110,7 +110,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Make the retry due now instead of waiting for it</h2>
-<p>The retry is due about a minute out under the default backoff; the test makes it due now.</p>
+<p>The first booking times out (<code>TimeoutsLeft = 1</code>), so the first tick fails and re-arms. The retry is due about a minute out under the default backoff; the test makes it due now.</p>
 <figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
 <span class="k">public</span> <span class="k">async</span> Task A_carrier_timeout_costs_an_attempt_and_the_retry_ships()
 {
@@ -132,7 +132,7 @@
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/803-first-job-tests"><code>learn/800-testing/803-first-job-tests</code></a>, as it is compiled.</p>
-<details class="source-file"><summary><span class="file-name">ShippingTests.cs</span><span class="file-size">117 lines</span></summary><figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: ShippingTests.cs</span>
+<details class="source-file"><summary><span class="file-name">ShippingTests.cs</span><span class="file-size">118 lines</span></summary><figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: ShippingTests.cs</span>
 <span class="c">// How to test the first-job guide's app</span>
 <span class="c">// The test of the first-job app ([026-first-job](../../000-fundamentals/026-first-job/)), as the first-job guide</span>
 <span class="c">// shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.</span>
@@ -204,7 +204,8 @@
         Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> _host.RunOnceAsync(job, Ct));
 
         <span class="c">// learn: 3. Make the retry due now instead of waiting for it</span>
-        <span class="c">// The retry is due about a minute out under the default backoff; the test makes it due now.</span>
+        <span class="c">// The first booking times out (`TimeoutsLeft = 1`), so the first tick fails and re-arms. The retry is due about a</span>
+        <span class="c">// minute out under the default backoff; the test makes it due now.</span>
 <span class="hl">        <span class="k">await</span> _host.ForceJobDueAsync(job, Ct);</span>
 <span class="hl">        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> _host.RunOnceAsync(job, Ct));</span>
         <span class="c">// learn: end</span>

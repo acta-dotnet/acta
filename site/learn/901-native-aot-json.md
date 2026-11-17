@@ -50,7 +50,7 @@ await host.StartAsync();
 
 ## 3. Build a raw payload with its type info
 
-JobPayload.Json(value, typeInfo) is the AOT-safe path: the JsonTypeInfo comes from the source-generated context so no runtime reflection touches the payload type.
+JobPayload.Json(value, typeInfo) is the AOT-safe path: the JsonTypeInfo comes from the source-generated context so no runtime reflection touches the payload type. The program enqueues `process-order` with it, which prints the order.
 
 The lines that matter:
 
@@ -101,4 +101,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/901-native-aot-json.program.md): every file as compiled, 72 lines.
+- [The whole program](/learn/901-native-aot-json.program.md): every file as compiled, 73 lines.

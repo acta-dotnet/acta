@@ -26,6 +26,15 @@ var v1 = await context.GetOrSetVariableAsync(
     },
     ct
 );
+var v2 = await context.GetOrSetVariableAsync(
+    "counter",
+    () =>
+    {
+        factoryCalls++;
+        return 99;
+    },
+    ct
+);
 ```
 
 In `variable-lifecycle.cs` (excerpt):
@@ -41,6 +50,20 @@ var v1 = await context.GetOrSetVariableAsync(
     },
     ct
 );
+var v2 = await context.GetOrSetVariableAsync(
+    "counter",
+    () =>
+    {
+        factoryCalls++;
+        return 99;
+    },
+    ct
+);
+Console.WriteLine($"get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}");
+
+// ExistsVariableAsync: the variable is present right after get-or-set.
+var existsBefore = await context.ExistsVariableAsync("counter", ct);
+Console.WriteLine($"exists before delete: {existsBefore}");
 ```
 
 ## 2. Delete a variable, and check whether one is there

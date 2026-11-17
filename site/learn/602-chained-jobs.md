@@ -34,7 +34,31 @@ public sealed class IngestDocumentJob(IJobs jobs)
 }
 ```
 
-## 2. Run it and check the output
+## 2. Let the next stage hand on the same way
+
+Every stage enqueues the one after it under a key of its own; the last stage enqueues nothing.
+
+The lines that matter:
+
+```csharp
+await jobs.EnqueueAsync(new ArchiveFile(input.FileName), o => o.DeduplicationKey($"archive-{input.FileName}"), ct);
+```
+
+In `chained-jobs.cs` (excerpt):
+
+```csharp
+public sealed class RenderPdfJob(IJobs jobs)
+{
+    [Job("render-pdf")]
+    public async Task Handle(RenderPdf input, CancellationToken ct)
+    {
+        Console.WriteLine($"rendered {input.FileName} -> PDF");
+        await jobs.EnqueueAsync(new ArchiveFile(input.FileName), o => o.DeduplicationKey($"archive-{input.FileName}"), ct);
+    }
+}
+```
+
+## 3. Run it and check the output
 
 From a clone of the repository, with the .NET 10 SDK:
 
@@ -62,4 +86,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/602-chained-jobs.program.md): every file as compiled, 73 lines.
+- [The whole program](/learn/602-chained-jobs.program.md): every file as compiled, 76 lines.

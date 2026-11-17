@@ -39,12 +39,14 @@ Read /llms.txt first. It is the contract: the rules every handler follows. This 
   - for time to pass: [How to wait for time to pass without a running process](/learn/205-durable-sleep.md)
   - for an outside system you have to ask again: [How to check again later without spending a retry](/learn/306-reschedule.md)
 - Work repeats on a schedule:
-  - one job the schedule fires again and again: [How to run a job every day at a set hour in your time zone](/learn/104-timezone-schedule.md)
+  - one job the schedule fires again and again: [How to run a job on a repeating schedule](/learn/101-recurring-job.md)
+  - the same local hour every day, in a time zone: [How to run a job every day at a set hour in your time zone](/learn/104-timezone-schedule.md)
   - every occurrence a job of its own, with its own retries and result: [How to make every occurrence its own job](/learn/110-per-occurrence-delivery.md)
   - one job that keeps its place between firings: [How to keep another system in sync with a permanent job](/learn/109-continuous-synchronization.md)
 - One job becomes many:
   - children from a list, their results joined: [How to fan out over a list and merge the results](/learn/212-fan-out-join.md)
-  - different children, or enqueue now and wait later: [How to fan out to child jobs with Map or WaitChildren](/learn/215-map-wait-children.md)
+  - a few different children whose results the parent reads: [How to start child jobs and wait for them](/learn/211-child-jobs.md)
+  - enqueue now and wait later: [How to fan out to child jobs with Map or WaitChildren](/learn/215-map-wait-children.md)
   - independent jobs with nothing to join: [How to enqueue many independent jobs from a handler](/learn/601-fan-out.md)
 
 ## Take the first steps

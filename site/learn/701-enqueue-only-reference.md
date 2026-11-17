@@ -60,7 +60,33 @@ Console.WriteLine("Waiting for worker to drain...");
 await handle.WaitAsync();
 ```
 
-## 3. The job it acts on
+## 3. Run the jobs in the worker process
+
+`Run` is the other side: the process that owns the namespace, claims its jobs, and executes them.
+
+The lines that matter:
+
+```csharp
+j.Run<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
+```
+
+In `enqueue-only-reference.cs` (excerpt):
+
+```csharp
+// Worker host: owns the namespace - declares its jobs, runs the claim loop, executes them.
+var workerBuilder = Host.CreateApplicationBuilder(args);
+workerBuilder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(workerBuilder.Configuration);
+    j.Run<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
+});
+using var workerHost = workerBuilder.Build();
+await workerHost.StartAsync();
+
+Console.WriteLine("Worker host started: owns the namespace, runs the claim loop.");
+```
+
+## 4. The job it acts on
 
 `enqueue-only-reference.cs` (excerpt):
 
@@ -72,7 +98,7 @@ public static class WelcomeUserJob
 }
 ```
 
-## 4. Run it and check the output
+## 5. Run it and check the output
 
 From a clone of the repository, with the .NET 10 SDK:
 
@@ -99,4 +125,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/701-enqueue-only-reference.program.md): every file as compiled, 70 lines.
+- [The whole program](/learn/701-enqueue-only-reference.program.md): every file as compiled, 73 lines.

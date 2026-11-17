@@ -15,6 +15,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
         var enqueued = await Jobs.EnqueueAsync(new PlaceOrder("o-1", 99m), ct: Ct);
 
         // learn: 1. Drive the job to its wait
+        // The job under test, `process-order`, reserves stock in a step, waits for the signal `approval`, then charges.
         // First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
         Assert.Equal(JobStatusCode.Suspended, (await enqueued.GetStatusAsync(Ct))?.Status);

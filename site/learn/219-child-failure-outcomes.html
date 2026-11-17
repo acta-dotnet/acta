@@ -77,7 +77,17 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Carry on without the items that failed</h2>
 <p>The map does not throw for a failed item. <code>Failed</code> lists them, and this parent returns a partial result and lands Succeeded.</p>
-<figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> succeeded = result.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
+<figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">string</span>[] ids = [<span class="s">&quot;item-a&quot;</span>, <span class="s">&quot;item-b&quot;</span>, <span class="s">&quot;item-c&quot;</span>];
+
+<span class="hl"><span class="k">var</span> result = <span class="k">await</span> context.MapAsync(</span>
+<span class="hl">    <span class="s">&quot;process&quot;</span>,</span>
+<span class="hl">    ids,</span>
+<span class="hl">    itemKey: id =&gt; id,</span>
+<span class="hl">    child: id =&gt; <span class="k">new</span> ProcessItem(id, ShouldFail: id == <span class="s">&quot;item-b&quot;</span>),</span>
+<span class="hl">    ct</span>
+<span class="hl">);</span>
+<span class="hl"> </span>
+<span class="hl"><span class="k">var</span> succeeded = result.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
 <span class="hl"> </span>
 <span class="hl"><span class="k">foreach</span> (<span class="k">var</span> f <span class="k">in</span> result.Failed)</span>
 <span class="hl">{</span>
@@ -180,17 +190,17 @@ Console.WriteLine(<span class="s">$&quot;parent: {joinOutcome.Status} (expected 
         {
             <span class="k">string</span>[] ids = [<span class="s">&quot;item-a&quot;</span>, <span class="s">&quot;item-b&quot;</span>, <span class="s">&quot;item-c&quot;</span>];
 
-            <span class="k">var</span> result = <span class="k">await</span> context.MapAsync(
-                <span class="s">&quot;process&quot;</span>,
-                ids,
-                itemKey: id =&gt; id,
-                child: id =&gt; <span class="k">new</span> ProcessItem(id, ShouldFail: id == <span class="s">&quot;item-b&quot;</span>),
-                ct
-            );
-
             <span class="c">// learn: 1. Carry on without the items that failed</span>
             <span class="c">// The map does not throw for a failed item. `Failed` lists them, and this parent returns a partial result</span>
             <span class="c">// and lands Succeeded.</span>
+<span class="hl">            <span class="k">var</span> result = <span class="k">await</span> context.MapAsync(</span>
+<span class="hl">                <span class="s">&quot;process&quot;</span>,</span>
+<span class="hl">                ids,</span>
+<span class="hl">                itemKey: id =&gt; id,</span>
+<span class="hl">                child: id =&gt; <span class="k">new</span> ProcessItem(id, ShouldFail: id == <span class="s">&quot;item-b&quot;</span>),</span>
+<span class="hl">                ct</span>
+<span class="hl">            );</span>
+<span class="hl"> </span>
 <span class="hl">            <span class="k">var</span> succeeded = result.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
 <span class="hl"> </span>
 <span class="hl">            <span class="k">foreach</span> (<span class="k">var</span> f <span class="k">in</span> result.Failed)</span>

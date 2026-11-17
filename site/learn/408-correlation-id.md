@@ -41,7 +41,7 @@ Console.WriteLine("pipeline done");
 
 ## 2. Find every job of one trace
 
-One list read finds the parent and the children that inherited its key.
+One list read finds the parent and the children that inherited its key. The program also captures the handlers' log scopes: every line carries `ActaCorrelationKey`.
 
 The lines that matter:
 
@@ -126,4 +126,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/408-correlation-id.program.md): every file as compiled, 111 lines.
+- [The whole program](/learn/408-correlation-id.program.md): every file as compiled, 112 lines.

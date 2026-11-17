@@ -46,7 +46,8 @@ Console.WriteLine("Enqueuing with source-generated type info (no reflection)..."
 
 // learn: 3. Build a raw payload with its type info
 // JobPayload.Json(value, typeInfo) is the AOT-safe path: the JsonTypeInfo comes from the
-// source-generated context so no runtime reflection touches the payload type.
+// source-generated context so no runtime reflection touches the payload type. The program enqueues `process-order`
+// with it, which prints the order.
 var payload = JobPayload.Json(new ProcessOrder("ORD-001", 3), AotPayloadContext.Default.ProcessOrder);
 
 // learn: end

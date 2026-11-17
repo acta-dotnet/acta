@@ -49,7 +49,7 @@ var outcome = await jobs.EnqueueAsync(
 
 // learn: end
 
-Console.WriteLine($"Job {outcome.JobRef} enqueued with a {bytes.LongLength}-byte reference (not the bytes).");
+Console.WriteLine($"Job {outcome.JobRef} enqueued with a reference to a {bytes.LongLength}-byte file (not the bytes).");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

@@ -89,7 +89,33 @@
 <span class="hl">    <span class="k">public</span> Task Print(PrintLabel input, CancellationToken ct) =&gt; printer.PrintAsync(input.TrackingNumber, ct);</span>
 }</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">2</span>Enqueue from an endpoint and answer with the job's ref</h2>
+<div class="step"><h2><span class="step-n">2</span>Register the services, Acta and the dashboard</h2>
+<p>The handlers take <code>Carrier</code> and <code>LabelPrinter</code> in their constructor, so both are registered: a service DI cannot build fails the job on its first attempt. <code>Run&lt;ShippingJobs&gt;(&quot;shipping&quot;)</code> runs every job of the project under the namespace <code>shipping</code>, and <code>MapActa</code> serves the dashboard at /acta.</p>
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
+
+<span class="hl">builder.Services.AddSingleton&lt;Carrier&gt;();</span>
+<span class="hl">builder.Services.AddSingleton&lt;LabelPrinter&gt;();</span>
+<span class="hl"> </span>
+<span class="hl">builder.Services.UseActa(j =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    j.UseSqlite(sqlite =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        sqlite.ConnectionString = <span class="s">&quot;Data Source=acta-local.db&quot;</span>;</span>
+<span class="hl">        sqlite.MigrateOnStartup = <span class="k">true</span>; <span class="c">// local development only; in production a deploy step runs &quot;jobs migrate&quot;</span></span>
+<span class="hl">    });</span>
+<span class="hl">    j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);</span>
+<span class="hl">});</span>
+<span class="hl"> </span>
+<span class="hl"><span class="k">var</span> app = builder.Build();</span>
+<span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>); <span class="c">// dashboard + JSON API; local-only by default, controls disabled</span></span>
+
+app.MapPost(<span class="s">&quot;/orders/{orderId:int}&quot;</span>, <span class="k">async</span> (<span class="k">int</span> orderId, IJobs jobs) =&gt;
+{
+    <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ShipOrder(orderId));
+    <span class="k">return</span> Results.Accepted(<span class="s">$&quot;/jobs/{job.JobRef}&quot;</span>, <span class="k">new</span> { job.JobRef });
+});</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Enqueue from an endpoint and answer with the job's ref</h2>
 <p>Enqueue by the input's type: nothing here reads the result, so the input is all the enqueue needs. The ref in the response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> app = builder.Build();
 app.MapActa(<span class="s">&quot;/acta&quot;</span>); <span class="c">// dashboard + JSON API; local-only by default, controls disabled</span>
@@ -100,7 +126,7 @@ app.MapActa(<span class="s">&quot;/acta&quot;</span>); <span class="c">// dashbo
 <span class="hl">    <span class="k">return</span> Results.Accepted(<span class="s">$&quot;/jobs/{job.JobRef}&quot;</span>, <span class="k">new</span> { job.JobRef });</span>
 <span class="hl">});</span></code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">3</span>Enqueue and wait for the typed result</h2>
+<div class="step"><h2><span class="step-n">4</span>Enqueue and wait for the typed result</h2>
 <p>Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a JobHandle&lt;ShipmentLabel&gt; and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout stops only the wait.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>app.MapPost(<span class="s">&quot;/orders/{orderId:int}&quot;</span>, <span class="k">async</span> (<span class="k">int</span> orderId, IJobs jobs) =&gt;
 {
@@ -123,7 +149,7 @@ app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span c
     <span class="k">return</span> Results.Accepted(<span class="s">$&quot;/jobs/{job.JobRef}&quot;</span>, <span class="k">new</span> { job.JobRef });
 });</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">4</span>Read the status, the result, and the reason</h2>
+<div class="step"><h2><span class="step-n">5</span>Read the status, the result, and the reason</h2>
 <p>Status by ref. A JobRef binds straight from the route, so a malformed ref answers 400 before the handler runs. A job keeps its row after it finishes, so this answers for the retention period.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span class="k">async</span> (<span class="k">string</span> trackingNumber, IJobs jobs) =&gt;
 {
@@ -159,7 +185,7 @@ app.MapPost(<span class="s">&quot;/jobs/{jobRef}/cancel&quot;</span>, <span clas
     <span class="k">return</span> Results.Ok(<span class="k">new</span> { cancelled.Action, cancelled.Status });
 });</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">5</span>Cancel a job by its ref</h2>
+<div class="step"><h2><span class="step-n">6</span>Cancel a job by its ref</h2>
 <p>Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one answers rejected and keeps its outcome.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Why: the status in words, the reason the last attempt failed, and what an operator can do next.</span>
 app.MapGet(<span class="s">&quot;/jobs/{jobRef}/explain&quot;</span>, <span class="k">async</span> (JobRef jobRef, IJobs jobs) =&gt;
@@ -172,7 +198,7 @@ app.MapGet(<span class="s">&quot;/jobs/{jobRef}/explain&quot;</span>, <span clas
 <span class="hl">    <span class="k">return</span> Results.Ok(<span class="k">new</span> { cancelled.Action, cancelled.Status });</span>
 <span class="hl">});</span></code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">6</span>Run it and check the output</h2>
+<div class="step"><h2><span class="step-n">7</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/026-first-job</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Acta worker started in namespace (shipping)
@@ -182,7 +208,7 @@ Now listening on: http://127.0.0.1:</code></pre></figure>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/026-first-job"><code>learn/000-fundamentals/026-first-job</code></a>, as it is compiled.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">102 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: Program.cs</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">109 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: Program.cs</span>
 <span class="c">// How to build the first-job guide's app</span>
 <span class="c">// The first-job guide's app verbatim: typed result, a failure that is final and one that retries, explanation, cancel,</span>
 <span class="c">// and a wait that times out without stopping the job.</span>
@@ -192,23 +218,30 @@ Now listening on: http://127.0.0.1:</code></pre></figure>
 <span class="k">using</span> Shipping; <span class="c">// the generated manifest lands in your project's root namespace</span>
 
 <span class="k">var</span> builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSingleton&lt;Carrier&gt;();
-builder.Services.AddSingleton&lt;LabelPrinter&gt;();
 
-builder.Services.UseActa(j =&gt;
-{
-    j.UseSqlite(sqlite =&gt;
-    {
-        sqlite.ConnectionString = <span class="s">&quot;Data Source=acta-local.db&quot;</span>;
-        sqlite.MigrateOnStartup = <span class="k">true</span>; <span class="c">// local development only; in production a deploy step runs &quot;jobs migrate&quot;</span>
-    });
-    j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);
-});
+<span class="c">// learn: 2. Register the services, Acta and the dashboard</span>
+<span class="c">// The handlers take `Carrier` and `LabelPrinter` in their constructor, so both are registered: a service DI cannot</span>
+<span class="c">// build fails the job on its first attempt. `Run&lt;ShippingJobs&gt;(&quot;shipping&quot;)` runs every job of the project under the</span>
+<span class="c">// namespace `shipping`, and `MapActa` serves the dashboard at /acta.</span>
+<span class="hl">builder.Services.AddSingleton&lt;Carrier&gt;();</span>
+<span class="hl">builder.Services.AddSingleton&lt;LabelPrinter&gt;();</span>
+<span class="hl"> </span>
+<span class="hl">builder.Services.UseActa(j =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    j.UseSqlite(sqlite =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        sqlite.ConnectionString = <span class="s">&quot;Data Source=acta-local.db&quot;</span>;</span>
+<span class="hl">        sqlite.MigrateOnStartup = <span class="k">true</span>; <span class="c">// local development only; in production a deploy step runs &quot;jobs migrate&quot;</span></span>
+<span class="hl">    });</span>
+<span class="hl">    j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);</span>
+<span class="hl">});</span>
+<span class="hl"> </span>
+<span class="hl"><span class="k">var</span> app = builder.Build();</span>
+<span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>); <span class="c">// dashboard + JSON API; local-only by default, controls disabled</span></span>
 
-<span class="k">var</span> app = builder.Build();
-app.MapActa(<span class="s">&quot;/acta&quot;</span>); <span class="c">// dashboard + JSON API; local-only by default, controls disabled</span>
+<span class="c">// learn: end</span>
 
-<span class="c">// learn: 2. Enqueue from an endpoint and answer with the job's ref</span>
+<span class="c">// learn: 3. Enqueue from an endpoint and answer with the job's ref</span>
 <span class="c">// Enqueue by the input's type: nothing here reads the result, so the input is all the enqueue needs. The ref in the</span>
 <span class="c">// response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.</span>
 <span class="hl">app.MapPost(<span class="s">&quot;/orders/{orderId:int}&quot;</span>, <span class="k">async</span> (<span class="k">int</span> orderId, IJobs jobs) =&gt;</span>
@@ -219,7 +252,7 @@ app.MapActa(<span class="s">&quot;/acta&quot;</span>); <span class="c">// dashbo
 
 <span class="c">// learn: end</span>
 
-<span class="c">// learn: 3. Enqueue and wait for the typed result</span>
+<span class="c">// learn: 4. Enqueue and wait for the typed result</span>
 <span class="c">// Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a</span>
 <span class="c">// JobHandle&lt;ShipmentLabel&gt; and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout</span>
 <span class="c">// stops only the wait.</span>
@@ -240,7 +273,7 @@ app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span c
     <span class="k">return</span> Results.Accepted(<span class="s">$&quot;/jobs/{job.JobRef}&quot;</span>, <span class="k">new</span> { job.JobRef });
 });
 
-<span class="c">// learn: 4. Read the status, the result, and the reason</span>
+<span class="c">// learn: 5. Read the status, the result, and the reason</span>
 <span class="c">// Status by ref. A JobRef binds straight from the route, so a malformed ref answers 400 before the handler runs. A job</span>
 <span class="c">// keeps its row after it finishes, so this answers for the retention period.</span>
 <span class="hl">app.MapGet(<span class="s">&quot;/jobs/{jobRef}&quot;</span>, <span class="k">async</span> (JobRef jobRef, IJobs jobs) =&gt; <span class="k">await</span> jobs.GetAsync(jobRef) <span class="k">is</span> { } job</span>
@@ -267,7 +300,7 @@ app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span c
 
 <span class="c">// learn: end</span>
 
-<span class="c">// learn: 5. Cancel a job by its ref</span>
+<span class="c">// learn: 6. Cancel a job by its ref</span>
 <span class="c">// Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one</span>
 <span class="c">// answers rejected and keeps its outcome.</span>
 <span class="hl">app.MapPost(<span class="s">&quot;/jobs/{jobRef}/cancel&quot;</span>, <span class="k">async</span> (JobRef jobRef, IJobs jobs) =&gt;</span>

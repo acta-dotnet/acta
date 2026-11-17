@@ -60,7 +60,7 @@ namespace Acta.Learn.ChainedJobs
         public async Task Handle(IngestDocument input, CancellationToken ct)
         {
             Console.WriteLine($"ingested {input.FileName}");
-            // learn: Enqueue the next stage as the last act of this one
+            // learn: 1. Enqueue the next stage as the last act of this one
             // The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the
             // document, makes the repeat answer the existing job.
             await jobs.EnqueueAsync(new RenderPdf(input.FileName), o => o.DeduplicationKey($"render-{input.FileName}"), ct);
@@ -74,7 +74,10 @@ namespace Acta.Learn.ChainedJobs
         public async Task Handle(RenderPdf input, CancellationToken ct)
         {
             Console.WriteLine($"rendered {input.FileName} -> PDF");
+            // learn: 2. Let the next stage hand on the same way
+            // Every stage enqueues the one after it under a key of its own; the last stage enqueues nothing.
             await jobs.EnqueueAsync(new ArchiveFile(input.FileName), o => o.DeduplicationKey($"archive-{input.FileName}"), ct);
+            // learn: end
         }
     }
 

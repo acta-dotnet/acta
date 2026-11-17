@@ -19,7 +19,9 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 // learn: 2. Read how the job ended
-// The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed.
+// The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed. The program
+// sleeps long enough for its three instant attempts; an application waits for the end with
+// `await handle.WaitAsync()`.
 var outcome = await jobs.EnqueueAsync(new FlakyWork("widget"));
 await Task.Delay(1500);
 var snapshot = await jobs.GetAsync(outcome);

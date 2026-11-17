@@ -97,7 +97,22 @@ Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] approval observed by 
 <span class="hl">        Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}&quot;</span>);</span>
 <span class="hl">    },</span>
 <span class="hl">    ct</span>
-<span class="hl">);</span></code></pre></figure>
+<span class="hl">);</span>
+<span class="hl"> </span>
+<span class="hl"><span class="k">var</span> charge = <span class="k">await</span> context.RunStepAsync(</span>
+<span class="hl">    <span class="s">&quot;charge-card&quot;</span>,</span>
+<span class="hl">    <span class="k">async</span> innerCt =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        <span class="k">await</span> Task.Delay(150, innerCt);</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}&quot;</span>);</span>
+<span class="hl">        <span class="k">return</span> <span class="k">new</span> ChargeResult(<span class="s">$&quot;ch_{order.OrderId}&quot;</span>);</span>
+<span class="hl">    },</span>
+<span class="hl">    ct</span>
+<span class="hl">);</span>
+
+<span class="k">var</span> chargeId = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s">&quot;charge-id&quot;</span>, () =&gt; charge.ChargeId, ct);
+
+<span class="k">await</span> context.SleepAsync(<span class="s">&quot;settlement-delay&quot;</span>, TimeSpan.FromSeconds(5), <span class="s">&quot;simulated settlement window&quot;</span>, ct);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Keep a value in a variable</h2>
 <p>Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.</p>
@@ -235,18 +250,18 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 <span class="hl">            },</span>
 <span class="hl">            ct</span>
 <span class="hl">        );</span>
+<span class="hl"> </span>
+<span class="hl">        <span class="k">var</span> charge = <span class="k">await</span> context.RunStepAsync(</span>
+<span class="hl">            <span class="s">&quot;charge-card&quot;</span>,</span>
+<span class="hl">            <span class="k">async</span> innerCt =&gt;</span>
+<span class="hl">            {</span>
+<span class="hl">                <span class="k">await</span> Task.Delay(150, innerCt);</span>
+<span class="hl">                Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}&quot;</span>);</span>
+<span class="hl">                <span class="k">return</span> <span class="k">new</span> ChargeResult(<span class="s">$&quot;ch_{order.OrderId}&quot;</span>);</span>
+<span class="hl">            },</span>
+<span class="hl">            ct</span>
+<span class="hl">        );</span>
         <span class="c">// learn: end</span>
-
-        <span class="k">var</span> charge = <span class="k">await</span> context.RunStepAsync(
-            <span class="s">&quot;charge-card&quot;</span>,
-            <span class="k">async</span> innerCt =&gt;
-            {
-                <span class="k">await</span> Task.Delay(150, innerCt);
-                Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}&quot;</span>);
-                <span class="k">return</span> <span class="k">new</span> ChargeResult(<span class="s">$&quot;ch_{order.OrderId}&quot;</span>);
-            },
-            ct
-        );
 
         <span class="c">// learn: 3. Keep a value in a variable</span>
         <span class="c">// Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.</span>

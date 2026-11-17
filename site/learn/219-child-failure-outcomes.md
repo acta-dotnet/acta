@@ -17,6 +17,14 @@ The map does not throw for a failed item. `Failed` lists them, and this parent r
 The lines that matter:
 
 ```csharp
+var result = await context.MapAsync(
+    "process",
+    ids,
+    itemKey: id => id,
+    child: id => new ProcessItem(id, ShouldFail: id == "item-b"),
+    ct
+);
+
 var succeeded = result.Items.Count(i => i.Outcome.Succeeded);
 
 foreach (var f in result.Failed)
@@ -28,6 +36,16 @@ foreach (var f in result.Failed)
 In `child-failure-outcomes.cs` (excerpt):
 
 ```csharp
+string[] ids = ["item-a", "item-b", "item-c"];
+
+var result = await context.MapAsync(
+    "process",
+    ids,
+    itemKey: id => id,
+    child: id => new ProcessItem(id, ShouldFail: id == "item-b"),
+    ct
+);
+
 var succeeded = result.Items.Count(i => i.Outcome.Succeeded);
 
 foreach (var f in result.Failed)

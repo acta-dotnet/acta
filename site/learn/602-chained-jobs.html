@@ -87,7 +87,19 @@
     }
 }</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
+<div class="step"><h2><span class="step-n">2</span>Let the next stage hand on the same way</h2>
+<p>Every stage enqueues the one after it under a key of its own; the last stage enqueues nothing.</p>
+<figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RenderPdfJob(IJobs jobs)
+{
+    <span class="a">[Job(<span class="s">&quot;render-pdf&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Handle(RenderPdf input, CancellationToken ct)
+    {
+        Console.WriteLine(<span class="s">$&quot;rendered {input.FileName} -&gt; PDF&quot;</span>);
+<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/600-job-composition/602-chained-jobs</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>ingested report.md
@@ -99,7 +111,7 @@ archived report.md - pipeline done</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/600-job-composition/602-chained-jobs"><code>learn/600-job-composition/602-chained-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">chained-jobs.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to chain jobs into a pipeline</span>
+<details class="source-file"><summary><span class="file-name">chained-jobs.cs</span><span class="file-size">76 lines</span></summary><figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to chain jobs into a pipeline</span>
 <span class="c">// Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts</span>
 <span class="c">// no second pipeline.</span>
 <span class="k">using</span> Acta;
@@ -148,7 +160,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
         <span class="k">public</span> <span class="k">async</span> Task Handle(IngestDocument input, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;ingested {input.FileName}&quot;</span>);
-            <span class="c">// learn: Enqueue the next stage as the last act of this one</span>
+            <span class="c">// learn: 1. Enqueue the next stage as the last act of this one</span>
             <span class="c">// The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the</span>
             <span class="c">// document, makes the repeat answer the existing job.</span>
 <span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
@@ -162,7 +174,10 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
         <span class="k">public</span> <span class="k">async</span> Task Handle(RenderPdf input, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;rendered {input.FileName} -&gt; PDF&quot;</span>);
-            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);
+            <span class="c">// learn: 2. Let the next stage hand on the same way</span>
+            <span class="c">// Every stage enqueues the one after it under a key of its own; the last stage enqueues nothing.</span>
+<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
+            <span class="c">// learn: end</span>
         }
     }
 

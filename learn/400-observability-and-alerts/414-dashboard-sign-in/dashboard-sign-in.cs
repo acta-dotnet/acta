@@ -123,7 +123,7 @@ app.MapPost("/sign-out", async (HttpContext http, IAntiforgery antiforgery) =>
 
 // learn: 2. Require the permissions on the dashboard
 // RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its
-// permission. With no session a page is sent to the sign-in above, and an API call answers 401 with no redirect,
+// permission. With no session a page is sent to the host's own sign-in, and an API call answers 401 with no redirect,
 // which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.
 app.MapActa("/acta", options =>
 {

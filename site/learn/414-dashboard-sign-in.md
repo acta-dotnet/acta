@@ -46,7 +46,7 @@ app.UseAntiforgery();
 
 ## 2. Require the permissions on the dashboard
 
-RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its permission. With no session a page is sent to the sign-in above, and an API call answers 401 with no redirect, which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.
+RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its permission. With no session a page is sent to the host's own sign-in, and an API call answers 401 with no redirect, which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.
 
 The lines that matter:
 

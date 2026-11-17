@@ -12,7 +12,7 @@ Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and t
 
 ## 1. Drive the job to its wait
 
-First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).
+The job under test, `process-order`, reserves stock in a step, waits for the signal `approval`, then charges. First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).
 
 The lines that matter:
 
@@ -132,4 +132,4 @@ Runs as a test. This program is a test project: it passes or fails with the test
 
 ## More
 
-- [The whole program](/learn/802-testing-durable-jobs.program.md): every file as compiled, 152 lines.
+- [The whole program](/learn/802-testing-durable-jobs.program.md): every file as compiled, 153 lines.

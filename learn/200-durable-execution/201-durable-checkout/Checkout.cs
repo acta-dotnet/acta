@@ -45,7 +45,6 @@ public sealed class CheckoutJob
             },
             ct
         );
-        // learn: end
 
         var charge = await context.RunStepAsync(
             "charge-card",
@@ -57,6 +56,7 @@ public sealed class CheckoutJob
             },
             ct
         );
+        // learn: end
 
         // learn: 3. Keep a value in a variable
         // Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.

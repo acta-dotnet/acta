@@ -65,7 +65,8 @@ Console.WriteLine($"operator read: ListJobs filtered by CorrelationKey={correlat
 var operations = host.Services.GetRequiredService<IActaOperations>();
 
 // learn: 2. Find every job of one trace
-// One list read finds the parent and the children that inherited its key.
+// One list read finds the parent and the children that inherited its key. The program also captures the handlers' log
+// scopes: every line carries `ActaCorrelationKey`.
 var trace = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: "correlation-id", CorrelationKey: correlationKey, PageSize: 10)
 );

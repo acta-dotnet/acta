@@ -45,7 +45,9 @@ if (!firstRun)
 
 // learn: 2. Start the app again
 // There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same
-// machine that have ended, so the export the dead process held is due at once and this process runs it.
+// machine that have ended, so the export the dead process held is due at once and this process runs it. The program
+// started a copy of itself first, `first-run`, which enqueued the export under a deduplication key and was killed in
+// the middle of it; this is the second start.
 using var host = builder.Build();
 await host.StartAsync();
 

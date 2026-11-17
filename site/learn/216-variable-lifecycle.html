@@ -86,7 +86,21 @@
 <span class="hl">        <span class="k">return</span> 42;</span>
 <span class="hl">    },</span>
 <span class="hl">    ct</span>
-<span class="hl">);</span></code></pre></figure>
+<span class="hl">);</span>
+<span class="hl"><span class="k">var</span> v2 = <span class="k">await</span> context.GetOrSetVariableAsync(</span>
+<span class="hl">    <span class="s">&quot;counter&quot;</span>,</span>
+<span class="hl">    () =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        factoryCalls++;</span>
+<span class="hl">        <span class="k">return</span> 99;</span>
+<span class="hl">    },</span>
+<span class="hl">    ct</span>
+<span class="hl">);</span>
+Console.WriteLine(<span class="s">$&quot;get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}&quot;</span>);
+
+<span class="c">// ExistsVariableAsync: the variable is present right after get-or-set.</span>
+<span class="k">var</span> existsBefore = <span class="k">await</span> context.ExistsVariableAsync(<span class="s">&quot;counter&quot;</span>, ct);
+Console.WriteLine(<span class="s">$&quot;exists before delete: {existsBefore}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Delete a variable, and check whether one is there</h2>
 <p>DeleteVariableAsync removes the variable; Exists is false immediately after.</p>
@@ -170,16 +184,16 @@ builder.Services.UseActa(j =&gt;
 <span class="hl">                },</span>
 <span class="hl">                ct</span>
 <span class="hl">            );</span>
+<span class="hl">            <span class="k">var</span> v2 = <span class="k">await</span> context.GetOrSetVariableAsync(</span>
+<span class="hl">                <span class="s">&quot;counter&quot;</span>,</span>
+<span class="hl">                () =&gt;</span>
+<span class="hl">                {</span>
+<span class="hl">                    factoryCalls++;</span>
+<span class="hl">                    <span class="k">return</span> 99;</span>
+<span class="hl">                },</span>
+<span class="hl">                ct</span>
+<span class="hl">            );</span>
             <span class="c">// learn: end</span>
-            <span class="k">var</span> v2 = <span class="k">await</span> context.GetOrSetVariableAsync(
-                <span class="s">&quot;counter&quot;</span>,
-                () =&gt;
-                {
-                    factoryCalls++;
-                    <span class="k">return</span> 99;
-                },
-                ct
-            );
             Console.WriteLine(<span class="s">$&quot;get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}&quot;</span>);
 
             <span class="c">// ExistsVariableAsync: the variable is present right after get-or-set.</span>

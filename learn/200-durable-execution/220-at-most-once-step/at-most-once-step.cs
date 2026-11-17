@@ -155,6 +155,9 @@ namespace Acta.Learn.AtMostOnceStep
         {
             try
             {
+                // learn: 1. Mark the step at-most-once
+                // The step's start is recorded before its body runs. When the process dies inside the body, the
+                // replay does not call it again: the step throws `StepInterruptedException` instead.
                 await context.RunStepAsync(
                     "charge-card",
                     _ =>
@@ -166,13 +169,10 @@ namespace Acta.Learn.AtMostOnceStep
                         Environment.FailFast("Intentional at-most-once lab crash after the external side effect.");
                         return Task.CompletedTask;
                     },
-                    // learn: 1. Mark the step at-most-once
-                    // The step's start is recorded before its body runs. When the process dies inside the body, the
-                    // replay does not call it again: the step throws `StepInterruptedException` instead.
                     options => options.AtMostOnce(),
-                    // learn: end
                     ct
                 );
+                // learn: end
             }
             // learn: 2. Catch the interruption and reconcile
             // The side effect may or may not have happened. Ask the outside system, then decide.

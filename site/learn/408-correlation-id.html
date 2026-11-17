@@ -90,7 +90,7 @@ outcome.ThrowIfFailed();
 Console.WriteLine(<span class="s">&quot;pipeline done&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Find every job of one trace</h2>
-<p>One list read finds the parent and the children that inherited its key.</p>
+<p>One list read finds the parent and the children that inherited its key. The program also captures the handlers' log scopes: every line carries <code>ActaCorrelationKey</code>.</p>
 <figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Operator read: CorrelationKey is both a ListJobsQuery filter and a ListJobsItem field, so one list</span>
 <span class="c">// read pulls every job on a trace - parent and inherited children - with the id already on each row.</span>
 <span class="c">// (It is also on GetJobResponse via GetAsync when you want the full per-job detail.)</span>
@@ -141,7 +141,7 @@ job=run-pipeline correlation_key=trace-</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/408-correlation-id"><code>learn/400-observability-and-alerts/408-correlation-id</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">correlation-id.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">correlation-id.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to carry a correlation key from parent to child</span>
+<details class="source-file"><summary><span class="file-name">correlation-id.cs</span><span class="file-size">112 lines</span></summary><figure class="listing"><figcaption><span class="file">correlation-id.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to carry a correlation key from parent to child</span>
 <span class="c">// A `CorrelationKey` set on the enqueue travels with the job and with every child it starts. It is on the job row, in</span>
 <span class="c">// each handler's log scope, and a filter of the job list.</span>
 <span class="k">using</span> Acta;
@@ -195,7 +195,8 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 <span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
 
 <span class="c">// learn: 2. Find every job of one trace</span>
-<span class="c">// One list read finds the parent and the children that inherited its key.</span>
+<span class="c">// One list read finds the parent and the children that inherited its key. The program also captures the handlers' log</span>
+<span class="c">// scopes: every line carries `ActaCorrelationKey`.</span>
 <span class="hl"><span class="k">var</span> trace = <span class="k">await</span> operations.Ledger.ListJobsAsync(</span>
 <span class="hl">    <span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;correlation-id&quot;</span>, CorrelationKey: correlationKey, PageSize: 10)</span>
 <span class="hl">);</span>

@@ -43,7 +43,59 @@ public sealed class OrderHandlers(Carrier carrier, LabelPrinter printer)
 }
 ```
 
-## 2. Enqueue from an endpoint and answer with the job's ref
+## 2. Register the services, Acta and the dashboard
+
+The handlers take `Carrier` and `LabelPrinter` in their constructor, so both are registered: a service DI cannot build fails the job on its first attempt. `Run<ShippingJobs>("shipping")` runs every job of the project under the namespace `shipping`, and `MapActa` serves the dashboard at /acta.
+
+The lines that matter:
+
+```csharp
+builder.Services.AddSingleton<Carrier>();
+builder.Services.AddSingleton<LabelPrinter>();
+
+builder.Services.UseActa(j =>
+{
+    j.UseSqlite(sqlite =>
+    {
+        sqlite.ConnectionString = "Data Source=acta-local.db";
+        sqlite.MigrateOnStartup = true; // local development only; in production a deploy step runs "jobs migrate"
+    });
+    j.Run<ShippingJobs>("shipping");
+});
+
+var app = builder.Build();
+app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
+```
+
+In `Program.cs` (excerpt):
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<Carrier>();
+builder.Services.AddSingleton<LabelPrinter>();
+
+builder.Services.UseActa(j =>
+{
+    j.UseSqlite(sqlite =>
+    {
+        sqlite.ConnectionString = "Data Source=acta-local.db";
+        sqlite.MigrateOnStartup = true; // local development only; in production a deploy step runs "jobs migrate"
+    });
+    j.Run<ShippingJobs>("shipping");
+});
+
+var app = builder.Build();
+app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
+
+app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
+{
+    var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
+    return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
+});
+```
+
+## 3. Enqueue from an endpoint and answer with the job's ref
 
 Enqueue by the input's type: nothing here reads the result, so the input is all the enqueue needs. The ref in the response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.
 
@@ -70,7 +122,7 @@ app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
 });
 ```
 
-## 3. Enqueue and wait for the typed result
+## 4. Enqueue and wait for the typed result
 
 Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a JobHandle<ShipmentLabel> and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout stops only the wait.
 
@@ -112,7 +164,7 @@ app.MapPost("/labels/{trackingNumber}", async (string trackingNumber, IJobs jobs
 });
 ```
 
-## 4. Read the status, the result, and the reason
+## 5. Read the status, the result, and the reason
 
 Status by ref. A JobRef binds straight from the route, so a malformed ref answers 400 before the handler runs. A job keeps its row after it finishes, so this answers for the retention period.
 
@@ -180,7 +232,7 @@ app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
 });
 ```
 
-## 5. Cancel a job by its ref
+## 6. Cancel a job by its ref
 
 Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one answers rejected and keeps its outcome.
 
@@ -209,7 +261,7 @@ app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
 });
 ```
 
-## 6. Run it and check the output
+## 7. Run it and check the output
 
 From a clone of the repository, with the .NET 10 SDK:
 
@@ -232,4 +284,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/026-first-job.program.md): every file as compiled, 158 lines.
+- [The whole program](/learn/026-first-job.program.md): every file as compiled, 165 lines.

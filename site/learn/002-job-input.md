@@ -20,7 +20,36 @@ The input is plain data. Acta serializes it, stores it with the job, and hands i
 public sealed record PrintNameTag(string Name, string Workshop);
 ```
 
-## 2. Enqueue an instance of it
+## 2. Take the record as the handler's first parameter
+
+The handler declares the record as its first parameter, and Acta passes it the stored input on every attempt.
+
+The lines that matter:
+
+```csharp
+[Job("print-name-tag")]
+public static async Task Handle(PrintNameTag tag, CancellationToken ct)
+{
+    await Task.Delay(50, ct);
+    Console.WriteLine($"Printed name tag: {tag.Name} ({tag.Workshop})");
+}
+```
+
+In `job-input.cs` (excerpt):
+
+```csharp
+public static class PrintNameTagJob
+{
+    [Job("print-name-tag")]
+    public static async Task Handle(PrintNameTag tag, CancellationToken ct)
+    {
+        await Task.Delay(50, ct);
+        Console.WriteLine($"Printed name tag: {tag.Name} ({tag.Workshop})");
+    }
+}
+```
+
+## 3. Enqueue an instance of it
 
 The type of the value picks the job: the handler whose first parameter is a `PrintNameTag`.
 
@@ -53,7 +82,7 @@ await host.WaitForShutdownAsync();
 await host.StopAsync();
 ```
 
-## 3. Run it and check the output
+## 4. Run it and check the output
 
 From a clone of the repository, with the .NET 10 SDK:
 
@@ -79,4 +108,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/002-job-input.program.md): every file as compiled, 48 lines.
+- [The whole program](/learn/002-job-input.program.md): every file as compiled, 51 lines.

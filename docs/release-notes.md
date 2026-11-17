@@ -1,5 +1,18 @@
 # Release notes
 
+## 1.0.0-rc.14
+
+Not yet released.
+
+### What a consumer must change
+
+Nothing.
+
+### Additions
+
+- `ctx.PauseAsync`, `ctx.RescheduleAsync` and `ctx.RescheduleUntilAsync` carry `[DoesNotReturn]`, as `ctx.FailAsync` and `ctx.CancelAsync` do: each of the five ends the attempt by throwing, and a null check that ends in one narrows the value after it.
+- The teaching programs are how-tos, and their folder is `learn/`, where it was `concepts/`: each is also a page at useacta.net/learn, generated from the program. `acta-verify learn` runs them before a release, where the verb was `acta-verify concepts`, and reads the lines `learn/runs.json` awaits.
+
 ## 1.0.0-rc.12
 
 Tagged 2026-11-17. rc.12 gives every exception Acta defines one base, answers every bounded wait with an outcome, names the calls that send and wait for jobs after their `IJobs` twins, keeps a signal's first value, and fails a job at once on a name or a stored value no retry can fix. The schema changes by migrations on rc.11's that re-create routines and the events view and change no table or row: an rc.11 database is migrated where it stands.

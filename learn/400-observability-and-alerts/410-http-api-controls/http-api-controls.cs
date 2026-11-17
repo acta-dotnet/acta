@@ -32,10 +32,10 @@ Console.WriteLine("knob: LocalOnly = true        (default: non-loopback or non-l
 Console.WriteLine("knob: ConfigureEndpoints      (hook for RequireAuthorization in production)");
 Console.WriteLine();
 
-// learn: 1. Mount the API and turn the controls on
-// Every route that changes a job is off until the host sets `EnableControls`.
 app.MapActaApi("/acta/api", options =>
 {
+    // learn: 1. Mount the API and turn the controls on
+    // Every route that changes a job is off until the host sets `EnableControls`.
     options.EnableControls = true;
     // learn: end
 
@@ -76,7 +76,8 @@ Console.WriteLine("POST pause WITH X-Acta-Control: true:");
 
 // learn: 2. Confirm the control request
 // A control passes with the `X-Acta-Control: true` header, a JSON content type, or a Bearer authorization header. A
-// form post from another site can send none of the three.
+// form post from another site can send none of the three. The same POST without the header is refused with 400; the
+// program sends that one first.
 var withHeader = new HttpRequestMessage(HttpMethod.Post, pauseUrl);
 withHeader.Headers.Add("X-Acta-Control", "true");
 var appliedResponse = await client.SendAsync(withHeader);

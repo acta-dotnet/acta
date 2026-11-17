@@ -71,3 +71,8 @@ worse than missing/ambiguous work and a reconciliation path exists.
 - [`at-most-once-step.cs`](./at-most-once-step.cs)
 - [`RuntimeJobContext.cs`](../../../src/Acta/Engine/Worker/Context/RuntimeJobContext.cs)
 - [`StepAtMostOnceSpec.cs`](../../../tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs)
+
+## Remember
+
+- Run it in two processes, in order, against the same database: `dotnet run --project learn/200-durable-execution/220-at-most-once-step -- crash`, which dies inside the step, then the same command with `-- recover`. With no argument the program prints these two commands and exits.
+- A body that cannot tell whether its effect happened, such as a call that timed out after the request left, throws `OutcomeUnknownException`: the step then ends as a crash ends it, and the handler reconciles.

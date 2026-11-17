@@ -89,6 +89,7 @@
 <span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Name the tenant when you enqueue</h2>
+<p>An enqueue that names an unknown or a suspended tenant throws <code>EnqueueRejectedException</code>, and its <code>Reason</code> says which.</p>
 <figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> acmeId = (<span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;acme&quot;</span>, <span class="s">&quot;Acme GmbH&quot;</span>, <span class="s">&quot;Active customer used by the lab&quot;</span>)).TenantId;
 <span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held customer&quot;</span>);
 <span class="k">await</span> operations.Tenants.SuspendAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held for the lab's rejection demo&quot;</span>);
@@ -166,7 +167,7 @@ enqueue for 'held-customer' rejected: TenantSuspended</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/412-tenant-scope"><code>learn/400-observability-and-alerts/412-tenant-scope</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">tenant-scope.cs</span><span class="file-size">184 lines</span></summary><figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to record which tenant a job is for</span>
+<details class="source-file"><summary><span class="file-name">tenant-scope.cs</span><span class="file-size">186 lines</span></summary><figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to record which tenant a job is for</span>
 <span class="c">// `TenantName` on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list</span>
 <span class="c">// filters by it, and an enqueue for an unknown or a suspended tenant is refused.</span>
 <span class="k">using</span> Acta;
@@ -202,6 +203,8 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;
 
 <span class="c">// learn: 2. Name the tenant when you enqueue</span>
+<span class="c">// An enqueue that names an unknown or a suspended tenant throws `EnqueueRejectedException`, and its `Reason` says</span>
+<span class="c">// which.</span>
 <span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</span>
 
 <span class="c">// learn: end</span>

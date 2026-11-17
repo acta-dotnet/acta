@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Tag the job when you enqueue it</h2>
-<p>Tags are labels for filtering and grouping jobs in queries or a dashboard.</p>
+<p>Tags are labels for filtering and grouping jobs in queries or a dashboard. Find them with <code>operations.Ledger.ListJobsAsync(new ListJobsQuery(Tags: [new TagFilter(&quot;campaign&quot;, &quot;spring&quot;)]))</code>.</p>
 <figure class="listing"><figcaption><span class="file">tags.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
 <span class="k">await</span> host.StartAsync();
 
@@ -109,7 +109,7 @@ Sent welcome email to Sam &lt;sam@example.com&gt;</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/018-tags"><code>learn/000-fundamentals/018-tags</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">tags.cs</span><span class="file-size">43 lines</span></summary><figure class="listing"><figcaption><span class="file">tags.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to label jobs so you can find them</span>
+<details class="source-file"><summary><span class="file-name">tags.cs</span><span class="file-size">44 lines</span></summary><figure class="listing"><figcaption><span class="file">tags.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to label jobs so you can find them</span>
 <span class="c">// Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.Tags;
@@ -130,7 +130,8 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="c">// learn: Tag the job when you enqueue it</span>
-<span class="c">// Tags are labels for filtering and grouping jobs in queries or a dashboard.</span>
+<span class="c">// Tags are labels for filtering and grouping jobs in queries or a dashboard. Find them with</span>
+<span class="c">// `operations.Ledger.ListJobsAsync(new ListJobsQuery(Tags: [new TagFilter(&quot;campaign&quot;, &quot;spring&quot;)]))`.</span>
 <span class="hl"><span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt;</span>
 <span class="hl">    o.Tag(<span class="s">&quot;campaign&quot;</span>, <span class="s">&quot;spring&quot;</span>).Tag(<span class="s">&quot;channel&quot;</span>, <span class="s">&quot;email&quot;</span>)</span>
 <span class="hl">);</span>

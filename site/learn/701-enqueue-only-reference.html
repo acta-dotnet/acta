@@ -101,14 +101,28 @@ Console.WriteLine(<span class="s">$&quot;Frontend enqueued job {handle.JobRef} (
 Console.WriteLine(<span class="s">&quot;Waiting for worker to drain...&quot;</span>);
 <span class="k">await</span> handle.WaitAsync();</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
+<div class="step"><h2><span class="step-n">3</span>Run the jobs in the worker process</h2>
+<p><code>Run</code> is the other side: the process that owns the namespace, claims its jobs, and executes them.</p>
+<figure class="listing"><figcaption><span class="file">enqueue-only-reference.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Worker host: owns the namespace - declares its jobs, runs the claim loop, executes them.</span>
+<span class="k">var</span> workerBuilder = Host.CreateApplicationBuilder(args);
+workerBuilder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(workerBuilder.Configuration);
+<span class="hl">    j.Run&lt;EnqueueOnlyReferenceJobs&gt;(<span class="s">&quot;enqueue-only-reference&quot;</span>);</span>
+});
+<span class="k">using</span> <span class="k">var</span> workerHost = workerBuilder.Build();
+<span class="k">await</span> workerHost.StartAsync();
+
+Console.WriteLine(<span class="s">&quot;Worker host started: owns the namespace, runs the claim loop.&quot;</span>);</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">enqueue-only-reference.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> WelcomeUserJob
 {
     <span class="a">[Job(<span class="s">&quot;welcome-user&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(WelcomeUser input) =&gt; Console.WriteLine(<span class="s">$&quot;[worker] executed welcome-user for {input.Username}&quot;</span>);
 }</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/700-topology-and-deployment/701-enqueue-only-reference</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[worker] executed welcome-user for alice
@@ -119,7 +133,7 @@ Job status after worker drain: Succeeded</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/700-topology-and-deployment/701-enqueue-only-reference"><code>learn/700-topology-and-deployment/701-enqueue-only-reference</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">enqueue-only-reference.cs</span><span class="file-size">70 lines</span></summary><figure class="listing"><figcaption><span class="file">enqueue-only-reference.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to enqueue from a process that runs no worker</span>
+<details class="source-file"><summary><span class="file-name">enqueue-only-reference.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">enqueue-only-reference.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to enqueue from a process that runs no worker</span>
 <span class="c">// `Reference&lt;TManifest&gt;()` lets a process enqueue a namespace's jobs by type without running a worker for it.</span>
 <span class="c">// `Run&lt;TManifest&gt;()` is the process that executes them.</span>
 <span class="k">using</span> Acta;
@@ -135,7 +149,10 @@ Job status after worker drain: Succeeded</code></pre></figure>
 workerBuilder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(workerBuilder.Configuration);
-    j.Run&lt;EnqueueOnlyReferenceJobs&gt;(<span class="s">&quot;enqueue-only-reference&quot;</span>);
+    <span class="c">// learn: 3. Run the jobs in the worker process</span>
+    <span class="c">// `Run` is the other side: the process that owns the namespace, claims its jobs, and executes them.</span>
+<span class="hl">    j.Run&lt;EnqueueOnlyReferenceJobs&gt;(<span class="s">&quot;enqueue-only-reference&quot;</span>);</span>
+    <span class="c">// learn: end</span>
 });
 <span class="k">using</span> <span class="k">var</span> workerHost = workerBuilder.Build();
 <span class="k">await</span> workerHost.StartAsync();

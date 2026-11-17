@@ -83,6 +83,7 @@ from application workers.
 
 ## Remember
 
+- Run it in four terminals against one PostgreSQL or SQL Server database, each with `dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- <mode>`: `worker-a`, `enqueue`, `inspect`, then `worker-b`. With no mode the program prints these commands and exits.
 - On SQLite a restart brings a lost attempt back at once: a starting worker releases the work of processes on the same machine that have ended. A server database waits out the lease: three to about seven minutes with the default heartbeat.
 - The reclaim is `job.execution-orphaned` with the reason `lease-expired` on the timeline.
 - A crash counts against the retry budget, and a reclaimed job is due again at once, without the backoff.

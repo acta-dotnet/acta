@@ -88,7 +88,7 @@
 <span class="hl">    <span class="k">new</span> ProcessExport(BlobUri: <span class="k">new</span> Uri(exportPath).AbsoluteUri, Sha256: sha256, SizeBytes: bytes.LongLength, ContentType: <span class="s">&quot;text/csv&quot;</span>)</span>
 <span class="hl">);</span>
 
-Console.WriteLine(<span class="s">$&quot;Job {outcome.JobRef} enqueued with a {bytes.LongLength}-byte reference (not the bytes).&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;Job {outcome.JobRef} enqueued with a reference to a {bytes.LongLength}-byte file (not the bytes).&quot;</span>);
 Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop.&quot;</span>);
 
 <span class="k">await</span> host.WaitForShutdownAsync();
@@ -119,7 +119,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/025-large-payload-reference</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>enqueued with a 21-byte reference (not the bytes).
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>enqueued with a reference to a 21-byte file (not the bytes).
 : 2 rows, 21 bytes (text/csv)</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
@@ -165,7 +165,7 @@ builder.Services.UseActa(j =&gt;
 
 <span class="c">// learn: end</span>
 
-Console.WriteLine(<span class="s">$&quot;Job {outcome.JobRef} enqueued with a {bytes.LongLength}-byte reference (not the bytes).&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;Job {outcome.JobRef} enqueued with a reference to a {bytes.LongLength}-byte file (not the bytes).&quot;</span>);
 Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop.&quot;</span>);
 
 <span class="k">await</span> host.WaitForShutdownAsync();

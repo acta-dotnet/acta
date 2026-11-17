@@ -79,7 +79,8 @@ public sealed class ShippingTests : IAsyncLifetime
         Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(job, Ct));
 
         // learn: 3. Make the retry due now instead of waiting for it
-        // The retry is due about a minute out under the default backoff; the test makes it due now.
+        // The first booking times out (`TimeoutsLeft = 1`), so the first tick fails and re-arms. The retry is due about a
+        // minute out under the default backoff; the test makes it due now.
         await _host.ForceJobDueAsync(job, Ct);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
         // learn: end

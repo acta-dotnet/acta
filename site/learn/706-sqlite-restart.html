@@ -95,7 +95,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Start the app again</h2>
-<p>There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same machine that have ended, so the export the dead process held is due at once and this process runs it.</p>
+<p>There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same machine that have ended, so the export the dead process held is due at once and this process runs it. The program started a copy of itself first, <code>first-run</code>, which enqueued the export under a deduplication key and was killed in the middle of it; this is the second start.</p>
 <figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">using</span> <span class="k">var</span> host = builder.Build();</span>
 <span class="hl"><span class="k">await</span> host.StartAsync();</span>
 
@@ -126,7 +126,7 @@ Succeeded after 1 lost lease.</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/700-topology-and-deployment/706-sqlite-restart"><code>learn/700-topology-and-deployment/706-sqlite-restart</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">sqlite-restart.cs</span><span class="file-size">107 lines</span></summary><figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to restart a crashed app on SQLite and get its work back</span>
+<details class="source-file"><summary><span class="file-name">sqlite-restart.cs</span><span class="file-size">109 lines</span></summary><figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to restart a crashed app on SQLite and get its work back</span>
 <span class="c">// On SQLite a starting worker releases the work of processes on the same machine that have ended, so a restarted app</span>
 <span class="c">// takes a lost job back at once. Nothing has to be written for it; the crash spends one attempt.</span>
 <span class="k">using</span> System.Diagnostics;
@@ -173,7 +173,9 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 
 <span class="c">// learn: 2. Start the app again</span>
 <span class="c">// There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same</span>
-<span class="c">// machine that have ended, so the export the dead process held is due at once and this process runs it.</span>
+<span class="c">// machine that have ended, so the export the dead process held is due at once and this process runs it. The program</span>
+<span class="c">// started a copy of itself first, `first-run`, which enqueued the export under a deduplication key and was killed in</span>
+<span class="c">// the middle of it; this is the second start.</span>
 <span class="hl"><span class="k">using</span> <span class="k">var</span> host = builder.Build();</span>
 <span class="hl"><span class="k">await</span> host.StartAsync();</span>
 

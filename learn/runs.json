@@ -27,7 +27,7 @@
   ],
   "023-job-call": ["Hello, World!", "Greetings, Ada!"],
   "024-aspnet-enqueue-api": ["Then poll GET /imports/{jobRef}"],
-  "025-large-payload-reference": ["enqueued with a 21-byte reference (not the bytes).", ": 2 rows, 21 bytes (text/csv)"],
+  "025-large-payload-reference": ["enqueued with a reference to a 21-byte file (not the bytes).", ": 2 rows, 21 bytes (text/csv)"],
   "026-first-job": ["Acta worker started in namespace (shipping)", "Now listening on: http://127.0.0.1:"],
   "028-deduplication-time-buckets": [
     "Deduplicated - same bucket, same job.",

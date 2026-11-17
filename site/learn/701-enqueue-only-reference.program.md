@@ -27,7 +27,10 @@ var workerBuilder = Host.CreateApplicationBuilder(args);
 workerBuilder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(workerBuilder.Configuration);
+    // learn: 3. Run the jobs in the worker process
+    // `Run` is the other side: the process that owns the namespace, claims its jobs, and executes them.
     j.Run<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
+    // learn: end
 });
 using var workerHost = workerBuilder.Build();
 await workerHost.StartAsync();

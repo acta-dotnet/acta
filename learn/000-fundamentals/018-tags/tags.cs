@@ -19,7 +19,8 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 // learn: Tag the job when you enqueue it
-// Tags are labels for filtering and grouping jobs in queries or a dashboard.
+// Tags are labels for filtering and grouping jobs in queries or a dashboard. Find them with
+// `operations.Ledger.ListJobsAsync(new ListJobsQuery(Tags: [new TagFilter("campaign", "spring")]))`.
 var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o =>
     o.Tag("campaign", "spring").Tag("channel", "email")
 );

@@ -37,6 +37,8 @@ var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 
 ## 2. Name the tenant when you enqueue
 
+An enqueue that names an unknown or a suspended tenant throws `EnqueueRejectedException`, and its `Reason` says which.
+
 The lines that matter:
 
 ```csharp
@@ -135,4 +137,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program and its notes](/learn/412-tenant-scope.program.md): every file as compiled, 184 lines, and the notes on the design, the rows to inspect, and how to break it.
+- [The whole program and its notes](/learn/412-tenant-scope.program.md): every file as compiled, 186 lines, and the notes on the design, the rows to inspect, and how to break it.

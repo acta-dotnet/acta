@@ -47,6 +47,8 @@ await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejec
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 
 // learn: 2. Name the tenant when you enqueue
+// An enqueue that names an unknown or a suspended tenant throws `EnqueueRejectedException`, and its `Reason` says
+// which.
 var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantName("acme").CorrelationKey(runId));
 
 // learn: end

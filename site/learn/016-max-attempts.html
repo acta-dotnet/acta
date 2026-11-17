@@ -84,7 +84,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read how the job ended</h2>
-<p>The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed.</p>
+<p>The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed. The program sleeps long enough for its three instant attempts; an application waits for the end with <code>await handle.WaitAsync()</code>.</p>
 <figure class="listing"><figcaption><span class="file">max-attempts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.UseActa(j =&gt;
@@ -115,7 +115,7 @@ builder.Services.UseActa(j =&gt;
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/016-max-attempts"><code>learn/000-fundamentals/016-max-attempts</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">max-attempts.cs</span><span class="file-size">44 lines</span></summary><figure class="listing"><figcaption><span class="file">max-attempts.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to limit how many times a job retries</span>
+<details class="source-file"><summary><span class="file-name">max-attempts.cs</span><span class="file-size">46 lines</span></summary><figure class="listing"><figcaption><span class="file">max-attempts.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to limit how many times a job retries</span>
 <span class="c">// `MaxAttempts` on the job is its retry budget. When the last attempt fails, the job ends as `Failed`.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.MaxAttempts;
@@ -136,7 +136,9 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="c">// learn: 2. Read how the job ended</span>
-<span class="c">// The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed.</span>
+<span class="c">// The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed. The program</span>
+<span class="c">// sleeps long enough for its three instant attempts; an application waits for the end with</span>
+<span class="c">// `await handle.WaitAsync()`.</span>
 <span class="hl"><span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> FlakyWork(<span class="s">&quot;widget&quot;</span>));</span>
 <span class="hl"><span class="k">await</span> Task.Delay(1500);</span>
 <span class="hl"><span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(outcome);</span>

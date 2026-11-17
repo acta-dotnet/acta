@@ -233,7 +233,8 @@
     {
       "ask": "Work repeats on a schedule",
       "pick": [
-        { "howTo": "104-timezone-schedule", "when": "one job the schedule fires again and again" },
+        { "howTo": "101-recurring-job", "when": "one job the schedule fires again and again" },
+        { "howTo": "104-timezone-schedule", "when": "the same local hour every day, in a time zone" },
         { "howTo": "110-per-occurrence-delivery", "when": "every occurrence a job of its own, with its own retries and result" },
         { "howTo": "109-continuous-synchronization", "when": "one job that keeps its place between firings" }
       ]
@@ -242,7 +243,8 @@
       "ask": "One job becomes many",
       "pick": [
         { "howTo": "212-fan-out-join", "when": "children from a list, their results joined" },
-        { "howTo": "215-map-wait-children", "when": "different children, or enqueue now and wait later" },
+        { "howTo": "211-child-jobs", "when": "a few different children whose results the parent reads" },
+        { "howTo": "215-map-wait-children", "when": "enqueue now and wait later" },
         { "howTo": "601-fan-out", "when": "independent jobs with nothing to join" }
       ]
     }

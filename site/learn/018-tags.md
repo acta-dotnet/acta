@@ -12,7 +12,7 @@ Tags are name and value labels set on the enqueue, for filtering and grouping jo
 
 ## 1. Tag the job when you enqueue it
 
-Tags are labels for filtering and grouping jobs in queries or a dashboard.
+Tags are labels for filtering and grouping jobs in queries or a dashboard. Find them with `operations.Ledger.ListJobsAsync(new ListJobsQuery(Tags: [new TagFilter("campaign", "spring")]))`.
 
 The lines that matter:
 
@@ -79,4 +79,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/018-tags.program.md): every file as compiled, 43 lines.
+- [The whole program](/learn/018-tags.program.md): every file as compiled, 44 lines.

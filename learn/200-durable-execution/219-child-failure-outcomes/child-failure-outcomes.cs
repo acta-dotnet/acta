@@ -60,6 +60,9 @@ namespace Acta.Learn.ChildFailureOutcomes
         {
             string[] ids = ["item-a", "item-b", "item-c"];
 
+            // learn: 1. Carry on without the items that failed
+            // The map does not throw for a failed item. `Failed` lists them, and this parent returns a partial result
+            // and lands Succeeded.
             var result = await context.MapAsync(
                 "process",
                 ids,
@@ -68,9 +71,6 @@ namespace Acta.Learn.ChildFailureOutcomes
                 ct
             );
 
-            // learn: 1. Carry on without the items that failed
-            // The map does not throw for a failed item. `Failed` lists them, and this parent returns a partial result
-            // and lands Succeeded.
             var succeeded = result.Items.Count(i => i.Outcome.Succeeded);
 
             foreach (var f in result.Failed)

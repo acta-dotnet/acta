@@ -79,7 +79,19 @@
 <p>The input is plain data. Acta serializes it, stores it with the job, and hands it to the handler.</p>
 <figure class="listing"><figcaption><span class="file">job-input.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PrintNameTag(<span class="k">string</span> Name, <span class="k">string</span> Workshop);</span></code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">2</span>Enqueue an instance of it</h2>
+<div class="step"><h2><span class="step-n">2</span>Take the record as the handler's first parameter</h2>
+<p>The handler declares the record as its first parameter, and Acta passes it the stored input on every attempt.</p>
+<figure class="listing"><figcaption><span class="file">job-input.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PrintNameTagJob
+{
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;print-name-tag&quot;</span>)]</span></span>
+<span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(PrintNameTag tag, CancellationToken ct)</span>
+<span class="hl">    {</span>
+<span class="hl">        <span class="k">await</span> Task.Delay(50, ct);</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;Printed name tag: {tag.Name} ({tag.Workshop})&quot;</span>);</span>
+<span class="hl">    }</span>
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Enqueue an instance of it</h2>
 <p>The type of the value picks the job: the handler whose first parameter is a <code>PrintNameTag</code>.</p>
 <figure class="listing"><figcaption><span class="file">job-input.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
 
@@ -100,7 +112,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 <span class="k">await</span> host.WaitForShutdownAsync();
 <span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/002-job-input</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Printed name tag: Ada (workshop)</code></pre></figure>
@@ -110,7 +122,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/002-job-input"><code>learn/000-fundamentals/002-job-input</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">job-input.cs</span><span class="file-size">48 lines</span></summary><figure class="listing"><figcaption><span class="file">job-input.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pass typed input to a job</span>
+<details class="source-file"><summary><span class="file-name">job-input.cs</span><span class="file-size">51 lines</span></summary><figure class="listing"><figcaption><span class="file">job-input.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pass typed input to a job</span>
 <span class="c">// The input is a record: Acta stores it with the job and hands it to the handler as its first parameter.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.JobInput;
@@ -130,7 +142,7 @@ builder.Services.UseActa(j =&gt;
 
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
-<span class="c">// learn: 2. Enqueue an instance of it</span>
+<span class="c">// learn: 3. Enqueue an instance of it</span>
 <span class="c">// The type of the value picks the job: the handler whose first parameter is a `PrintNameTag`.</span>
 <span class="hl"><span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> PrintNameTag(<span class="s">&quot;Ada&quot;</span>, <span class="s">&quot;workshop&quot;</span>));</span>
 
@@ -150,12 +162,15 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PrintNameTagJob
     {
-        <span class="a">[Job(<span class="s">&quot;print-name-tag&quot;</span>)]</span>
-        <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(PrintNameTag tag, CancellationToken ct)
-        {
-            <span class="k">await</span> Task.Delay(50, ct);
-            Console.WriteLine(<span class="s">$&quot;Printed name tag: {tag.Name} ({tag.Workshop})&quot;</span>);
-        }
+        <span class="c">// learn: 2. Take the record as the handler's first parameter</span>
+        <span class="c">// The handler declares the record as its first parameter, and Acta passes it the stored input on every attempt.</span>
+<span class="hl">        <span class="a">[Job(<span class="s">&quot;print-name-tag&quot;</span>)]</span></span>
+<span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(PrintNameTag tag, CancellationToken ct)</span>
+<span class="hl">        {</span>
+<span class="hl">            <span class="k">await</span> Task.Delay(50, ct);</span>
+<span class="hl">            Console.WriteLine(<span class="s">$&quot;Printed name tag: {tag.Name} ({tag.Workshop})&quot;</span>);</span>
+<span class="hl">        }</span>
+        <span class="c">// learn: end</span>
     }
 }</code></pre></figure>
 </details></div>

@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Drive the job to its wait</h2>
-<p>First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).</p>
+<p>The job under test, <code>process-order</code>, reserves stock in a step, waits for the signal <code>approval</code>, then charges. First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).</p>
 <figure class="listing"><figcaption><span class="file">OrderTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
 <span class="k">public</span> <span class="k">async</span> Task Order_reserves_once_waits_for_approval_then_charges()
 {
@@ -147,7 +147,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/802-testing-durable-jobs"><code>learn/800-testing/802-testing-durable-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">OrderTests.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">OrderTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a job that waits for a signal</span>
+<details class="source-file"><summary><span class="file-name">OrderTests.cs</span><span class="file-size">54 lines</span></summary><figure class="listing"><figcaption><span class="file">OrderTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a job that waits for a signal</span>
 <span class="c">// Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two</span>
 <span class="c">// explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with</span>
 <span class="c">// `dotnet test learn/800-testing/802-testing-durable-jobs`.</span>
@@ -164,6 +164,7 @@
         <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-1&quot;</span>, 99m), ct: Ct);
 
         <span class="c">// learn: 1. Drive the job to its wait</span>
+        <span class="c">// The job under test, `process-order`, reserves stock in a step, waits for the signal `approval`, then charges.</span>
         <span class="c">// First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).</span>
 <span class="hl">        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
 <span class="hl">        Assert.Equal(JobStatusCode.Suspended, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);</span>

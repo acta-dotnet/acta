@@ -84,7 +84,7 @@ public async Task A_shipped_order_has_a_typed_label()
 
 ## 3. Make the retry due now instead of waiting for it
 
-The retry is due about a minute out under the default backoff; the test makes it due now.
+The first booking times out (`TimeoutsLeft = 1`), so the first tick fails and re-arms. The retry is due about a minute out under the default backoff; the test makes it due now.
 
 The lines that matter:
 
@@ -126,4 +126,4 @@ Runs as a test. This program is a test project: it passes or fails with the test
 
 ## More
 
-- [The whole program](/learn/803-first-job-tests.program.md): every file as compiled, 117 lines.
+- [The whole program](/learn/803-first-job-tests.program.md): every file as compiled, 118 lines.

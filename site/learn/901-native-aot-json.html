@@ -96,7 +96,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">await</span> host.StartAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Build a raw payload with its type info</h2>
-<p>JobPayload.Json(value, typeInfo) is the AOT-safe path: the JsonTypeInfo comes from the source-generated context so no runtime reflection touches the payload type.</p>
+<p>JobPayload.Json(value, typeInfo) is the AOT-safe path: the JsonTypeInfo comes from the source-generated context so no runtime reflection touches the payload type. The program enqueues <code>process-order</code> with it, which prints the order.</p>
 <figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 Console.WriteLine(<span class="s">&quot;Enqueuing with source-generated type info (no reflection)...&quot;</span>);
@@ -120,7 +120,7 @@ Status: Succeeded</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/900-runtime-and-tuning/901-native-aot-json"><code>learn/900-runtime-and-tuning/901-native-aot-json</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">native-aot-json.cs</span><span class="file-size">72 lines</span></summary><figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run jobs under Native AOT</span>
+<details class="source-file"><summary><span class="file-name">native-aot-json.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run jobs under Native AOT</span>
 <span class="c">// A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime</span>
 <span class="c">// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT:</span>
 <span class="c">// it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.</span>
@@ -155,7 +155,8 @@ Console.WriteLine(<span class="s">&quot;Enqueuing with source-generated type inf
 
 <span class="c">// learn: 3. Build a raw payload with its type info</span>
 <span class="c">// JobPayload.Json(value, typeInfo) is the AOT-safe path: the JsonTypeInfo comes from the</span>
-<span class="c">// source-generated context so no runtime reflection touches the payload type.</span>
+<span class="c">// source-generated context so no runtime reflection touches the payload type. The program enqueues `process-order`</span>
+<span class="c">// with it, which prints the order.</span>
 <span class="hl"><span class="k">var</span> payload = JobPayload.Json(<span class="k">new</span> ProcessOrder(<span class="s">&quot;ORD-001&quot;</span>, 3), AotPayloadContext.Default.ProcessOrder);</span>
 
 <span class="c">// learn: end</span>
