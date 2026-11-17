@@ -234,6 +234,24 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.False(await ctx.ResolveAlertAsync("resolve-key", ct));
     }
 
+    [Fact(DisplayName = "ResolveAlertAsync with a reason puts it on the alert.resolved event, after the alert's ref")]
+    public async Task ResolveAlertAsync_with_a_reason_records_it_on_the_event()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = BuildContext();
+        var alertRef = await ctx.AlertAsync("title", "message", AlertSeverityCode.Error, deduplicationKey: "reason-key", ct: ct);
+
+        Assert.True(await ctx.ResolveAlertAsync("reason-key", "Sara decided: RefundAnyway", ct));
+
+        var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        var resolved = Assert.Single(
+            await Db.From<EventEntity>()
+                .Where(e => e.EntityCode == EntityCode.Alert && e.EntityId == row.Id && e.EventCode == EventCode.AlertResolved)
+                .ToListAsync(ct)
+        );
+        Assert.Equal($"alert {alertRef}: Sara decided: RefundAnyway", resolved.EventMessage);
+    }
+
     [Fact(DisplayName = "Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error")]
     public async Task Unknown_job_id_throws_argument_exception()
     {

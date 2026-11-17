@@ -281,6 +281,7 @@
   - Bounded prose truncates to column width
   - AlertAsync stamps the Manual kind and carries the caller's deduplication key
   - ResolveAlertAsync resolves the open incident by its key, with the job's ref as actor, and then finds none open
+  - ResolveAlertAsync with a reason puts it on the alert.resolved event, after the alert's ref
   - Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error
   - Raising with a null jobId still inserts a job-less alert
 

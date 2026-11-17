@@ -264,15 +264,22 @@ public abstract partial class JobContext
     /// that incident, and answers whether one was open; its <c>alert.resolved</c> event names this job's ref as the actor. Once
     /// it is resolved a replayed <see cref="AlertAsync"/> on the key opens a new incident, so raise and resolve each in a step.
     /// </summary>
-    public async Task<bool> ResolveAlertAsync(string deduplicationKey, CancellationToken ct = default)
+    public Task<bool> ResolveAlertAsync(string deduplicationKey, CancellationToken ct = default) =>
+        ResolveAlertAsync(deduplicationKey, reasonMessage: null, ct);
+
+    /// <summary>
+    /// <see cref="ResolveAlertAsync(string, CancellationToken)"/> with why the incident is over, which the
+    /// <c>alert.resolved</c> event carries in its message.
+    /// </summary>
+    public async Task<bool> ResolveAlertAsync(string deduplicationKey, string? reasonMessage, CancellationToken ct = default)
     {
         deduplicationKey = KeySyntax.Canonicalize(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDeduplicationKey);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return await ResolveAlertCoreAsync(deduplicationKey, linked.Token);
+        return await ResolveAlertCoreAsync(deduplicationKey, reasonMessage, linked.Token);
     }
 
     /// <summary>Subclass sink: resolve the namespace's open alert holding the canonical key, if one is open.</summary>
-    private protected abstract Task<bool> ResolveAlertCoreAsync(string deduplicationKey, CancellationToken ct);
+    private protected abstract Task<bool> ResolveAlertCoreAsync(string deduplicationKey, string? reasonMessage, CancellationToken ct);
 
     /// <summary>
     /// Writes an application-authored note onto this job's timeline, beside the framework's own events rather than in

@@ -224,5 +224,6 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
         CancellationToken ct
     ) => Unsupported<Task<AlertRef>>();
 
-    private protected override Task<bool> ResolveAlertCoreAsync(string deduplicationKey, CancellationToken ct) => Unsupported<Task<bool>>();
+    private protected override Task<bool> ResolveAlertCoreAsync(string deduplicationKey, string? reasonMessage, CancellationToken ct) =>
+        Unsupported<Task<bool>>();
 }

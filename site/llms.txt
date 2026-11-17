@@ -486,7 +486,8 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
   `acta.Alerts.ResolveAsync(alertRef)` resolves it from the step that fixed the cause (keep the ref in a variable
   across waits). One raised with a
   `deduplicationKey` resolves by that key from any job of its namespace, the job that opened it or another:
-  `await ctx.ResolveAlertAsync("stock-low-bin-7", ct)` answers true when it resolved an open one. The row is written at once; its delivery to
+  `await ctx.ResolveAlertAsync("stock-low-bin-7", ct)` answers true when it resolved an open one, and
+  `ctx.ResolveAlertAsync("stock-low-bin-7", "restocked by Sara", ct)` puts the reason on its `alert.resolved` event. The row is written at once; its delivery to
   the alert channel runs on the `sys.alerts` pass, so it reaches a channel within about a minute. The line runs again on every
   re-entry, like any bare line: without a `deduplicationKey` each run inserts another alert, and with one a
   repeat folds into the open alert, counting an occurrence, while a repeat after it was resolved opens a new one.

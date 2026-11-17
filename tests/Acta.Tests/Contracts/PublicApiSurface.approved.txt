@@ -1362,6 +1362,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<Acta.SignalWaitOutcome> WaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> DeleteVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> ExistsVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.Boolean> ResolveAlertAsync(System.String deduplicationKey, System.String? reasonMessage, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> ResolveAlertAsync(System.String deduplicationKey, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>> valueFactory, System.Threading.CancellationToken ct = default) where T : notnull
