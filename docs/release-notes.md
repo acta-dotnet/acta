@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.14
 
-Not yet released. rc.14 gives every persisted code its final name and id before the 1.0.0 freeze, and folds the candidates' migrations into one baseline. The schema changes: reprovision.
+Tagged 2026-11-18. rc.14 gives every persisted code its final name and id before the 1.0.0 freeze, folds the candidates' migrations into one baseline, and settles what the events of a sleep, a raise, a child wait and a startup release store. The schema changes: a database an earlier candidate provisioned is dropped and reprovisioned.
 
 ### What a consumer must change
 
@@ -73,6 +73,16 @@ The C# members follow: `EventCode.JobInputUpdated`, `ScheduleFullBehaviorCode.Sk
 - `ctx.ResolveAlertAsync(key, reasonMessage, ct)` records why a handler resolved an alert: the reason follows the alert's ref in the `alert.resolved` event's message, as it does for `IAlerts.ResolveAsync`. The call without a reason is unchanged.
 - The control CLI's `cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal` and `debug` take `--actor <name>`, and record the operating system's user name without it, so their events carry an actor, where they carried none.
 - The teaching programs are how-tos, and their folder is `learn/`, where it was `concepts/`: each is also a page at useacta.net/learn, generated from the program. `acta-verify learn` runs them before a release, where the verb was `acta-verify concepts`, and reads the lines `learn/runs.json` awaits.
+
+### Evidence
+
+The engine was certified with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The run's commit is `d74d9393e`, and the commit after it changes documentation and the site, so the evidence stands for the tag.
+- **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held, with no rerun. The report's verdict is PASS.
+- **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server with a worker killed every 5 s: 84 busy kills reclaimed on PostgreSQL and 83 on SQL Server. SQLite passed at 10,000 jobs, with 48 busy kills reclaimed.
+- **Throughput.** Four PostgreSQL workers polling held 15,000/s offered in three 30 s passes and in the 120 s confirmation, completing 14,904 fully executed, durably completed jobs per second with p99 1.0 s. One worker, woken in process, completed 7,500 a second with p99 53 ms. SQL Server held 5,000 a second on four workers (5,012, p99 956 ms) and on one (5,003, p99 1.0 s). SQLite held 250 on one worker, with p99 104 ms. Both PostgreSQL sixteen-worker ladders, which start at 12,500/s since rc.12, held every written rate up to 15,000/s: 15,160 a second on two namespaces with p99 470 ms, and 15,230 on one with p99 1.4 s.
+- **Drain.** Eight workers drained a backlog of 1,000,000 jobs at 87,113 a second on PostgreSQL and 46,595 on SQL Server (the steady rate on the database clock, median of three passes); one SQLite worker drained its backlog at 6,566.
+- **Compared with rc.12.** `acta-verify compare` sets every scenario beside rc.12's run. All 219 scenario runs the two share passed both times, and of the measured cells 20 read faster, 58 the same, and 14 slower, from one run each. The fourteen are p99s at rates both runs held, inside their floors and not rerun: the largest are PostgreSQL's enqueue of one job per call, 170 ms against 26 ms at 10,000/s, and sixteen workers woken through Redis, 521 ms against 120 ms on PostgreSQL and 1.7 s against 478 ms on SQL Server. The benchmark report names them all.
+- **useacta.net.** The homepage states 14,904 fully executed, durably completed jobs per second on four PostgreSQL workers. The benchmark report is a page of the site.
 
 ## 1.0.0-rc.12
 

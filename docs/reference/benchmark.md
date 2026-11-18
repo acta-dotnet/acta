@@ -1,38 +1,37 @@
-# Acta 1.0.0-rc.12: benchmark and release validation
+# Acta 1.0.0-rc.14: benchmark and release validation
 
-The 1.0.0-rc.12 release evidence, measured by the project on its own machine: one Acta Verify release run on `892222333` on PostgreSQL, SQL Server, and SQLite, with reruns of two cells on the same commit. Every correctness, fault, and chaos scenario passed, every trial's ledger passed the ledger checks, and every performance floor held, one of them after reruns: sixteen PostgreSQL workers on one namespace at 15,000/s, which sits at this machine's edge with rc.11's tree as well.
+The 1.0.0-rc.14 release evidence, measured by the project on its own machine: one Acta Verify release run on `d74d9393e` on PostgreSQL, SQL Server, and SQLite. Every correctness, fault, and chaos scenario passed, every trial's ledger passed the ledger checks, and every performance floor held, with no rerun.
 
-- The run's commit, `892222333`, is in the tagged history, and the commit after it changes documentation and the site, so the evidence stands for the tag.
-- Sixteen PostgreSQL workers on one namespace completed 16,112 jobs a second at 15,000/s offered, with p99 2.7 s against the 2.0 s target. Rerun three times on the same commit, the cell missed twice more, p99 2.3 s and 2.6 s, and then held, 15,586 jobs a second with p99 2.0 s; the reruns are listed with the scenario below. Rerun back to back on 2026-11-16, on the same machine and runtime, rc.11's tree held the cell once in two runs and an earlier rc.12 candidate's twice, and sixteen workers on two namespaces, which held in this run, missed in all four of those runs. The next release's run starts both PostgreSQL sixteen-worker ladders at 12,500/s, with 15,000 above it.
-- An earlier rc.12 candidate's group wait parked on the last child still running, and SQLite's mixed-work trial fell behind its schedule for tens of seconds in about half its runs, where rc.11's tree held it in eleven runs of eleven. The wait asks for each child in turn again, and this run held mixed work on every database.
-- This is measurement version 3, as in rc.11, and `acta-verify compare` sets the run beside rc.11's, both on .NET 10.0.15. All 221 scenario runs passed both times; of the measured cells, 8 read faster, 68 the same, and 18 slower, each from one run per release.
-- PostgreSQL's four workers held 15,000/s offered in all three 30 s passes, but the 120 s confirmation at 15,000 missed its p99 target, 3.7 s against 2.0 s, and the one at 12,500 held, completing 12,496 jobs a second, as rc.11's completed 12,512 at 12,500.
-- SQL Server's one worker held 5,000/s in all three passes, but its 120 s confirmation at 5,000 missed, p99 11 s, and the one at 2,500 held, where rc.11's held 5,000. Rerun on the same commit, the confirmation at 5,000 held, 5,000 jobs a second with p99 559 ms.
-- PostgreSQL's four-worker drain read 37,478 jobs a second against rc.11's 46,761. Rerun back to back on 2026-11-16, rc.11's tree drained at 37,590 and 46,199 a second and an earlier rc.12 candidate's at 46,697 and 46,429. The other cells that read slower come from one run each and were not rerun: fifteen p99s at rates both runs held, each inside its floor.
+- The run's commit, `d74d9393e`, is in the tagged history, and the commit after it changes documentation and the site, so the evidence stands for the tag.
+- Both PostgreSQL sixteen-worker ladders start at 12,500/s since rc.12, with 15,000 above it, and both held every written rate. Two namespaces completed 15,160 jobs a second at 15,000/s offered with p99 470 ms, and one namespace 15,230 with p99 1.4 s against the 2.0 s target, the cell rc.12 held on its fourth run.
+- PostgreSQL's four workers held 15,000/s offered in all three 30 s passes and in the 120 s confirmation, completing 14,904 jobs a second with p99 1.0 s, where rc.12's confirmation held at 12,500. SQL Server's one worker confirmed at 5,000/s, 5,003 jobs a second, where rc.12's first run confirmed at 2,500.
+- The crash-recovery chaos runs finished a million jobs each on PostgreSQL and SQL Server while a worker was killed every five seconds, with 84 and 83 busy kills reclaimed, and ten thousand on SQLite with 48.
+- This is measurement version 3, as in rc.12, and `acta-verify compare` sets the run beside rc.12's, both on .NET 10.0.15. All 219 scenario runs the two share passed both times; the two PostgreSQL sixteen-worker throughput cells are not compared, since their ladders changed. Of the measured cells, 20 read faster, 58 the same, and 14 slower, each from one run per release.
+- The fourteen that read slower are p99s at rates both runs held, each inside its floor, and none was rerun. The largest are PostgreSQL's enqueue of one job per call, 170 ms against 26 ms at 10,000/s; sixteen workers woken through Redis, 521 ms against 120 ms on PostgreSQL at 12,500/s and 1.7 s against 478 ms on SQL Server at 4,000/s; PostgreSQL's fixed CPU work, 292 ms against 63 ms at 4,000/s; and SQL Server's 32 executors, 234 ms against 89 ms at 2,500/s.
 
-# Acta Verify: PASS after reruns
+# Acta Verify: PASS
 
-The release suite on PostgreSQL, SQL Server, SQLite, commit `892222333`, started 2026-11-16 22:10 UTC, 7 h 9 min, on Intel(R) Core(TM) i9-14900K.
+The release suite on PostgreSQL, SQL Server, SQLite, commit `d74d9393e`, started 2026-11-17 23:11 UTC, 7 h 1 min, on Intel(R) Core(TM) i9-14900K.
 
 | | PostgreSQL | SQL Server | SQLite |
 |---|---|---|---|
 | Correctness | pass | pass | pass |
-| Crash-recovery chaos | pass, 1,000,000 jobs, 84 busy kills reclaimed | pass, 1,000,000 jobs, 82 busy kills reclaimed | pass, 10,000 jobs, 50 busy kills reclaimed |
-| Ledger checks | pass, 158 trials checked | pass, 149 trials checked | pass, 124 trials checked |
-| Performance floors | missed 1, held on rerun | held | held |
-| Drain | 85,531 jobs/s | 44,334 jobs/s | 6,812 jobs/s |
-| Throughput | 12,496 jobs/s | 5,001 jobs/s | 250 jobs/s |
-| Throughput, one worker | 7,499 jobs/s | 2,501 jobs/s | not written |
+| Crash-recovery chaos | pass, 1,000,000 jobs, 84 busy kills reclaimed | pass, 1,000,000 jobs, 83 busy kills reclaimed | pass, 10,000 jobs, 48 busy kills reclaimed |
+| Ledger checks | pass, 160 trials checked | pass, 148 trials checked | pass, 125 trials checked |
+| Performance floors | held | held | held |
+| Drain | 87,113 jobs/s | 46,595 jobs/s | 6,566 jobs/s |
+| Throughput | 14,904 jobs/s | 5,012 jobs/s | 250 jobs/s |
+| Throughput, one worker | 7,500 jobs/s | 5,003 jobs/s | not written |
 
-> **12,496 fully executed, durably completed jobs per second** on PostgreSQL: 4 workers polling for work, one job per enqueue call, held 3 × 30 s and 120 s at 12,500/s offered, p99 1.0 s, Intel(R) Core(TM) i9-14900K.
+> **14,904 fully executed, durably completed jobs per second** on PostgreSQL: 4 workers polling for work, one job per enqueue call, held 3 × 30 s and 120 s at 15,000/s offered, p99 1.0 s, Intel(R) Core(TM) i9-14900K.
 
-> **5,001 fully executed, durably completed jobs per second** on SQL Server: 4 workers polling for work, one job per enqueue call, held 3 × 30 s and 120 s at 5,000/s offered, p99 962 ms, Intel(R) Core(TM) i9-14900K.
+> **5,012 fully executed, durably completed jobs per second** on SQL Server: 4 workers polling for work, one job per enqueue call, held 3 × 30 s and 120 s at 5,000/s offered, p99 956 ms, Intel(R) Core(TM) i9-14900K.
 
-> **250 fully executed, durably completed jobs per second** on SQLite: 1 worker, woken in process, one job per enqueue call, held 3 × 30 s and 120 s at 250/s offered, p99 128 ms, Intel(R) Core(TM) i9-14900K.
+> **250 fully executed, durably completed jobs per second** on SQLite: 1 worker, woken in process, one job per enqueue call, held 3 × 30 s and 120 s at 250/s offered, p99 104 ms, Intel(R) Core(TM) i9-14900K.
 
-> **7,499 fully executed, durably completed jobs per second** on PostgreSQL: 1 worker, woken in process, one job per enqueue call, held 3 × 30 s and 120 s at 7,500/s offered, p99 52 ms, Intel(R) Core(TM) i9-14900K.
+> **7,500 fully executed, durably completed jobs per second** on PostgreSQL: 1 worker, woken in process, one job per enqueue call, held 3 × 30 s and 120 s at 7,500/s offered, p99 53 ms, Intel(R) Core(TM) i9-14900K.
 
-> **2,501 fully executed, durably completed jobs per second** on SQL Server: 1 worker, woken in process, one job per enqueue call, held 3 × 30 s and 120 s at 2,500/s offered, p99 94 ms, Intel(R) Core(TM) i9-14900K.
+> **5,003 fully executed, durably completed jobs per second** on SQL Server: 1 worker, woken in process, one job per enqueue call, held 3 × 30 s and 120 s at 5,000/s offered, p99 1.0 s, Intel(R) Core(TM) i9-14900K.
 
 ## Rates to raise
 
@@ -40,13 +39,14 @@ These written rates ask less than the database ran; they decide nothing in this 
 
 - **Enqueue in batches of 100** on PostgreSQL: the floor of 10,000/s also held at 40,000/s.
 - **Enqueue in batches of 1,000** on PostgreSQL: the floor of 20,000/s also held at 80,000/s.
+- **Throughput, sixteen workers** on PostgreSQL: every written rate held, up to 15,000/s, so the ladder found no ceiling.
+- **Throughput, sixteen workers on one namespace** on PostgreSQL: every written rate held, up to 15,000/s, so the ladder found no ceiling.
 - **Throughput, 32 executors** on SQLite: the floor of 160/s also held at 640/s.
 - **Fixed CPU work** on SQLite: the floor of 160/s also held at 640/s.
 - **Payloads of 4 KB** on SQLite: the floor of 120/s also held at 480/s.
 - **Payloads of 256 B, 4 KB and 64 KB mixed** on SQLite: the floor of 160/s also held at 640/s.
 - **Payloads of 64 KB** on SQLite: the floor of 40/s also held at 160/s.
 - **A thousand lanes** on SQL Server: the floor of 1,000/s also held at 4,000/s.
-- **A thousand lanes** on SQLite: the floor of 120/s also held at 480/s.
 - **Operator queries during processing** on SQLite: the floor of 120/s also held at 480/s.
 - **Parked work alongside** on SQL Server: the floor of 500/s also held at 2,000/s.
 - **Parked work alongside** on SQLite: the floor of 160/s also held at 640/s.
@@ -70,15 +70,15 @@ Setup: workers: 8 on PostgreSQL, 8 on SQL Server, 1 on SQLite; namespaces: 2 on 
 
 | Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1 | 1,000,000 | 83,231 jobs/s | 14 s | 0.725 / 4.82 ms | held |
-| PostgreSQL | 2 | 1,000,000 | 85,531 jobs/s | 13.2 s | 2 / 16.8 ms | held |
-| PostgreSQL | 3 | 1,000,000 | 86,880 jobs/s | 12.6 s | 0.119 / 0.406 ms | held |
-| SQL Server | 1 | 1,000,000 | 39,739 jobs/s | 29.2 s | 0.555 / 0.274 ms | held |
-| SQL Server | 2 | 1,000,000 | 45,592 jobs/s | 22.3 s | 0.224 / 0.641 ms | held |
-| SQL Server | 3 | 1,000,000 | 44,334 jobs/s | 23.1 s | 2.98 / 0.975 ms | held |
-| SQLite | 1 | 100,000 | 6,914 jobs/s | 14.6 s | 0.0435 / 0.322 ms | held |
-| SQLite | 2 | 100,000 | 6,531 jobs/s | 15.4 s | 0.0423 / 0.0594 ms | held |
-| SQLite | 3 | 100,000 | 6,812 jobs/s | 15.1 s | 0.0403 / 0.0606 ms | held |
+| PostgreSQL | 1 | 1,000,000 | 87,113 jobs/s | 12.2 s | 0.403 / 2.63 ms | held |
+| PostgreSQL | 2 | 1,000,000 | 70,741 jobs/s | 14.8 s | 15.5 / 90.9 ms | held |
+| PostgreSQL | 3 | 1,000,000 | 87,543 jobs/s | 12.4 s | 5.07 / 29.2 ms | held |
+| SQL Server | 1 | 1,000,000 | 38,790 jobs/s | 29.4 s | 1.24 / 0.59 ms | held |
+| SQL Server | 2 | 1,000,000 | 46,595 jobs/s | 22.6 s | 8.74 / 0.657 ms | held |
+| SQL Server | 3 | 1,000,000 | 47,244 jobs/s | 21.7 s | 2.24 / 2.07 ms | held |
+| SQLite | 1 | 100,000 | 6,502 jobs/s | 15.7 s | 0.0472 / 0.125 ms | held |
+| SQLite | 2 | 100,000 | 6,566 jobs/s | 15.5 s | 0.0413 / 0.0664 ms | held |
+| SQLite | 3 | 100,000 | 6,736 jobs/s | 15.4 s | 0.0496 / 0.121 ms | held |
 
 ### Sustained throughput
 
@@ -88,42 +88,42 @@ Setup: workers: 4 on PostgreSQL, 4 on SQL Server, 1 on SQLite; namespaces: 2 on 
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 10,000 | 1 | 10,087 | 1.0 s | 0.0481 / 0.0537 ms | held |
-| PostgreSQL | 10,000 | 2 | 10,071 | 1.0 s | 0.0388 / 0.0411 ms | held |
-| PostgreSQL | 10,000 | 3 | 10,104 | 1.0 s | 0.0444 / 0.0517 ms | held |
-| PostgreSQL | 12,500 | 1 | 12,477 | 1.0 s | 0.216 / 3.35 ms | held |
-| PostgreSQL | 12,500 | 2 | 12,525 | 1.0 s | 0.0495 / 0.213 ms | held |
-| PostgreSQL | 12,500 | 3 | 12,439 | 1.0 s | 0.227 / 2.45 ms | held |
-| PostgreSQL | 15,000 | 1 | 15,246 | 1.0 s | 0.419 / 5.55 ms | held |
-| PostgreSQL | 15,000 | 2 | 14,824 | 1.0 s | 0.326 / 5.39 ms | held |
-| PostgreSQL | 15,000 | 3 | 14,913 | 1.0 s | 0.0432 / 0.0798 ms | held |
-| PostgreSQL | 17,500 | 1 | 16,849 | 2.3 s | 0.0608 / 0.0729 ms | missed: backlog grew 714 jobs/s, 175 allowed |
-| PostgreSQL | 17,500 | 2 | 16,501 | 3.4 s | 0.057 / 0.179 ms | missed: backlog grew 826 jobs/s, 175 allowed |
-| PostgreSQL | 17,500 | 3 | 17,004 | 2.6 s | 0.0645 / 0.359 ms | missed: backlog grew 608 jobs/s, 175 allowed |
-| PostgreSQL | 20,000 | | | | | not run by rule |
+| PostgreSQL | 10,000 | 1 | 10,001 | 1.0 s | 0.0372 / 0.0387 ms | held |
+| PostgreSQL | 10,000 | 2 | 9,979 | 1.0 s | 0.217 / 2.74 ms | held |
+| PostgreSQL | 10,000 | 3 | 10,159 | 1.0 s | 0.173 / 2.37 ms | held |
+| PostgreSQL | 12,500 | 1 | 12,539 | 1.0 s | 0.098 / 1.1 ms | held |
+| PostgreSQL | 12,500 | 2 | 12,531 | 1.0 s | 0.0416 / 0.0849 ms | held |
+| PostgreSQL | 12,500 | 3 | 12,692 | 1.0 s | 0.0533 / 0.0567 ms | held |
+| PostgreSQL | 15,000 | 1 | 14,858 | 1.0 s | 0.06 / 0.337 ms | held |
+| PostgreSQL | 15,000 | 2 | 15,012 | 977 ms | 0.0494 / 0.0603 ms | held |
+| PostgreSQL | 15,000 | 3 | 14,970 | 1.0 s | 0.0507 / 0.061 ms | held |
+| PostgreSQL | 17,500 | 1 | 17,034 | 1.7 s | 0.403 / 6.48 ms | missed: backlog grew 546 jobs/s, 175 allowed |
+| PostgreSQL | 17,500 | 2 | 17,482 | 1.0 s | 0.124 / 1.16 ms | held |
+| PostgreSQL | 17,500 | 3 | 17,385 | 1.0 s | 0.698 / 8.65 ms | held |
+| PostgreSQL | 20,000 | 2 | 17,913 | 4.5 s | 0.138 / 0.0472 ms | missed: backlog grew 2,194 jobs/s, 200 allowed |
+| PostgreSQL | 20,000 | 3 | 16,977 | 7.1 s | 0.054 / 0.0665 ms | missed: backlog grew 2,903 jobs/s, 200 allowed |
 | PostgreSQL | 25,000 | | | | | not run by rule |
 | PostgreSQL | 30,000 | | | | | not run by rule |
-| PostgreSQL | 15,000 | confirm, 120 s | 14,569 | 3.7 s | 0.117 / 0.311 ms | missed: p99 3.7 s against a 2.0 s target |
-| PostgreSQL | 12,500 | confirm, 120 s | 12,496 | 1.0 s | 0.0479 / 0.057 ms | held |
-| SQL Server | 5,000 | 1 | 4,938 | 887 ms | 0.67 / 14.3 ms | held |
-| SQL Server | 5,000 | 2 | 5,002 | 804 ms | 0.246 / 2.28 ms | held |
-| SQL Server | 5,000 | 3 | 5,030 | 926 ms | 0.636 / 15.8 ms | held |
-| SQL Server | 7,500 | 1 | 7,044 | 2.9 s | 0.0379 / 0.0735 ms | missed: backlog grew 496 jobs/s, 75 allowed |
-| SQL Server | 7,500 | 2 | 6,934 | 3.8 s | 0.191 / 0.718 ms | missed: backlog grew 573 jobs/s, 75 allowed |
-| SQL Server | 7,500 | 3 | 6,740 | 4.5 s | 0.246 / 0.361 ms | missed: backlog grew 785 jobs/s, 75 allowed |
+| PostgreSQL | 15,000 | confirm, 120 s | 14,904 | 1.0 s | 0.205 / 0.422 ms | held |
+| SQL Server | 5,000 | 1 | 4,863 | 906 ms | 0.028 / 0.0414 ms | held |
+| SQL Server | 5,000 | 2 | 5,004 | 804 ms | 0.333 / 4.26 ms | held |
+| SQL Server | 5,000 | 3 | 4,997 | 745 ms | 0.54 / 6.63 ms | held |
+| SQL Server | 7,500 | 1 | 6,721 | 4.9 s | 0.0865 / 0.579 ms | missed: backlog grew 800 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 2 | 6,893 | 3.6 s | 0.168 / 1.8 ms | missed: backlog grew 599 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 3 | 6,833 | 4.1 s | 0.0914 / 1.31 ms | missed: backlog grew 687 jobs/s, 75 allowed |
 | SQL Server | 10,000 | | | | | not run by rule |
 | SQL Server | 12,500 | | | | | not run by rule |
 | SQL Server | 15,000 | | | | | not run by rule |
-| SQL Server | 5,000 | confirm, 120 s | 5,001 | 962 ms | 0.552 / 2.25 ms | held |
-| SQLite | 250 | 1 | 250 | 107 ms | 0.0285 / 0.0624 ms | held |
-| SQLite | 250 | 2 | 250 | 106 ms | 0.0302 / 0.0408 ms | held |
-| SQLite | 250 | 3 | 250 | 116 ms | 0.0292 / 0.0297 ms | held |
-| SQLite | 500 | 1 | 466 | 5.3 s | 0.0263 / 0.0304 ms | missed: backlog grew 25.3 jobs/s, 5 allowed |
-| SQLite | 500 | 2 | 478 | 4.1 s | 0.025 / 0.0283 ms | missed: p99 4.1 s against a 2.0 s target |
-| SQLite | 500 | 3 | 490 | 4.5 s | 0.0247 / 0.0341 ms | missed: p99 4.5 s against a 2.0 s target |
-| SQLite | 1,000 | | | | | not run by rule |
+| SQL Server | 5,000 | confirm, 120 s | 5,012 | 956 ms | 0.49 / 1.85 ms | held |
+| SQLite | 250 | 1 | 250 | 82 ms | 0.0296 / 0.0672 ms | held |
+| SQLite | 250 | 2 | 250 | 104 ms | 0.0302 / 0.0363 ms | held |
+| SQLite | 250 | 3 | 250 | 106 ms | 0.0301 / 0.0309 ms | held |
+| SQLite | 500 | 1 | 500 | 82 ms | 0.0236 / 0.025 ms | held |
+| SQLite | 500 | 2 | 383 | 12.9 s | 0.0283 / 0.0304 ms | missed: backlog grew 148 jobs/s, 5 allowed |
+| SQLite | 500 | 3 | 526 | 2.5 s | 0.0242 / 0.0291 ms | missed: p99 2.5 s against a 2.0 s target |
+| SQLite | 1,000 | 1 | 689 | 27.9 s | 0.0254 / 0.03 ms | missed: backlog grew 298 jobs/s, 10 allowed |
 | SQLite | 2,000 | | | | | not run by rule |
-| SQLite | 250 | confirm, 120 s | 250 | 128 ms | 0.0297 / 0.0308 ms | held |
+| SQLite | 250 | confirm, 120 s | 250 | 104 ms | 0.0298 / 0.0308 ms | held |
 
 Highest rate held in every pass: PostgreSQL 15,000/s; SQL Server 5,000/s; SQLite 250/s.
 
@@ -135,15 +135,15 @@ Setup: workers: 4 on PostgreSQL, 4 on SQL Server, 1 on SQLite; namespaces: 2 on 
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 10,000 | 1 | 9,998 | 101 ms | 0.0377 / 0.0493 ms | held |
-| PostgreSQL | 12,500 | 1 | 12,494 | 99 ms | 0.0379 / 0.0706 ms | held |
-| PostgreSQL | 15,000 | 1 | 15,028 | 152 ms | 0.0539 / 0.065 ms | held |
-| PostgreSQL | 17,500 | 1 | 16,769 | 2.3 s | 0.0595 / 0.276 ms | missed: backlog grew 666 jobs/s, 175 allowed |
+| PostgreSQL | 10,000 | 1 | 9,998 | 100 ms | 0.0415 / 0.0483 ms | held |
+| PostgreSQL | 12,500 | 1 | 12,511 | 97 ms | 0.039 / 0.0692 ms | held |
+| PostgreSQL | 15,000 | 1 | 15,012 | 96 ms | 0.0543 / 0.0634 ms | held |
+| PostgreSQL | 17,500 | 1 | 16,184 | 3.1 s | 0.052 / 0.0653 ms | missed: backlog grew 1,204 jobs/s, 175 allowed |
 | PostgreSQL | 20,000 | | | | | not run by rule |
 | PostgreSQL | 25,000 | | | | | not run by rule |
 | PostgreSQL | 30,000 | | | | | not run by rule |
-| SQL Server | 5,000 | 1 | 4,999 | 148 ms | 0.0696 / 1.58 ms | held |
-| SQL Server | 7,500 | 1 | 6,788 | 4.4 s | 0.0987 / 0.767 ms | missed: backlog grew 706 jobs/s, 75 allowed |
+| SQL Server | 5,000 | 1 | 5,002 | 168 ms | 0.135 / 0.787 ms | held |
+| SQL Server | 7,500 | 1 | 6,858 | 4.3 s | 0.119 / 0.48 ms | missed: backlog grew 604 jobs/s, 75 allowed |
 | SQL Server | 10,000 | | | | | not run by rule |
 | SQL Server | 12,500 | | | | | not run by rule |
 | SQL Server | 15,000 | | | | | not run by rule |
@@ -159,48 +159,32 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 5,000 | 1 | 5,002 | 52 ms | 0.0342 / 0.0434 ms | held |
-| PostgreSQL | 5,000 | 2 | 5,001 | 57 ms | 0.0356 / 0.0373 ms | held |
-| PostgreSQL | 5,000 | 3 | 5,001 | 56 ms | 0.0512 / 0.263 ms | held |
-| PostgreSQL | 7,500 | 1 | 7,497 | 41 ms | 0.0338 / 0.0364 ms | held |
-| PostgreSQL | 7,500 | 2 | 7,497 | 45 ms | 0.0344 / 0.0354 ms | held |
-| PostgreSQL | 7,500 | 3 | 7,495 | 297 ms | 0.0337 / 0.0352 ms | held |
-| PostgreSQL | 10,000 | 1 | 9,016 | 3.5 s | 0.0531 / 0.16 ms | missed: backlog grew 933 jobs/s, 100 allowed |
-| PostgreSQL | 10,000 | 2 | 9,289 | 2.2 s | 0.044 / 0.0481 ms | missed: backlog grew 676 jobs/s, 100 allowed |
-| PostgreSQL | 10,000 | 3 | 9,992 | 95 ms | 0.0354 / 0.039 ms | held |
-| PostgreSQL | 12,500 | 3 | 10,419 | 5.9 s | 0.0456 / 0.0386 ms | missed: backlog grew 2,150 jobs/s, 125 allowed |
+| PostgreSQL | 5,000 | 1 | 5,001 | 52 ms | 0.0338 / 0.0363 ms | held |
+| PostgreSQL | 5,000 | 2 | 5,000 | 465 ms | 0.0357 / 0.0376 ms | held |
+| PostgreSQL | 5,000 | 3 | 4,999 | 115 ms | 0.0743 / 0.788 ms | held |
+| PostgreSQL | 7,500 | 1 | 7,501 | 42 ms | 0.0335 / 0.0341 ms | held |
+| PostgreSQL | 7,500 | 2 | 7,501 | 50 ms | 0.0415 / 0.0429 ms | held |
+| PostgreSQL | 7,500 | 3 | 7,501 | 50 ms | 0.0368 / 0.0428 ms | held |
+| PostgreSQL | 10,000 | 1 | 9,468 | 1.6 s | 0.0412 / 0.0516 ms | missed: backlog grew 571 jobs/s, 100 allowed |
+| PostgreSQL | 10,000 | 2 | 10,120 | 1.3 s | 0.0415 / 0.0516 ms | held |
+| PostgreSQL | 10,000 | 3 | 8,772 | 4.4 s | 0.0465 / 0.0502 ms | missed: backlog grew 1,233 jobs/s, 100 allowed |
+| PostgreSQL | 12,500 | 2 | 11,017 | 3.8 s | 0.0372 / 0.0379 ms | missed: backlog grew 1,486 jobs/s, 125 allowed |
 | PostgreSQL | 15,000 | | | | | not run by rule |
-| PostgreSQL | 7,500 | confirm, 120 s | 7,499 | 52 ms | 0.0556 / 0.0457 ms | held |
-| SQL Server | 2,500 | 1 | 2,500 | 91 ms | 0.0268 / 0.113 ms | held |
-| SQL Server | 2,500 | 2 | 2,500 | 94 ms | 0.346 / 9.34 ms | held |
-| SQL Server | 2,500 | 3 | 2,499 | 88 ms | 0.0848 / 2.36 ms | held |
-| SQL Server | 5,000 | 1 | 5,003 | 600 ms | 0.134 / 0.835 ms | held |
-| SQL Server | 5,000 | 2 | 4,999 | 604 ms | 0.192 / 8.65 ms | held |
-| SQL Server | 5,000 | 3 | 4,995 | 143 ms | 0.0954 / 0.569 ms | held |
-| SQL Server | 7,500 | 1 | 6,302 | 7.6 s | 0.144 / 0.77 ms | missed: backlog grew 1,096 jobs/s, 75 allowed |
-| SQL Server | 7,500 | 2 | 6,532 | 6.4 s | 0.171 / 0.9 ms | missed: backlog grew 881 jobs/s, 75 allowed |
-| SQL Server | 7,500 | 3 | 6,268 | 8.0 s | 0.194 / 0.848 ms | missed: backlog grew 1,117 jobs/s, 75 allowed |
+| PostgreSQL | 7,500 | confirm, 120 s | 7,500 | 53 ms | 0.113 / 0.25 ms | held |
+| SQL Server | 2,500 | 1 | 2,496 | 92 ms | 0.0315 / 0.288 ms | held |
+| SQL Server | 2,500 | 2 | 2,501 | 102 ms | 0.36 / 3.71 ms | held |
+| SQL Server | 2,500 | 3 | 2,503 | 96 ms | 0.0272 / 0.037 ms | held |
+| SQL Server | 5,000 | 1 | 4,998 | 630 ms | 0.0948 / 1.52 ms | held |
+| SQL Server | 5,000 | 2 | 5,001 | 135 ms | 0.174 / 8.46 ms | held |
+| SQL Server | 5,000 | 3 | 5,002 | 148 ms | 0.0698 / 0.392 ms | held |
+| SQL Server | 7,500 | 1 | 6,046 | 9.3 s | 0.241 / 0.923 ms | missed: backlog grew 1,372 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 2 | 6,287 | 7.8 s | 0.214 / 0.954 ms | missed: backlog grew 1,133 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 3 | 6,152 | 7.7 s | 0.178 / 0.746 ms | missed: backlog grew 1,147 jobs/s, 75 allowed |
 | SQL Server | 10,000 | | | | | not run by rule |
-| SQL Server | 5,000 | confirm, 120 s | 4,966 | 11.0 s | 0.21 / 1.26 ms | missed: p99 11.0 s against a 2.0 s target |
-| SQL Server | 2,500 | confirm, 120 s | 2,501 | 94 ms | 0.146 / 0.719 ms | held |
+| SQL Server | 5,000 | confirm, 120 s | 5,003 | 1.0 s | 0.213 / 0.85 ms | held |
 | SQLite | | | | | | The scenario writes no rate for sqlite. |
 
 Highest rate held in every pass: PostgreSQL 7,500/s; SQL Server 5,000/s.
-
-Reruns of this scenario on the same commit, in order:
-
-| Database | Rerun | Offered/s | Completed/s | p99 | Disk write, mean / p95 | Result |
-|---|---:|---:|---:|---:|---:|---|
-| SQL Server | 2 | 2,500 | 2,500 | 90 ms | 0.0311 / 0.0742 ms | held |
-| SQL Server | 2 | 5,000 | 5,002 | 1.0 s | 0.0354 / 0.407 ms | held |
-| SQL Server | 2 | 7,500 | 6,171 | 8.7 s | 0.114 / 0.467 ms | missed: backlog grew 1,187 jobs/s, 75 allowed |
-| SQL Server | 2 | 2,500 | 2,502 | 97 ms | 0.121 / 0.577 ms | held |
-| SQL Server | 2 | 5,000 | 5,000 | 379 ms | 0.0928 / 0.336 ms | held |
-| SQL Server | 2 | 7,500 | 6,280 | 7.5 s | 0.101 / 0.36 ms | missed: backlog grew 1,095 jobs/s, 75 allowed |
-| SQL Server | 2 | 2,500 | 2,499 | 100 ms | 0.174 / 1.31 ms | held |
-| SQL Server | 2 | 5,000 | 5,004 | 188 ms | 0.126 / 0.859 ms | held |
-| SQL Server | 2 | 7,500 | 6,259 | 8.0 s | 0.204 / 0.671 ms | missed: backlog grew 1,156 jobs/s, 75 allowed |
-| SQL Server | 2, confirm | 5,000 | 5,000 | 559 ms | 0.252 / 1.02 ms | held |
 
 ### Enqueue, one job per call
 
@@ -210,9 +194,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 10,000 | 1 | 0 | 26 ms | 0.0771 / 0.0478 ms | held |
-| SQL Server | 5,000 | 1 | 0 | 32 ms | 0.084 / 0.515 ms | held |
-| SQLite | 200 | 1 | 0 | 24 ms | 0.04 / 0.0536 ms | held |
+| PostgreSQL | 10,000 | 1 | 0 | 170 ms | 0.0379 / 0.0468 ms | held |
+| SQL Server | 5,000 | 1 | 0 | 27 ms | 0.181 / 0.0627 ms | held |
+| SQLite | 200 | 1 | 0 | 20 ms | 0.0398 / 0.0603 ms | held |
 
 Highest rate held in every pass: PostgreSQL 10,000/s, every written rate, so the ceiling is above the ladder; SQL Server 5,000/s, every written rate, so the ceiling is above the ladder; SQLite 200/s, every written rate, so the ceiling is above the ladder.
 
@@ -224,9 +208,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 10,000 | 1 | 0 | 31 ms | 0.0992 / 0.0471 ms | held |
-| SQL Server | 5,000 | 1 | 0 | 46 ms | 3.08 / 0.0516 ms | held |
-| SQLite | 5,000 | 1 | 0 | 29 ms | 0.0267 / 0.0287 ms | held |
+| PostgreSQL | 10,000 | 1 | 0 | 38 ms | 0.133 / 0.593 ms | held |
+| SQL Server | 5,000 | 1 | 0 | 57 ms | 2.75 / 0.0484 ms | held |
+| SQLite | 5,000 | 1 | 0 | 31 ms | 0.0347 / 0.0433 ms | held |
 
 Highest rate held in every pass: PostgreSQL 10,000/s, every written rate, so the ceiling is above the ladder; SQL Server 5,000/s, every written rate, so the ceiling is above the ladder; SQLite 5,000/s, every written rate, so the ceiling is above the ladder.
 
@@ -238,9 +222,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 20,000 | 1 | 0 | 126 ms | 0.602 / 0.109 ms | held |
-| SQL Server | 10,000 | 1 | 0 | 202 ms | 0.893 / 0.0454 ms | held |
-| SQLite | 10,000 | 1 | 0 | 85 ms | 0.0581 / 0.131 ms | held |
+| PostgreSQL | 20,000 | 1 | 0 | 127 ms | 0.446 / 0.162 ms | held |
+| SQL Server | 10,000 | 1 | 0 | 182 ms | 0.848 / 0.0709 ms | held |
+| SQLite | 10,000 | 1 | 0 | 83 ms | 0.0588 / 0.132 ms | held |
 
 Highest rate held in every pass: PostgreSQL 20,000/s, every written rate, so the ceiling is above the ladder; SQL Server 10,000/s, every written rate, so the ceiling is above the ladder; SQLite 10,000/s, every written rate, so the ceiling is above the ladder.
 
@@ -252,9 +236,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1 | 200,000 | 20,870 jobs/s | 9.74 s | 0.0438 / 0.185 ms | held |
-| SQL Server | 1 | 200,000 | 14,243 jobs/s | 14.7 s | 3.43 / 35.9 ms | held |
-| SQLite | 1 | 50,000 | 6,545 jobs/s | 7.76 s | 0.0612 / 0.145 ms | held |
+| PostgreSQL | 1 | 200,000 | 20,842 jobs/s | 9.77 s | 0.542 / 2.67 ms | held |
+| SQL Server | 1 | 200,000 | 13,817 jobs/s | 15 s | 2.56 / 24 ms | held |
+| SQLite | 1 | 50,000 | 6,502 jobs/s | 7.81 s | 0.0564 / 0.797 ms | held |
 
 ### Drain, four workers
 
@@ -264,8 +248,8 @@ Setup: workers: 4; namespaces: 2; executors per worker: the product default; enq
 
 | Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1 | 200,000 | 42,648 jobs/s | 4.76 s | 0.132 / 0.243 ms | held |
-| SQL Server | 1 | 200,000 | 36,810 jobs/s | 5.69 s | 0.135 / 0.694 ms | held |
+| PostgreSQL | 1 | 200,000 | 57,389 jobs/s | 3.6 s | 0.119 / 0.184 ms | held |
+| SQL Server | 1 | 200,000 | 39,646 jobs/s | 5.03 s | 0.0438 / 0.0927 ms | held |
 | SQLite | | | | | | The scenario writes no cohort for sqlite. |
 
 ### Drain, sixteen workers
@@ -276,8 +260,8 @@ Setup: workers: 16; namespaces: 2; executors per worker: the product default; en
 
 | Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1 | 1,000,000 | 74,057 jobs/s | 14.4 s | 5.39 / 21.1 ms | held |
-| SQL Server | 1 | 1,000,000 | 50,088 jobs/s | 21.7 s | 0.866 / 0.92 ms | held |
+| PostgreSQL | 1 | 1,000,000 | 71,426 jobs/s | 14.7 s | 0.294 / 1.51 ms | held |
+| SQL Server | 1 | 1,000,000 | 45,301 jobs/s | 22.6 s | 0.508 / 0.732 ms | held |
 | SQLite | | | | | | The scenario writes no cohort for sqlite. |
 
 ### Throughput, sixteen workers
@@ -288,8 +272,9 @@ Setup: workers: 16; namespaces: 2; executors per worker: the product default; en
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 15,000 | 1 | 15,798 | 1.8 s | 0.744 / 10.5 ms | held |
-| SQL Server | 4,000 | 1 | 4,157 | 1.1 s | 0.155 / 6.05 ms | held |
+| PostgreSQL | 12,500 | 1 | 12,441 | 822 ms | 0.0498 / 0.0629 ms | held |
+| PostgreSQL | 15,000 | 1 | 15,160 | 470 ms | 0.133 / 1.48 ms | held |
+| SQL Server | 4,000 | 1 | 4,009 | 840 ms | 0.462 / 26.8 ms | held |
 | SQLite | | | | | | The scenario writes no rate for sqlite. |
 
 Highest rate held in every pass: PostgreSQL 15,000/s, every written rate, so the ceiling is above the ladder; SQL Server 4,000/s, every written rate, so the ceiling is above the ladder.
@@ -302,8 +287,8 @@ Setup: workers: 16; namespaces: 2; executors per worker: the product default; en
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 12,500 | 1 | 12,527 | 120 ms | 0.0704 / 0.411 ms | held |
-| SQL Server | 4,000 | 1 | 4,029 | 478 ms | 0.0971 / 0.798 ms | held |
+| PostgreSQL | 12,500 | 1 | 12,690 | 521 ms | 0.392 / 6.06 ms | held |
+| SQL Server | 4,000 | 1 | 4,287 | 1.7 s | 0.234 / 3.52 ms | held |
 | SQLite | | | | | | SQLite is one process's database; sixteen worker processes are not a SQLite topology. |
 
 Highest rate held in every pass: PostgreSQL 12,500/s, every written rate, so the ceiling is above the ladder; SQL Server 4,000/s, every written rate, so the ceiling is above the ladder.
@@ -316,19 +301,12 @@ Setup: workers: 16; namespaces: 1; executors per worker: the product default; en
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 15,000 | 1 | 16,112 | 2.7 s | 0.0553 / 0.149 ms | missed: p99 2.7 s against a 2.0 s target |
-| SQL Server | 4,000 | 1 | 3,984 | 1.2 s | 0.0395 / 0.0924 ms | held |
+| PostgreSQL | 12,500 | 1 | 12,515 | 427 ms | 0.0418 / 0.0868 ms | held |
+| PostgreSQL | 15,000 | 1 | 15,230 | 1.4 s | 0.0432 / 0.0466 ms | held |
+| SQL Server | 4,000 | 1 | 3,996 | 1.0 s | 0.679 / 9.92 ms | held |
 | SQLite | | | | | | The scenario writes no rate for sqlite. |
 
-Highest rate held in every pass: PostgreSQL none, the floor missed; SQL Server 4,000/s, every written rate, so the ceiling is above the ladder.
-
-Reruns of this scenario on the same commit, in order:
-
-| Database | Rerun | Offered/s | Completed/s | p99 | Disk write, mean / p95 | Result |
-|---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1 | 15,000 | 15,419 | 2.3 s | 0.0376 / 0.0462 ms | missed: p99 2.3 s against a 2.0 s target |
-| PostgreSQL | 3 | 15,000 | 15,311 | 2.6 s | 0.0449 / 0.0571 ms | missed: p99 2.6 s against a 2.0 s target |
-| PostgreSQL | 4 | 15,000 | 15,586 | 2.0 s | 0.0381 / 0.0434 ms | held |
+Highest rate held in every pass: PostgreSQL 15,000/s, every written rate, so the ceiling is above the ladder; SQL Server 4,000/s, every written rate, so the ceiling is above the ladder.
 
 ### Throughput, 32 executors
 
@@ -338,9 +316,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: 32; enqueue calls in fli
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 5,000 | 1 | 5,001 | 50 ms | 0.0321 / 0.0357 ms | held |
-| SQL Server | 2,500 | 1 | 2,499 | 89 ms | 0.0301 / 0.0809 ms | held |
-| SQLite | 160 | 1 | 160 | 90 ms | 0.0347 / 0.0906 ms | held |
+| PostgreSQL | 5,000 | 1 | 4,997 | 51 ms | 0.0315 / 0.0319 ms | held |
+| SQL Server | 2,500 | 1 | 2,514 | 234 ms | 0.0298 / 0.0497 ms | held |
+| SQLite | 160 | 1 | 160 | 95 ms | 0.0351 / 0.0657 ms | held |
 
 Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.
 
@@ -352,9 +330,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1,000 | 1 | 1,001 | 463 ms | 0.0252 / 0.0407 ms | held |
-| SQL Server | 1,000 | 1 | 1,001 | 122 ms | 0.0398 / 1.79 ms | held |
-| SQLite | 40 | 1 | 40 | 47 ms | 0.0335 / 0.826 ms | held |
+| PostgreSQL | 1,000 | 1 | 1,000 | 106 ms | 0.0258 / 0.0449 ms | held |
+| SQL Server | 1,000 | 1 | 1,000 | 112 ms | 0.0494 / 0.872 ms | held |
+| SQLite | 40 | 1 | 40 | 47 ms | 0.0332 / 0.0556 ms | held |
 
 Highest rate held in every pass: PostgreSQL 1,000/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.
 
@@ -366,9 +344,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 5,000 | 1 | 5,004 | 2.1 s | 0.0389 / 0.0713 ms | held |
-| SQL Server | 2,500 | 1 | 2,502 | 2.2 s | 0.402 / 3.63 ms | held |
-| SQLite | 160 | 1 | 160 | 2.3 s | 0.0351 / 0.0536 ms | held |
+| PostgreSQL | 5,000 | 1 | 5,004 | 2.1 s | 0.039 / 0.121 ms | held |
+| SQL Server | 2,500 | 1 | 2,502 | 2.2 s | 0.031 / 0.0509 ms | held |
+| SQLite | 160 | 1 | 160 | 2.2 s | 0.0346 / 0.0897 ms | held |
 
 Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.
 
@@ -380,9 +358,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 4,000 | 1 | 4,003 | 63 ms | 0.0362 / 0.0387 ms | held |
-| SQL Server | 2,500 | 1 | 2,498 | 101 ms | 0.241 / 3.09 ms | held |
-| SQLite | 160 | 1 | 160 | 81 ms | 0.0335 / 0.0494 ms | held |
+| PostgreSQL | 4,000 | 1 | 4,003 | 292 ms | 0.0361 / 0.0506 ms | held |
+| SQL Server | 2,500 | 1 | 2,500 | 93 ms | 0.0543 / 0.784 ms | held |
+| SQLite | 160 | 1 | 160 | 84 ms | 0.0326 / 0.0479 ms | held |
 
 Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.
 
@@ -394,9 +372,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 4,000 | 1 | 3,999 | 57 ms | 0.0548 / 0.324 ms | held |
-| SQL Server | 2,500 | 1 | 2,497 | 93 ms | 0.141 / 1.02 ms | held |
-| SQLite | 120 | 1 | 120 | 90 ms | 0.0369 / 0.0539 ms | held |
+| PostgreSQL | 4,000 | 1 | 3,999 | 59 ms | 0.0389 / 0.0616 ms | held |
+| SQL Server | 2,500 | 1 | 2,500 | 87 ms | 0.0489 / 2.13 ms | held |
+| SQLite | 120 | 1 | 120 | 80 ms | 0.0374 / 0.203 ms | held |
 
 Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.
 
@@ -408,9 +386,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 5,000 | 1 | 4,997 | 52 ms | 0.0362 / 0.0491 ms | held |
-| SQL Server | 2,500 | 1 | 2,503 | 98 ms | 0.426 / 6.27 ms | held |
-| SQLite | 120 | 1 | 120 | 83 ms | 0.0378 / 0.0681 ms | held |
+| PostgreSQL | 5,000 | 1 | 4,999 | 56 ms | 0.0418 / 0.0483 ms | held |
+| SQL Server | 2,500 | 1 | 2,499 | 101 ms | 0.0608 / 0.782 ms | held |
+| SQLite | 120 | 1 | 120 | 85 ms | 0.0373 / 0.0577 ms | held |
 
 Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.
 
@@ -422,9 +400,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 2,500 | 1 | 2,500 | 494 ms | 0.261 / 2.33 ms | held |
-| SQL Server | 1,000 | 1 | 1,001 | 123 ms | 0.893 / 11.5 ms | held |
-| SQLite | 160 | 1 | 160 | 87 ms | 0.0331 / 0.081 ms | held |
+| PostgreSQL | 2,500 | 1 | 2,547 | 116 ms | 0.0928 / 0.776 ms | held |
+| SQL Server | 1,000 | 1 | 999 | 102 ms | 14.4 / 97.8 ms | held |
+| SQLite | 160 | 1 | 160 | 82 ms | 0.0336 / 0.0552 ms | held |
 
 Highest rate held in every pass: PostgreSQL 2,500/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.
 
@@ -436,9 +414,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1,000 | 1 | 1,001 | 96 ms | 3.93 / 29.3 ms | held |
-| SQL Server | 500 | 1 | 500 | 109 ms | 0.459 / 4.89 ms | held |
-| SQLite | 40 | 1 | 40 | 29 ms | 0.0465 / 0.0738 ms | held |
+| PostgreSQL | 1,000 | 1 | 1,001 | 103 ms | 0.0761 / 0.345 ms | held |
+| SQL Server | 500 | 1 | 501 | 93 ms | 0.16 / 2.1 ms | held |
+| SQLite | 40 | 1 | 40 | 38 ms | 0.0418 / 0.0469 ms | held |
 
 Highest rate held in every pass: PostgreSQL 1,000/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.
 
@@ -450,9 +428,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 4,000 | 1 | 3,998 | 58 ms | 0.0382 / 0.0401 ms | held |
-| SQL Server | 1,000 | 1 | 1,000 | 108 ms | 2.02 / 12.7 ms | held |
-| SQLite | 120 | 1 | 120 | 91 ms | 0.038 / 0.134 ms | held |
+| PostgreSQL | 4,000 | 1 | 4,003 | 58 ms | 0.0373 / 0.0402 ms | held |
+| SQL Server | 1,000 | 1 | 999 | 100 ms | 1.32 / 12.2 ms | held |
+| SQLite | 120 | 1 | 120 | 86 ms | 0.0376 / 0.0614 ms | held |
 
 Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.
 
@@ -464,9 +442,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 5,000 | 1 | 5,001 | 63 ms | 0.0377 / 0.0388 ms | held |
-| SQL Server | 2,500 | 1 | 2,498 | 94 ms | 0.0249 / 0.0601 ms | held |
-| SQLite | 120 | 1 | 120 | 92 ms | 0.0373 / 0.0531 ms | held |
+| PostgreSQL | 5,000 | 1 | 4,997 | 56 ms | 0.0372 / 0.0376 ms | held |
+| SQL Server | 2,500 | 1 | 2,503 | 90 ms | 0.0332 / 0.208 ms | held |
+| SQLite | 120 | 1 | 120 | 85 ms | 0.0374 / 0.0624 ms | held |
 
 Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.
 
@@ -478,9 +456,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 5,000 | 1 | 5,001 | 55 ms | 0.0562 / 0.305 ms | held |
-| SQL Server | 500 | 1 | 501 | 95 ms | 0.033 / 0.0653 ms | held |
-| SQLite | 160 | 1 | 160 | 81 ms | 0.0336 / 0.0422 ms | held |
+| PostgreSQL | 5,000 | 1 | 5,001 | 57 ms | 0.132 / 1.48 ms | held |
+| SQL Server | 500 | 1 | 500 | 94 ms | 0.035 / 0.0663 ms | held |
+| SQLite | 160 | 1 | 160 | 81 ms | 0.034 / 0.0652 ms | held |
 
 Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.
 
@@ -492,9 +470,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 5,000 | 1 | 5,000 | 54 ms | 0.0366 / 0.0439 ms | held |
-| SQL Server | 320 | 1 | 320 | 96 ms | 1.2 / 8.66 ms | held |
-| SQLite | 160 | 1 | 160 | 91 ms | 0.0341 / 0.0838 ms | held |
+| PostgreSQL | 5,000 | 1 | 5,001 | 53 ms | 0.253 / 3.05 ms | held |
+| SQL Server | 320 | 1 | 320 | 105 ms | 1.59 / 12.7 ms | held |
+| SQLite | 160 | 1 | 160 | 81 ms | 0.0342 / 0.0477 ms | held |
 
 Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 320/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.
 
@@ -506,9 +484,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 250 | 1 | 250 | 327 ms | 0.0337 / 0.0504 ms | held |
-| SQL Server | 200 | 1 | 200 | 334 ms | 0.0513 / 2.95 ms | held |
-| SQLite | 8 | 1 | 8 | 149 ms | 0.0314 / 0.0628 ms | held |
+| PostgreSQL | 250 | 1 | 250 | 357 ms | 0.046 / 0.282 ms | held |
+| SQL Server | 200 | 1 | 200 | 346 ms | 0.05 / 1.22 ms | held |
+| SQLite | 8 | 1 | 8 | 215 ms | 0.0315 / 0.052 ms | held |
 
 Highest rate held in every pass: PostgreSQL 250/s, every written rate, so the ceiling is above the ladder; SQL Server 200/s, every written rate, so the ceiling is above the ladder; SQLite 8/s, every written rate, so the ceiling is above the ladder.
 
@@ -520,9 +498,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 250 | 1 | 250 | 235 ms | 0.0249 / 0.0641 ms | held |
-| SQL Server | 200 | 1 | 200 | 261 ms | 0.0228 / 0.0313 ms | held |
-| SQLite | 80 | 1 | 80.6 | 334 ms | 0.0347 / 0.0474 ms | held |
+| PostgreSQL | 250 | 1 | 250 | 161 ms | 0.0212 / 0.0261 ms | held |
+| SQL Server | 200 | 1 | 201 | 254 ms | 0.0251 / 0.096 ms | held |
+| SQLite | 80 | 1 | 80.1 | 334 ms | 0.0335 / 0.0494 ms | held |
 
 Highest rate held in every pass: PostgreSQL 250/s, every written rate, so the ceiling is above the ladder; SQL Server 200/s, every written rate, so the ceiling is above the ladder; SQLite 80/s, every written rate, so the ceiling is above the ladder.
 
@@ -534,9 +512,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 600 | 1 | 599 | 1.1 s | 0.0303 / 0.037 ms | held |
-| SQL Server | 500 | 1 | 499 | 1.1 s | 0.123 / 6.84 ms | held |
-| SQLite | 80 | 1 | 80.5 | 1.2 s | 0.0276 / 0.0499 ms | held |
+| PostgreSQL | 600 | 1 | 598 | 1.1 s | 0.0569 / 0.486 ms | held |
+| SQL Server | 500 | 1 | 501 | 1.1 s | 0.0613 / 6.94 ms | held |
+| SQLite | 80 | 1 | 80.4 | 1.2 s | 0.0317 / 0.0575 ms | held |
 
 Highest rate held in every pass: PostgreSQL 600/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 80/s, every written rate, so the ceiling is above the ladder.
 
@@ -548,9 +526,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: 1; enqueue calls in flig
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 150 | 1 | 150 | 30 ms | 0.0222 / 0.0248 ms | held |
-| SQL Server | 150 | 1 | 158 | 1.0 s | 0.044 / 0.301 ms | held |
-| SQLite | 100 | 1 | 100 | 22 ms | 0.0312 / 0.0489 ms | held |
+| PostgreSQL | 150 | 1 | 150 | 27 ms | 0.0231 / 0.0635 ms | held |
+| SQL Server | 150 | 1 | 150 | 76 ms | 0.0231 / 0.0306 ms | held |
+| SQLite | 100 | 1 | 100 | 28 ms | 0.0324 / 0.047 ms | held |
 
 Highest rate held in every pass: PostgreSQL 150/s, every written rate, so the ceiling is above the ladder; SQL Server 150/s, every written rate, so the ceiling is above the ladder; SQLite 100/s, every written rate, so the ceiling is above the ladder.
 
@@ -562,9 +540,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 60 | 1 | 60 | 26 ms | 0.0252 / 0.0606 ms | held |
-| SQL Server | 100 | 1 | 100 | 25 ms | 0.0265 / 0.0751 ms | held |
-| SQLite | 80 | 1 | 80 | 31 ms | 0.0341 / 0.0548 ms | held |
+| PostgreSQL | 60 | 1 | 60 | 24 ms | 0.0252 / 0.0477 ms | held |
+| SQL Server | 100 | 1 | 100 | 28 ms | 0.0226 / 0.0259 ms | held |
+| SQLite | 80 | 1 | 80 | 41 ms | 0.0349 / 0.054 ms | held |
 
 Highest rate held in every pass: PostgreSQL 60/s, every written rate, so the ceiling is above the ladder; SQL Server 100/s, every written rate, so the ceiling is above the ladder; SQLite 80/s, every written rate, so the ceiling is above the ladder.
 
@@ -576,9 +554,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 1 | 1 | 1 | 43 ms | 1.38 / 4.82 ms | held |
-| SQL Server | 1 | 1 | 1 | 50 ms | 0.277 / 3.67 ms | held |
-| SQLite | 4 | 1 | 4 | 34 ms | 0.128 / 0.92 ms | held |
+| PostgreSQL | 1 | 1 | 1 | 41 ms | 1.13 / 1.84 ms | held |
+| SQL Server | 1 | 1 | 1 | 45 ms | 1.29 / 2.17 ms | held |
+| SQLite | 4 | 1 | 4 | 33 ms | 0.18 / 1.06 ms | held |
 
 Highest rate held in every pass: PostgreSQL 1/s, every written rate, so the ceiling is above the ladder; SQL Server 1/s, every written rate, so the ceiling is above the ladder; SQLite 4/s, every written rate, so the ceiling is above the ladder.
 
@@ -590,9 +568,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 700 | 1 | 700 | 1.2 s | 0.103 / 1.16 ms | held |
-| SQL Server | 350 | 1 | 350 | 1.1 s | 0.126 / 0.414 ms | held |
-| SQLite | 56 | 1 | 56 | 1.1 s | 0.0309 / 0.0365 ms | held |
+| PostgreSQL | 700 | 1 | 700 | 1.2 s | 0.0699 / 0.457 ms | held |
+| SQL Server | 350 | 1 | 350 | 1.1 s | 0.0897 / 0.425 ms | held |
+| SQLite | 56 | 1 | 56 | 1.1 s | 0.0324 / 0.041 ms | held |
 
 Highest rate held in every pass: PostgreSQL 700/s, every written rate, so the ceiling is above the ladder; SQL Server 350/s, every written rate, so the ceiling is above the ladder; SQLite 56/s, every written rate, so the ceiling is above the ladder.
 
@@ -604,8 +582,8 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
-| PostgreSQL | 13,000, then 2,500 | 1 | 7,749 | 12.7 s | 0.134 / 0.0622 ms | pass: the backlog grew, then fell back |
-| SQL Server | 8,000, then 1,000 | 1 | 4,500 | 10.6 s | 0.0407 / 0.163 ms | pass: the backlog grew, then fell back |
+| PostgreSQL | 13,000, then 2,500 | 1 | 7,749 | 8.9 s | 0.0896 / 0.0503 ms | pass: the backlog grew, then fell back |
+| SQL Server | 8,000, then 1,000 | 1 | 4,500 | 10.8 s | 0.192 / 2.09 ms | pass: the backlog grew, then fell back |
 | SQLite | | | | | | SQLite's one writer serves the enqueues and the worker alike, so an offer past what it absorbs queues in the caller, not in the database. |
 
 ## Correctness
@@ -668,44 +646,37 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 |---|---|---|---|
 | Worker kills under mixed load | pass | pass | pass |
 
-## What did not pass
-
-- **Throughput, sixteen workers on one namespace** on PostgreSQL, fail: Pass 1 missed the floor of 15000/s: p99 2.7 s against a 2.0 s target. Reruns on the same commit: held in 1 of 3, the last one included.
-
 ## How this run was made
 
 - Command: `acta-verify release --db all`.
-- Commit `892222333a07a59f9282be1300f1e6802303dbf1`, measurement version 3, written standard `d839704c720d`.
+- Commit `d74d9393e52ce667b202cc0cad49140e210ada35`, measurement version 3, written standard `a7681504a7f6`.
 - Machine: Intel(R) Core(TM) i9-14900K, 24 cores, 32 logical processors, Microsoft Windows 10.0.26300, .NET 10.0.15.
 - Docker VM: 32 CPUs, 46.9 GB; measured containers capped at PostgreSQL 32031 MB, SQL Server 32031 MB.
-- PostgreSQL: peak 518 database connections; disk before measuring: quiet before 33 of 33 cells.
-- SQL Server: peak 519 database connections; disk before measuring: quiet before 31 of 33 cells.
+- PostgreSQL: peak 519 database connections; disk before measuring: quiet before 33 of 33 cells.
+- SQL Server: peak 534 database connections; disk before measuring: quiet before 32 of 33 cells.
 - SQLite: peak 0 database connections; disk before measuring: quiet before 25 of 25 cells.
-- Wall time: performance on PostgreSQL 2 h 15 min, correctness on PostgreSQL 6 min, chaos on PostgreSQL 21 min, performance on SQL Server 2 h 6 min, correctness on SQL Server 10 min, chaos on SQL Server 47 min, performance on SQLite 1 h 20 min, correctness on SQLite 4 min, chaos on SQLite 7 min; correctness runs on every database at once, chaos one database at a time.
-- Evidence: 29.6 MB of a 50 MB budget.
+- Wall time: performance on PostgreSQL 2 h 10 min, correctness on PostgreSQL 6 min, chaos on PostgreSQL 19 min, performance on SQL Server 2 h 2 min, correctness on SQL Server 10 min, chaos on SQL Server 47 min, performance on SQLite 1 h 20 min, correctness on SQLite 4 min, chaos on SQLite 7 min; correctness runs on every database at once, chaos one database at a time.
+- Evidence: 29.5 MB of a 50 MB budget.
 - A rate holds when every scheduled arrival reached an outcome and none was refused, the backlog trend stayed within 1% of the rate, p99 stayed within the target, at most 0.1% of arrivals were picked up late by the harness, and every job reconciled. These are the rc.6 criteria.
 - p99 runs from an arrival's scheduled instant to its job's durable completion, or to the enqueue call's answer in an enqueue-only scenario. A scenario that streams arrivals to one worker in one namespace runs that worker in the process that enqueues, as a single Acta host does: it shares that process's heap and thread pool and the enqueue calls' connection pool, and each enqueue wakes it at once. A worker process claims again while its claims return jobs; after an empty claim it waits up to its 1 s safety poll, or until Redis wakes it where the setup says so.
 
 | Disk, by phase and drive | Windows counters |
 |---|---|
-| before \| 0 c: | write 1.43 ms mean, 5.17 ms p95, 13 writes/s, 99% idle, 14 samples |
-| before \| 1 d: | write 5.11 ms mean, 7.77 ms p95, 11 writes/s, 99% idle, 14 samples |
-| chaos mssql \| 0 c: | write 2.84 ms mean, 7.81 ms p95, 5 writes/s, 99% idle, 1410 samples |
-| chaos mssql \| 1 d: | write 0.23 ms mean, 0.77 ms p95, 546 writes/s, 72% idle, 1410 samples |
-| chaos pg \| 0 c: | write 2.54 ms mean, 8.07 ms p95, 6 writes/s, 99% idle, 635 samples |
-| chaos pg \| 1 d: | write 0.09 ms mean, 0.08 ms p95, 799 writes/s, 52% idle, 635 samples |
-| chaos sqlite \| 0 c: | write 2.85 ms mean, 7.80 ms p95, 6 writes/s, 99% idle, 213 samples |
-| chaos sqlite \| 1 d: | write 0.87 ms mean, 6.86 ms p95, 1252 writes/s, 59% idle, 213 samples |
-| correctness \| 0 c: | write 2.98 ms mean, 7.93 ms p95, 7 writes/s, 99% idle, 320 samples |
-| correctness \| 1 d: | write 0.34 ms mean, 1.94 ms p95, 502 writes/s, 83% idle, 320 samples |
-| mssql \| 0 c: | write 2.97 ms mean, 8.06 ms p95, 7 writes/s, 99% idle, 3790 samples |
-| mssql \| 1 d: | write 1.15 ms mean, 6.40 ms p95, 1458 writes/s, 66% idle, 3790 samples |
-| pg \| 0 c: | write 2.85 ms mean, 7.86 ms p95, 8 writes/s, 99% idle, 4041 samples |
-| pg \| 1 d: | write 1.06 ms mean, 6.23 ms p95, 701 writes/s, 69% idle, 4041 samples |
-| sqlite \| 0 c: | write 1.63 ms mean, 6.35 ms p95, 11 writes/s, 99% idle, 2391 samples |
-| sqlite \| 1 d: | write 0.60 ms mean, 5.83 ms p95, 749 writes/s, 74% idle, 2391 samples |
-| after \| 0 c: | write 2.65 ms mean, 8.55 ms p95, 3 writes/s, 99% idle, 15 samples |
-| after \| 1 d: | write 4.61 ms mean, 7.22 ms p95, 7 writes/s, 100% idle, 15 samples |
-
-- Reruns of the missed floors, on the same commit, in order: `20261117T052040151Z-5d060254006545eba65ea1bb8d9de9b7`, `20261117T052431600Z-96a4fc6950a6475d845f3efe64acb02e`, `20261117T062758334Z-8df7ea14cfaa45f2a92a8675fdc74644`, `20261117T063509252Z-281994d37bd4429fa85e131d5bab0e96`.
-
+| before \| 0 c: | write 1.81 ms mean, 7.60 ms p95, 7 writes/s, 99% idle, 14 samples |
+| before \| 1 d: | write 5.92 ms mean, 8.64 ms p95, 12 writes/s, 99% idle, 14 samples |
+| chaos mssql \| 0 c: | write 3.01 ms mean, 7.94 ms p95, 6 writes/s, 99% idle, 1425 samples |
+| chaos mssql \| 1 d: | write 0.32 ms mean, 1.26 ms p95, 502 writes/s, 74% idle, 1425 samples |
+| chaos pg \| 0 c: | write 2.92 ms mean, 8.00 ms p95, 9 writes/s, 99% idle, 596 samples |
+| chaos pg \| 1 d: | write 0.06 ms mean, 0.08 ms p95, 797 writes/s, 52% idle, 596 samples |
+| chaos sqlite \| 0 c: | write 2.82 ms mean, 8.11 ms p95, 8 writes/s, 99% idle, 213 samples |
+| chaos sqlite \| 1 d: | write 0.62 ms mean, 4.65 ms p95, 1205 writes/s, 55% idle, 213 samples |
+| correctness \| 0 c: | write 3.18 ms mean, 7.98 ms p95, 8 writes/s, 99% idle, 321 samples |
+| correctness \| 1 d: | write 0.32 ms mean, 1.60 ms p95, 495 writes/s, 84% idle, 321 samples |
+| mssql \| 0 c: | write 3.04 ms mean, 7.92 ms p95, 7 writes/s, 99% idle, 3673 samples |
+| mssql \| 1 d: | write 1.22 ms mean, 6.56 ms p95, 1462 writes/s, 64% idle, 3673 samples |
+| pg \| 0 c: | write 3.08 ms mean, 7.89 ms p95, 7 writes/s, 99% idle, 3905 samples |
+| pg \| 1 d: | write 1.00 ms mean, 6.15 ms p95, 722 writes/s, 70% idle, 3905 samples |
+| sqlite \| 0 c: | write 1.92 ms mean, 7.71 ms p95, 13 writes/s, 99% idle, 2412 samples |
+| sqlite \| 1 d: | write 0.63 ms mean, 5.80 ms p95, 737 writes/s, 72% idle, 2412 samples |
+| after \| 0 c: | write 3.32 ms mean, 8.49 ms p95, 9 writes/s, 99% idle, 15 samples |
+| after \| 1 d: | write 4.94 ms mean, 7.11 ms p95, 8 writes/s, 100% idle, 15 samples |
