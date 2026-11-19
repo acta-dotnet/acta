@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Jobs;
 
 /// <summary>
 /// SQLite-only proof of the narrow caller-connection preparation. Direct transactional enqueue installs
-/// the connection-local functions the inline enqueue SQL needs (<c>acta_blob</c>, <c>acta_error</c>) on the
+/// the connection-local function the inline enqueue SQL needs (<c>acta_error</c>) on the
 /// caller's own <see cref="SqliteConnection"/> and verifies <c>foreign_keys</c> is enabled, without
 /// touching the busy timeout, synchronous mode, or transaction kind. Exercised through the public
 /// <c>IJobs.EnqueueAsync(DbTransaction, ...)</c> path on a raw connection Acta did not open, so the
@@ -32,8 +32,8 @@ public sealed class SqliteCallerConnectionPrepTests : ActaRuntimeTestBase<Sqlite
         Assert.Contains("foreign_keys", ex.Message, StringComparison.Ordinal);
     }
 
-    [Fact(DisplayName = "Preparation installs acta_blob and acta_error and leaves busy timeout and synchronous mode untouched")]
-    public async Task Preparation_installs_functions_without_touching_pragmas()
+    [Fact(DisplayName = "Preparation installs acta_error and leaves busy timeout and synchronous mode untouched")]
+    public async Task Preparation_installs_the_function_without_touching_pragmas()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -45,23 +45,14 @@ public sealed class SqliteCallerConnectionPrepTests : ActaRuntimeTestBase<Sqlite
 
         await using var tx = (SqliteTransaction)await conn.BeginTransactionAsync(ct);
 
-        // The enqueue itself relies on acta_blob, so its success proves both functions were installed by
-        // the caller-connection preparation on this raw handle.
         var outcome = await Jobs.EnqueueAsync(tx, Request(), ct);
         Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
-
-        // acta_blob base64-decodes; acta_error raises. Both confirm the functions are present on the handle.
-        await using (var blob = conn.CreateCommand())
-        {
-            blob.Transaction = tx;
-            blob.CommandText = "SELECT acta_blob('AQID');";
-            Assert.Equal(new byte[] { 1, 2, 3 }, (byte[])(await blob.ExecuteScalarAsync(ct))!);
-        }
 
         // Narrow preparation must not touch these connection-scoped settings.
         Assert.Equal(busyBefore, await ScalarAsync(conn, tx, "PRAGMA busy_timeout;", ct));
         Assert.Equal(syncBefore, await ScalarAsync(conn, tx, "PRAGMA synchronous;", ct));
 
+        // acta_error raises, which proves the preparation installed it on this raw handle.
         await using (var err = conn.CreateCommand())
         {
             err.Transaction = tx;

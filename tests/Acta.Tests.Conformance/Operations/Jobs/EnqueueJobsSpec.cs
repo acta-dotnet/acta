@@ -135,21 +135,26 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         var ct = TestContext.Current.CancellationToken;
         var longBytes = "{\"left\":123456789,\"right\":987654321}"u8.ToArray();
         var shortBytes = "{\"left\":1,\"right\":2}"u8.ToArray();
+        // An input with a format and no bytes sits between the two, so each row must take exactly its own bytes.
         JobEnqueueValues[] rows =
         [
             new(TestNamespace, "add-numbers", JobPayload.CopyBytes(JobPayloadFormat.Json, longBytes)),
+            new(TestNamespace, "add-numbers", JobPayload.Bytes([])),
             new(TestNamespace, "add-numbers", JobPayload.CopyBytes(JobPayloadFormat.Json, shortBytes)),
         ];
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var outcomes = (await EnqueueTestOps.EnqueueJobsAsync(Services, rows, ct)).Jobs;
 
-        Assert.Equal(2, outcomes.Count);
+        Assert.Equal(3, outcomes.Count);
         var first = await Db.From<JobEntity>().Where(j => j.Id == outcomes[0].JobId).SingleOrDefaultAsync(ct);
-        var second = await Db.From<JobEntity>().Where(j => j.Id == outcomes[1].JobId).SingleOrDefaultAsync(ct);
+        var empty = await Db.From<JobEntity>().Where(j => j.Id == outcomes[1].JobId).SingleOrDefaultAsync(ct);
+        var second = await Db.From<JobEntity>().Where(j => j.Id == outcomes[2].JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(first);
+        Assert.NotNull(empty);
         Assert.NotNull(second);
         Assert.Equal(longBytes, first.Input);
+        Assert.Equal(Array.Empty<byte>(), empty.Input);
         Assert.Equal(shortBytes, second.Input);
     }
 

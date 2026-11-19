@@ -145,22 +145,28 @@ internal static class DbParams
     }
 
     /// <summary>
-    /// A batch's completions as JSON array text for SQLite's batch completion, which expands them with jsonb_each: each
-    /// result as base64, and a null field left out, since every row is parsed and a missing key reads as null.
+    /// A batch's completions for SQLite's batch completion: JSON array text, which the statement expands with jsonb_each,
+    /// and every result's bytes laid end to end, so the text the statement reads over and over carries no result. A row
+    /// names its result by where it starts, counted from one as substr counts, and by its length. A null field is left
+    /// out, since every row is parsed and a missing key reads as null.
     /// </summary>
-    public static string JsonCompletions(IReadOnlyList<CompleteExecutionsValues> completions)
+    public static (string Rows, byte[] Results) JsonCompletions(IReadOnlyList<CompleteExecutionsValues> completions)
     {
+        var results = new byte[completions.Sum(c => c.Result.Length)];
+        var at = 0;
         var text = new StringBuilder("[");
         for (var i = 0; i < completions.Count; i++)
         {
             var c = completions[i];
+            c.Result.CopyTo(results.AsMemory(at));
             text.Append(i > 0 ? ",{" : "{");
             text.Append(CultureInfo.InvariantCulture, $"\"job_id\":{c.JobId},\"execution_number\":{c.ExecutionNumber}");
             text.Append(
                 CultureInfo.InvariantCulture,
                 $",\"succeeded\":{(c.Succeeded ? "true" : "false")},\"result_format_id\":{c.ResultFormatId}"
             );
-            text.Append(CultureInfo.InvariantCulture, $",\"result\":\"{Convert.ToBase64String(c.Result.Span)}\"");
+            text.Append(CultureInfo.InvariantCulture, $",\"result_at\":{at + 1},\"result_length\":{c.Result.Length}");
+            at += c.Result.Length;
             Field(text, "event_code", (byte)c.EventCode);
             Field(text, "reason", c.Reason);
             Field(text, "event_message", c.EventMessage);
@@ -176,7 +182,7 @@ internal static class DbParams
             Field(text, "job_next_run_at_utc", UnixMs(c.JobNextRunAtUtc));
             text.Append('}');
         }
-        return text.Append(']').ToString();
+        return (text.Append(']').ToString(), results);
     }
 
     private static void Field(StringBuilder text, string name, long? value)

@@ -1,8 +1,8 @@
 DROP TABLE IF EXISTS temp._ces_done;
 
 /* SqliteDialect.BindCompleteExecutions cuts each section no row of the batch needs, since SQLite prepares every
-   statement on each call. The immediate transaction is the one writer. The completions arrive as JSON, each result
-   as base64, and a result with a format and no bytes is stored as a zero-length blob. */
+   statement on each call. The immediate transaction is the one writer. The completions arrive as JSON beside one blob
+   that holds every result end to end, and a result with a format and no bytes is stored as a zero-length blob. */
 CREATE TEMP TABLE _ces_done AS
 SELECT
     r.job_id,
@@ -20,7 +20,7 @@ SELECT
     json_extract(c.value, '$.result_format_id') AS result_format_id,
     CASE
         WHEN json_extract(c.value, '$.result_format_id') <> 0 /* JobPayloadFormat.None */
-            THEN COALESCE(acta_blob(json_extract(c.value, '$.result')), X'')
+            THEN COALESCE(substr(@p_results, json_extract(c.value, '$.result_at'), json_extract(c.value, '$.result_length')), X'')
     END AS result,
     json_extract(c.value, '$.event_code') AS event_code,
     json_extract(c.value, '$.reason') AS reason,

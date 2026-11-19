@@ -1062,7 +1062,7 @@
 ### A batch of completions lands what one completion per job lands
 - **Contract:** A completion batch writes what one completion per job writes, sets a child's latch, hands a lane on, and touches no row it does not complete.
 - **Guarantees:**
-  - Two successes and an exhausted failure land the same rows written alone as written together
+  - Successes with different results and an exhausted failure land the same rows written alone as written together
   - A child sets its latch on the parent and a lane head hands the lane on, in the same batch
   - A row another worker leases is NotOwner, a terminal row AlreadyTerminal, and neither is touched
   - A reclaimed attempt's late completion stores no result, and the attempt that replaced it stores its own

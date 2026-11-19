@@ -113,7 +113,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
 
     /// <summary>
     /// Caller connections we have already prepared, so repeat transactional enqueues on one long-lived
-    /// connection skip re-registering the functions and the foreign_keys PRAGMA round trip. Keyed weakly so
+    /// connection skip re-registering the function and the foreign_keys PRAGMA round trip. Keyed weakly so
     /// a collected caller connection drops out; Microsoft.Data.Sqlite re-applies CreateFunction on reopen,
     /// so a prepared connection stays valid across the caller's own close/reopen.
     /// </summary>
@@ -121,7 +121,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
 
     /// <summary>
     /// Caller-transaction preparation: the caller made this SqliteConnection itself, so our StateChange
-    /// hook never ran. Install only the two connection-local functions the inline enqueue SQL needs and
+    /// hook never ran. Install only the connection-local function the inline enqueue SQL needs and
     /// verify foreign_keys is ON; never touch the busy timeout, synchronous mode, or transaction kind.
     /// </summary>
     public void PrepareCallerConnection(DbConnection connection)
@@ -132,7 +132,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
         }
 
         var sqlite = (SqliteConnection)connection;
-        InstallFunctions(sqlite);
+        InstallErrorFunction(sqlite);
 
         using var pragma = sqlite.CreateCommand();
         pragma.CommandText = "PRAGMA foreign_keys;";
@@ -155,23 +155,15 @@ internal sealed partial class SqliteDialect : ISqlDialect
             return;
         }
 
-        InstallFunctions(connection);
+        InstallErrorFunction(connection);
 
         using var pragma = connection.CreateCommand();
         pragma.CommandText = ConnectionPragmas;
         pragma.ExecuteNonQuery();
     }
 
-    private static void InstallFunctions(SqliteConnection connection)
+    private static void InstallErrorFunction(SqliteConnection connection)
     {
-        // An empty array reaches SQL as NULL, not as a zero-length blob, so SQL that stores a payload with a format and
-        // no bytes coalesces the result to X''.
-        connection.CreateFunction<string?, byte[]?>(
-            "acta_blob",
-            static text => text is null ? null : Convert.FromBase64String(text),
-            isDeterministic: true
-        );
-
         // SQLite has no RAISE() outside triggers; provider store SQL uses this function for domain rejects.
         connection.CreateFunction<string, long>(
             "acta_error",
@@ -241,7 +233,9 @@ internal sealed partial class SqliteDialect : ISqlDialect
         sql = rows.Any(c => c.FinalStatus is not null || c.HasSchedule) ? sql : WithoutSection(sql, "recurring");
 
         command.CommandText = sql;
-        AddText(command, "@p_completions", DbParams.JsonCompletions(rows));
+        var (completions, results) = DbParams.JsonCompletions(rows);
+        AddText(command, "@p_completions", completions);
+        AddBlob(command, "@p_results", results);
     }
 
     /// <summary>The script without every <c>-- begin name</c> ... <c>-- end name</c> section.</summary>
@@ -263,6 +257,8 @@ internal sealed partial class SqliteDialect : ISqlDialect
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
+        var inputs = new byte[rows.Sum(row => row.Input.Format.IsNone ? 0 : row.Input.Data.Length)];
+        var at = 0;
         var jsonRows = JsonArray(rows, (writer, row, index) =>
         {
             writer.WriteNumber("ordinal", index);
@@ -273,7 +269,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
             WriteStringOrNull(writer, "correlation_key", row.CorrelationKey);
             WriteNumberOrNull(writer, "job_priority_code_override", row.PriorityOverride is { } priority ? (short)priority : (short?)null);
             writer.WriteNumber("input_format_id", row.Input.Format.Id);
-            WriteBase64OrNull(writer, "input", row.Input.Format.IsNone ? (ReadOnlyMemory<byte>?)null : row.Input.Data);
+            at = WriteSlice(writer, inputs, at, "input_at", "input_length", row.Input.Format.IsNone ? default : row.Input.Data.Span);
             WriteStringOrNull(writer, "concurrency_key", row.ConcurrencyKey);
             WriteUtcOrNull(writer, "next_run_at_utc", row.NextRunAtUtc);
             WriteNumberOrNull(writer, "delay_seconds", row.DelaySeconds);
@@ -306,6 +302,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
         });
 
         AddText(command, "@p_rows", jsonRows);
+        AddBlob(command, "@p_inputs", inputs);
         AddText(command, "@p_tags", jsonTags);
     }
 
@@ -404,6 +401,8 @@ internal sealed partial class SqliteDialect : ISqlDialect
     {
         AddInt(command, "@p_namespace_id", namespaceId);
 
+        var defaultInputs = new byte[rows.Sum(row => row.DefaultInputFormatId == 0 ? 0 : row.DefaultInput.Length)];
+        var at = 0;
         var definitions = JsonArray(rows, (writer, row, _) =>
         {
             writer.WriteString("definition_name", row.DefinitionName);
@@ -429,7 +428,14 @@ internal sealed partial class SqliteDialect : ISqlDialect
             writer.WriteNumber("firing_failure_policy_code", row.FiringFailurePolicyCode);
             writer.WriteNumber("scheduled_delivery_code", row.ScheduledDeliveryCode);
             writer.WriteNumber("default_input_format_id", row.DefaultInputFormatId);
-            WriteBase64OrNull(writer, "default_input", row.DefaultInputFormatId == 0 ? null : row.DefaultInput);
+            at = WriteSlice(
+                writer,
+                defaultInputs,
+                at,
+                "default_input_at",
+                "default_input_length",
+                row.DefaultInputFormatId == 0 ? default : row.DefaultInput.Span
+            );
             writer.WriteNumber("tenant_requirement_code", row.TenantRequirementCode);
             WriteStringOrNull(writer, "alert_channel_name", row.AlertChannelName);
             WriteStringOrNull(writer, "runbook_url", row.RunbookUrl);
@@ -439,6 +445,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
         });
 
         AddText(command, "@p_definitions", definitions);
+        AddBlob(command, "@p_default_inputs", defaultInputs);
     }
 
     public void BindRegisterSchedules(
@@ -448,15 +455,20 @@ internal sealed partial class SqliteDialect : ISqlDialect
         string schema
     )
     {
+        var inputs = new byte[definitions.Sum(d => d.InputFormatId == JobPayloadFormat.None.Id ? 0 : d.Input.Length)];
+        var at = 0;
         var definitionRows = JsonArray(definitions, (writer, definition, index) =>
         {
             writer.WriteNumber("definition_id", definition.DefinitionId);
             writer.WriteString("job_ref", slotRefs[index].ToString());
             writer.WriteNumber("input_format_id", definition.InputFormatId);
-            WriteBase64OrNull(
+            at = WriteSlice(
                 writer,
-                "input",
-                definition.InputFormatId == JobPayloadFormat.None.Id ? (ReadOnlyMemory<byte>?)null : definition.Input
+                inputs,
+                at,
+                "input_at",
+                "input_length",
+                definition.InputFormatId == JobPayloadFormat.None.Id ? default : definition.Input.Span
             );
             writer.WriteNumber("scheduled_delivery_code", (short)definition.ScheduledDelivery);
         });
@@ -492,6 +504,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
         });
 
         AddText(command, "@p_definitions", definitionRows);
+        AddBlob(command, "@p_inputs", inputs);
         AddText(command, "@p_schedules", scheduleRows);
     }
 
@@ -546,6 +559,16 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 ParameterName = name,
                 SqliteType = SqliteType.Integer,
                 Value = (object?)value ?? DBNull.Value,
+            }
+        );
+
+    private static void AddBlob(DbCommand command, string name, byte[] value) =>
+        command.Parameters.Add(
+            new SqliteParameter
+            {
+                ParameterName = name,
+                SqliteType = SqliteType.Blob,
+                Value = value,
             }
         );
 
@@ -618,15 +641,17 @@ internal sealed partial class SqliteDialect : ISqlDialect
         }
     }
 
-    private static void WriteBase64OrNull(Utf8JsonWriter writer, string name, ReadOnlyMemory<byte>? value)
+    /// <summary>
+    /// Copies a row's bytes into the blob its batch sends beside the JSON, at <paramref name="at"/>, and writes where they
+    /// lie: the start, counted from one as substr counts, and the length. Answers where the next row's bytes go. The JSON
+    /// a statement reads over and over then carries no bytes. A slice of a blob that holds no bytes at all reads as NULL,
+    /// so a statement that stores a payload with a format and no bytes coalesces its slice to X''.
+    /// </summary>
+    private static int WriteSlice(Utf8JsonWriter writer, byte[] blob, int at, string atName, string lengthName, ReadOnlySpan<byte> bytes)
     {
-        if (value is { } bytes)
-        {
-            writer.WriteString(name, Convert.ToBase64String(bytes.Span));
-        }
-        else
-        {
-            writer.WriteNull(name);
-        }
+        writer.WriteNumber(atName, at + 1);
+        writer.WriteNumber(lengthName, bytes.Length);
+        bytes.CopyTo(blob.AsSpan(at));
+        return at + bytes.Length;
     }
 }

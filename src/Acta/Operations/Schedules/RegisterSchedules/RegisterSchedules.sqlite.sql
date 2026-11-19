@@ -12,7 +12,7 @@ WHERE
     OR j.input IS NOT (
         CASE
             WHEN json_extract(d.value, '$.input_format_id') <> 0 /* JobPayloadFormat.None */
-                THEN COALESCE(acta_blob(json_extract(d.value, '$.input')), X'')
+                THEN COALESCE(substr(@p_inputs, json_extract(d.value, '$.input_at'), json_extract(d.value, '$.input_length')), X'')
         END
     );
 
@@ -39,7 +39,7 @@ SELECT
     json_extract(d.value, '$.input_format_id'),
     CASE
         WHEN json_extract(d.value, '$.input_format_id') <> 0 /* JobPayloadFormat.None */
-            THEN COALESCE(acta_blob(json_extract(d.value, '$.input')), X'')
+            THEN COALESCE(substr(@p_inputs, json_extract(d.value, '$.input_at'), json_extract(d.value, '$.input_length')), X'')
     END,
     NULL,
     -- The slot's event recording is the definition row's effective recording, so an override committed after this

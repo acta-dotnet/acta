@@ -195,7 +195,7 @@ SELECT
     JSON_EXTRACT(r.value, '$.input_format_id'),
     CASE
         WHEN JSON_EXTRACT(r.value, '$.input_format_id') <> 0 /* JobPayloadFormat.None */
-            THEN COALESCE(ACTA_BLOB(JSON_EXTRACT(r.value, '$.input')), X'')
+            THEN COALESCE(SUBSTR(@p_inputs, JSON_EXTRACT(r.value, '$.input_at'), JSON_EXTRACT(r.value, '$.input_length')), X'')
     END,
     JSON_EXTRACT(r.value, '$.concurrency_key'),
     jd.event_recording_code_effective

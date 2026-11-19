@@ -23,7 +23,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
-    [Fact(DisplayName = "Two successes and an exhausted failure land the same rows written alone as written together")]
+    [Fact(DisplayName = "Successes with different results and an exhausted failure land the same rows written alone as written together")]
     public async Task Batch_lands_the_rows_each_completion_lands_alone()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -33,6 +33,8 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         [
             job => Plain(job) with { ResultFormatId = JobPayloadFormat.Json.Id, Result = "{\"sum\":3}"u8.ToArray() },
             job => Plain(job) with { ResultFormatId = JobPayloadFormat.Bytes.Id },
+            // A second result after the empty one: each row must take its own bytes out of the batch.
+            job => Plain(job) with { ResultFormatId = JobPayloadFormat.Json.Id, Result = "{\"sum\":41,\"carry\":true}"u8.ToArray() },
             job =>
                 Plain(job) with
                 {

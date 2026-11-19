@@ -133,8 +133,8 @@ SQLite's `namespaces.namespace_id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is
 Microsoft.Data.Sqlite (verified in 10.0.15, the version Acta pins) carries an unsynchronized enumeration
 in `SqliteConnection.Deactivate`: returning a pooled connection walks the custom-function dictionary
 with no lock, so a concurrent reclaim can fault inside the driver. A plain user never sees it (the
-dictionary is empty unless `CreateFunction` was called), but Acta registers its `acta_blob` and
-`acta_error` functions on every open, which makes the upstream race reachable. Acta makes it
+dictionary is empty unless `CreateFunction` was called), but Acta registers its `acta_error`
+function on every open, which makes the upstream race reachable. Acta makes it
 reachable; it does not cause it. Observed only as a rare test-suite fault under heavy cross-process
 parallelism, never reproduced in isolation, and 1.0 deliberately changes nothing for it: the
 fault sits in the driver's pool, and `Pooling=false` would trade it for a fresh native open per

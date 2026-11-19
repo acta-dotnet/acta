@@ -10,6 +10,7 @@ Not yet released.
 
 ### Fixes
 
+- SQLite sent a batch's bytes as base64 inside a JSON parameter, in batch enqueue, in a batch of completions and at deploy, and paid for it in memory and time: a batch enqueue of 64 inputs of 1 MiB each took 2.7 GB and about five seconds. The bytes now travel as one binary parameter, and the same batch takes under half a gigabyte and about 0.6 seconds. Nothing stored changes.
 - `ctx.EndsJob(ex)` answers false for every exception once a write of the attempt was refused because another execution holds the job. It answered true for a failure that would have ended the job, so a compensating catch could run in an attempt that no longer owned it.
 - The worker's log for a permanent job whose firing a non-retryable exception ended said "the job failed for good". It says the firing failed and the job is idle until its next firing, which is what happened.
 

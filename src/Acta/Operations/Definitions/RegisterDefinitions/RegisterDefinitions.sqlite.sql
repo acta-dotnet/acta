@@ -61,7 +61,7 @@ SELECT
     json_extract(d.value, '$.default_input_format_id'),
     CASE
         WHEN json_extract(d.value, '$.default_input_format_id') <> 0 /* JobPayloadFormat.None */
-            THEN COALESCE(acta_blob(json_extract(d.value, '$.default_input')), X'')
+            THEN COALESCE(substr(@p_default_inputs, json_extract(d.value, '$.default_input_at'), json_extract(d.value, '$.default_input_length')), X'')
     END,
     json_extract(d.value, '$.tenant_requirement_code'),
     json_extract(d.value, '$.alert_channel_name'),
