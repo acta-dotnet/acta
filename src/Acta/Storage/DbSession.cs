@@ -101,7 +101,13 @@ internal sealed class DbSession : IDbSession
         Action<DbCommand> bind,
         Func<DbDataReader, T> mapRow,
         CancellationToken ct
-    ) => ExecuteThenCommitAsync(command, bind, (cmd, kind, token) => ReadPrimaryRowsAsync(cmd, mapRow, kind, token), ct);
+    ) =>
+        ExecuteThenCommitAsync(
+            command,
+            bind,
+            (cmd, kind, token) => ReadPrimaryRowsAsync(cmd, mapRow, kind, command.ReturnsPayload, token),
+            ct
+        );
 
     public async Task<T?> ExecuteSingleAsync<T>(
         StoreCommand command,
@@ -111,7 +117,12 @@ internal sealed class DbSession : IDbSession
     )
         where T : class
     {
-        var rows = await ExecuteThenCommitAsync(command, bind, (cmd, kind, token) => ReadPrimaryRowsAsync(cmd, mapRow, kind, token), ct);
+        var rows = await ExecuteThenCommitAsync(
+            command,
+            bind,
+            (cmd, kind, token) => ReadPrimaryRowsAsync(cmd, mapRow, kind, command.ReturnsPayload, token),
+            ct
+        );
         return rows.Count > 0 ? rows[^1] : null;
     }
 
@@ -139,7 +150,7 @@ internal sealed class DbSession : IDbSession
                 async token =>
                 {
                     var cmd = CreateBoundWriteCommand(connection, transaction, command, kind, bind);
-                    return await UseWriteResourceAsync(cmd, c => ReadPrimaryRowsAsync(c, mapRow, kind, token));
+                    return await UseWriteResourceAsync(cmd, c => ReadPrimaryRowsAsync(c, mapRow, kind, command.ReturnsPayload, token));
                 },
                 static _ => false,
                 maxAttempts: 1,
@@ -358,9 +369,13 @@ internal sealed class DbSession : IDbSession
         DbCommand cmd,
         Func<DbDataReader, T> mapRow,
         StoreExecutionKind kind,
+        bool returnsPayload,
         CancellationToken ct
     )
     {
+        ValueTask<bool> NextRowAsync(DbDataReader reader) =>
+            returnsPayload ? _dialect.ReadPayloadRowAsync(reader, ct) : new(reader.ReadAsync(ct));
+
         var dataReader = await cmd.ExecuteReaderAsync(ct);
         return await UseWriteResourceAsync(dataReader, async reader =>
         {
@@ -370,7 +385,7 @@ internal sealed class DbSession : IDbSession
                 do
                 {
                     rows.Clear();
-                    while (await reader.ReadAsync(ct))
+                    while (await NextRowAsync(reader))
                     {
                         rows.Add(MapRow(reader, mapRow));
                     }
@@ -378,7 +393,7 @@ internal sealed class DbSession : IDbSession
             }
             else
             {
-                while (await reader.ReadAsync(ct))
+                while (await NextRowAsync(reader))
                 {
                     rows.Add(MapRow(reader, mapRow));
                 }

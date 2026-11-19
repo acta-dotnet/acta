@@ -38,6 +38,12 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public bool OwnsConnection(DbConnection connection) => connection is SqlConnection;
 
+    public ValueTask<bool> ReadPayloadRowAsync(DbDataReader reader, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return new(reader.Read());
+    }
+
     public DbParameter CreateParameter(DbParameterSpec spec)
     {
         DbParams.Validate(spec);

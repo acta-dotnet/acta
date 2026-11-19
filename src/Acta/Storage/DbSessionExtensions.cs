@@ -16,6 +16,26 @@ internal static class DbSessionExtensions
         where T : class =>
         session.QueryAsync(stem, bind, async (reader, token) => await reader.ReadAsync(token) ? mapRow(reader) : null, ct);
 
+    /// <summary>
+    /// Runs a read whose row carries a stored payload and maps it, or returns null when it has none. The dialect advances
+    /// to the row, since a payload may be large.
+    /// </summary>
+    public static Task<T?> QueryPayloadAsync<T>(
+        this IDbSession session,
+        ISqlDialect dialect,
+        string stem,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    )
+        where T : class =>
+        session.QueryAsync(
+            stem,
+            bind,
+            async (reader, token) => await dialect.ReadPayloadRowAsync(reader, token) ? mapRow(reader) : null,
+            ct
+        );
+
     /// <summary>Runs a read and maps every row of its result.</summary>
     public static Task<IReadOnlyList<T>> QueryListAsync<T>(
         this IDbSession session,

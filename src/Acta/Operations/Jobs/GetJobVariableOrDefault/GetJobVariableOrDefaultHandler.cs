@@ -14,7 +14,8 @@ internal sealed class GetJobVariableOrDefaultHandler(GetJobIdHandler getJobId, I
             return null;
         }
 
-        var variable = await session.QuerySingleAsync(
+        var variable = await session.QueryPayloadAsync(
+            dialect,
             "GetJobVariableOrDefault",
             cmd =>
             {

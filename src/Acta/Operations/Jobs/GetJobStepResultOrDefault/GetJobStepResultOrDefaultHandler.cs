@@ -14,7 +14,8 @@ internal sealed class GetJobStepResultOrDefaultHandler(GetJobIdHandler getJobId,
             return null;
         }
 
-        var step = await session.QuerySingleAsync(
+        var step = await session.QueryPayloadAsync(
+            dialect,
             "GetJobStepResultOrDefault",
             cmd =>
             {

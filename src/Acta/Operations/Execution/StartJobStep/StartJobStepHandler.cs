@@ -6,7 +6,7 @@ internal sealed class StartJobStepHandler(IDbSession session, ISqlDialect dialec
     public Task<StartJobStepResponse> HandleAsync(StartJobStepCommand command, CancellationToken ct) =>
         ExecutionFencedException.TranslateAsync(
             session.ExecuteOneAsync(
-                new StoreCommand("StartJobStep"),
+                new StoreCommand("StartJobStep", ReturnsPayload: true),
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.JobId, command.Fence.JobId));

@@ -11,6 +11,7 @@ Not yet released.
 ### Fixes
 
 - SQLite sent a batch's bytes as base64 inside a JSON parameter, in batch enqueue, in a batch of completions and at deploy, and paid for it in memory and time: a batch enqueue of 64 inputs of 1 MiB each took 2.7 GB and about five seconds. The bytes now travel as one binary parameter, and the same batch takes under half a gigabyte and about 0.6 seconds. Nothing stored changes.
+- SQL Server read a large stored value in time that grew faster than the value: 32 MiB took four seconds and 64 MiB twenty-two. The driver's asynchronous row read is the cause, and Acta now reads a row that carries a stored payload synchronously on SQL Server: a job's input or result, a step's result, a variable. The same 32 MiB then reads in about 0.13 seconds. Every other read, and PostgreSQL and SQLite, are unchanged. Microsoft.Data.SqlClient 7 carries its own fix behind two process-wide switches that a host may set; Acta sets neither.
 - `ctx.EndsJob(ex)` answers false for every exception once a write of the attempt was refused because another execution holds the job. It answered true for a failure that would have ended the job, so a compensating catch could run in an attempt that no longer owned it.
 - The worker's log for a permanent job whose firing a non-retryable exception ended said "the job failed for good". It says the firing failed and the job is idle until its next firing, which is what happened.
 

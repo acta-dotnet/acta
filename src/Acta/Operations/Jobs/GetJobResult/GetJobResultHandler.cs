@@ -17,7 +17,8 @@ internal sealed class GetJobResultHandler(GetJobIdHandler getJobId, IDbSession s
     /// claim and restart clears the result, so a stored one belongs to the runtime's current execution number.
     /// </summary>
     internal Task<GetJobResultRow?> ReadAsync(long jobId, long? executionNumber, CancellationToken ct) =>
-        session.QuerySingleAsync(
+        session.QueryPayloadAsync(
+            dialect,
             "GetJobResult",
             cmd =>
             {

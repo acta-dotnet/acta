@@ -9,7 +9,8 @@ internal sealed class GetJobInputHandler(GetJobIdHandler getJobId, IDbSession se
     /// <summary>The stored input of the job the lookup names, None format included, or null when no job matches.</summary>
     internal async ValueTask<GetJobInputRow?> ReadAsync(JobLookup job, CancellationToken ct) =>
         await getJobId.HandleAsync(new GetJobIdQuery(job), ct) is { JobId: var jobId }
-            ? await session.QuerySingleAsync(
+            ? await session.QueryPayloadAsync(
+                dialect,
                 "GetJobInput",
                 cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
                 DbProjectionResolver.Resolve<GetJobInputRow>(),

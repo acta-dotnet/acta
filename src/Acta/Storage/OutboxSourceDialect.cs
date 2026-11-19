@@ -18,6 +18,8 @@ internal class OutboxSourceDialect(ISqlDialect inner) : ISqlDialect
 
     public bool ResultSetIsLast => true;
 
+    public ValueTask<bool> ReadPayloadRowAsync(DbDataReader reader, CancellationToken ct) => inner.ReadPayloadRowAsync(reader, ct);
+
     /// <summary>
     /// Recover-expired then claim run as two statements; one transaction gives the claim statement the
     /// recovered rows and keeps the lease stamp atomic. Servers own it inside the command; the SQLite

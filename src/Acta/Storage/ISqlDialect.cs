@@ -20,6 +20,12 @@ internal interface ISqlDialect
     bool ResultSetIsLast => false;
 
     /// <summary>
+    /// Advances a reader to a row that carries a stored payload, which may be large. Asynchronous by default. SQL Server
+    /// reads such a row synchronously, because its driver's asynchronous row read slows down faster than the value grows.
+    /// </summary>
+    ValueTask<bool> ReadPayloadRowAsync(DbDataReader reader, CancellationToken ct) => new(reader.ReadAsync(ct));
+
+    /// <summary>
     /// Begins a session-owned write transaction when the provider requires one. Server commands
     /// establish atomicity in the database and return null. SQLite uses BEGIN IMMEDIATE.
     /// </summary>
