@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Acta;
 
 /// <summary>
@@ -42,16 +44,18 @@ public sealed record SignalWaitOutcome
 /// <summary>
 /// Typed twin of <see cref="SignalWaitOutcome"/> for <c>ctx.WaitSignalAsync&lt;T&gt;(name, timeout)</c>.
 /// <see cref="Value"/> carries the deserialized payload when the signal arrived, and is <c>default</c> on a timeout or
-/// a presence-only raise; <see cref="ValueOrThrow"/> tells the two apart.
+/// a presence-only raise; <see cref="TryGetValue"/> tells a presence-only raise from a raised default value.
 /// </summary>
 public sealed record SignalWaitOutcome<T>
 {
     private readonly string _name;
+    private readonly bool _hasValue;
 
-    private SignalWaitOutcome(string name, bool timedOut, T? value)
+    private SignalWaitOutcome(string name, bool timedOut, bool hasValue, T? value)
     {
         _name = name;
         TimedOut = timedOut;
+        _hasValue = hasValue;
         Value = value;
     }
 
@@ -64,13 +68,46 @@ public sealed record SignalWaitOutcome<T>
     /// <summary>The raised payload, or <c>default</c> on a timeout or a presence-only raise.</summary>
     public T? Value { get; }
 
+    /// <summary>True when the raise carried a value, as <see cref="TryGetValue"/> answers.</summary>
+    public bool HasValue => TryGetValue(out _);
+
     /// <summary>
-    /// The raised payload, <c>default</c> for a presence-only raise; throws <see cref="SignalWaitTimeoutException"/> when
-    /// the wait timed out, which left uncaught fails the job at once.
+    /// True and sets <paramref name="value"/> when the raise carried a value; false on a timeout and on a presence-only raise.
     /// </summary>
-    public T? ValueOrThrow() => TimedOut ? throw new SignalWaitTimeoutException(_name) : Value;
+    public bool TryGetValue([MaybeNullWhen(false)] out T value)
+    {
+        if (_hasValue && Value is { } raised)
+        {
+            value = raised;
+            return true;
+        }
+        value = default;
+        return false;
+    }
 
-    internal static SignalWaitOutcome<T> Signalled(string name, T? value) => new(name, timedOut: false, value);
+    /// <summary>
+    /// The raised payload, <c>default</c> for a presence-only raise, which an operator's raise without a value is; throws
+    /// <see cref="SignalWaitTimeoutException"/> when the wait timed out, which left uncaught fails the job at once.
+    /// </summary>
+    public T? ValueOrThrow()
+    {
+        ThrowIfTimedOut();
+        return Value;
+    }
 
-    internal static SignalWaitOutcome<T> Expired(string name) => new(name, timedOut: true, value: default);
+    /// <summary>
+    /// Throws <see cref="SignalWaitTimeoutException"/> when the wait timed out, without reading the value. Left uncaught it
+    /// fails the job at once, since a retry would meet the same expired wait.
+    /// </summary>
+    public void ThrowIfTimedOut()
+    {
+        if (TimedOut)
+        {
+            throw new SignalWaitTimeoutException(_name);
+        }
+    }
+
+    internal static SignalWaitOutcome<T> Signalled(string name, bool hasValue, T? value) => new(name, timedOut: false, hasValue, value);
+
+    internal static SignalWaitOutcome<T> Expired(string name) => new(name, timedOut: true, hasValue: false, value: default);
 }

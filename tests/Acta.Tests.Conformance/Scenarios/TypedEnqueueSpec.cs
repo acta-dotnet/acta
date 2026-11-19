@@ -132,20 +132,19 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(7, result.Sum);
     }
 
-    [Fact(DisplayName = "A handler returning a null result fails the job and stores no result")]
-    public async Task Handler_returning_null_result_fails_the_job_and_stores_no_result()
+    [Fact(DisplayName = "A handler returning null succeeds and stores no result")]
+    public async Task Handler_returning_null_succeeds_and_stores_no_result()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var outcome = await Jobs.EnqueueAsync(new NullResultInput(1), ct: ct);
-        // Null contract: a null Task<T> return is a handler bug. The handler ran, so the job fails for good on that
-        // attempt with its other attempts unspent, and nothing is stored as a result.
-        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(outcome, ct));
+        // Null stores nothing: a handler declared with an optional result that returns null succeeds with none.
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(outcome, ct));
 
         var snapshot = await Jobs.GetAsync(outcome, ct);
-        Assert.Equal(JobStatusCode.Failed, snapshot!.Status);
-        Assert.Equal(0, snapshot.FailureCount);
-
+        Assert.Equal(JobStatusCode.Succeeded, snapshot!.Status);
+        Assert.Equal(0, snapshot.ResultFormatId);
+        Assert.Null(snapshot.ResultByteLength);
         Assert.False((await Jobs.TryGetResultAsync<NullResultOutput>(outcome, ct)).Found);
     }
 

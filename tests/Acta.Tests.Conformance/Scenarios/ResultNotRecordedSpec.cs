@@ -16,21 +16,18 @@ namespace Acta.Tests.Conformance.Scenarios;
     Contract = "A finished body whose result cannot be recorded fails its job for good instead of running again, and an at-most-once step stays unrun through a restart."
 )]
 [Deploys(
-    "job-step-null-result",
-    "job-step-null-result-at-most-once",
-    "job-step-null-result-compensated",
     "job-step-unserializable-result",
+    "job-step-unserializable-result-at-most-once",
+    "job-step-unserializable-result-compensated",
     "unserializable-result"
 )]
 public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ResultNotRecordedSpec>>
 {
-    [Theory(DisplayName = "A step whose result is null or unserializable fails the job for good and is not run again")]
-    [InlineData("job-step-null-result", "returned null")]
-    [InlineData("job-step-unserializable-result", "could not be serialized")]
-    public async Task Unrecorded_step_result_fails_the_job_without_a_rerun(string jobName, string why)
+    [Fact(DisplayName = "A step whose result is unserializable fails the job for good and is not run again")]
+    public async Task Unrecorded_step_result_fails_the_job_without_a_rerun()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-unserializable-result", JobPayload.None), ct);
 
         // The default budget has attempts left: a retryable failure would re-arm the job and run the body again.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -43,7 +40,7 @@ public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixtu
         var failed = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
         Assert.Equal(EventReason.NonRetryableException, EventDetail(failed, "reason"));
         Assert.Contains("its result was not recorded", failed.EventMessage, StringComparison.Ordinal);
-        Assert.Contains(why, failed.EventMessage, StringComparison.Ordinal);
+        Assert.Contains("could not be serialized", failed.EventMessage, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "A handler can catch the failure of a step whose result was not recorded and compensate")]
@@ -51,7 +48,7 @@ public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-step-null-result-compensated", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-step-unserializable-result-compensated", JobPayload.None),
             ct
         );
 
@@ -68,7 +65,7 @@ public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-step-null-result-at-most-once", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-step-unserializable-result-at-most-once", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));

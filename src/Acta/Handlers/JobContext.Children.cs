@@ -90,8 +90,8 @@ public abstract partial class JobContext
         await TryGetChildResultAsync<TResult>(childJobId, ct) is (true, var value)
             ? value!
             : throw new InvalidOperationException(
-                $"Child job {childJobId} has stored no result: it has not succeeded, it returns none, or retention "
-                    + "purged it. TryGetChildResultAsync reads a result that may not exist."
+                $"Child job {childJobId} has no result: it has not succeeded, it stored none, or retention purged it. "
+                    + "TryGetChildResultAsync reads a result that may not exist."
             );
 
     /// <summary>
@@ -176,21 +176,20 @@ public abstract partial class JobContext
 
     /// <summary>
     /// <see cref="SettleChildAsync(EnqueueJobResponse, TimeSpan?, CancellationToken)"/> with the result a succeeded
-    /// child stored; a success with none throws, since the caller asked for a result the child did not produce.
+    /// child stored, or none when it stored none.
     /// </summary>
-    private async Task<JobOutcome<TResult>> SettleChildAsync<TResult>(
-        EnqueueJobResponse child,
-        string name,
-        TimeSpan? timeout,
-        CancellationToken ct
-    )
-        where TResult : notnull => await LandAsync<TResult>(child, await WaitChildCoreAsync(child, timeout, ct), name, ct);
+    private async Task<JobOutcome<TResult>> SettleChildAsync<TResult>(EnqueueJobResponse child, TimeSpan? timeout, CancellationToken ct)
+        where TResult : notnull => await LandAsync<TResult>(child, await WaitChildCoreAsync(child, timeout, ct), ct);
 
-    /// <summary>A waited child's outcome with the result the execution its latch names stored, on a success.</summary>
+    /// <summary>
+    /// A waited child's outcome, on a success with what the execution whose landing set the latch stored, or the one the
+    /// child holds when the latch names none: its result, or no value. A child that no longer holds that success was
+    /// restarted or has run again, which cleared its result, and the throw retries this job, which then reads the child's
+    /// next landing.
+    /// </summary>
     private async Task<JobOutcome<TResult>> LandAsync<TResult>(
         EnqueueJobResponse child,
         (JobOutcome Outcome, long? ExecutionNumber) wait,
-        string name,
         CancellationToken ct
     )
         where TResult : notnull
@@ -200,36 +199,18 @@ public abstract partial class JobContext
             return JobOutcome<TResult>.Expired(child.JobId, child.JobRef, wait.Outcome.Status);
         }
 
-        return wait.Outcome.Succeeded
-            ? JobOutcome<TResult>.Landed(
-                child.JobId,
-                child.JobRef,
-                await RequireChildResultAsync<TResult>(child, wait.ExecutionNumber, name, ct)
-            )
-            : JobOutcome<TResult>.Landed(child.JobId, child.JobRef, wait.Outcome.Status, wait.Outcome.FailureMessage);
-    }
+        if (!wait.Outcome.Succeeded)
+        {
+            return JobOutcome<TResult>.Landed(child.JobId, child.JobRef, wait.Outcome.Status, wait.Outcome.FailureMessage);
+        }
 
-    /// <summary>
-    /// The result stored by the execution whose landing set the latch, or by the latest execution when the latch does
-    /// not name one. An execution that stored none throws rather than answering another one's or a default; so does a
-    /// child an operator restarted after it succeeded, since the restart clears the stored result, and this job's retry
-    /// then reads the child's next landing.
-    /// </summary>
-    private async Task<TResult> RequireChildResultAsync<TResult>(
-        EnqueueJobResponse child,
-        long? executionNumber,
-        string name,
-        CancellationToken ct
-    )
-        where TResult : notnull
-    {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var (stored, value) = await ReadChildResultCoreAsync<TResult>(child.JobId, executionNumber, linked.Token);
-        return stored
-            ? value!
-            : throw new InvalidOperationException(
-                $"Child job {child.JobRef} ('{name}') succeeded but stored no result: its handler returns none, or an "
-                    + "operator restarted it after it succeeded; the child's events say which."
+        var (success, jobName) = await ReadChildSuccessCoreAsync<TResult>(child, wait.ExecutionNumber, linked.Token);
+        return success
+            ?? throw new InvalidOperationException(
+                $"Child job {child.JobRef}{(jobName is null ? "" : $" ('{jobName}')")} no longer holds the success its latch "
+                    + "names: it was restarted or has run again since, which cleared its result. This job's retry reads the "
+                    + "child's next landing."
             );
     }
 
@@ -303,4 +284,19 @@ public abstract partial class JobContext
         long? executionNumber,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Subclass sink: the success of the child's execution <paramref name="executionNumber"/>, or of the one it holds now
+    /// when null, with its result or no value; no success, beside the child's job name when known, once the child no
+    /// longer holds it. The default answers the stored result alone, so a subclass without durable storage keeps working.
+    /// </summary>
+    private protected virtual async Task<(JobOutcome<TResult>? Success, string? JobName)> ReadChildSuccessCoreAsync<TResult>(
+        EnqueueJobResponse child,
+        long? executionNumber,
+        CancellationToken ct
+    )
+        where TResult : notnull =>
+        await ReadChildResultCoreAsync<TResult>(child.JobId, executionNumber, ct) is (true, { } value)
+            ? (JobOutcome<TResult>.Landed(child.JobId, child.JobRef, value), null)
+            : (null, null);
 }

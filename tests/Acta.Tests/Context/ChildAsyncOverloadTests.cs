@@ -97,6 +97,6 @@ public sealed class ChildAsyncOverloadTests
         Assert.Equal((true, 0), await stored.TryGetChildResultAsync<int>(7, ct));
         Assert.Equal((false, 0), await none.TryGetChildResultAsync<int>(7, ct));
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => none.GetChildResultAsync<int>(7, ct));
-        Assert.Contains("Child job 7 has stored no result", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("Child job 7 has no result", refused.Message, StringComparison.Ordinal);
     }
 }

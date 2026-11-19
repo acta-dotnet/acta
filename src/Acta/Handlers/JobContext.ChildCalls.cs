@@ -97,7 +97,7 @@ public abstract partial class JobContext
         where TResult : notnull
     {
         ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
-        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, job, configure, ct), name, timeout: null, ct);
+        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, job, configure, ct), timeout: null, ct);
     }
 
     /// <inheritdoc cref="CallChildAsync{TInput, TResult}(string, JobCall{TInput, TResult}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
@@ -122,7 +122,7 @@ public abstract partial class JobContext
     {
         ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
         ToWaitTimeoutSeconds(timeout);
-        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, job, configure, ct), name, timeout, ct);
+        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, job, configure, ct), timeout, ct);
     }
 
     /// <inheritdoc cref="CallChildAsync{TInput, TResult}(string, JobCall{TInput, TResult}, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>

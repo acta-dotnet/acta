@@ -90,21 +90,32 @@ internal sealed class JobRequestRouting(
     /// <summary>A payload a typed read returns, decoded through the serializer of its own format.</summary>
     public T? Decode<T>(JobPayload payload) => serializers.Resolve(payload.Format.Id).Deserialize<T>(payload);
 
-    /// <summary>A stored result read as <typeparamref name="TResult"/>, refused when its job produces another type.</summary>
-    public TResult? DecodeResult<TResult>(GetJobResultRow row)
+    /// <summary>
+    /// A stored result read as <typeparamref name="TResult"/>, refused when its job produces another type. Found only when
+    /// it decodes to a value: a format that decodes to null holds none, since null stores nothing.
+    /// </summary>
+    public (bool Found, TResult? Value) TryDecodeResult<TResult>(GetJobResultRow? row)
     {
+        if (row is null)
+        {
+            return (false, default);
+        }
+
         EnsureResultType<TResult>(row.JobNamespace, row.JobName);
-        return Decode<TResult>(row.Payload);
+        return Decode<TResult>(row.Payload) is { } value ? (true, value) : (false, default);
     }
 
     /// <summary>
-    /// Refuses to read a registered job's result as another type. A deduplication key shared across definitions hands
-    /// back the other definition's job, and a lenient decode of its result would fill the missing members with
-    /// defaults. A job this process does not register decodes as the caller says.
+    /// Refuses to read a registered job's result as another type, a <c>T</c> result as <c>T?</c> excepted. A deduplication
+    /// key shared across definitions hands back the other definition's job, and a lenient decode of its result would fill
+    /// the missing members with defaults. A job this process does not register decodes as the caller says.
     /// </summary>
     public void EnsureResultType<TResult>(string jobNamespace, string jobName)
     {
-        if (descriptors.Find(jobNamespace, jobName) is { } descriptor && descriptor.ResultType != typeof(TResult))
+        // Nullable is set aside on both sides, so a descriptor written with a nullable result type reads as its own type.
+        static Type? Bare(Type? type) => type is null ? null : Nullable.GetUnderlyingType(type) ?? type;
+
+        if (descriptors.Find(jobNamespace, jobName) is { } descriptor && Bare(descriptor.ResultType) != Bare(typeof(TResult)))
         {
             throw new InvalidOperationException(
                 $"Job '{jobNamespace}/{jobName}' produces '{descriptor.ResultType?.FullName ?? "no result"}', not "

@@ -37,7 +37,9 @@ public sealed record VariableValidationResult(
     bool UnregisteredPayloadRejected,
     bool JsonNullPayloadRejected,
     int EmptyBytesLength,
-    bool NullSetRejected,
+    bool NullSetRemoved,
+    bool JsonNullSetRemoved,
+    bool NullSetOverNothingStoresNone,
     bool NullFactoryRejected
 );
 
@@ -168,7 +170,16 @@ public static class JobVariableProbes
         var jsonNullPayloadRejected = await ThrowsAsync<ArgumentException>(() =>
             ctx.SetVariableAsync("payload.json-null", JobPayload.CopyBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("null")), ct)
         );
-        var nullSetRejected = await ThrowsAsync<ArgumentNullException>(() => ctx.SetVariableAsync<string>("null.value", null!, ct));
+        // Null stores nothing: setting null, or a value whose JSON is null, over a value removes the variable, and setting
+        // null where there is none stores none.
+        await ctx.SetVariableAsync("null.value", "present", ct);
+        await ctx.SetVariableAsync<string?>("null.value", null, ct);
+        var nullSetRemoved = !await ctx.ExistsVariableAsync("null.value", ct);
+        await ctx.SetVariableAsync("json-null.value", "present", ct);
+        await ctx.SetVariableAsync("json-null.value", new JsonNullValue(1), ct);
+        var jsonNullSetRemoved = !await ctx.ExistsVariableAsync("json-null.value", ct);
+        await ctx.SetVariableAsync<string?>("null.never-set", null, ct);
+        var nullSetOverNothingStoresNone = !await ctx.ExistsVariableAsync("null.never-set", ct);
         var nullFactoryRejected = await ThrowsAsync<InvalidOperationException>(() =>
             ctx.GetOrSetVariableAsync<string>("null.factory", () => null!, ct)
         );
@@ -184,9 +195,25 @@ public static class JobVariableProbes
             unregisteredPayloadRejected,
             jsonNullPayloadRejected,
             emptyBytes.Length,
-            nullSetRejected,
+            nullSetRemoved,
+            jsonNullSetRemoved,
+            nullSetOverNothingStoresNone,
             nullFactoryRejected
         );
+    }
+
+    // The first execution sets a variable and then sets it to null; the execution after the raise reads it as absent.
+    [Job("job-variable-null-next-execution")]
+    public static async Task<bool> NullNextExecution(JobContext ctx, CancellationToken ct)
+    {
+        if (ctx.ExecutionNumber == 1)
+        {
+            await ctx.SetVariableAsync("stage", "packed", ct);
+            await ctx.SetVariableAsync<string?>("stage", null, ct);
+            await ctx.WaitSignalAsync("proceed", ct);
+        }
+
+        return !await ctx.ExistsVariableAsync("stage", ct) && await ctx.GetVariableOrDefaultAsync<string>("stage", ct) is null;
     }
 
     [Job("job-variable-race")]

@@ -10,8 +10,8 @@ internal sealed class NonRetryableExceptions(Type[] declared)
     /// <summary>
     /// A failure retrying cannot change: a programming error, a failed at-most-once step that throws again on every
     /// replay, a handler DI cannot build from the same registrations, a finished body whose result could not be
-    /// recorded, a handler that went on after its own control flow, or a waited job's failure or an expired wait
-    /// rethrown (ThrowIfFailed, ThrowIfAnyFailed, ThrowIfTimedOut, ValueOrThrow), which a replay reads from the same
+    /// recorded, a handler that went on after its own control flow, or a waited job's failure, missing result or expired
+    /// wait rethrown (ThrowIfFailed, ThrowIfAnyFailed, ThrowIfTimedOut, ValueOrThrow), which a replay reads from the same
     /// checkpoint. It lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry budget
     /// untouched.
     /// </summary>
@@ -24,6 +24,7 @@ internal sealed class NonRetryableExceptions(Type[] declared)
                 or ResultNotRecordedException
                 or SwallowedControlException
                 or JobFailedException
+                or JobResultMissingException
                 or ChildGroupException
                 or JobWaitTimeoutException
                 or SignalWaitTimeoutException

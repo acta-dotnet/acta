@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="IJobs.GetStepResultOrDefaultAsync{T}"/>: canonicalizes the name as a handler's own step does, resolves the
+/// <see cref="IJobs.GetStepResultOrDefaultAsync{TResult}"/>: canonicalizes the name as a handler's own step does, resolves the
 /// lookup, then reads the one step's result. Null when no job matches or the step has recorded no result.
 /// </summary>
 internal sealed class GetJobStepResultOrDefaultHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)

@@ -128,7 +128,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// The map of generated calls of a job with a result: each item's outcome carries the child's typed result, read with
-    /// the map from the execution its wait saw; a child that succeeded without storing one throws.
+    /// the map from the execution its wait saw; a child that succeeded without storing one answers with no value.
     /// </summary>
     public Task<MapOutcome<TKey, TResult>> MapAsync<TItem, TKey, TInput, TResult>(
         string groupName,
@@ -193,7 +193,7 @@ public abstract partial class JobContext
         where TKey : notnull
         where TInput : notnull
     {
-        var (keys, _, _, waits) = await FanOutAsync(groupName, items, itemKey, child, timeout, configure, ct);
+        var (keys, _, waits) = await FanOutAsync(groupName, items, itemKey, child, timeout, configure, ct);
         var outcomes = new MapItemOutcome<TKey>[keys.Length];
         for (var i = 0; i < keys.Length; i++)
         {
@@ -216,11 +216,11 @@ public abstract partial class JobContext
         where TInput : notnull
         where TResult : notnull
     {
-        var (keys, names, started, waits) = await FanOutAsync(groupName, items, itemKey, child, timeout, configure, ct);
+        var (keys, started, waits) = await FanOutAsync(groupName, items, itemKey, child, timeout, configure, ct);
         var outcomes = new MapItemOutcome<TKey, TResult>[keys.Length];
         for (var i = 0; i < keys.Length; i++)
         {
-            outcomes[i] = new MapItemOutcome<TKey, TResult>(keys[i], await LandAsync<TResult>(started[i], waits[i], names[i], ct));
+            outcomes[i] = new MapItemOutcome<TKey, TResult>(keys[i], await LandAsync<TResult>(started[i], waits[i], ct));
         }
 
         return new MapOutcome<TKey, TResult>(outcomes);
@@ -228,12 +228,11 @@ public abstract partial class JobContext
 
     /// <summary>The map's children, named from their keys, started in item order, and waited on as one group.</summary>
     [DebuggerDisableUserUnhandledExceptions]
-    private async Task<(
-        TKey[] Keys,
-        string[] Names,
-        EnqueueJobResponse[] Started,
-        (JobOutcome Outcome, long? ExecutionNumber)[] Waits
-    )> FanOutAsync<TItem, TKey, TInput>(
+    private async Task<(TKey[] Keys, EnqueueJobResponse[] Started, (JobOutcome Outcome, long? ExecutionNumber)[] Waits)> FanOutAsync<
+        TItem,
+        TKey,
+        TInput
+    >(
         string groupName,
         IEnumerable<TItem> items,
         Func<TItem, TKey> itemKey,
@@ -298,7 +297,7 @@ public abstract partial class JobContext
                     : await EnqueueGroupChildAsync(names[i], child(materialized[i]), configure, ct);
         }
 
-        return (keys, names, started, await WaitChildGroupAsync(started, timeout, ct));
+        return (keys, started, await WaitChildGroupAsync(started, timeout, ct));
     }
 
     /// <summary>

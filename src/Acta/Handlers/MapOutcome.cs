@@ -3,11 +3,16 @@ namespace Acta;
 /// <summary>
 /// Result of <c>JobContext.MapAsync</c>: one <see cref="MapItemOutcome{TKey}"/> per input
 /// item, in input order. The map waits for every child and returns; it never throws because a child
-/// failed. Call <see cref="ThrowIfAnyFailed"/> to opt into escalation.
+/// failed. Call <see cref="ThrowIfAnyFailed"/> to opt into escalation. Construction is gated to the framework.
 /// </summary>
-public record MapOutcome<TKey>(IReadOnlyList<MapItemOutcome<TKey>> Items)
+public record MapOutcome<TKey>
     where TKey : notnull
 {
+    internal MapOutcome(IReadOnlyList<MapItemOutcome<TKey>> items) => Items = items;
+
+    /// <summary>One item outcome per input item, in input order.</summary>
+    public IReadOnlyList<MapItemOutcome<TKey>> Items { get; }
+
     /// <summary>
     /// True when the group deadline passed before at least one item's child landed terminal. Always
     /// false for the unbounded overload, which waits until every child lands.

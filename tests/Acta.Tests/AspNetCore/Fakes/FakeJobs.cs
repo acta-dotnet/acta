@@ -311,8 +311,8 @@ internal sealed class FakeJobs : IJobs
     ValueTask<T?> IJobs.GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct)
         where T : default => throw new NotSupportedException();
 
-    ValueTask<T?> IJobs.GetStepResultOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct)
-        where T : default => throw new NotSupportedException();
+    ValueTask<TResult?> IJobs.GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct)
+        where TResult : default => throw new NotSupportedException();
 
     ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
         throw new NotSupportedException();

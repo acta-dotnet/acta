@@ -77,7 +77,7 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal(EventReason.NonRetryableException, harness.Completion.Reason);
         Assert.Contains(
-            $"Step '{WorkerExecutorHarness.StepName}' has a stored result that cannot be deserialized",
+            $"Step '{WorkerExecutorHarness.StepName}' recorded a result that cannot be read as 'System.Int32'",
             harness.Completion.EventMessage,
             StringComparison.Ordinal
         );
@@ -138,6 +138,7 @@ public sealed class WorkerExecutorOutcomeTests
             new JobFailedException(7, JobRef.New(), JobStatusCode.Failed),
             new ChildGroupException([]),
             new JobWaitTimeoutException(7, JobRef.New()),
+            new JobResultMissingException(7, JobRef.New()),
         ];
 
     [Theory]

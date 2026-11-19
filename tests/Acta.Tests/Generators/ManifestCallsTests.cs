@@ -128,6 +128,121 @@ public class ManifestCallsTests
     }
 
     [Fact]
+    public void An_optional_result_is_carried_as_the_type_it_holds_with_no_diagnostic()
+    {
+        // An optional result is declared on the handler and read with TryGetValue; the typed surface stays non-nullable.
+        var result = RunGenerator(
+            """
+            #nullable enable
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Acta;
+            namespace GenTests;
+
+            public sealed record Customer(string Name);
+            public sealed record FindCustomer(int Id);
+            public sealed record CountOrders(int CustomerId);
+
+            public static class Handler
+            {
+                [Job("find-customer")]
+                public static Task<Customer?> Find(FindCustomer query, CancellationToken ct) => Task.FromResult<Customer?>(null);
+
+                [Job("count-orders")]
+                public static Task<int?> Count(CountOrders query, CancellationToken ct) => Task.FromResult<int?>(null);
+            }
+
+            public static class Usage
+            {
+                public static async Task Use(IJobs jobs)
+                {
+                    JobHandle<Customer> customer = await jobs.EnqueueAsync(GenTestsJobs.FindCustomer(new FindCustomer(1)));
+                    JobOutcome<int> orders = await jobs.CallAsync(GenTestsJobs.CountOrders(new CountOrders(1)));
+                }
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var manifest = Manifest(result);
+        Assert.Contains("JobCall<global::GenTests.FindCustomer, global::GenTests.Customer> FindCustomer(", manifest);
+        Assert.Contains("JobCall<global::GenTests.CountOrders, int> CountOrders(", manifest);
+        Assert.Contains("ResultType: typeof(int),", manifest);
+        Assert.DoesNotContain("int?", manifest, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("ValueTask<int?>", "new ValueTask<int?>((int?)null)", "int")]
+    [InlineData("int?", "null", "int")]
+    [InlineData("Task<Point?>", "Task.FromResult<Point?>(null)", "global::GenTests.Point")]
+    public void A_nullable_value_type_result_is_carried_as_its_value_type(string declared, string body, string carried)
+    {
+        // Every shape a handler declares a nullable value-type result in is carried as the value type.
+        var result = RunGenerator(
+            $$"""
+            #nullable enable
+            using System.Threading.Tasks;
+            using Acta;
+            namespace GenTests;
+
+            public readonly record struct Point(int X, int Y);
+            public sealed record Locate(int Id);
+
+            public static class Handler
+            {
+                [Job("locate")]
+                public static {{declared}} Run(Locate query) => {{body}};
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var manifest = Manifest(result);
+        Assert.Contains($"JobCall<global::GenTests.Locate, {carried}> Locate(", manifest);
+        Assert.Contains($"ResultType: typeof({carried}),", manifest);
+        Assert.Contains($"serializer.Serialize<{carried}>(({carried})value!)", manifest);
+    }
+
+    [Fact]
+    public void A_nullable_data_less_result_collapses_to_no_result()
+    {
+        // A nullable data-less struct is carried as the struct, which, carrying no information, collapses to no result as
+        // the non-nullable declaration does: the job stores none and its call has no result type.
+        var result = RunGenerator(
+            """
+            #nullable enable
+            using System.Threading.Tasks;
+            using Acta;
+            namespace GenTests;
+
+            public readonly record struct Acked;
+            public sealed record Acknowledge(int Id);
+
+            public static class Handler
+            {
+                [Job("acknowledge")]
+                public static Task<Acked?> Run(Acknowledge request) => Task.FromResult<Acked?>(null);
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var manifest = Manifest(result);
+        Assert.Contains("public static global::Acta.JobCall<global::GenTests.Acknowledge> Acknowledge(", manifest);
+        Assert.Contains("ResultType: null,", manifest);
+        Assert.Contains("SerializeResult: null", manifest);
+    }
+
+    [Fact]
     public void A_schedule_on_a_job_taking_several_parameters_errors_ACTA0123()
     {
         var result = RunGenerator(

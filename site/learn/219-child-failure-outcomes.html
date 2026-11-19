@@ -153,7 +153,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// The handler inspects MapOutcome.Failed and returns a partial result; the parent lands Succeeded.</span>
 Console.WriteLine(<span class="s">&quot;--- scenario 1: map with one failing item, soft handling ---&quot;</span>);
 <span class="k">var</span> mapOutcome = <span class="k">await</span> jobs.CallAsync(ChildFailureOutcomesJobs.RunMapSoft());
-Console.WriteLine(<span class="s">$&quot;parent: {mapOutcome.Status}, report: {mapOutcome.Value!.Summary}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;parent: {mapOutcome.Status}, report: {mapOutcome.ValueOrThrow().Summary}&quot;</span>);
 
 <span class="c">// --- Scenario 2: WaitChildrenAsync, ThrowIfAnyFailed escalation ---</span>
 <span class="c">// The handler calls ThrowIfAnyFailed after a child fails; ChildGroupException fails the parent at once,</span>

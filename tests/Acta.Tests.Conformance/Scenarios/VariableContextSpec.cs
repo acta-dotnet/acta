@@ -16,6 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 [Deploys(
     "job-variable-corrupt-reader",
     "job-variable-lifecycle",
+    "job-variable-null-next-execution",
     "job-variable-persistence",
     "job-variable-race",
     "job-variable-roundtrip",
@@ -38,7 +39,11 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal("fallback", result.DefaultValue);
         Assert.Equal(-1, result.DefaultIntAbsent);
         Assert.True(result.RequiredAbsentValueTypeThrew);
-        Assert.Equal("Job variable 'never.set' does not exist.", result.RequiredAbsentMessage);
+        Assert.Equal(
+            $"Job {enqueued.JobRef} ('job-variable-lifecycle') has no variable 'never.set'. "
+                + "GetVariableOrDefaultAsync reads a variable that may not exist.",
+            result.RequiredAbsentMessage
+        );
         Assert.True(result.ExistsAfterSet);
         Assert.Equal("done", result.RequiredValue);
 
@@ -145,8 +150,8 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(0, row.Version);
     }
 
-    [Fact(DisplayName = "Validation rejects invalid names, nulls and invalid payloads")]
-    public async Task Variable_validation_rejects_invalid_names_nulls_and_invalid_payloads()
+    [Fact(DisplayName = "Validation rejects invalid names, invalid payloads and a null factory, and a null set removes the variable")]
+    public async Task Variable_validation_rejects_invalid_names_payloads_and_a_null_factory_and_a_null_set_removes()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-validation", JobPayload.None), ct);
@@ -161,8 +166,28 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.True(result.UnregisteredPayloadRejected);
         Assert.True(result.JsonNullPayloadRejected);
         Assert.Equal(0, result.EmptyBytesLength);
-        Assert.True(result.NullSetRejected);
+        Assert.True(result.NullSetRemoved);
+        Assert.True(result.JsonNullSetRemoved);
+        Assert.True(result.NullSetOverNothingStoresNone);
         Assert.True(result.NullFactoryRejected);
+    }
+
+    [Fact(DisplayName = "A variable set to null stays absent in the next execution")]
+    public async Task A_variable_set_to_null_stays_absent_in_the_next_execution()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "job-variable-null-next-execution", JobPayload.None),
+            ct
+        );
+
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Null(await ReadVariableRowAsync(enqueued.JobId, "stage", ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "proceed", JobPayload.None, ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        Assert.True(await Jobs.GetResultAsync<bool>(enqueued, ct));
+        Assert.Null(await Jobs.GetVariableOrDefaultAsync<string>(enqueued, "stage", ct));
     }
 
     [Fact(DisplayName = "Concurrent get-or-set stores one value and every caller observes the winner")]

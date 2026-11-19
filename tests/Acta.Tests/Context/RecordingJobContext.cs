@@ -118,7 +118,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
 
     private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
     {
-        _variables[name] = value;
+        _variables[name] = value ?? throw new ArgumentNullException(nameof(value));
         return Task.CompletedTask;
     }
 

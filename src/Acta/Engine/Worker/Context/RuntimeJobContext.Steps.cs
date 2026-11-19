@@ -53,7 +53,7 @@ internal sealed partial class RuntimeJobContext
         {
             case StartJobStepOutcomeCode.ReplaySuccess:
                 RecordStep(name, "reused");
-                return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result!) : default!;
+                return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result) : default!;
             case StartJobStepOutcomeCode.Failed:
                 throw new StepFailedException(name, start.FailureMessage);
             case StartJobStepOutcomeCode.Interrupted:
@@ -105,15 +105,13 @@ internal sealed partial class RuntimeJobContext
             throw await RecordFailureAsync(name, start.Version, ex, ct);
         }
 
-        // The body has run. A result that cannot be recorded fails the step for good rather than the attempt, whose retry
-        // would run the body again. The step is left started, so an at-most-once body is not run by a restart either.
+        // The body has run, and a null result, or one whose JSON is null, stores none. A result that cannot be recorded fails
+        // the step for good rather than the attempt, whose retry would run the body again. The step is left started, so an
+        // at-most-once body is not run by a restart either.
         JobPayload payload;
         try
         {
-            payload =
-                !storeResult ? JobPayload.None
-                : value is null ? throw Unrecorded("it returned null for a non-null result type", cause: null)
-                : JsonSerializer().Serialize(value);
+            payload = !storeResult || value is null ? JobPayload.None : JsonSerializer().Serialize(value);
         }
         catch (Exception ex)
             when (ex is not (JobControlException or StepFailedException)
@@ -121,6 +119,11 @@ internal sealed partial class RuntimeJobContext
             )
         {
             throw Unrecorded($"it could not be serialized: {ex.Message.TrimEnd('.')}", ex);
+        }
+
+        if (payload.IsJsonNull)
+        {
+            payload = JobPayload.None;
         }
 
         var size = payload.Data.Length;
@@ -141,7 +144,7 @@ internal sealed partial class RuntimeJobContext
                 name,
                 Succeeded: true,
                 payload.Format.Id,
-                storeResult ? payload.Data.ToArray() : null,
+                payload.IsNone ? null : payload.Data.ToArray(),
                 FailureMessage: null,
                 start.Version
             ),
@@ -188,12 +191,20 @@ internal sealed partial class RuntimeJobContext
         return new StepFailedException(name, message, cause);
     }
 
-    /// <summary>A replayed step's stored result; a serializer that cannot read it throws to the attempt as a contract mismatch.</summary>
+    /// <summary>
+    /// A replayed step's stored result; a serializer that cannot read it throws to the attempt as a contract mismatch. A step
+    /// that returned null stored none and replays as null, which a non-nullable value type cannot hold.
+    /// </summary>
     [DebuggerDisableUserUnhandledExceptions]
-    private TResult DeserializeStepResult<TResult>(string name, byte resultFormatId, byte[] result)
+    private TResult DeserializeStepResult<TResult>(string name, byte resultFormatId, byte[]? result)
     {
         try
         {
+            if (result is null)
+            {
+                return default(TResult) is null ? default! : throw new InvalidOperationException($"Step '{name}' stored no result.");
+            }
+
             var serializer = _serializers.Resolve(resultFormatId);
             var payload = JobPayload.Trusted(serializer.Format, result);
             return serializer.Deserialize<TResult>(payload)!;

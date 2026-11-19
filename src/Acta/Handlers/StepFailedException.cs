@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Thrown from <c>ctx.RunStepAsync</c> when a step fails for good: an <c>AtMostOnce</c> body threw, so its row is terminal
 /// <c>Failed</c> and the body is not invoked again, or any step's body finished and its result could not be recorded
-/// (null, not serializable, too large to store), which leaves the step started. An ordinary exception, not a control
+/// (not serializable, too large to store), which leaves the step started. An ordinary exception, not a control
 /// signal: left uncaught it fails the job at once (<c>non-retryable-exception</c>), since a retry would throw again or
 /// run a finished body twice, or a handler catches it to run compensation and continue. A replay of a failed step
 /// re-throws at once, until an operator restart clears it. Carries the step name and the failure.

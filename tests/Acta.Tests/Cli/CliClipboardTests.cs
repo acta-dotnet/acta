@@ -656,7 +656,7 @@ public class CliRunnerClipboardTests
         public ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<T?> GetStepResultOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default) =>
+        public ValueTask<TResult?> GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>

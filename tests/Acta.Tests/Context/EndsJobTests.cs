@@ -17,6 +17,7 @@ public sealed class EndsJobTests
             new JobFailedException(7, JobRef.New(), JobStatusCode.Failed),
             new ChildGroupException([]),
             new JobWaitTimeoutException(7, JobRef.New()),
+            new JobResultMissingException(7, JobRef.New()),
         ];
 
     public static TheoryData<Exception> NeverEndTheJob =>

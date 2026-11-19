@@ -27,7 +27,7 @@ var outcome = await jobs.CallAsync(
     MapWaitChildrenJobs.ProcessPhoto(new ProcessPhoto("asset-42", "https://example.com/photos/asset-42/original.jpg"))
 );
 
-var result = outcome.Value!;
+var result = outcome.ValueOrThrow();
 Console.WriteLine($"photo {result.AssetId}: {result.RenditionsReady} renditions ready, published={result.Published}");
 
 await host.StopAsync();

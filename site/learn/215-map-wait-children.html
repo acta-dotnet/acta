@@ -147,7 +147,7 @@ builder.Services.UseActa(j =&gt;
     MapWaitChildrenJobs.ProcessPhoto(<span class="k">new</span> ProcessPhoto(<span class="s">&quot;asset-42&quot;</span>, <span class="s">&quot;https://example.com/photos/asset-42/original.jpg&quot;</span>))
 );
 
-<span class="k">var</span> result = outcome.Value!;
+<span class="k">var</span> result = outcome.ValueOrThrow();
 Console.WriteLine(<span class="s">$&quot;photo {result.AssetId}: {result.RenditionsReady} renditions ready, published={result.Published}&quot;</span>);
 
 <span class="k">await</span> host.StopAsync();

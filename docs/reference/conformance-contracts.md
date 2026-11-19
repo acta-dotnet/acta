@@ -1002,7 +1002,7 @@
   - A value-type result is not found until the job stores one, and a stored zero is found
   - Typed enqueue applies the deduplication key and a repeat deduplicates onto one row
   - A delayed job is not claimable before due but runs once due
-  - A handler returning a null result fails the job and stores no result
+  - A handler returning null succeeds and stores no result
   - CallAsync enqueues, waits for completion and returns the typed result
   - A typed wait on a job whose definition produces no result throws
   - CallAsync reads the result of the execution it saw succeed, never an earlier one
@@ -2029,6 +2029,23 @@
   - For a lookup that matches no job the raw read answers null, the typed Try read not found, and the typed Get read throws, saying no job matches
   - After a successful run the raw read answers the stored payload and both typed reads the deserialized result
 
+### Null stores nothing, and a typed outcome answers a success with no value
+- **Contract:** A handler returning null stores no result, and a typed wait, call, child call or map answers that success with no value.
+- **Guarantees:**
+  - A typed wait on a job that returned null answers Succeeded with no value, for a reference and a value type
+  - A typed CallAsync on a job that returned null answers Succeeded with no value
+  - A handler result whose JSON is null stores nothing, as a null result does
+  - A job declared with a nullable value-type result reads as that type made nullable, with a value and without
+  - A typed wait on a job of a result-less definition this process does not register answers Succeeded with no value
+  - A typed child call on a child that returned null answers Succeeded with no value
+  - ValueOrThrow on a child's success with no value fails the parent for good, its budget untouched
+  - A child restarted after its success retries the parent, whose retry reads the value the child's next execution stored
+  - A latch that names no execution answers what the child holds now: its value after a rerun, or no value
+  - A success with no value of a child of another definition is refused as a stored result of another type is
+  - A typed map answers a child that returned null as a success with no value and keeps its siblings' results
+  - A bounded typed signal wait tells a raise that carried a value, a default one included, from a raise without one
+  - A success read by a latch that names no execution is the child's only while a second read finds it at that execution
+
 ## Retention
 
 ### Projector skip variables survive the alert window
@@ -2708,7 +2725,7 @@
 ### A result that cannot be recorded never runs its body again
 - **Contract:** A finished body whose result cannot be recorded fails its job for good instead of running again, and an at-most-once step stays unrun through a restart.
 - **Guarantees:**
-  - A step whose result is null or unserializable fails the job for good and is not run again
+  - A step whose result is unserializable fails the job for good and is not run again
   - A handler can catch the failure of a step whose result was not recorded and compensate
   - An at-most-once step whose result cannot be recorded never runs again, a restart of its job included
   - A handler whose result cannot be serialized fails the job for good on that attempt
@@ -2730,6 +2747,15 @@
 - **Guarantees:**
   - Restarting a job whose step failed runs the step body again
   - Re-entering a failed step throws StepFailedException without invoking the body
+
+### A step that returns null is done with no result and replays as null
+- **Contract:** A step whose body returns null records no result and replays as null without its body, which a non-nullable value type refuses.
+- **Guarantees:**
+  - A step that returned null records no result and replays as null without running its body again
+  - A step whose result's JSON is null records no result and replays as null
+  - An at-most-once step that returned null is done, and a restart replays it rather than finding it interrupted
+  - A null step replays as null after a restart, and runs again after the job resets its state
+  - A step that returned null and is replayed as a non-nullable value type fails the job for good as a contract mismatch
 
 ### RunStepAsync runs once, replays results, and runs again on the job's retry
 - **Contract:** A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure is final.
@@ -2876,7 +2902,8 @@
   - Variables are inspectable as text with plain SQL over the checkpoints table
   - Set is last-writer-wins and increments the version
   - Get-or-set preserves the existing row, runs the factory once and does not bump the version
-  - Validation rejects invalid names, nulls and invalid payloads
+  - Validation rejects invalid names, invalid payloads and a null factory, and a null set removes the variable
+  - A variable set to null stays absent in the next execution
   - Concurrent get-or-set stores one value and every caller observes the winner
   - Variables round-trip common JSON value shapes including large values
   - A corrupted JSON variable read fails instead of falling back

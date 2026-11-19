@@ -119,10 +119,9 @@ internal static class JobRunAndWait
             : JobOutcome.Landed(snapshot.JobId, snapshot.JobRef, snapshot.Status);
 
     /// <summary>
-    /// The outcome, with the result stored by the execution the wait saw succeed, or null when that success is no longer
-    /// the job's: an operator restart clears the stored result, so a read that finds none checks the job again, and a job
-    /// that has moved on is waited for again, or answers TimedOut with its status now once the budget is
-    /// <paramref name="spent"/>. A success that is still the job's and stored none throws.
+    /// The outcome, with the success of the execution the wait saw succeed, or null when that success is no longer the
+    /// job's: a job that has moved on is waited for again, or answers TimedOut with its status now once the budget is
+    /// <paramref name="spent"/>.
     /// </summary>
     private static async ValueTask<JobOutcome<TResult>?> OutcomeAsync<TResult>(
         IJobs jobs,
@@ -140,27 +139,69 @@ internal static class JobRunAndWait
             return JobOutcome<TResult>.Expired(snapshot.JobId, snapshot.JobRef, snapshot.Status);
         }
 
-        switch (snapshot.Status)
+        if (snapshot.Status != JobStatusCode.Succeeded)
         {
-            case JobStatusCode.Succeeded:
-                if (await getJobResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct) is { } result)
-                {
-                    return JobOutcome<TResult>.Landed(snapshot.JobId, snapshot.JobRef, routing.DecodeResult<TResult>(result)!);
-                }
-
-                var now = await jobs.GetAsync(JobLookup.ById(snapshot.JobId), ct) ?? throw Vanished(snapshot.JobRef);
-                if (now.Status != JobStatusCode.Succeeded || now.ExecutionNumber != snapshot.ExecutionNumber)
-                {
-                    return spent ? JobOutcome<TResult>.Expired(now.JobId, now.JobRef, now.Status) : null;
-                }
-
-                throw new InvalidOperationException(
-                    $"Job {snapshot.JobRef} ('{snapshot.JobName}') succeeded but stored no result: it is result-less, so wait "
-                        + "on it without a result type."
-                );
-            default:
-                return JobOutcome<TResult>.Landed(snapshot.JobId, snapshot.JobRef, snapshot.Status);
+            return JobOutcome<TResult>.Landed(snapshot.JobId, snapshot.JobRef, snapshot.Status);
         }
+
+        var (success, now) = await SuccessAsync<TResult>(
+            jobs,
+            routing,
+            getJobResult,
+            snapshot.JobId,
+            snapshot.JobRef,
+            snapshot.ExecutionNumber,
+            ct
+        );
+        return success
+            ?? (
+                now is null ? throw Vanished(snapshot.JobRef)
+                : spent ? JobOutcome<TResult>.Expired(now.JobId, now.JobRef, now.Status)
+                : null
+            );
+    }
+
+    /// <summary>
+    /// The success of the job's execution <paramref name="executionNumber"/>, or of the one it holds now when null: the
+    /// result that execution stored, or no value when it stored none and a second read finds the job still Succeeded at
+    /// it. Each result read follows a read that saw the success, since a restart or a later execution clears the result.
+    /// Null, beside the job as last read (null when it is gone), when the job no longer holds that success.
+    /// </summary>
+    internal static async ValueTask<(JobOutcome<TResult>? Success, GetJobResponse? Now)> SuccessAsync<TResult>(
+        IJobs jobs,
+        JobRequestRouting routing,
+        GetJobResultHandler getJobResult,
+        long jobId,
+        JobRef jobRef,
+        long? executionNumber,
+        CancellationToken ct
+    )
+        where TResult : notnull
+    {
+        if (executionNumber is null)
+        {
+            var first = await jobs.GetAsync(JobLookup.ById(jobId), ct);
+            if (first is not { Status: JobStatusCode.Succeeded })
+            {
+                return (null, first);
+            }
+            executionNumber = first.ExecutionNumber;
+        }
+
+        if (routing.TryDecodeResult<TResult>(await getJobResult.ReadAsync(jobId, executionNumber, ct)) is (true, { } value))
+        {
+            return (JobOutcome<TResult>.Landed(jobId, jobRef, value), null);
+        }
+
+        var now = await jobs.GetAsync(JobLookup.ById(jobId), ct);
+        if (now is not { Status: JobStatusCode.Succeeded } || now.ExecutionNumber != executionNumber)
+        {
+            return (null, now);
+        }
+
+        // A success with no value passes the result-type check a stored result passes when it decodes.
+        routing.EnsureResultType<TResult>(now.JobNamespace, now.JobName);
+        return (JobOutcome<TResult>.Empty(jobId, jobRef, now.JobName), now);
     }
 
     private static JobExecutionOptions Validated(JobExecutionOptions? options)

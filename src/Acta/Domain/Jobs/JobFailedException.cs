@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown by <c>JobOutcome.ThrowIfFailed</c> / <c>JobOutcome&lt;T&gt;.ValueOrThrow()</c> when the Job
+/// Thrown by <c>JobOutcome.ThrowIfFailed</c> / <c>JobOutcome&lt;TResult&gt;.ValueOrThrow()</c> when the Job
 /// terminated as <c>Failed</c> or <c>Cancelled</c>. Carries the <see cref="JobId"/>, the public
 /// <see cref="JobRef"/>, and <see cref="TerminalStatus"/>; a failed child's own message is in the exception's message,
 /// and every cause lives in the Job's event timeline.

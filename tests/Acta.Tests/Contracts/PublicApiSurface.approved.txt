@@ -1186,10 +1186,10 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.ResumeJobResponse> ResumeAsync(Acta.JobLookup job, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateJobInputResponse> UpdateInputAsync(Acta.JobLookup job, Acta.JobPayload input, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<T?> GetStepResultOrDefaultAsync<T>(Acta.JobLookup job, System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<T?> GetVariableOrDefaultAsync<T>(Acta.JobLookup job, System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TInput> GetInputAsync<TInput>(Acta.JobLookup job, System.Threading.CancellationToken ct = default) where TInput : notnull
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default) where TResult : notnull
+    System.Threading.Tasks.ValueTask<TResult?> GetStepResultOrDefaultAsync<TResult>(Acta.JobLookup job, System.String name, System.Threading.CancellationToken ct = default)
 interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.GetOverviewResponse> GetOverviewAsync(Acta.GetOverviewQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListEventsResponse> ListEventsAsync(Acta.ListEventsQuery query, System.Threading.CancellationToken ct = default)
@@ -1328,7 +1328,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task RunWithLockAsync(System.String key, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task> action, System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SetProgressAsync<T>(T value, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SetVariableAsync(System.String name, Acta.JobPayload payload, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task SetVariableAsync<T>(System.String name, T value, System.Threading.CancellationToken ct = default) where T : notnull
+    System.Threading.Tasks.Task SetVariableAsync<T>(System.String name, T value, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SleepAsync(System.String name, System.TimeSpan delay, System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SleepUntilAsync(System.String name, System.DateTimeOffset resumeAtUtc, System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.Threading.CancellationToken ct = default)
@@ -1538,11 +1538,11 @@ class Acta.JobOutcome
     System.Int64 JobId { get; }
     System.String? FailureMessage { get; }
     System.Void ThrowIfFailed()
-sealed class Acta.JobOutcome<T> : Acta.JobOutcome where T : notnull
-    System.Boolean Succeeded { get; }
-    System.Boolean TryGetValue(out T value)
-    T ValueOrThrow()
-    T? Value { get; }
+sealed class Acta.JobOutcome<TResult> : Acta.JobOutcome where TResult : notnull
+    System.Boolean HasValue { get; }
+    System.Boolean TryGetValue(out TResult value)
+    TResult ValueOrThrow()
+    TResult? Value { get; }
 struct Acta.JobPayload
     Acta.JobPayloadFormat Format { get; }
     System.Boolean IsEmpty { get; }
@@ -1628,6 +1628,10 @@ sealed class Acta.JobRequestBuilder
     Acta.JobRequestBuilder Tags(params Acta.TagInput[] tags)
     Acta.JobRequestBuilder TenantName(System.String tenantName, System.Boolean overrideParent = false)
     static Acta.JobRequestBuilder Create(System.String jobNamespace, System.String jobName)
+sealed class Acta.JobResultMissingException : Acta.ActaException
+    .ctor(System.Int64 jobId, Acta.JobRef jobRef)
+    Acta.JobRef JobRef { get; }
+    System.Int64 JobId { get; }
 enum Acta.JobStatusCode : System.Byte
     Blocked = 15
     Cancelled = 220
@@ -2169,18 +2173,17 @@ sealed class Acta.LockAcquisitionTimeoutException : Acta.ActaException
     System.String Key { get; }
     System.TimeSpan Timeout { get; }
 record Acta.MapItemOutcome<TKey> where TKey : notnull
-    .ctor(TKey Key, Acta.JobOutcome Outcome)
-    Acta.JobOutcome Outcome { get;init; }
-    TKey Key { get;init; }
+    Acta.JobOutcome Outcome { get; }
+    System.Void Deconstruct(out TKey key, out Acta.JobOutcome outcome)
+    TKey Key { get; }
     protected .ctor(Acta.MapItemOutcome<TKey> original)
 sealed record Acta.MapItemOutcome<TKey, TResult> : Acta.MapItemOutcome<TKey> where TKey : notnull where TResult : notnull
     Acta.JobOutcome<TResult> Outcome { get; }
 record Acta.MapOutcome<TKey> where TKey : notnull
-    .ctor(System.Collections.Generic.IReadOnlyList<Acta.MapItemOutcome<TKey>> Items)
     System.Boolean Succeeded { get; }
     System.Boolean TimedOut { get; }
     System.Collections.Generic.IReadOnlyList<Acta.MapItemOutcome<TKey>> Failed { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.MapItemOutcome<TKey>> Items { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.MapItemOutcome<TKey>> Items { get; }
     System.Void ThrowIfAnyFailed()
     protected .ctor(Acta.MapOutcome<TKey> original)
 sealed record Acta.MapOutcome<TKey, TResult> : Acta.MapOutcome<TKey> where TKey : notnull where TResult : notnull
@@ -2578,8 +2581,11 @@ sealed record Acta.SignalWaitOutcome
     System.Boolean TimedOut { get; }
     System.Void ThrowIfTimedOut()
 sealed record Acta.SignalWaitOutcome<T>
+    System.Boolean HasValue { get; }
     System.Boolean Received { get; }
     System.Boolean TimedOut { get; }
+    System.Boolean TryGetValue(out T value)
+    System.Void ThrowIfTimedOut()
     T? Value { get; }
     T? ValueOrThrow()
 sealed class Acta.SignalWaitTimeoutException : Acta.ActaException

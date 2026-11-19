@@ -42,7 +42,7 @@ public sealed class GetJobResultSpec : ActaRuntimeTestBase<ConformanceFixture, J
             await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct)
         );
         Assert.Contains(enqueued.JobRef.ToString(), none.Message, StringComparison.Ordinal);
-        Assert.Contains("is Ready and has stored no result", none.Message, StringComparison.Ordinal);
+        Assert.Contains("is Ready and has no result", none.Message, StringComparison.Ordinal);
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await enqueued.GetResultAsync<AddNumbersResult>(ct));
     }
 

@@ -81,9 +81,9 @@ public interface IJobs
 
     /// <summary>
     /// <see cref="WaitAsync(JobLookup, TimeSpan?, CancellationToken)"/>, and on success the result stored by the execution the
-    /// wait saw succeed, read as <typeparamref name="TResult"/>; a success that stored none throws, and so does a job whose
-    /// definition, as this process registers it, produces a result other than <typeparamref name="TResult"/>, whatever its
-    /// outcome. A job of a definition this process does not register is decoded without that check.
+    /// wait saw succeed, read as <typeparamref name="TResult"/>; a success that stored none answers with no value. A job whose
+    /// definition, as this process registers it, produces a result other than <typeparamref name="TResult"/> throws, whatever
+    /// its outcome; a job of a definition this process does not register is decoded without that check.
     /// </summary>
     ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
         where TResult : notnull;
@@ -258,7 +258,7 @@ public interface IJobs
 
     /// <summary>
     /// Fetch the result payload the job identified by <paramref name="job"/> stored, or <c>null</c> when it
-    /// holds none (still running, failed, restarted, or a handler with no return value). A job keeps one result: a
+    /// holds none (still running, failed, restarted, or a handler that declares no result or returned null). A job keeps one result: a
     /// recurring job's successful occurrence replaces the last one, and every claim and restart clears it.
     /// Non-blocking point-in-time read: it does not wait for completion. To await the answer, use
     /// <see cref="WaitAsync{TResult}"/>.
@@ -296,13 +296,13 @@ public interface IJobs
     ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default);
 
     /// <summary>
-    /// The result the job's step <paramref name="name"/> recorded, read as <typeparamref name="T"/> the way the step's replay
+    /// The result the job's step <paramref name="name"/> recorded, read as <typeparamref name="TResult"/> the way the step's replay
     /// reads it: <c>await jobs.GetStepResultOrDefaultAsync&lt;Receipt&gt;(jobRef, "charge-card", ct)</c>. Answers
     /// <c>default</c> until the step has succeeded with a result, and when no job matches, so read <c>int?</c> to tell a
     /// recorded 0 from none. The name is canonicalized as inside the job, and a malformed name or one under <c>sys.</c>
     /// throws <see cref="ArgumentException"/>. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<T?> GetStepResultOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default);
+    ValueTask<TResult?> GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct = default);
 
     /// <summary>
     /// One page of the steps recorded for <see cref="ListJobStepsQuery.Job"/>, most recently started first (two that
@@ -314,7 +314,7 @@ public interface IJobs
     /// <summary>
     /// The job's stored result read as <typeparamref name="TResult"/>, for a caller that expects one. Throws
     /// <see cref="InvalidOperationException"/>, naming the job and its status, when the job has stored none or no job
-    /// matches; <see cref="TryGetResultAsync{TResult}"/> reads a result that may not exist yet, and states the rest.
+    /// matches; <see cref="TryGetResultAsync{TResult}"/> reads a result that may not exist, and states the rest.
     /// It reads and does not wait: <see cref="WaitAsync{TResult}"/> follows a job to its result.
     /// </summary>
     async ValueTask<TResult> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default)
@@ -329,8 +329,8 @@ public interface IJobs
         // Read only to say why: the job's status, or that no job matches.
         throw new InvalidOperationException(
             await GetAsync(job, ct) is { } snapshot
-                ? $"Job {snapshot.JobRef} ('{snapshot.JobName}') is {snapshot.Status} and has stored no result. "
-                    + "TryGetResultAsync reads a result that may not exist yet."
+                ? $"Job {snapshot.JobRef} ('{snapshot.JobName}') is {snapshot.Status} and has no result. "
+                    + "TryGetResultAsync reads a result that may not exist."
                 : "No job matches the lookup, so there is no result to read."
         );
     }

@@ -70,54 +70,78 @@ public class JobOutcome
 }
 
 /// <summary>
-/// A <see cref="JobOutcome"/> with the job's typed <typeparamref name="T"/> result on <c>Succeeded</c>, from a typed wait
+/// A <see cref="JobOutcome"/> with the job's typed <typeparamref name="TResult"/> result, from a typed wait
 /// (<see cref="IJobs.WaitAsync{TResult}"/>, <see cref="IJobs.CallAsync{TInput, TResult}(JobCall{TInput, TResult}, JobExecutionOptions, CancellationToken)"/>)
-/// or a typed <c>CallChildAsync</c>.
+/// or a typed <c>CallChildAsync</c>. A success need not carry one: a handler declared with an optional result, such as
+/// <c>Task&lt;Customer?&gt;</c>, that returns null stores none. <see cref="TryGetValue"/> reads an optional result.
 /// </summary>
-public sealed class JobOutcome<T> : JobOutcome
-    where T : notnull
+public sealed class JobOutcome<TResult> : JobOutcome
+    where TResult : notnull
 {
-    private JobOutcome(long jobId, JobRef jobRef, JobStatusCode status, bool timedOut, T? value, string? failureMessage = null)
+    private readonly bool _hasValue;
+
+    /// <summary>The job's name, which only a success that stored no result carries, for the exception it throws.</summary>
+    private readonly string? _jobName;
+
+    private JobOutcome(
+        long jobId,
+        JobRef jobRef,
+        JobStatusCode status,
+        bool timedOut,
+        bool hasValue,
+        TResult? value,
+        string? jobName = null,
+        string? failureMessage = null
+    )
         : base(jobId, jobRef, status, timedOut, failureMessage)
     {
+        _hasValue = hasValue;
         Value = value;
+        _jobName = jobName;
     }
 
-    public T? Value { get; }
+    /// <summary>The result on a success that stored one; <c>default</c> otherwise, a success that stored none included.</summary>
+    public TResult? Value { get; }
 
-    /// <inheritdoc cref="JobOutcome.Succeeded"/>
-    [MemberNotNullWhen(true, nameof(Value))]
-    public new bool Succeeded => base.Succeeded;
+    /// <summary>True when the job succeeded and stored a result, as <see cref="TryGetValue"/> answers.</summary>
+    public bool HasValue => TryGetValue(out _);
 
-    /// <summary>True + sets <paramref name="value"/> on <see cref="JobOutcome.Succeeded"/>; false otherwise.</summary>
-    public bool TryGetValue(out T value)
+    /// <summary>
+    /// True and sets <paramref name="value"/> when the job succeeded and stored a result; false otherwise, for a success that
+    /// stored none too.
+    /// </summary>
+    public bool TryGetValue([MaybeNullWhen(false)] out TResult value)
     {
-        if (Succeeded && Value is not null)
+        if (_hasValue && Value is { } stored)
         {
-            value = Value;
+            value = stored;
             return true;
         }
-        value = default!;
+        value = default;
         return false;
     }
 
     /// <summary>
-    /// Returns <see cref="Value"/> on success; throws <c>JobFailedException</c> on terminal failure /
-    /// cancellation, <see cref="JobWaitTimeoutException"/> on wait timeout, <c>InvalidOperationException</c> on
-    /// success-with-null-value (framework bug indicator).
+    /// The result on a success that stored one. Throws <see cref="JobFailedException"/> on a terminal failure or
+    /// cancellation, <see cref="JobWaitTimeoutException"/> on a wait timeout, and <see cref="JobResultMissingException"/>
+    /// on a success that stored none. Each fails a handler that leaves it uncaught at once, since a replay reads the same.
     /// </summary>
-    public T ValueOrThrow()
+    public TResult ValueOrThrow()
     {
         ThrowIfFailed();
-        return Value ?? throw new InvalidOperationException($"Job {JobRef} succeeded but the result Value is null.");
+        return TryGetValue(out var value) ? value : throw new JobResultMissingException(JobId, JobRef, _jobName);
     }
 
-    internal static JobOutcome<T> Landed(long jobId, JobRef jobRef, T value) =>
-        new(jobId, jobRef, JobStatusCode.Succeeded, timedOut: false, value);
+    internal static JobOutcome<TResult> Landed(long jobId, JobRef jobRef, TResult value) =>
+        new(jobId, jobRef, JobStatusCode.Succeeded, timedOut: false, hasValue: true, value);
 
-    internal static new JobOutcome<T> Landed(long jobId, JobRef jobRef, JobStatusCode status, string? failureMessage = null) =>
-        new(jobId, jobRef, LandedStatus(status), timedOut: false, value: default, failureMessage);
+    /// <summary>A success that stored no result, naming the job as <see cref="ValueOrThrow"/> reports it.</summary>
+    internal static JobOutcome<TResult> Empty(long jobId, JobRef jobRef, string jobName) =>
+        new(jobId, jobRef, JobStatusCode.Succeeded, timedOut: false, hasValue: false, value: default, jobName);
 
-    internal static new JobOutcome<T> Expired(long jobId, JobRef jobRef, JobStatusCode status) =>
-        new(jobId, jobRef, status, timedOut: true, value: default);
+    internal static new JobOutcome<TResult> Landed(long jobId, JobRef jobRef, JobStatusCode status, string? failureMessage = null) =>
+        new(jobId, jobRef, LandedStatus(status), timedOut: false, hasValue: false, value: default, failureMessage: failureMessage);
+
+    internal static new JobOutcome<TResult> Expired(long jobId, JobRef jobRef, JobStatusCode status) =>
+        new(jobId, jobRef, status, timedOut: true, hasValue: false, value: default);
 }

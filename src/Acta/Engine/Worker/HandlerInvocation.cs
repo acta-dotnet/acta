@@ -161,28 +161,20 @@ internal sealed class HandlerInvocation(
         return chain();
     }
 
-    /// <summary>The attempt's success, with its result recorded; a result that cannot be recorded throws to InvokeAsync.</summary>
+    /// <summary>
+    /// The attempt's success, with its result recorded. A null result, or one whose JSON is null, stores none, as a handler
+    /// without a result does; a result that cannot be recorded throws to InvokeAsync.
+    /// </summary>
     [DebuggerDisableUserUnhandledExceptions]
     private ExecutionCompletion Succeeded(JobDescriptor descriptor, JobHandlerOutput invocation, RuntimeJobContext jobContext)
     {
         var succeeded = new ExecutionCompletion(CompletionKind.Succeeded);
-        if (!invocation.HasResult)
-        {
-            return succeeded;
-        }
-
-        // Null contract: a payload value is never null. A handler returning null from Task<T> is a
-        // bug, surfaced loudly as Failed; "no result" is expressed by a Task/void handler, not by
-        // returning null. The handler has run, so the failure is not retried.
-        if (invocation.Result is null)
-        {
-            throw new ResultNotRecordedException(
-                "The handler returned null for a non-null result type. Acta results cannot be null: "
-                    + "use Task for no result, or wrap optional data in a non-null object."
-            );
-        }
-
-        if (descriptor.ResultPayloadFormat is not { } resultFormat || descriptor.SerializeResult is not { } serializeResult)
+        if (
+            !invocation.HasResult
+            || invocation.Result is null
+            || descriptor.ResultPayloadFormat is not { } resultFormat
+            || descriptor.SerializeResult is not { } serializeResult
+        )
         {
             return succeeded;
         }
@@ -198,6 +190,11 @@ internal sealed class HandlerInvocation(
             )
         {
             throw new ResultNotRecordedException($"The handler's result could not be serialized: {ex.Message}", ex);
+        }
+
+        if (payload.IsJsonNull)
+        {
+            return succeeded;
         }
 
         var size = payload.Data.Length;

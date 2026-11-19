@@ -194,6 +194,13 @@ internal static class JobSignatureReader
         List<DiagnosticRecord> diagnostics
     )
     {
+        // An optional result is declared on the handler and carried as the type it holds: Task<int?> as int, as Task<Customer?>
+        // is carried as Customer. A null return stores no result, and the typed surface takes no nullable type argument.
+        if (resultType is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } optional)
+        {
+            resultType = optional.TypeArguments[0];
+        }
+
         var resultName = TypeFullName(resultType);
 
         // MediatR.Unit collapses to no-result regardless of declared shape.

@@ -24,6 +24,9 @@ public readonly struct JobPayload
 
     public bool IsEmpty => Data.IsEmpty;
 
+    /// <summary>A json payload whose one value is <c>null</c>, which Acta never stores: null stores nothing.</summary>
+    internal bool IsJsonNull => Format.Id == JobPayloadFormat.Json.Id && Data.Span.Trim(" \t\r\n"u8).SequenceEqual("null"u8);
+
     /// <summary>"No payload" sentinel, equivalent to <c>default(JobPayload)</c>.</summary>
     public static JobPayload None => default;
 

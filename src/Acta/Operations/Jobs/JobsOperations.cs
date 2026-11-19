@@ -153,11 +153,23 @@ internal sealed class JobsOperations(
         getJobResult.HandleAsync(new GetJobResultQuery(job), ct);
 
     public async ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
-        await getJobResult.ReadAsync(job, ct) is { } row ? (true, routing.DecodeResult<TResult>(row)) : (false, default);
+        routing.TryDecodeResult<TResult>(await getJobResult.ReadAsync(job, ct));
 
     /// <summary>The result <paramref name="executionNumber"/> stored, or the latest execution's when null, read as <typeparamref name="TResult"/>.</summary>
     internal async Task<(bool Stored, TResult? Value)> ReadResultAsync<TResult>(long jobId, long? executionNumber, CancellationToken ct) =>
-        await getJobResult.ReadAsync(jobId, executionNumber, ct) is { } row ? (true, routing.DecodeResult<TResult>(row)) : (false, default);
+        routing.TryDecodeResult<TResult>(await getJobResult.ReadAsync(jobId, executionNumber, ct));
+
+    /// <summary>
+    /// The success of the job's execution <paramref name="executionNumber"/>, or of its current one when null, with the
+    /// result it stored or none, beside the job as last read; no success when the job has moved on since.
+    /// </summary>
+    internal ValueTask<(JobOutcome<TResult>? Success, GetJobResponse? Now)> ReadSuccessAsync<TResult>(
+        long jobId,
+        JobRef jobRef,
+        long? executionNumber,
+        CancellationToken ct
+    )
+        where TResult : notnull => JobRunAndWait.SuccessAsync<TResult>(this, routing, getJobResult, jobId, jobRef, executionNumber, ct);
 
     public ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
         listJobCheckpoints.HandleAsync(query, ct);
@@ -174,9 +186,9 @@ internal sealed class JobsOperations(
             ? routing.Decode<T>(variable.Value)
             : default;
 
-    public async ValueTask<T?> GetStepResultOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default) =>
+    public async ValueTask<TResult?> GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct = default) =>
         await getJobStepResultOrDefault.HandleAsync(new GetJobStepResultOrDefaultQuery(job, name), ct) is { } step
-            ? routing.Decode<T>(step.Value)
+            ? routing.Decode<TResult>(step.Value)
             : default;
 
     public ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default) =>

@@ -23,7 +23,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // Compare 601-fan-out, where the children are fire-and-forget and nothing merges.
 var outcome = await jobs.CallAsync(FanOutJoinJobs.AddNumbers(new AddNumbers([new(1, 250), new(251, 500), new(501, 750), new(751, 1000)])));
 
-Console.WriteLine($"sum 1..1000 = {outcome.Value!.Total}");
+Console.WriteLine($"sum 1..1000 = {outcome.ValueOrThrow().Total}");
 
 await host.StopAsync();
 

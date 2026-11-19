@@ -23,19 +23,23 @@ public abstract partial class JobContext
     private protected abstract Task SetProgressCoreAsync<T>(T value, CancellationToken ct);
 
     /// <summary>
-    /// Set a durable per-job variable to a non-null JSON value. Last write wins.
+    /// Set a durable per-job variable to a JSON value. Last write wins, and null removes the variable: null stores nothing.
     /// <para>
     /// Use this rather than a field or a static: a job can be resumed by a different process, so
     /// state that must survive a retry or a crash belongs in the ledger, not in memory.
     /// </para>
     /// </summary>
     public async Task SetVariableAsync<T>(string name, T value, CancellationToken ct = default)
-        where T : notnull
     {
         name = ValidateUserVariableName(name);
-        ArgumentNullException.ThrowIfNull(value);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        if (value is null)
+        {
+            await DeleteVariableCoreAsync(name, linked.Token);
+            return;
+        }
+
         await SetVariableCoreAsync(name, value, linked.Token);
     }
 
@@ -55,7 +59,7 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Get a durable per-job variable, or <c>null</c> when the variable is absent.
+    /// Get a durable per-job variable, or <c>default</c> when the variable is absent.
     /// </summary>
     public async Task<T?> GetVariableOrDefaultAsync<T>(string name, CancellationToken ct = default)
     {
@@ -89,7 +93,11 @@ public abstract partial class JobContext
         name = ValidateUserVariableName(name);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var (found, value) = await TryGetVariableCoreAsync<T>(name, linked.Token);
-        return found ? value! : throw new InvalidOperationException($"Job variable '{name}' does not exist.");
+        return found
+            ? value!
+            : throw new InvalidOperationException(
+                $"Job {JobRef} ('{JobName}') has no variable '{name}'. GetVariableOrDefaultAsync reads a variable that may not exist."
+            );
     }
 
     /// <summary>
@@ -146,8 +154,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Subclass sink: set a user variable using the default JSON format.
     /// </summary>
-    private protected abstract Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
-        where T : notnull;
+    private protected abstract Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: set a user variable using an exact payload.

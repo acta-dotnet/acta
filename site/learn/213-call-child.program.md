@@ -33,7 +33,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var outcome = await jobs.CallAsync(CallChildJobs.PublishEpisode(new PublishEpisode("ep-42", "raw/ep-42.mov")));
-Console.WriteLine($"published: {outcome.Value}");
+Console.WriteLine($"published: {outcome.ValueOrThrow()}");
 
 await host.StopAsync();
 

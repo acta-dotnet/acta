@@ -119,7 +119,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> outcome = <span class="k">await</span> jobs.CallAsync(CallChildJobs.PublishEpisode(<span class="k">new</span> PublishEpisode(<span class="s">&quot;ep-42&quot;</span>, <span class="s">&quot;raw/ep-42.mov&quot;</span>)));
-Console.WriteLine(<span class="s">$&quot;published: {outcome.Value}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;published: {outcome.ValueOrThrow()}&quot;</span>);
 
 <span class="k">await</span> host.StopAsync();
 

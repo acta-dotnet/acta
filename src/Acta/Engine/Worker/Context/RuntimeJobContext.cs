@@ -138,7 +138,7 @@ internal sealed partial class RuntimeJobContext(
     private protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct)
     {
         var payload = JsonSerializer().Serialize(value);
-        RejectTopLevelJsonNull(payload);
+        RejectJsonNull(payload, "Progress", nameof(value));
         EnsureInlineSize("progress", payload);
         return FencedAsync(() =>
             CheckpointAccess.SetAsync(_executionStore, Fence, CheckpointKindCode.Progress, ProgressVariableName, payload, ct)
@@ -148,7 +148,12 @@ internal sealed partial class RuntimeJobContext(
     private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
     {
         var payload = JsonSerializer().Serialize(value);
-        RejectTopLevelJsonNull(payload);
+        if (payload.IsJsonNull)
+        {
+            // A value whose JSON is null removes the variable, as a null value does.
+            return DeleteVariableCoreAsync(name, ct);
+        }
+
         EnsureInlineSize($"variable '{name}'", payload);
         return FencedAsync(() => CheckpointAccess.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
     }
@@ -156,7 +161,7 @@ internal sealed partial class RuntimeJobContext(
     private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct)
     {
         ValidatePayloadFormat(payload);
-        RejectTopLevelJsonNull(payload);
+        RejectJsonNull(payload, "Variable payload", nameof(payload));
         EnsureInlineSize($"variable '{name}'", payload);
         return FencedAsync(() => CheckpointAccess.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
     }
@@ -181,10 +186,17 @@ internal sealed partial class RuntimeJobContext(
             return Deserialize<T>(existing);
         }
 
-        var value = await valueFactory(ct)
-            ?? throw new InvalidOperationException("Variable factory returned null. Use DeleteVariableAsync to clear a variable.");
-        var payload = JsonSerializer().Serialize(value);
-        RejectTopLevelJsonNull(payload);
+        var value = await valueFactory(ct);
+        var payload = value is null ? JobPayload.None : JsonSerializer().Serialize(value);
+        if (payload.IsNone || payload.IsJsonNull)
+        {
+            throw new InvalidOperationException(
+                $"Job {JobRef} ('{JobName}'): the factory of variable '{name}' returned null, and null stores nothing. To "
+                    + "record that work ran and returned nothing, run it as a step: a step whose body returns null is "
+                    + "recorded as done with no result."
+            );
+        }
+
         EnsureInlineSize($"variable '{name}'", payload);
         var stored = await FencedAsync(() =>
             CheckpointAccess.GetOrSetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct)
@@ -422,6 +434,16 @@ internal sealed partial class RuntimeJobContext(
     )
         where TResult : default => _jobOperations.ReadResultAsync<TResult>(childJobId, executionNumber, ct);
 
+    private protected override async Task<(JobOutcome<TResult>? Success, string? JobName)> ReadChildSuccessCoreAsync<TResult>(
+        EnqueueJobResponse child,
+        long? executionNumber,
+        CancellationToken ct
+    )
+    {
+        var (success, now) = await _jobOperations.ReadSuccessAsync<TResult>(child.JobId, child.JobRef, executionNumber, ct);
+        return (success, now?.JobName);
+    }
+
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default
     {
@@ -499,33 +521,12 @@ internal sealed partial class RuntimeJobContext(
         }
     }
 
-    private static void RejectTopLevelJsonNull(JobPayload payload)
+    /// <summary>Refuses a JSON null where a value is required: a raw variable payload and progress.</summary>
+    private static void RejectJsonNull(JobPayload payload, string subject, string paramName)
     {
-        if (payload.Format.Id != JobPayloadFormat.Json.Id)
+        if (payload.IsJsonNull)
         {
-            return;
-        }
-
-        var span = payload.Data.Span;
-        var start = 0;
-        var end = span.Length - 1;
-        while (start <= end && char.IsWhiteSpace((char)span[start]))
-        {
-            start++;
-        }
-        while (end >= start && char.IsWhiteSpace((char)span[end]))
-        {
-            end--;
-        }
-        if (
-            end - start == 3
-            && span[start] == (byte)'n'
-            && span[start + 1] == (byte)'u'
-            && span[start + 2] == (byte)'l'
-            && span[start + 3] == (byte)'l'
-        )
-        {
-            throw new ArgumentException("Variable payload cannot be a top-level JSON null.", nameof(payload));
+            throw new ArgumentException($"{subject} cannot be a top-level JSON null.", paramName);
         }
     }
 }

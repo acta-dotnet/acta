@@ -179,9 +179,9 @@ A step retries through its job: a body that throws fails the attempt, the job's 
 `Backoff` retry it (by default 15 attempts, backing off from a minute to a day, about 4.4 days in all), and
 the retry replays the steps that succeeded and runs this one again. A wait
 inside a step body works: the resume runs the body up to the wait, which returns what it has, and
-charges nothing. A step with a result returns a value: a body that returns null fails the job for
-good, since a retry would run the body again, and a result past `MaxInlinePayloadBytes` is stored
-with a warning, up to 16 MiB; a step with nothing to return takes a body that returns no value.
+charges nothing. A step with a result returns a value: a body that returns null is recorded with no
+result, and a replay answers null without running it again; a result past `MaxInlinePayloadBytes` is
+stored with a warning, up to 16 MiB; a step with nothing to return takes a body that returns no value.
 
 Every exception Acta has no reason to call final is retried, an `ArgumentException` or a validation
 error included. Declare the types that can never succeed once, in `UseActa`:
@@ -272,7 +272,7 @@ would record success with the refusal in it, and a restart would never send agai
 | Instead of | Do | Because |
 | --- | --- | --- |
 | static/instance fields for progress | `SetVariableAsync` / `GetVariableOrDefaultAsync` | fields die with the process; variables are rows |
-| computing a value fixed once (a quote, a snapshot) in a bare line | `await ctx.GetOrSetVariableAsync("quote", ct => ..., ct)` after the step that produced it | the first stored value stays; a bare line recomputes on every re-entry |
+| computing a value fixed once (a quote, a snapshot) in a bare line | `await ctx.GetOrSetVariableAsync("quote", ct => ..., ct)` after the step that produced it, with a factory that returns a value: null stores nothing | the first stored value stays; a bare line recomputes on every re-entry |
 | `Task.Delay` or `Thread.Sleep` | `await ctx.SleepAsync("cool-down", delay, ct: ct)` | delays hold a worker; durable sleep frees it and survives deploys |
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
@@ -291,8 +291,8 @@ job. `await ctx.WaitSignalAsync("shipped", ct)` parks until the raise, and
 raised without one. A wait that can time out answers an outcome instead:
 `var r = await ctx.WaitSignalAsync<Shipped>("shipped", TimeSpan.FromDays(14), ct);` returns a
 `SignalWaitOutcome<T>`, so branch on `r.TimedOut` and read `r.Value`, or call `r.ValueOrThrow()`
-(untyped: `r.ThrowIfTimedOut()`) to fail the job at once when the deadline passed; it answers null for a raise that
-carried no value. An outcome left
+(or `r.ThrowIfTimedOut()`, on either outcome) to fail the job at once when the deadline passed; it answers null for a raise that
+carried no value, and `r.HasValue`, like `r.TryGetValue(out var shipped)`, is true only for a raise that carried one. An outcome left
 unread lets the handler carry on past the deadline. The raising side is
 `await jobs.RaiseSignalAsync(jobRef, "shipped", new Shipped(trackingId), ct)` on `IJobs`, and an
 `actor:` argument before the token names who raised it. It answers an `Action` (a `ControlAction`) and the job's `Status` after the call,
@@ -344,7 +344,7 @@ until the job ends or the wait times out; a handler's wait parks the job and hol
 | To | Call | Answers |
 | --- | --- | --- |
 | call one child | `await ctx.CallChildAsync("email", new SendEmail(orderId), ct)` | `JobOutcome`: `Succeeded`, `Status`, `ThrowIfFailed()` |
-| call one child and read its result | `await ctx.CallChildAsync("label", ShippingJobs.PrintLabel(new PrintLabel(orderId)), ct)` | `JobOutcome<TResult>`: also `Value`, `ValueOrThrow()` |
+| call one child and read its result | `await ctx.CallChildAsync("label", ShippingJobs.PrintLabel(new PrintLabel(orderId)), ct)` | `JobOutcome<TResult>`: also `Value`, `HasValue`, `TryGetValue`, `ValueOrThrow()` |
 | call one child per item of a list | `await ctx.MapAsync("reserve", skus, itemKey: sku => sku, child: sku => new ReserveStock(orderId, sku), ct)` | `MapOutcome<TKey>`: `Items` (each `Key` and `Outcome`), `Failed`, `ThrowIfAnyFailed()` |
 | read a result per item of a list | `await ctx.MapAsync("label", orders, o => o.Id, o => ShippingJobs.PrintLabel(new PrintLabel(o.Id)), ct)` | `MapOutcome<TKey, TResult>`: each item's `Outcome.ValueOrThrow()` |
 | call different jobs at once, or enqueue now and wait later | `var email = await ctx.EnqueueChildAsync("email", new SendEmail(orderId), ct);` and `sms` alike, then `await ctx.WaitChildrenAsync([email, sms], ct)` | `ChildrenWaitOutcome`: `Children`, `Succeeded`, `Failed`, `ThrowIfAnyFailed()` |

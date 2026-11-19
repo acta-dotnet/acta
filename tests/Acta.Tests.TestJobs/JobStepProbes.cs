@@ -3,6 +3,9 @@ using Acta;
 
 namespace TestJobs;
 
+/// <summary>Input of the null-step reset probe: whether it resets its state as its last action.</summary>
+public sealed record NullStepReset(bool ResetAtEnd);
+
 /// <summary>
 /// Durable-step probe handlers. Handlers restart from the top on every attempt; step bodies
 /// count their invocations in <see cref="BodyInvocations"/> (keyed by job id, unique per run) so a
@@ -132,15 +135,103 @@ public static class JobStepProbes
         );
     }
 
-    // A body that finishes and returns what cannot be recorded: null, or what cannot be serialized. The default budget has
-    // attempts left, so the body running once proves the failure is not retried.
-    [Job("job-step-null-result")]
-    public static Task<string> StepNullResult(JobContext ctx, CancellationToken ct) =>
-        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), ct);
+    // A body that returns null records no result, and the execution after the raise replays it as null without its body.
+    [Job("job-step-null-replay")]
+    public static async Task<bool> StepNullReplay(JobContext ctx, CancellationToken ct)
+    {
+        var found = await ctx.RunStepAsync(
+            "lookup",
+            _ =>
+            {
+                RecordInvocation(ctx.JobId);
+                return Task.FromResult<string?>(null);
+            },
+            ct
+        );
+        await ctx.WaitSignalAsync("proceed", ct);
+        return found is null;
+    }
 
-    [Job("job-step-null-result-at-most-once")]
-    public static Task<string> StepNullResultAtMostOnce(JobContext ctx, CancellationToken ct) =>
-        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), options => options.AtMostOnce(), ct);
+    // The first execution records null as an int?, and the execution after the raise reads the step as an int, as a step
+    // whose result type changed while the job was in flight does. The exception that ends the job is kept by its type name
+    // in the variable "ended-by".
+    [Job("job-step-null-value-type")]
+    public static async Task StepNullValueType(JobContext ctx, CancellationToken ct)
+    {
+        if (ctx.ExecutionNumber == 1)
+        {
+            await ctx.RunStepAsync("count", _ => Task.FromResult<int?>(null), ct);
+            await ctx.WaitSignalAsync("proceed", ct);
+        }
+
+        try
+        {
+            await ctx.RunStepAsync("count", _ => Task.FromResult(1), ct);
+        }
+        catch (Exception ex) when (ctx.EndsJob(ex))
+        {
+            await ctx.SetVariableAsync("ended-by", ex.GetType().Name, ct);
+            throw;
+        }
+    }
+
+    // An at-most-once body that returns null: the step is recorded done, so a restart replays it rather than finding it
+    // interrupted.
+    [Job("job-step-null-at-most-once")]
+    public static async Task<bool> StepNullAtMostOnce(JobContext ctx, CancellationToken ct) =>
+        await ctx.RunStepAsync(
+            "lookup",
+            _ =>
+            {
+                RecordInvocation(ctx.JobId);
+                return Task.FromResult<string?>(null);
+            },
+            options => options.AtMostOnce(),
+            ct
+        )
+            is null;
+
+    // A body that returns null, in a job that, when its input says so, resets its state as its last action.
+    [Job("job-step-null-reset")]
+    public static async Task<bool> StepNullReset(NullStepReset input, JobContext ctx, CancellationToken ct)
+    {
+        var found = await ctx.RunStepAsync(
+            "lookup",
+            _ =>
+            {
+                RecordInvocation(ctx.JobId);
+                return Task.FromResult<string?>(null);
+            },
+            ct
+        );
+        if (input.ResetAtEnd)
+        {
+            await ctx.ResetStateAsync(ct);
+        }
+        return found is null;
+    }
+
+    // A body that returns a non-null value whose JSON is null records no result, and the replay after the raise reads null.
+    [Job("job-step-json-null")]
+    public static async Task<bool> StepJsonNull(JobContext ctx, CancellationToken ct)
+    {
+        var value = await ctx.RunStepAsync(
+            "lookup",
+            _ =>
+            {
+                RecordInvocation(ctx.JobId);
+                return Task.FromResult<JsonNullValue?>(new JsonNullValue(1));
+            },
+            ct
+        );
+        await ctx.WaitSignalAsync("proceed", ct);
+        return value is null;
+    }
+
+    // The unserializable body below in an at-most-once step, which a restart then finds interrupted.
+    [Job("job-step-unserializable-result-at-most-once")]
+    public static Task StepUnserializableResultAtMostOnce(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, new UnserializableOutput(ctx.JobId)), options => options.AtMostOnce(), ct);
 
     /// <summary>The length of the text the oversize step probes return: past the small cap a spec sets.</summary>
     public const int OversizeStepResultLength = 4096;
@@ -165,17 +256,19 @@ public static class JobStepProbes
         return Task.FromResult(PayloadProbes.Text(OversizeStepResultLength));
     }
 
+    // A body that finishes and returns what cannot be serialized. The default budget has attempts left, so the body
+    // running once proves the failure is not retried.
     [Job("job-step-unserializable-result")]
     public static async Task<long> StepUnserializableResult(JobContext ctx, CancellationToken ct) =>
         (await ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, new UnserializableOutput(ctx.JobId)), ct)).Value;
 
     // The compensation idiom of the developer guide, around a step whose result cannot be recorded.
-    [Job("job-step-null-result-compensated")]
-    public static async Task StepNullResultCompensated(JobContext ctx, CancellationToken ct)
+    [Job("job-step-unserializable-result-compensated")]
+    public static async Task StepUnserializableResultCompensated(JobContext ctx, CancellationToken ct)
     {
         try
         {
-            await ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), ct);
+            await ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, new UnserializableOutput(ctx.JobId)), ct);
         }
         catch (Exception ex) when (ctx.EndsJob(ex))
         {

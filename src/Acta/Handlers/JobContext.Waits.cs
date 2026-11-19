@@ -111,7 +111,7 @@ public abstract partial class JobContext
             return SignalWaitOutcome<T>.Expired(name);
         }
 
-        return SignalWaitOutcome<T>.Signalled(name, ReadSignalValue<T>(name, outcome));
+        return SignalWaitOutcome<T>.Signalled(name, outcome.ValueFormatId != 0, ReadSignalValue<T>(name, outcome));
     }
 
     /// <summary>
@@ -140,7 +140,7 @@ public abstract partial class JobContext
         var outcome = await WaitSignalUntilCoreAsync(name, until.UtcDateTime, linked.Token);
         return outcome.TimedOut
             ? SignalWaitOutcome<T>.Expired(name)
-            : SignalWaitOutcome<T>.Signalled(name, ReadSignalValue<T>(name, outcome));
+            : SignalWaitOutcome<T>.Signalled(name, outcome.ValueFormatId != 0, ReadSignalValue<T>(name, outcome));
     }
 
     /// <summary>A raised value read as <typeparamref name="T"/>; one it cannot read fails the job at once, as every attempt reads the same.</summary>
