@@ -15,7 +15,7 @@ internal static class DefinitionsEndpoints
         reads.MapList(
             "/definitions",
             new("listDefinitions", ActaPermissions.Read),
-            "List job definitions.",
+            "List job definitions",
             ActaApiJsonContext.Relaxed.ListDefinitionsResponse,
             static query => new ListDefinitionsQuery(
                 JobNamespace: query.Text("jobNamespace"),
@@ -44,7 +44,7 @@ internal static class DefinitionsEndpoints
         reads.MapDetail(
             "/definitions/{jobNamespace}/{jobName}",
             new("getDefinition", ActaPermissions.Read),
-            "Read one job definition and its effective policy.",
+            "Read one job definition and its effective policy",
             "Definition",
             ActaApiJsonContext.Relaxed.GetDefinitionResponse,
             static (http, call) => call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct)
@@ -53,7 +53,7 @@ internal static class DefinitionsEndpoints
         reads.MapDetail(
             "/definitions/{jobNamespace}/{jobName}/input-template",
             new("getDefinitionInputTemplate", ActaPermissions.Read),
-            "Read a JSON template of the definition's input.",
+            "Read a JSON template of the definition's input",
             "Input template",
             ActaApiJsonContext.Relaxed.GetDefinitionInputTemplateResponse,
             static (http, call) => call.Operations.Definitions.GetInputTemplateAsync(Key(http).Namespace, Key(http).Name, call.Ct)
@@ -62,7 +62,7 @@ internal static class DefinitionsEndpoints
             .MapDetail(
                 "/definitions/{jobNamespace}/{jobName}/performance",
                 new("getDefinitionPerformance", ActaPermissions.Read),
-                "Read how long the definition's executions took and how many failed.",
+                "Read how long the definition's executions took and how many failed",
                 "Definition",
                 ActaApiJsonContext.Relaxed.GetDefinitionPerformanceResponse,
                 static (http, call) =>
@@ -100,7 +100,7 @@ internal static class DefinitionsEndpoints
         controls.MapUpdate(
             "/definitions/{jobNamespace}/{jobName}/overrides",
             new("updateDefinitionOverrides", ActaPermissions.Admin),
-            "Replace the definition's operator policy overrides.",
+            "Replace the definition's operator policy overrides",
             options,
             ActaApiJsonContext.Relaxed.UpdateDefinitionOverridesRequest,
             "Invalid definition overrides.",
@@ -121,7 +121,7 @@ internal static class DefinitionsEndpoints
         controls.MapCommand(
             "/definitions/{jobNamespace}/{jobName}/retire",
             new("retireDefinition", ActaPermissions.Admin),
-            "Retire the definition and cancel its waiting jobs.",
+            "Retire the definition and cancel its waiting jobs",
             options,
             ActaApiJsonContext.Relaxed.RetireDefinitionRequest,
             "Invalid definition key.",

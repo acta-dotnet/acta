@@ -145,8 +145,8 @@ internal static partial class ActaOpenApiDocument
             "jobName" or "scheduleName" or "calendarName" or "tenantName" or "tagName" or "signalName" => NamePattern(
                 NameSyntax.ExtendedMaxLength
             ),
-            "kind" => "^(?:variable|signal|timer|progress|child)$",
-            "name" => "^[-.0-9a-z]{1," + NameSyntax.ExtendedMaxLength.ToString(CultureInfo.InvariantCulture) + "}$",
+            "checkpointKind" => "^(?:variable|signal|timer|progress|child)$",
+            "checkpointName" => "^[-.0-9a-z]{1," + NameSyntax.ExtendedMaxLength.ToString(CultureInfo.InvariantCulture) + "}$",
             _ => throw new InvalidOperationException($"The path parameter {parameter} states no pattern."),
         };
 

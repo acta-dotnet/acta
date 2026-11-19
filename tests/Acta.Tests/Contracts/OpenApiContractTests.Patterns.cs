@@ -78,7 +78,7 @@ public sealed partial class OpenApiContractTests
             ),
             new(
                 "checkpoint kind",
-                ActaOpenApiDocument.PathPattern("kind", false),
+                ActaOpenApiDocument.PathPattern("checkpointKind", false),
                 null,
                 value => Takes(() => RouteKeys.CheckpointKind(value)),
                 // Every code of the family, written out: firing and unspecified are codes no value is served under.
@@ -86,7 +86,7 @@ public sealed partial class OpenApiContractTests
             ),
             new(
                 "checkpoint name",
-                ActaOpenApiDocument.PathPattern("name", false),
+                ActaOpenApiDocument.PathPattern("checkpointName", false),
                 null,
                 value => Takes(() => RouteKeys.CheckpointName(value)),
                 ["approval", "sys.child.7", "-a.", new string('a', 127), new string('a', 128)]
@@ -385,8 +385,8 @@ public sealed partial class OpenApiContractTests
             "jobRef" => value => JobRef.TryParse(value, out _),
             "alertRef" => value => AlertRef.TryParse(value, out _),
             "workerRef" => value => WorkerRef.TryParse(value, out _),
-            "kind" => value => Takes(() => RouteKeys.CheckpointKind(value)),
-            "name" => value => Takes(() => RouteKeys.CheckpointName(value)),
+            "checkpointKind" => value => Takes(() => RouteKeys.CheckpointKind(value)),
+            "checkpointName" => value => Takes(() => RouteKeys.CheckpointName(value)),
             _ => value => Takes(() => NameSyntax.Canonicalize(value, parameter, int.MaxValue)),
         };
 

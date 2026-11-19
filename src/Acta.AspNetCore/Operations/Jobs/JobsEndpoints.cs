@@ -16,7 +16,7 @@ internal static class JobsEndpoints
         reads.MapDetail(
             "/jobs/{jobRef}",
             new("getJob", ActaPermissions.Read),
-            "Read one job.",
+            "Read one job",
             "Job",
             ActaApiJsonContext.Relaxed.GetJobResponse,
             (http, call) => call.Jobs.GetAsync(RouteKeys.Job(http, options), call.Ct)
@@ -29,7 +29,7 @@ internal static class JobsEndpoints
             .MapDetail(
                 "/jobs/by-deduplication-key",
                 new("getJobByDeduplicationKey", ActaPermissions.Read),
-                "Resolve a job by namespace and deduplication key.",
+                "Resolve a job by namespace and deduplication key",
                 "Job",
                 ActaApiJsonContext.Relaxed.GetJobResponse,
                 static (http, call) =>
@@ -70,7 +70,7 @@ internal static class JobsEndpoints
             .MapList(
                 "/jobs/{jobRef}/checkpoints",
                 new("listJobCheckpoints", ActaPermissions.Read),
-                "List one job's checkpoints.",
+                "List one job's checkpoints",
                 ActaApiJsonContext.Relaxed.ListJobCheckpointsResponse,
                 query =>
                     (
@@ -99,7 +99,7 @@ internal static class JobsEndpoints
             .MapList(
                 "/jobs/{jobRef}/steps",
                 new("listJobSteps", ActaPermissions.Read),
-                "List one job's steps, newest first.",
+                "List one job's steps, newest first",
                 ActaApiJsonContext.Relaxed.ListJobStepsResponse,
                 query =>
                     (
@@ -136,7 +136,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/pause",
             new("pauseJob", ActaPermissions.Control),
-            "Pause the job until an operator resumes it.",
+            "Pause the job until an operator resumes it",
             options,
             ActaApiJsonContext.Relaxed.PauseJobRequest,
             "Invalid request.",
@@ -147,7 +147,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/resume",
             new("resumeJob", ActaPermissions.Control),
-            "Resume a paused job.",
+            "Resume a paused job",
             options,
             ActaApiJsonContext.Relaxed.ResumeJobRequest,
             "Invalid request.",
@@ -158,7 +158,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/restart",
             new("restartJob", ActaPermissions.Control),
-            "Restart a job that is not executing.",
+            "Restart a job that is not executing",
             options,
             ActaApiJsonContext.Relaxed.RestartJobRequest,
             "Invalid request.",
@@ -169,7 +169,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/cancel",
             new("cancelJob", ActaPermissions.Control),
-            "Cancel the job.",
+            "Cancel the job",
             options,
             ActaApiJsonContext.Relaxed.CancelJobRequest,
             "Invalid request.",
@@ -180,7 +180,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/purge",
             new("purgeJob", ActaPermissions.Admin),
-            "Delete the job's record from the ledger.",
+            "Delete the job's record from the ledger",
             options,
             ActaApiJsonContext.Relaxed.PurgeJobRequest,
             "Invalid request.",
@@ -191,7 +191,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/reschedule",
             new("rescheduleJob", ActaPermissions.Control),
-            "Move the job's next-run instant, or run it now.",
+            "Move the job's next-run instant, or run it now",
             options,
             ActaApiJsonContext.Relaxed.RescheduleJobRequest,
             "Invalid request.",
@@ -215,7 +215,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/reprioritize",
             new("reprioritizeJob", ActaPermissions.Control),
-            "Change the job's priority.",
+            "Change the job's priority",
             options,
             ActaApiJsonContext.Relaxed.ReprioritizeJobRequest,
             "Invalid request.",

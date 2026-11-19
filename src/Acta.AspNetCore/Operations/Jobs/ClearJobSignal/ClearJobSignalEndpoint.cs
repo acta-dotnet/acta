@@ -41,7 +41,7 @@ internal static class ClearJobSignalEndpoint
                 }
             )
             .WithMetadata(new ActaOperationAttribute("clearJobSignal", ActaPermissions.Control))
-            .WithSummary("Clear a named signal from a finished job, so a restart waits for it again.")
+            .WithSummary("Clear a named signal from a finished job, so a restart waits for it again")
             .Produces<ClearJobSignalResponse>(StatusCodes.Status200OK)
             .Produces<ClearJobSignalResponse>(StatusCodes.Status409Conflict)
             .Produces<ClearJobSignalResponse>(StatusCodes.Status404NotFound)

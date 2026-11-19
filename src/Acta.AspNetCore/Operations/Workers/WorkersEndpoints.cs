@@ -10,7 +10,7 @@ internal static class WorkersEndpoints
         reads.MapList(
             "/workers",
             new("listWorkers", ActaPermissions.Read),
-            "List workers.",
+            "List workers",
             ActaApiJsonContext.Relaxed.ListWorkersResponse,
             static query => new ListWorkersQuery(
                 JobNamespace: query.Text("jobNamespace"),
@@ -35,7 +35,7 @@ internal static class WorkersEndpoints
         reads.MapDetail(
             "/workers/{workerRef}",
             new("getWorker", ActaPermissions.Read),
-            "Read one worker.",
+            "Read one worker",
             "Worker",
             ActaApiJsonContext.Relaxed.GetWorkerResponse,
             static (http, call) => call.Operations.Workers.GetAsync(RouteKeys.Worker(http), call.Ct)

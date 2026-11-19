@@ -15,7 +15,7 @@ internal static class AlertsEndpoints
             .MapList(
                 "/alerts",
                 new("listAlerts", ActaPermissions.Read),
-                "List alerts.",
+                "List alerts",
                 ActaApiJsonContext.Relaxed.ListAlertsResponse,
                 query =>
                     (
@@ -62,7 +62,7 @@ internal static class AlertsEndpoints
         reads.MapDetail(
             "/alerts/{alertRef}",
             new("getAlert", ActaPermissions.Read),
-            "Read one alert.",
+            "Read one alert",
             "Alert",
             ActaApiJsonContext.Relaxed.GetAlertResponse,
             static (http, call) => call.Operations.Alerts.GetAsync(RouteKeys.Alert(http), call.Ct)
@@ -71,7 +71,7 @@ internal static class AlertsEndpoints
         controls.MapCommand(
             "/alerts/{alertRef}/acknowledge",
             new("acknowledgeAlert", ActaPermissions.Control),
-            "Acknowledge the alert: an operator has seen it.",
+            "Acknowledge the alert: an operator has seen it",
             options,
             ActaApiJsonContext.Relaxed.AcknowledgeAlertRequest,
             "Invalid alert command.",
@@ -82,7 +82,7 @@ internal static class AlertsEndpoints
         controls.MapCommand(
             "/alerts/{alertRef}/resolve",
             new("resolveAlert", ActaPermissions.Control),
-            "Resolve the alert: its cause is handled.",
+            "Resolve the alert: its cause is handled",
             options,
             ActaApiJsonContext.Relaxed.ResolveAlertRequest,
             "Invalid alert command.",

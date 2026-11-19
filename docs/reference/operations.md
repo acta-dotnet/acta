@@ -100,7 +100,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `EnqueueJobs` | `IJobs.EnqueueJobsAsync` | · | · | routine | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | · | `ExplainJobCancelReasonSpec`, `ExplainJobSpec` |
 | `GetJob` | `IJobs.GetAsync` | `GET /jobs/{jobRef}` (`getJob`, `acta.read`)<br>`GET /jobs/by-deduplication-key` (`getJobByDeduplicationKey`, `acta.read`) | · | inline | · | `GetJobSpec` |
-| `GetJobCheckpointValue` | `IJobs.GetCheckpointValueAsync` | `GET /jobs/{jobRef}/checkpoints/{kind}/{name}/value` (`getJobCheckpointValue`, `acta.read`) | · | inline | · | `GetJobCheckpointValueSpec` |
+| `GetJobCheckpointValue` | `IJobs.GetCheckpointValueAsync` | `GET /jobs/{jobRef}/checkpoints/{checkpointKind}/{checkpointName}/value` (`getJobCheckpointValue`, `acta.read`) | · | inline | · | `GetJobCheckpointValueSpec` |
 | `GetJobDetail` | · | `GET /jobs/{jobRef}/detail` (`getJobDetail`, `acta.read`) | · | · | · | · |
 | `GetJobId` | `IJobs.GetIdAsync` | · | · | · | · | `GetJobIdSpec` |
 | `GetJobIdByDeduplicationKey` | · | · | · | inline | · | `GetJobIdByDeduplicationKeySpec` |

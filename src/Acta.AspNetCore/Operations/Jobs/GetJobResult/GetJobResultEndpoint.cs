@@ -17,7 +17,7 @@ internal static class GetJobResultEndpoint
                 )
             )
             .WithMetadata(new ActaOperationAttribute("getJobResult", ActaPermissions.Read))
-            .WithSummary("Read the result the job stored as the body.")
+            .WithSummary("Read the result the job stored as the body")
             .ProducesPayload()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)

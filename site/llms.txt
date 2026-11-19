@@ -583,7 +583,7 @@ dotnet run --no-build -v q -- jobs events  <job-ref> --json   # the timeline, ne
 - A `ready` job with a future due instant, or a `suspended` one, is healthy: it is waiting for its
   time or its signal, and `explain` names what it waits for. A caller's wait timeout stops only the
   wait; the job keeps running.
-- The dashboard at `/acta` shows the same job, and `GET /acta/api/v1/jobs/{jobRef}` answers it as JSON; `GET /acta/api/v1/jobs/{jobRef}/detail` answers what the job page shows in one read, its explain included. No read but `/input`, `/result` and `/checkpoints/{kind}/{name}/value` carries a payload's body; the others state its format and size.
+- The dashboard at `/acta` shows the same job, and `GET /acta/api/v1/jobs/{jobRef}` answers it as JSON; `GET /acta/api/v1/jobs/{jobRef}/detail` answers what the job page shows in one read, its explain included. No read but `/input`, `/result` and `/checkpoints/{checkpointKind}/{checkpointName}/value` carries a payload's body; the others state its format and size.
 
 ## Show jobs on your own screen
 

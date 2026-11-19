@@ -7,9 +7,9 @@ using Xunit;
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// GET /jobs/{jobRef}/checkpoints/{kind}/{name}/value serves one checkpoint's value as the body, as the result route serves
-/// a result: JSON as application/json, any other format as bytes with its format header, 204 for a checkpoint that holds
-/// no value or is not there, 404 for an unknown job, and 400 for a kind the family does not hold.
+/// GET /jobs/{jobRef}/checkpoints/{checkpointKind}/{checkpointName}/value serves one checkpoint's value as the body, as
+/// the result route serves a result: JSON as application/json, any other format as bytes with its format header, 204 for
+/// a checkpoint that holds no value or is not there, 404 for an unknown job, and 400 for a kind the family does not hold.
 /// </summary>
 public sealed class JobCheckpointValueEndpointTests
 {
@@ -80,7 +80,7 @@ public sealed class JobCheckpointValueEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-        Assert.Equal("name is not a valid checkpoint name.", doc.RootElement.GetProperty("detail").GetString());
+        Assert.Equal("checkpointName is not a valid checkpoint name.", doc.RootElement.GetProperty("detail").GetString());
         Assert.Equal(0, reads);
     }
 
@@ -165,6 +165,8 @@ public sealed class JobCheckpointValueEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        Assert.Equal("checkpointKind is not a valid checkpoint kind.", doc.RootElement.GetProperty("detail").GetString());
         Assert.Equal(0, reads);
     }
 }

@@ -14,7 +14,7 @@ internal static class GetCalendarDetailEndpoint
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}/detail",
                 new("getCalendarDetail", ActaPermissions.Read),
-                "Read a calendar family with the first page of its versions and of the schedules that name it.",
+                "Read a calendar family with the first page of its versions and of the schedules that name it",
                 "Calendar",
                 ActaApiJsonContext.Relaxed.GetCalendarDetailResponse,
                 (http, call) =>

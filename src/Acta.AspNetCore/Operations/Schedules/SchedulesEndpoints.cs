@@ -13,7 +13,7 @@ internal static class SchedulesEndpoints
         reads.MapList(
             "/schedules",
             new("listSchedules", ActaPermissions.Read),
-            "List recurring schedules; the live ones come next run first.",
+            "List recurring schedules; the live ones come next run first",
             ActaApiJsonContext.Relaxed.ListSchedulesResponse,
             static query => new ListSchedulesQuery(
                 JobNamespace: query.Text("jobNamespace"),
@@ -39,7 +39,7 @@ internal static class SchedulesEndpoints
         reads.MapDetail(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}",
             new("getSchedule", ActaPermissions.Read),
-            "Read one schedule.",
+            "Read one schedule",
             "Schedule",
             ActaApiJsonContext.Relaxed.GetScheduleResponse,
             static (http, call) => call.Operations.Schedules.GetAsync(Key(http), call.Ct)
@@ -48,7 +48,7 @@ internal static class SchedulesEndpoints
             .MapDetail(
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview",
                 new("previewSchedule", ActaPermissions.Read),
-                "Preview a schedule's upcoming fire instants.",
+                "Preview a schedule's upcoming fire instants",
                 "Schedule",
                 ActaApiJsonContext.Relaxed.PreviewScheduleResponse,
                 static (http, call) =>
@@ -74,7 +74,7 @@ internal static class SchedulesEndpoints
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause",
             new("pauseSchedule", ActaPermissions.Control),
-            "Pause a recurring schedule, indefinitely or until an instant.",
+            "Pause a recurring schedule, indefinitely or until an instant",
             options,
             ActaApiJsonContext.Relaxed.PauseScheduleRequest,
             "Invalid schedule request.",
@@ -96,7 +96,7 @@ internal static class SchedulesEndpoints
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume",
             new("resumeSchedule", ActaPermissions.Control),
-            "Resume a paused schedule, reconciled by its misfire policy.",
+            "Resume a paused schedule, reconciled by its misfire policy",
             options,
             ActaApiJsonContext.Relaxed.ResumeScheduleRequest,
             "Invalid schedule request.",
@@ -107,7 +107,7 @@ internal static class SchedulesEndpoints
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger",
             new("triggerSchedule", ActaPermissions.Control),
-            "Fire the schedule now, without moving its cadence.",
+            "Fire the schedule now, without moving its cadence",
             options,
             ActaApiJsonContext.Relaxed.TriggerScheduleRequest,
             "Invalid schedule request.",

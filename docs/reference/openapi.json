@@ -3,6 +3,10 @@
   "info": {
     "title": "Acta API",
     "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, and answers 403 where the host has not enabled controls. A control whose request object is optional acts with its defaults when the request has no body, with or without a JSON content type. A signal raise takes any JSON value instead, and no bytes raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks. Each operation names the permission it needs in x-acta-permission; where the host turns permission checks on, a call with no credential answers 401, and one whose caller lacks the permission answers 403.\n\nA call that changes something must show that it is no cross-site form post, in one of three ways: the header X-Acta-Control: true, a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a bearer token passes without doing anything more; for a call with no body and no bearer token, send the header.",
+    "contact": {
+      "name": "Acta",
+      "url": "https://github.com/acta-dotnet/acta/issues"
+    },
     "license": {
       "name": "Apache License 2.0",
       "identifier": "Apache-2.0"
@@ -21,7 +25,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Add or update one tag on the job.",
+        "summary": "Add or update one tag on the job",
         "description": "Needs the acta.control permission.",
         "operationId": "upsertJobTag",
         "parameters": [
@@ -230,7 +234,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Remove one tag from the job.",
+        "summary": "Remove one tag from the job",
         "description": "Needs the acta.control permission.",
         "operationId": "removeJobTag",
         "parameters": [
@@ -384,7 +388,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Pause the job until an operator resumes it.",
+        "summary": "Pause the job until an operator resumes it",
         "description": "Needs the acta.control permission.",
         "operationId": "pauseJob",
         "parameters": [
@@ -607,7 +611,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Resume a paused job.",
+        "summary": "Resume a paused job",
         "description": "Needs the acta.control permission.",
         "operationId": "resumeJob",
         "parameters": [
@@ -830,7 +834,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Restart a job that is not executing.",
+        "summary": "Restart a job that is not executing",
         "description": "Needs the acta.control permission.",
         "operationId": "restartJob",
         "parameters": [
@@ -1053,7 +1057,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Cancel the job.",
+        "summary": "Cancel the job",
         "description": "Needs the acta.control permission.",
         "operationId": "cancelJob",
         "parameters": [
@@ -1276,7 +1280,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Delete the job's record from the ledger.",
+        "summary": "Delete the job's record from the ledger",
         "description": "Needs the acta.admin permission.",
         "operationId": "purgeJob",
         "parameters": [
@@ -1495,7 +1499,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Move the job's next-run instant, or run it now.",
+        "summary": "Move the job's next-run instant, or run it now",
         "description": "Needs the acta.control permission.",
         "operationId": "rescheduleJob",
         "parameters": [
@@ -1719,7 +1723,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Change the job's priority.",
+        "summary": "Change the job's priority",
         "description": "Needs the acta.control permission.",
         "operationId": "reprioritizeJob",
         "parameters": [
@@ -1944,7 +1948,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Replace the stored input of a job that is not executing.",
+        "summary": "Replace the stored input of a job that is not executing",
         "description": "Needs the acta.control permission.",
         "operationId": "updateJobInput",
         "parameters": [
@@ -2170,7 +2174,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Read the job's stored input as the body.",
+        "summary": "Read the job's stored input as the body",
         "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.\n\nNeeds the acta.read permission.",
         "operationId": "getJobInput",
         "parameters": [
@@ -2327,7 +2331,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Enqueue a job.",
+        "summary": "Enqueue a job",
         "description": "Needs the acta.enqueue permission.",
         "operationId": "enqueueJob",
         "requestBody": {
@@ -2558,7 +2562,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "List jobs, newest first.",
+        "summary": "List jobs, newest first",
         "description": "Needs the acta.read permission.",
         "operationId": "listJobs",
         "parameters": [
@@ -2829,7 +2833,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Raise a named signal on the job, with an optional JSON value.",
+        "summary": "Raise a named signal on the job, with an optional JSON value",
         "description": "Needs the acta.control permission.",
         "operationId": "raiseJobSignal",
         "parameters": [
@@ -3060,7 +3064,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Clear a named signal from a finished job, so a restart waits for it again.",
+        "summary": "Clear a named signal from a finished job, so a restart waits for it again",
         "description": "Needs the acta.control permission.",
         "operationId": "clearJobSignal",
         "parameters": [
@@ -3237,7 +3241,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "Add or update one tag on the namespace.",
+        "summary": "Add or update one tag on the namespace",
         "description": "Needs the acta.admin permission.",
         "operationId": "upsertNamespaceTag",
         "parameters": [
@@ -3446,7 +3450,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "Remove one tag from the namespace.",
+        "summary": "Remove one tag from the namespace",
         "description": "Needs the acta.admin permission.",
         "operationId": "removeNamespaceTag",
         "parameters": [
@@ -3600,7 +3604,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "Suspend the namespace: new work is rejected at enqueue.",
+        "summary": "Suspend the namespace: new work is rejected at enqueue",
         "description": "Needs the acta.admin permission.",
         "operationId": "suspendNamespace",
         "parameters": [
@@ -3801,7 +3805,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "Resume a suspended namespace.",
+        "summary": "Resume a suspended namespace",
         "description": "Needs the acta.admin permission.",
         "operationId": "resumeNamespace",
         "parameters": [
@@ -4002,7 +4006,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "Update the namespace's owner team and description.",
+        "summary": "Update the namespace's owner team and description",
         "description": "Needs the acta.admin permission.",
         "operationId": "updateNamespace",
         "parameters": [
@@ -4222,7 +4226,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "Read one namespace.",
+        "summary": "Read one namespace",
         "description": "Needs the acta.read permission.",
         "operationId": "getNamespace",
         "parameters": [
@@ -4372,7 +4376,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Add or update one tag on the tenant.",
+        "summary": "Add or update one tag on the tenant",
         "description": "Needs the acta.admin permission.",
         "operationId": "upsertTenantTag",
         "parameters": [
@@ -4581,7 +4585,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Remove one tag from the tenant.",
+        "summary": "Remove one tag from the tenant",
         "description": "Needs the acta.admin permission.",
         "operationId": "removeTenantTag",
         "parameters": [
@@ -4735,7 +4739,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Register a tenant, or return the existing one.",
+        "summary": "Register a tenant, or return the existing one",
         "description": "Needs the acta.admin permission.",
         "operationId": "registerTenant",
         "requestBody": {
@@ -4905,7 +4909,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "List tenants.",
+        "summary": "List tenants",
         "description": "Needs the acta.read permission.",
         "operationId": "listTenants",
         "parameters": [
@@ -5088,7 +5092,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Suspend the tenant: new work is rejected at enqueue.",
+        "summary": "Suspend the tenant: new work is rejected at enqueue",
         "description": "Needs the acta.admin permission.",
         "operationId": "suspendTenant",
         "parameters": [
@@ -5289,7 +5293,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Resume a suspended tenant.",
+        "summary": "Resume a suspended tenant",
         "description": "Needs the acta.admin permission.",
         "operationId": "resumeTenant",
         "parameters": [
@@ -5490,7 +5494,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Update the tenant's display name and description.",
+        "summary": "Update the tenant's display name and description",
         "description": "Needs the acta.admin permission.",
         "operationId": "updateTenant",
         "parameters": [
@@ -5710,7 +5714,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Read one tenant.",
+        "summary": "Read one tenant",
         "description": "Needs the acta.read permission.",
         "operationId": "getTenant",
         "parameters": [
@@ -5861,7 +5865,7 @@
         "tags": [
           "Alerts"
         ],
-        "summary": "Acknowledge the alert: an operator has seen it.",
+        "summary": "Acknowledge the alert: an operator has seen it",
         "description": "Needs the acta.control permission.",
         "operationId": "acknowledgeAlert",
         "parameters": [
@@ -6066,7 +6070,7 @@
         "tags": [
           "Alerts"
         ],
-        "summary": "Resolve the alert: its cause is handled.",
+        "summary": "Resolve the alert: its cause is handled",
         "description": "Needs the acta.control permission.",
         "operationId": "resolveAlert",
         "parameters": [
@@ -6271,7 +6275,7 @@
         "tags": [
           "Outbox"
         ],
-        "summary": "Return quarantined outbox rows to pending; the next relay pass applies it.",
+        "summary": "Return quarantined outbox rows to pending; the next relay pass applies it",
         "description": "Needs the acta.control permission.",
         "operationId": "requeueOutbox",
         "parameters": [
@@ -6493,7 +6497,7 @@
         "tags": [
           "Outbox"
         ],
-        "summary": "Delete quarantined outbox rows, keeping the ids as audit evidence.",
+        "summary": "Delete quarantined outbox rows, keeping the ids as audit evidence",
         "description": "Needs the acta.admin permission.",
         "operationId": "discardOutbox",
         "parameters": [
@@ -6716,7 +6720,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Add or update one tag on the definition.",
+        "summary": "Add or update one tag on the definition",
         "description": "Needs the acta.admin permission.",
         "operationId": "upsertDefinitionTag",
         "parameters": [
@@ -6936,7 +6940,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Remove one tag from the definition.",
+        "summary": "Remove one tag from the definition",
         "description": "Needs the acta.admin permission.",
         "operationId": "removeDefinitionTag",
         "parameters": [
@@ -7101,7 +7105,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Replace the definition's operator policy overrides.",
+        "summary": "Replace the definition's operator policy overrides",
         "description": "Needs the acta.admin permission.",
         "operationId": "updateDefinitionOverrides",
         "parameters": [
@@ -7349,7 +7353,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Retire the definition and cancel its waiting jobs.",
+        "summary": "Retire the definition and cancel its waiting jobs",
         "description": "Needs the acta.admin permission.",
         "operationId": "retireDefinition",
         "parameters": [
@@ -7581,7 +7585,7 @@
         "tags": [
           "Schedules"
         ],
-        "summary": "Pause a recurring schedule, indefinitely or until an instant.",
+        "summary": "Pause a recurring schedule, indefinitely or until an instant",
         "description": "Needs the acta.control permission.",
         "operationId": "pauseSchedule",
         "parameters": [
@@ -7832,7 +7836,7 @@
         "tags": [
           "Schedules"
         ],
-        "summary": "Resume a paused schedule, reconciled by its misfire policy.",
+        "summary": "Resume a paused schedule, reconciled by its misfire policy",
         "description": "Needs the acta.control permission.",
         "operationId": "resumeSchedule",
         "parameters": [
@@ -8061,7 +8065,7 @@
         "tags": [
           "Schedules"
         ],
-        "summary": "Fire the schedule now, without moving its cadence.",
+        "summary": "Fire the schedule now, without moving its cadence",
         "description": "Needs the acta.control permission.",
         "operationId": "triggerSchedule",
         "parameters": [
@@ -8314,7 +8318,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Save a calendar definition as the family's next draft version.",
+        "summary": "Save a calendar definition as the family's next draft version",
         "description": "Needs the acta.admin permission.",
         "operationId": "saveCalendarDraft",
         "parameters": [
@@ -8555,7 +8559,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Publish a draft as the family's current version and retime the schedules bound to it.",
+        "summary": "Publish a draft as the family's current version and retime the schedules bound to it",
         "description": "Needs the acta.admin permission.",
         "operationId": "publishCalendar",
         "parameters": [
@@ -8799,7 +8803,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Archive the family's current version.",
+        "summary": "Archive the family's current version",
         "description": "Needs the acta.admin permission.",
         "operationId": "archiveCalendar",
         "parameters": [
@@ -9033,7 +9037,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Read one job.",
+        "summary": "Read one job",
         "description": "Needs the acta.read permission.",
         "operationId": "getJob",
         "parameters": [
@@ -9205,7 +9209,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Resolve a job by namespace and deduplication key.",
+        "summary": "Resolve a job by namespace and deduplication key",
         "description": "Needs the acta.read permission.",
         "operationId": "getJobByDeduplicationKey",
         "parameters": [
@@ -9385,7 +9389,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "List the job's tags.",
+        "summary": "List the job's tags",
         "description": "Needs the acta.read permission.",
         "operationId": "listJobTags",
         "parameters": [
@@ -9566,7 +9570,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Read the result the job stored as the body.",
+        "summary": "Read the result the job stored as the body",
         "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.\n\nNeeds the acta.read permission.",
         "operationId": "getJobResult",
         "parameters": [
@@ -9723,7 +9727,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Read everything the job's page shows, in one answer.",
+        "summary": "Read everything the job's page shows, in one answer",
         "description": "Needs the acta.read permission.",
         "operationId": "getJobDetail",
         "parameters": [
@@ -10036,7 +10040,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "List one job's checkpoints.",
+        "summary": "List one job's checkpoints",
         "description": "Needs the acta.read permission.",
         "operationId": "listJobCheckpoints",
         "parameters": [
@@ -10218,12 +10222,12 @@
         "x-acta-permission": "acta.read"
       }
     },
-    "/v1/jobs/{jobRef}/checkpoints/{kind}/{name}/value": {
+    "/v1/jobs/{jobRef}/checkpoints/{checkpointKind}/{checkpointName}/value": {
       "get": {
         "tags": [
           "Jobs"
         ],
-        "summary": "Read the value one checkpoint of the job holds as the body.",
+        "summary": "Read the value one checkpoint of the job holds as the body",
         "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.\n\nNeeds the acta.read permission.",
         "operationId": "getJobCheckpointValue",
         "parameters": [
@@ -10239,7 +10243,7 @@
             "example": "job_00000000000000000000000000000042"
           },
           {
-            "name": "kind",
+            "name": "checkpointKind",
             "in": "path",
             "description": "The checkpoint's kind as the checkpoint list names it: variable, signal, timer, progress, or child.",
             "required": true,
@@ -10250,7 +10254,7 @@
             "example": "signal"
           },
           {
-            "name": "name",
+            "name": "checkpointName",
             "in": "path",
             "description": "The checkpoint's name exactly as the checkpoint list shows it, sys names included; it is not folded to lowercase.",
             "required": true,
@@ -10402,7 +10406,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "List one job's steps, newest first.",
+        "summary": "List one job's steps, newest first",
         "description": "Needs the acta.read permission.",
         "operationId": "listJobSteps",
         "parameters": [
@@ -10586,7 +10590,7 @@
         "tags": [
           "Workers"
         ],
-        "summary": "List workers.",
+        "summary": "List workers",
         "description": "Needs the acta.read permission.",
         "operationId": "listWorkers",
         "parameters": [
@@ -10765,7 +10769,7 @@
         "tags": [
           "Workers"
         ],
-        "summary": "Read one worker.",
+        "summary": "Read one worker",
         "description": "Needs the acta.read permission.",
         "operationId": "getWorker",
         "parameters": [
@@ -10921,7 +10925,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "List namespaces.",
+        "summary": "List namespaces",
         "description": "Needs the acta.read permission.",
         "operationId": "listNamespaces",
         "parameters": [
@@ -11104,7 +11108,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "List the namespace's tags.",
+        "summary": "List the namespace's tags",
         "description": "Needs the acta.read permission.",
         "operationId": "listNamespaceTags",
         "parameters": [
@@ -11285,7 +11289,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "List the tenant's tags.",
+        "summary": "List the tenant's tags",
         "description": "Needs the acta.read permission.",
         "operationId": "listTenantTags",
         "parameters": [
@@ -11466,7 +11470,7 @@
         "tags": [
           "Alerts"
         ],
-        "summary": "List alerts.",
+        "summary": "List alerts",
         "description": "Needs the acta.read permission.",
         "operationId": "listAlerts",
         "parameters": [
@@ -11699,7 +11703,7 @@
         "tags": [
           "Alerts"
         ],
-        "summary": "Read one alert.",
+        "summary": "Read one alert",
         "description": "Needs the acta.read permission.",
         "operationId": "getAlert",
         "parameters": [
@@ -11859,7 +11863,7 @@
         "tags": [
           "Outbox"
         ],
-        "summary": "List outbox relay sources with backlog and quarantine totals.",
+        "summary": "List outbox relay sources with backlog and quarantine totals",
         "description": "Needs the acta.read permission.",
         "operationId": "listOutboxSources",
         "parameters": [
@@ -12015,7 +12019,7 @@
         "tags": [
           "Outbox"
         ],
-        "summary": "List a relay source's quarantined staging rows.",
+        "summary": "List a relay source's quarantined staging rows",
         "description": "Needs the acta.read permission.",
         "operationId": "listQuarantinedOutbox",
         "parameters": [
@@ -12204,7 +12208,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "List job definitions.",
+        "summary": "List job definitions",
         "description": "Needs the acta.read permission.",
         "operationId": "listDefinitions",
         "parameters": [
@@ -12407,7 +12411,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Read one job definition and its effective policy.",
+        "summary": "Read one job definition and its effective policy",
         "description": "Needs the acta.read permission.",
         "operationId": "getDefinition",
         "parameters": [
@@ -12627,7 +12631,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Read a JSON template of the definition's input.",
+        "summary": "Read a JSON template of the definition's input",
         "description": "Needs the acta.read permission.",
         "operationId": "getDefinitionInputTemplate",
         "parameters": [
@@ -12787,7 +12791,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Read how long the definition's executions took and how many failed.",
+        "summary": "Read how long the definition's executions took and how many failed",
         "description": "Needs the acta.read permission.",
         "operationId": "getDefinitionPerformance",
         "parameters": [
@@ -13036,7 +13040,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "List the definition's tags.",
+        "summary": "List the definition's tags",
         "description": "Needs the acta.read permission.",
         "operationId": "listDefinitionTags",
         "parameters": [
@@ -13228,7 +13232,7 @@
         "tags": [
           "Schedules"
         ],
-        "summary": "List recurring schedules; the live ones come next run first.",
+        "summary": "List recurring schedules; the live ones come next run first",
         "description": "Needs the acta.read permission.",
         "operationId": "listSchedules",
         "parameters": [
@@ -13428,7 +13432,7 @@
         "tags": [
           "Schedules"
         ],
-        "summary": "Read one schedule.",
+        "summary": "Read one schedule",
         "description": "Needs the acta.read permission.",
         "operationId": "getSchedule",
         "parameters": [
@@ -13619,7 +13623,7 @@
         "tags": [
           "Schedules"
         ],
-        "summary": "Preview a schedule's upcoming fire instants.",
+        "summary": "Preview a schedule's upcoming fire instants",
         "description": "Needs the acta.read permission.",
         "operationId": "previewSchedule",
         "parameters": [
@@ -13842,7 +13846,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "List calendar families, the shared ones in sys included.",
+        "summary": "List calendar families, the shared ones in sys included",
         "description": "Needs the acta.read permission.",
         "operationId": "listCalendars",
         "parameters": [
@@ -14034,7 +14038,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Read a calendar family's head: its current and latest versions and one definition.",
+        "summary": "Read a calendar family's head: its current and latest versions and one definition",
         "description": "Needs the acta.read permission.",
         "operationId": "getCalendar",
         "parameters": [
@@ -14226,7 +14230,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Read a calendar family with the first page of its versions and of the schedules that name it.",
+        "summary": "Read a calendar family with the first page of its versions and of the schedules that name it",
         "description": "Needs the acta.read permission.",
         "operationId": "getCalendarDetail",
         "parameters": [
@@ -14460,7 +14464,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "List a calendar family's versions, newest first.",
+        "summary": "List a calendar family's versions, newest first",
         "description": "Needs the acta.read permission.",
         "operationId": "listCalendarVersions",
         "parameters": [
@@ -14664,7 +14668,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "List the schedules naming a calendar family, by path.",
+        "summary": "List the schedules naming a calendar family, by path",
         "description": "Needs the acta.read permission.",
         "operationId": "listCalendarDependents",
         "parameters": [
@@ -14860,7 +14864,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Preview a calendar version beside the current one.",
+        "summary": "Preview a calendar version beside the current one",
         "description": "Needs the acta.read permission.",
         "operationId": "previewCalendar",
         "parameters": [
@@ -15102,7 +15106,7 @@
         "tags": [
           "Events"
         ],
-        "summary": "List events, newest first.",
+        "summary": "List events, newest first",
         "description": "Needs the acta.read permission.",
         "operationId": "listEvents",
         "parameters": [
@@ -15372,7 +15376,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "List one job's event timeline.",
+        "summary": "List one job's event timeline",
         "description": "Needs the acta.read permission.",
         "operationId": "listJobEvents",
         "parameters": [
@@ -15575,7 +15579,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "List a definition's ledger events (its jobs' lineage, not just changes).",
+        "summary": "List a definition's ledger events (its jobs' lineage, not just changes)",
         "description": "Takes no includeTotal: an event count is taken only for one job or one subject, since a wider count is unbounded work.\n\nNeeds the acta.read permission.",
         "operationId": "listDefinitionEvents",
         "parameters": [
@@ -15781,7 +15785,7 @@
         "tags": [
           "Overview"
         ],
-        "summary": "Read the ledger's health-overview counters.",
+        "summary": "Read the ledger's health-overview counters",
         "description": "Needs the acta.read permission.",
         "operationId": "getOverview",
         "parameters": [
@@ -15915,7 +15919,7 @@
         "tags": [
           "Capabilities"
         ],
-        "summary": "Read this host's API capabilities.",
+        "summary": "Read this host's API capabilities",
         "description": "Needs the acta.read permission.",
         "operationId": "getCapabilities",
         "responses": {
@@ -20082,7 +20086,7 @@
               "null",
               "integer"
             ],
-            "description": "The stored value's size in bytes; null when it holds none. The value itself is read from /jobs/{jobRef}/checkpoints/{kind}/{name}/value.",
+            "description": "The stored value's size in bytes; null when it holds none. The value itself is read from /jobs/{jobRef}/checkpoints/{checkpointKind}/{checkpointName}/value.",
             "format": "int64"
           },
           "createdAtUtc": {

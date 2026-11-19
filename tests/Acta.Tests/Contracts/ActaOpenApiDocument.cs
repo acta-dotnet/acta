@@ -43,6 +43,9 @@ internal static partial class ActaOpenApiDocument
     /// <summary>The SPDX identifier of the license in the repository's LICENSE file.</summary>
     public const string LicenseIdentifier = "Apache-2.0";
 
+    /// <summary>Where a client author reports a problem with the API: the repository's issue tracker.</summary>
+    public const string ContactUrl = "https://github.com/acta-dotnet/acta/issues";
+
     // Markers the schema transformer leaves for the document transformer, which alone knows a schema's direction.
     private const string OmittedMarker = "x-acta-omitted-when-null";
     private const string RequiredMarker = "x-acta-json-required";
@@ -222,6 +225,7 @@ internal static partial class ActaOpenApiDocument
                 document.Info.Version = ContractVersion;
                 document.Info.Description = DocumentDescription;
                 document.Info.License = new OpenApiLicense { Name = "Apache License 2.0", Identifier = LicenseIdentifier };
+                document.Info.Contact = new OpenApiContact { Name = "Acta", Url = new Uri(ContactUrl) };
                 return Task.CompletedTask;
             }
         );

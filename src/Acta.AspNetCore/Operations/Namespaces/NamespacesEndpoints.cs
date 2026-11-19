@@ -11,7 +11,7 @@ internal static class NamespacesEndpoints
         reads.MapList(
             "/namespaces",
             new("listNamespaces", ActaPermissions.Read),
-            "List namespaces.",
+            "List namespaces",
             ActaApiJsonContext.Relaxed.ListNamespacesResponse,
             static query => new ListNamespacesQuery(
                 NameContains: query.Text("nameContains"),
@@ -39,7 +39,7 @@ internal static class NamespacesEndpoints
         reads.MapDetail(
             "/namespaces/{jobNamespace}",
             new("getNamespace", ActaPermissions.Read),
-            "Read one namespace.",
+            "Read one namespace",
             "Namespace",
             ActaApiJsonContext.Relaxed.GetNamespaceResponse,
             static async (http, call) =>
@@ -66,7 +66,7 @@ internal static class NamespacesEndpoints
         controls.MapCommand(
             "/namespaces/{jobNamespace}/suspend",
             new("suspendNamespace", ActaPermissions.Admin),
-            "Suspend the namespace: new work is rejected at enqueue.",
+            "Suspend the namespace: new work is rejected at enqueue",
             options,
             ActaApiJsonContext.Relaxed.SuspendNamespaceRequest,
             "Invalid namespace jobNamespace.",
@@ -77,7 +77,7 @@ internal static class NamespacesEndpoints
         controls.MapCommand(
             "/namespaces/{jobNamespace}/resume",
             new("resumeNamespace", ActaPermissions.Admin),
-            "Resume a suspended namespace.",
+            "Resume a suspended namespace",
             options,
             ActaApiJsonContext.Relaxed.ResumeNamespaceRequest,
             "Invalid namespace jobNamespace.",
@@ -89,7 +89,7 @@ internal static class NamespacesEndpoints
         controls.MapUpdate(
             "/namespaces/{jobNamespace}",
             new("updateNamespace", ActaPermissions.Admin),
-            "Update the namespace's owner team and description.",
+            "Update the namespace's owner team and description",
             options,
             ActaApiJsonContext.Relaxed.UpdateNamespaceRequest,
             "Invalid namespace update.",

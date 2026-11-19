@@ -290,8 +290,9 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// The document names the repository's license by its SPDX identifier, which OpenAPI 3.1 takes in place of a URL, and
-    /// says in its introduction that the host supplies the authentication, since it declares no security scheme.
+    /// The document names the repository's license by its SPDX identifier, which OpenAPI 3.1 takes in place of a URL, names
+    /// the issue tracker as its contact, with no email, and says in its introduction that the host supplies the
+    /// authentication, since it declares no security scheme.
     /// </summary>
     [Fact]
     public async Task The_document_names_its_license_and_leaves_authentication_to_the_host()
@@ -303,6 +304,9 @@ public sealed partial class OpenApiContractTests
         Assert.Null(info["license"]!["url"]);
         Assert.Contains("Apache License", license, StringComparison.Ordinal);
         Assert.Contains("Version 2.0", license, StringComparison.Ordinal);
+        Assert.Equal("Acta", info["contact"]!["name"]!.GetValue<string>());
+        Assert.Equal(ActaOpenApiDocument.ContactUrl, info["contact"]!["url"]!.GetValue<string>());
+        Assert.Null(info["contact"]!["email"]);
         Assert.Contains(
             "The document declares no security scheme: the host adds its own authentication",
             info["description"]!.GetValue<string>(),

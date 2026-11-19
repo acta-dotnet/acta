@@ -11,7 +11,7 @@ internal static class TenantsEndpoints
         reads.MapList(
             "/tenants",
             new("listTenants", ActaPermissions.Read),
-            "List tenants.",
+            "List tenants",
             ActaApiJsonContext.Relaxed.ListTenantsResponse,
             static query => new ListTenantsQuery(
                 NameContains: query.Text("nameContains"),
@@ -43,7 +43,7 @@ internal static class TenantsEndpoints
         reads.MapDetail(
             "/tenants/{tenantName}",
             new("getTenant", ActaPermissions.Read),
-            "Read one tenant.",
+            "Read one tenant",
             "Tenant",
             ActaApiJsonContext.Relaxed.GetTenantResponse,
             static async (http, call) =>
@@ -71,7 +71,7 @@ internal static class TenantsEndpoints
         controls.MapCommand(
             "/tenants/{tenantName}/suspend",
             new("suspendTenant", ActaPermissions.Admin),
-            "Suspend the tenant: new work is rejected at enqueue.",
+            "Suspend the tenant: new work is rejected at enqueue",
             options,
             ActaApiJsonContext.Relaxed.SuspendTenantRequest,
             "Invalid tenant name.",
@@ -82,7 +82,7 @@ internal static class TenantsEndpoints
         controls.MapCommand(
             "/tenants/{tenantName}/resume",
             new("resumeTenant", ActaPermissions.Admin),
-            "Resume a suspended tenant.",
+            "Resume a suspended tenant",
             options,
             ActaApiJsonContext.Relaxed.ResumeTenantRequest,
             "Invalid tenant name.",
@@ -94,7 +94,7 @@ internal static class TenantsEndpoints
         controls.MapUpdate(
             "/tenants/{tenantName}",
             new("updateTenant", ActaPermissions.Admin),
-            "Update the tenant's display name and description.",
+            "Update the tenant's display name and description",
             options,
             ActaApiJsonContext.Relaxed.UpdateTenantRequest,
             "Invalid tenant update.",

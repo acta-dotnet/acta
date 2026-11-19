@@ -13,7 +13,7 @@ namespace Acta;
 /// <param name="ValueFormatId">The id of the format the checkpoint's value is stored in: 1 for JSON, 2 for bytes, 128 to 255 for
 /// an application's own; 0 when it holds no value.</param>
 /// <param name="ValueByteLength">The stored value's size in bytes; null when it holds none. The value itself is read from
-/// /jobs/{jobRef}/checkpoints/{kind}/{name}/value.</param>
+/// /jobs/{jobRef}/checkpoints/{checkpointKind}/{checkpointName}/value.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC; any write moves it.</param>
 public sealed record ListJobCheckpointsItem(

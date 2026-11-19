@@ -51,7 +51,10 @@ public sealed partial class OpenApiContractTests
         );
     }
 
-    // Every operation carries a one-line summary, so a reader scanning the document never meets an unexplained action.
+    /// <summary>
+    /// Every operation carries a one-line summary, so a reader scanning the document never meets an unexplained action. A
+    /// summary is a label that tools show in menus and tables, so it ends without a full stop.
+    /// </summary>
     [Fact]
     public async Task Every_operation_carries_a_summary()
     {
@@ -59,9 +62,13 @@ public sealed partial class OpenApiContractTests
         var missing = operations
             .Where(operation => string.IsNullOrWhiteSpace(operation.Value["summary"]?.GetValue<string>()))
             .Select(operation => operation.Key);
+        var stopped = operations
+            .Where(operation => operation.Value["summary"]?.GetValue<string>().TrimEnd().EndsWith('.') == true)
+            .Select(operation => operation.Key);
 
         Assert.True(operations.Count > 60, $"only {operations.Count} operations; the walk is broken.");
         Assert.Empty(missing);
+        Assert.Empty(stopped);
     }
 
     /// <summary>

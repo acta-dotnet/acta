@@ -12,7 +12,8 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// Every operation, schema, property, parameter, response, and tag tells a client author what it is, in wire terms: a
-    /// description that ends with a full stop, runs at most 400 characters, leaks no C#, and is no framework default.
+    /// description that ends with a full stop, runs at most 400 characters, leaks no C#, and is no framework default. An
+    /// operation's summary is held to the same rules but the full stop, since it is a label.
     /// </summary>
     [Fact]
     public async Task Every_schema_property_parameter_response_and_tag_is_described()
@@ -37,6 +38,7 @@ public sealed partial class OpenApiContractTests
         var schemaNames = schemas.Select(schema => schema.Key).ToHashSet(StringComparer.Ordinal);
         var descriptions = new Dictionary<string, string?>(StringComparer.Ordinal);
         var defaults = new HashSet<string>(StringComparer.Ordinal);
+        var summaries = new HashSet<string>(StringComparer.Ordinal);
         var wireNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (name, schema) in schemas)
         {
@@ -65,6 +67,7 @@ public sealed partial class OpenApiContractTests
             {
                 var id = operation!["operationId"]!.GetValue<string>();
                 descriptions[$"{id} summary"] = Text(operation["summary"]);
+                summaries.Add($"{id} summary");
                 descriptions[$"{id} description"] = Text(operation["description"]);
                 foreach (var entry in Elements(operation["parameters"]))
                 {
@@ -99,7 +102,7 @@ public sealed partial class OpenApiContractTests
                 string.IsNullOrWhiteSpace(text) ? "no description"
                 : defaults.Contains(item) ? $"the framework's default '{text}'"
                 : Leak(text, wireNames, schemaNames) is { } leak ? $"leaks C#: '{leak}'"
-                : !text.EndsWith('.') ? "does not end with a full stop"
+                : !text.EndsWith('.') && !summaries.Contains(item) ? "does not end with a full stop"
                 : text.Length > MaxDescriptionLength ? $"{text.Length} characters, more than {MaxDescriptionLength}"
                 : null;
             if (problem is not null)

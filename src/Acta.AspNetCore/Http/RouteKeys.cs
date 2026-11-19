@@ -23,8 +23,9 @@ internal static class RouteKeys
         ["tenantName"] = "The tenant's name.",
         ["tagName"] = "The tag's name, trimmed and lowercased as every tag name is.",
         ["signalName"] = "The signal's name, trimmed and lowercased; sys and the names under it are reserved.",
-        ["kind"] = "The checkpoint's kind as the checkpoint list names it: variable, signal, timer, progress, or child.",
-        ["name"] = "The checkpoint's name exactly as the checkpoint list shows it, sys names included; it is not folded to lowercase.",
+        ["checkpointKind"] = "The checkpoint's kind as the checkpoint list names it: variable, signal, timer, progress, or child.",
+        ["checkpointName"] =
+            "The checkpoint's name exactly as the checkpoint list shows it, sys names included; it is not folded to lowercase.",
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static string Value(HttpContext http, string name) => (string)http.Request.RouteValues[name]!;
@@ -70,7 +71,7 @@ internal static class RouteKeys
             // An unknown code falls through to the same refusal as a known one no value is served under.
         }
 
-        throw new MalformedRouteKeyException("kind is not a valid checkpoint kind.");
+        throw new MalformedRouteKeyException("checkpointKind is not a valid checkpoint kind.");
     }
 
     /// <summary>
@@ -81,7 +82,7 @@ internal static class RouteKeys
         name.Length is > 0 and <= NameSyntax.ExtendedMaxLength
         && name.All(c => c is '-' or '.' or (>= '0' and <= '9') or (>= 'a' and <= 'z'))
             ? name
-            : throw new MalformedRouteKeyException("name is not a valid checkpoint name.");
+            : throw new MalformedRouteKeyException("checkpointName is not a valid checkpoint name.");
 
     /// <summary>A job by its ref alone: a control verb never takes the <c>id:&lt;n&gt;</c> debug lookup.</summary>
     public static JobLookup JobByRef(HttpContext http) =>

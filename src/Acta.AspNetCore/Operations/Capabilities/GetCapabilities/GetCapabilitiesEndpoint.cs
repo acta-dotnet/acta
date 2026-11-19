@@ -35,7 +35,7 @@ internal static class GetCapabilitiesEndpoint
                 return Results.Json(body, ActaApiJsonContext.Relaxed.GetCapabilitiesResponse);
             })
             .WithMetadata(new ActaOperationAttribute("getCapabilities", ActaPermissions.Read))
-            .WithSummary("Read this host's API capabilities.")
+            .WithSummary("Read this host's API capabilities")
             .Produces<GetCapabilitiesResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 

@@ -38,8 +38,8 @@ internal static partial class OpenApiExamples
         ["signalName"] = "approval",
         ["tagName"] = "env",
         // The signal an operator raised, so the checkpoint value read answers its stored value.
-        ["kind"] = "signal",
-        ["name"] = "approval",
+        ["checkpointKind"] = "signal",
+        ["checkpointName"] = "approval",
         // One day in two intervals, so the performance example shows an interval with executions beside an empty one.
         ["fromUtc"] = "2026-06-12T00:00:00Z",
         ["toUtc"] = "2026-06-13T00:00:00Z",

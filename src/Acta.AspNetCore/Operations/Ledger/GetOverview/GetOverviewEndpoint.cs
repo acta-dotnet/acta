@@ -17,7 +17,7 @@ internal static class GetOverviewEndpoint
                 );
             })
             .WithMetadata(new ActaOperationAttribute("getOverview", ActaPermissions.Read))
-            .WithSummary("Read the ledger's health-overview counters.")
+            .WithSummary("Read the ledger's health-overview counters")
             .Produces<GetOverviewResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)

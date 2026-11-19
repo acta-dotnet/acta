@@ -16,7 +16,7 @@ internal static class CalendarsEndpoints
         reads.MapList(
             "/calendars",
             new("listCalendars", ActaPermissions.Read),
-            "List calendar families, the shared ones in sys included.",
+            "List calendar families, the shared ones in sys included",
             ActaApiJsonContext.Relaxed.ListCalendarsResponse,
             static query => new ListCalendarsQuery(
                 JobNamespace: query.Text("jobNamespace"),
@@ -54,7 +54,7 @@ internal static class CalendarsEndpoints
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}",
                 new("getCalendar", ActaPermissions.Read),
-                "Read a calendar family's head: its current and latest versions and one definition.",
+                "Read a calendar family's head: its current and latest versions and one definition",
                 "Calendar",
                 ActaApiJsonContext.Relaxed.GetCalendarResponse,
                 static async (http, call) =>
@@ -79,7 +79,7 @@ internal static class CalendarsEndpoints
             .MapList(
                 "/calendars/{jobNamespace}/{calendarName}/versions",
                 new("listCalendarVersions", ActaPermissions.Read),
-                "List a calendar family's versions, newest first.",
+                "List a calendar family's versions, newest first",
                 ActaApiJsonContext.Relaxed.ListCalendarVersionsResponse,
                 static query => new ListCalendarVersionsQuery(
                     Key(query.Http),
@@ -98,7 +98,7 @@ internal static class CalendarsEndpoints
             .MapList(
                 "/calendars/{jobNamespace}/{calendarName}/dependents",
                 new("listCalendarDependents", ActaPermissions.Read),
-                "List the schedules naming a calendar family, by path.",
+                "List the schedules naming a calendar family, by path",
                 ActaApiJsonContext.Relaxed.ListCalendarDependentsResponse,
                 static query => new ListCalendarDependentsQuery(
                     Key(query.Http),
@@ -117,7 +117,7 @@ internal static class CalendarsEndpoints
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}/preview",
                 new("previewCalendar", ActaPermissions.Read),
-                "Preview a calendar version beside the current one.",
+                "Preview a calendar version beside the current one",
                 "Calendar",
                 ActaApiJsonContext.Relaxed.PreviewCalendarResponse,
                 static (http, call) =>
@@ -162,7 +162,7 @@ internal static class CalendarsEndpoints
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/drafts",
             new("saveCalendarDraft", ActaPermissions.Admin),
-            "Save a calendar definition as the family's next draft version.",
+            "Save a calendar definition as the family's next draft version",
             options,
             ActaApiJsonContext.Relaxed.SaveCalendarDraftRequest,
             "Invalid calendar request.",
@@ -195,7 +195,7 @@ internal static class CalendarsEndpoints
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/publish",
             new("publishCalendar", ActaPermissions.Admin),
-            "Publish a draft as the family's current version and retime the schedules bound to it.",
+            "Publish a draft as the family's current version and retime the schedules bound to it",
             options,
             ActaApiJsonContext.Relaxed.PublishCalendarRequest,
             "Invalid calendar request.",
@@ -221,7 +221,7 @@ internal static class CalendarsEndpoints
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/archive",
             new("archiveCalendar", ActaPermissions.Admin),
-            "Archive the family's current version.",
+            "Archive the family's current version",
             options,
             ActaApiJsonContext.Relaxed.ArchiveCalendarRequest,
             "Invalid calendar request.",

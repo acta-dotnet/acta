@@ -29,7 +29,7 @@ internal static class GetJobDetailEndpoint
                 }
             )
             .WithMetadata(new ActaOperationAttribute("getJobDetail", ActaPermissions.Read))
-            .WithSummary("Read everything the job's page shows, in one answer.")
+            .WithSummary("Read everything the job's page shows, in one answer")
             .Produces<GetJobDetailResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)

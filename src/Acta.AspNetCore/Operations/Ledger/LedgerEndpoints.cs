@@ -23,7 +23,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/jobs",
                 new("listJobs", ActaPermissions.Read),
-                "List jobs, newest first.",
+                "List jobs, newest first",
                 ActaApiJsonContext.Relaxed.ListJobsResponse,
                 query =>
                     (
@@ -71,7 +71,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/events",
                 new("listEvents", ActaPermissions.Read),
-                "List events, newest first.",
+                "List events, newest first",
                 ActaApiJsonContext.Relaxed.ListEventsResponse,
                 query =>
                     (
@@ -147,7 +147,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/jobs/{jobRef}/events",
                 new("listJobEvents", ActaPermissions.Read),
-                "List one job's event timeline.",
+                "List one job's event timeline",
                 ActaApiJsonContext.Relaxed.ListEventsResponse,
                 query =>
                     (
@@ -180,7 +180,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/definitions/{jobNamespace}/{jobName}/events",
                 new("listDefinitionEvents", ActaPermissions.Read),
-                "List a definition's ledger events (its jobs' lineage, not just changes).",
+                "List a definition's ledger events (its jobs' lineage, not just changes)",
                 ActaApiJsonContext.Relaxed.ListEventsResponse,
                 static query =>
                     (
