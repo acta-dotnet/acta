@@ -1784,6 +1784,8 @@
   - A known job id returns a populated GetJobResponse whose id and Ready status match the enqueued row
   - A tenant-scoped job's snapshot carries the tenant id and its external key
   - An unknown job id returns null
+  - The snapshot states the input's and the result's format and size, and no size where there is none
+  - A size counts stored bytes: a format with no bytes is 0, and multi-byte UTF-8 counts every byte
   - An executing job past its lease reads LeaseLapsed, and one inside its lease does not
 
 ### GetOverview returns accurate health counters scoped to a namespace and globally
@@ -1800,10 +1802,25 @@
   - A known worker id returns its durable detail projection
   - An unknown worker id returns null
 
-### ListJobCheckpoints pages a job's checkpoints by kind then name
-- **Contract:** ListJobCheckpoints pages a job's checkpoints by kind then name, values intact, empty for none or no job, its cursor passing a kind this build does not know.
+### GetJobCheckpointValue reads one checkpoint's stored value
+- **Contract:** GetJobCheckpointValue returns a checkpoint's stored value by kind and name, and null when it holds none or no checkpoint or job matches.
 - **Guarantees:**
-  - ListJobCheckpoints lists variable and signal checkpoints with kind, state, and value round-tripped
+  - A variable, a raised signal's value, and progress each read back in the format and bytes stored
+  - A value with a format and no bytes reads back empty, not as no value
+  - A child's outcome reads back under the parent's sys.child name
+  - Only the stored name reads a value: another case or white space around it answers null on every provider
+  - A timer and a presence-only signal hold no value and answer null
+  - An unknown name, and a name read under a kind it is not stored under, answer null
+  - The scheduler's firing record holds a value and is not reachable, as the checkpoint list leaves it out
+  - A job that does not exist answers null, by id and by ref
+  - A deduplication key reads its own namespace's job, and from another namespace reaches nothing
+
+### ListJobCheckpoints pages a job's checkpoints by kind then name
+- **Contract:** ListJobCheckpoints pages a job's checkpoints by kind then name, each value by format and size, empty for none or no job, its cursor passing an unknown kind.
+- **Guarantees:**
+  - ListJobCheckpoints lists variable and signal checkpoints with kind, state, and each value's format and size
+  - A value's size counts stored bytes: a format with no bytes is 0, and multi-byte UTF-8 counts every byte
+  - A checkpoint that holds no value is listed with format 0 and no size
   - ListJobCheckpoints answers an empty page for a job with no checkpoints and for a missing id
   - ListJobCheckpoints pages to the end across a kind this build does not know, each checkpoint once
 
@@ -2985,6 +3002,7 @@
 | `GetDefinition` | yes | yes | yes |
 | `GetDefinitionPerformance` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
+| `GetJobCheckpointValue` | yes | yes | yes |
 | `GetJobIdByDeduplicationKey` | yes | yes | yes |
 | `GetJobIdByRef` | yes | yes | yes |
 | `GetJobIdBySlot` | yes | yes | yes |

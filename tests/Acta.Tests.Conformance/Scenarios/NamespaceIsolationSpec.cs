@@ -377,6 +377,9 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         await other.Check("read a job's variable", async t =>
             Assert.True(await Jobs.GetVariableOrDefaultAsync<bool>(waiting.JobRef, "ran.before", t))
         );
+        await other.Check("read a job's checkpoint value", async t =>
+            Assert.NotNull(await Jobs.GetCheckpointValueAsync(waiting.JobRef, CheckpointKindCode.Variable, "ran.before", t))
+        );
         await other.Check("map a job's lineage", async t => Assert.NotNull(await Jobs.GetLineageMapAsync(parent, ct: t)));
         var definitions = Services.GetRequiredService<IDefinitions>();
         await other.Check("read a definition", async t => Assert.NotNull(await definitions.GetAsync(TestNamespace, "add-numbers", t)));

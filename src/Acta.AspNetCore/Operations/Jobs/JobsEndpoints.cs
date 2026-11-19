@@ -66,7 +66,35 @@ internal static class JobsEndpoints
         GetJobInputEndpoint.Map(reads, options);
         GetJobResultEndpoint.Map(reads, options);
         GetJobDetailEndpoint.Map(reads, options);
-        ListJobCheckpointsEndpoint.Map(reads, options);
+        reads
+            .MapList(
+                "/jobs/{jobRef}/checkpoints",
+                new("listJobCheckpoints", ActaPermissions.Read),
+                "List one job's checkpoints.",
+                ActaApiJsonContext.Relaxed.ListJobCheckpointsResponse,
+                query =>
+                    (
+                        Job: RouteKeys.Job(query.Http, options),
+                        PageSize: query.Int("pageSize"),
+                        Cursor: query.Text("cursor"),
+                        IncludeTotal: query.Bool("includeTotal") ?? false
+                    ),
+                static async (call, bound) =>
+                    await call.Jobs.ListCheckpointsAsync(
+                        new ListJobCheckpointsQuery(
+                            JobLookup.ById(
+                                await call.Jobs.StoredJobIdAsync(bound.Job, call.Ct) ?? throw new TargetNotFoundException("Job")
+                            ),
+                            bound.PageSize,
+                            bound.Cursor,
+                            bound.IncludeTotal
+                        ),
+                        call.Ct
+                    ),
+                [.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]
+            )
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        GetJobCheckpointValueEndpoint.Map(reads, options);
         reads
             .MapList(
                 "/jobs/{jobRef}/steps",

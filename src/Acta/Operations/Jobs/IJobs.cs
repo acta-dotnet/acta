@@ -273,6 +273,20 @@ public interface IJobs
     ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
+    /// The value one checkpoint of the job holds, by the kind and the name <see cref="ListCheckpointsAsync"/> lists it under,
+    /// in the format it was stored in: a variable, a raised signal's value, progress, or a child's outcome. Answers
+    /// <c>null</c> when no job matches, when the job has no such checkpoint, and when the checkpoint holds no value. The
+    /// name is the one the list shows, <c>sys.</c> names included, and the scheduler's firing record is not reachable, as
+    /// the list leaves it out. Non-blocking point-in-time read.
+    /// </summary>
+    ValueTask<GetJobCheckpointValueResponse?> GetCheckpointValueAsync(
+        JobLookup job,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// The variable the job's handler stored under <paramref name="name"/>, read as <typeparamref name="T"/> the way
     /// <c>ctx.GetVariableOrDefaultAsync</c> reads it: <c>await jobs.GetVariableOrDefaultAsync&lt;Stage&gt;(jobRef, "stage", ct)</c>.
     /// Answers <c>default</c> when the variable is not set or no job matches, so read <c>int?</c> to tell a stored 0 from

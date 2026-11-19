@@ -1,15 +1,17 @@
 <script lang="ts">
-  import { controlRequest, type JobCheckpoint, type JobControlResponse } from '../../api.ts';
+  import { apiHref, controlRequest, payloadRoutes, type JobCheckpoint, type JobControlResponse } from '../../api.ts';
   import ConfirmAction from '../../components/ConfirmAction.svelte';
   import DataTable from '../../components/DataTable.svelte';
-  import PayloadView from '../../components/PayloadView.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StateView from '../../components/StateView.svelte';
   import { displayFormatter } from '../../format.ts';
   import { jobControlMessage } from '../../lib/controlMessages.ts';
+  import { payloadFormatLabel } from './jobDetailState.ts';
+  import StoredPayload, { downloadName } from './StoredPayload.svelte';
 
   // Checkpoints (variables, signals, timers, progress, children) come from the aggregate detail read's first
-  // page; a value payload expands inline, and a larger set says so. A signal row carries a Clear action where the
+  // page, each value by its format and size with its download beside it; a value is read only while its row is open,
+  // again when the checkpoint is written, and a larger set says so. A signal row carries a Clear action where the
   // server would take it: for a control-capable caller, on a finished job or a permanent job between firings, never on
   // a system job, whose signals are commands it has yet to apply.
   let {
@@ -42,6 +44,18 @@
   let busy = $state(false);
   let message = $state('');
   let messageKind = $state('');
+
+  // By kind and name, the rows open now, which read their value, and the rows ever opened, which keep the last value
+  // read so a reopened row shows it at once.
+  let open = $state<Record<string, boolean>>({});
+  let seen = $state<Record<string, boolean>>({});
+  const keyOf = (checkpoint: JobCheckpoint) => checkpoint.kind + '/' + checkpoint.name;
+  const pathOf = (checkpoint: JobCheckpoint) => payloadRoutes.checkpointValue(jobRef, checkpoint.kind, checkpoint.name);
+
+  function toggled(key: string, isOpen: boolean): void {
+    open[key] = isOpen;
+    if (isOpen) seen[key] = true;
+  }
 
   async function clear(name: string) {
     confirming = null;
@@ -87,11 +101,33 @@
             <td>{checkpoint.status ?? '·'}</td>
             <td><RelativeTime value={checkpoint.dueAtUtc} /></td>
             <td>
-              {#if checkpoint.value}
-                <details>
-                  <summary>View</summary>
-                  <div class="checkpoint-value"><PayloadView payload={checkpoint.value} /></div>
-                </details>
+              {#if checkpoint.valueByteLength != null}
+                {@const key = keyOf(checkpoint)}
+                {@const fileName = `${jobRef}-${checkpoint.kind}-${checkpoint.name}`}
+                <div class="checkpoint-value-cell">
+                  <details ontoggle={(e) => toggled(key, e.currentTarget.open)}>
+                    <summary>View <span class="dim">{payloadFormatLabel(checkpoint.valueFormatId)}, {displayFormatter.bytes(checkpoint.valueByteLength)}</span></summary>
+                    {#if seen[key]}
+                      <div class="checkpoint-value">
+                        <!-- Two writes in one millisecond share a time, so the format and size key the read as well. -->
+                        <StoredPayload
+                          path={pathOf(checkpoint)}
+                          formatId={checkpoint.valueFormatId}
+                          byteLength={checkpoint.valueByteLength}
+                          {fileName}
+                          label={checkpoint.kind + ' ' + checkpoint.name}
+                          version={`${checkpoint.valueFormatId}|${checkpoint.valueByteLength}|${checkpoint.modifiedAtUtc}`}
+                          active={open[key] === true}
+                          showDownload={false} />
+                      </div>
+                    {/if}
+                  </details>
+                  <a
+                    class="payload-download"
+                    href={apiHref(pathOf(checkpoint))}
+                    download={downloadName(fileName, checkpoint.valueFormatId)}
+                    aria-label={'Download ' + checkpoint.kind + ' ' + checkpoint.name}>Download</a>
+                </div>
               {:else}
                 <span class="dim">·</span>
               {/if}
@@ -130,4 +166,7 @@
 <style>
   summary { cursor: pointer; color: var(--muted); }
   .checkpoint-value { margin-top: 8px; }
+  .checkpoint-value-cell { display: flex; align-items: baseline; gap: 10px; }
+  .checkpoint-value-cell details { flex: 1; min-width: 0; }
+  .payload-download { color: var(--accent); }
 </style>

@@ -1,7 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
-import { api, ApiError, controlRequest, getJobInputJson, getNamespace, online, permissionRefused, resetSessionForTests, sessionExpired } from './api.ts';
+import {
+  api,
+  apiHref,
+  ApiError,
+  controlRequest,
+  getJobInputJson,
+  getJobPayload,
+  getNamespace,
+  online,
+  payloadRoutes,
+  permissionRefused,
+  resetSessionForTests,
+  sessionExpired
+} from './api.ts';
 
 (globalThis as unknown as { document: { baseURI: string } }).document = {
   baseURI: 'http://localhost/acta/'
@@ -207,6 +220,63 @@ test('getJobInputJson reads the stored json input as text and answers null for e
     (error: unknown) => error instanceof ApiError && error.status === 400 && error.detail === 'jobRef is not a valid job ref.'
   );
   assert.equal(requested[0], '/acta/api/v1/jobs/job_1/input');
+});
+
+test('getJobPayload reads a payload route: json as its exact text, bytes as base64 under their format id', async () => {
+  const requested: string[] = [];
+  const limit = 16;
+  const bytes = (formatId: string | null, contentType = 'application/octet-stream') =>
+    new Response(new Uint8Array([65, 99, 105]), {
+      status: 200,
+      headers: formatId === null ? { 'Content-Type': contentType } : { 'Content-Type': contentType, 'X-Acta-Payload-Format': formatId }
+    });
+  const responses = [
+    new Response('{"count": 9007199254740993}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    bytes('2'),
+    bytes('1'),
+    bytes('200'),
+    new Response(null, { status: 204 }),
+    new Response('{"title":"Job not found."}', { status: 404 }),
+    new Response('{"title":"Invalid request.","detail":"kind is not a valid checkpoint kind."}', { status: 400 }),
+    bytes(null),
+    bytes(null, 'text/html'),
+    new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json', 'Content-Length': '17' } }),
+    new Response('"0123456789abcdef"', { status: 200, headers: { 'Content-Type': 'application/json' } })
+  ];
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    requested.push(new URL(String(input)).pathname);
+    return responses.shift()!;
+  }) as typeof fetch;
+  const read = (path: string) => getJobPayload(path, { limit: 64 });
+  const notPayload = (error: unknown) => error instanceof ApiError && error.title === 'Not a payload.';
+
+  assert.deepEqual(await read(payloadRoutes.checkpointValue('job_1', 'variable', 'counter')), {
+    kind: 'json',
+    text: '{"count": 9007199254740993}'
+  });
+  assert.deepEqual(await read(payloadRoutes.checkpointValue('job_1', 'child', 'sys.child.7')), { kind: 'bytes', formatId: 2, base64: 'QWNp' });
+  assert.deepEqual(await read(payloadRoutes.input('job_1')), { kind: 'bytes', formatId: 1, base64: 'QWNp' });
+  assert.deepEqual(await read(payloadRoutes.result('job_1')), { kind: 'bytes', formatId: 200, base64: 'QWNp' });
+  assert.deepEqual(await read(payloadRoutes.result('job_1')), { kind: 'none' });
+  // A job purged meanwhile is the app's usual not-found error, not an empty payload.
+  await assert.rejects(() => read(payloadRoutes.result('job_2')), (error: unknown) => error instanceof ApiError && error.status === 404);
+  await assert.rejects(
+    () => read(payloadRoutes.checkpointValue('job_1', 'signals', 'approval')),
+    (error: unknown) => error instanceof ApiError && error.status === 400 && error.detail === 'kind is not a valid checkpoint kind.'
+  );
+  // Bytes without their format header, and any other content type, are not a payload.
+  await assert.rejects(() => read(payloadRoutes.result('job_1')), notPayload);
+  await assert.rejects(() => read(payloadRoutes.result('job_1')), notPayload);
+  // Past the limit by its declared length, or by the bytes that arrive when none is declared.
+  assert.deepEqual(await getJobPayload(payloadRoutes.result('job_1'), { limit }), { kind: 'over', byteLength: 17 });
+  assert.deepEqual(await getJobPayload(payloadRoutes.result('job_1'), { limit }), { kind: 'over', byteLength: 18 });
+  assert.deepEqual(requested.slice(0, 4), [
+    '/acta/api/v1/jobs/job_1/checkpoints/variable/counter/value',
+    '/acta/api/v1/jobs/job_1/checkpoints/child/sys.child.7/value',
+    '/acta/api/v1/jobs/job_1/input',
+    '/acta/api/v1/jobs/job_1/result'
+  ]);
+  assert.equal(apiHref(payloadRoutes.result('job_1')), 'http://localhost/acta/api/v1/jobs/job_1/result');
 });
 
 test("a 403 asks for the caller's permissions again, but the capabilities read's own 403 does not", async () => {

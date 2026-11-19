@@ -101,8 +101,11 @@ public sealed partial class OpenApiContractTests
         "nth",
         "inputFormatId",
         "resultFormatId",
+        "valueFormatId",
         // Durations, byte sizes, and policy numbers, including their override/effective pairs.
-        "byteLength",
+        "inputByteLength",
+        "resultByteLength",
+        "valueByteLength",
         "durationMs",
         "fromMs",
         "toMs",
@@ -511,13 +514,13 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A schema with no type says "any value"; only the members no one type describes may say it: a JSON payload's json
-    /// in a request and in a response, and the signal body, which sits in its operation. A code or a ref rendered empty
-    /// would type as <c>any</c> in every generated client.
+    /// in a request, and the signal body, which sits in its operation. A code or a ref rendered empty would type as
+    /// <c>any</c> in every generated client.
     /// </summary>
     [Fact]
     public async Task No_empty_schema_outside_the_any_json_members()
     {
-        string[] anyJson = ["components.schemas.JobPayloadBody.json", "components.schemas.StoredJobPayload.json"];
+        string[] anyJson = ["components.schemas.JobPayloadBody.json"];
         var schemas = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!);
         var empty = schemas.Where(entry => entry.Schema.AsObject().All(p => p.Key is "description")).Select(entry => entry.Where).ToList();
 
@@ -527,7 +530,7 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// Raw JSON is no type: the signal value and a JSON payload's json member, in a request and in a response, are an
+    /// Raw JSON is no type: the signal value and a JSON payload's json member in a request are an
     /// inline schema that says any JSON value, with no component a client would generate a type for, and the server takes
     /// an object, an array, a string, a number, a boolean, and null in the signal, the enqueue's input, and the input update.
     /// </summary>
@@ -542,7 +545,6 @@ public sealed partial class OpenApiContractTests
                 "schema"
             ]!,
             schemas["JobPayloadBody"]!["properties"]!["json"]!,
-            schemas["StoredJobPayload"]!["properties"]!["json"]!,
         ];
 
         var fakes = new FakeOperations();
@@ -569,28 +571,21 @@ public sealed partial class OpenApiContractTests
     /// A request's payload holds the rules its schema's description states, since <c>required</c> cannot say them: exactly
     /// one of json and base64, a null json beside base64 counting as left out so a client that writes every member passes,
     /// json any JSON value with null included, a formatId beside json that is JSON's, and base64
-    /// with a binary formatId that decodes. It requires nothing and refuses an unknown member, so each member only a stored
-    /// payload carries is refused by name. The enqueue proves them, and the input update proves that base64 keeps the
-    /// job's format.
+    /// with a binary formatId that decodes. It requires nothing and refuses an unknown member by name. The enqueue proves
+    /// them, and the input update proves that base64 keeps the job's format.
     /// </summary>
     [Fact]
     public async Task The_payload_envelope_holds_the_rules_its_description_states()
     {
         var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!;
         var schema = schemas["JobPayloadBody"]!;
-        // A value of each member's own type, as a client echoing a response would send it.
-        var responseOnly = schemas["StoredJobPayload"]!["properties"]!
-            .AsObject()
-            .Where(member => schema["properties"]![member.Key] is null)
-            .Select(member =>
-                (
-                    member.Key,
-                    Sample: HasType(member.Value, "integer") ? "1"
-                    : HasType(member.Value, "boolean") ? "true"
-                    : "\"json\""
-                )
-            )
-            .ToList();
+        (string Key, string Sample)[] unknown =
+        [
+            ("formatName", "\"json\""),
+            ("byteLength", "1"),
+            ("truncated", "true"),
+            ("malformed", "true"),
+        ];
         (string Envelope, string Refused)[] enqueues =
         [
             ("""{"json":{"invoiceId":1}}""", ""),
@@ -607,7 +602,7 @@ public sealed partial class OpenApiContractTests
             ("""{"base64":"not base64!","formatId":2}""", "base64"),
             ("""{"json":1,"base64":"AQID","formatId":2}""", "exactly one"),
             ("{}", "exactly one"),
-            .. responseOnly.Select(member => ($$"""{"json":1,"{{member.Key}}":{{member.Sample}}}""", $"'$.input.{member.Key}'")),
+            .. unknown.Select(member => ($$"""{"json":1,"{{member.Key}}":{{member.Sample}}}""", $"'$.input.{member.Key}'")),
         ];
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
@@ -641,7 +636,7 @@ public sealed partial class OpenApiContractTests
         await ExpectAsync(HttpMethod.Put, job, """{"input":{"json":null}}""", HttpStatusCode.OK, "");
         await ExpectAsync(HttpMethod.Put, job, """{"input":{"base64":"AQID","formatId":2}}""", HttpStatusCode.BadRequest, "base64");
 
-        Assert.Equal(["formatName", "byteLength", "truncated", "malformed"], responseOnly.Select(member => member.Key));
+        Assert.All(unknown, member => Assert.Null(schema["properties"]![member.Key]));
         Assert.Empty(Required(schema));
         Assert.False(schema["additionalProperties"]!.GetValue<bool>());
         Assert.Contains("exactly one of json", schema["description"]!.GetValue<string>(), StringComparison.Ordinal);
@@ -692,14 +687,14 @@ public sealed partial class OpenApiContractTests
         var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!;
 
         var detail = schemas["GetJobDetailResponse"]!;
-        Assert.DoesNotContain("result", Required(detail));
+        Assert.DoesNotContain("explain", Required(detail));
         Assert.Contains("job", Required(detail));
-        Assert.Equal("#/components/schemas/StoredJobPayload", detail["properties"]!["result"]!["$ref"]!.GetValue<string>());
+        Assert.Equal("#/components/schemas/ExplainJobResponse", detail["properties"]!["explain"]!["$ref"]!.GetValue<string>());
 
-        Assert.DoesNotContain("input", Required(detail));
-        Assert.Equal("#/components/schemas/StoredJobPayload", detail["properties"]!["input"]!["$ref"]!.GetValue<string>());
+        var checkpoint = schemas["ListJobCheckpointsItem"]!;
+        Assert.Contains("valueByteLength", Required(checkpoint));
+        Assert.Contains("valueFormatId", Required(checkpoint));
 
-        Assert.Equal(["formatId", "formatName"], Required(schemas["StoredJobPayload"]!).Order(StringComparer.Ordinal));
         Assert.Contains("value", Required(schemas["ListTagsItem"]!));
     }
 

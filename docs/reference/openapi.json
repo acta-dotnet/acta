@@ -9071,6 +9071,9 @@
                       "correlationKey": "order-1042",
                       "concurrencyKey": "customer:1042",
                       "inputFormatId": 1,
+                      "inputByteLength": 16,
+                      "resultFormatId": 1,
+                      "resultByteLength": 13,
                       "status": "ready",
                       "priority": "high",
                       "lane": "invoices",
@@ -9248,6 +9251,9 @@
                       "correlationKey": "order-1042",
                       "concurrencyKey": "customer:1042",
                       "inputFormatId": 1,
+                      "inputByteLength": 16,
+                      "resultFormatId": 1,
+                      "resultByteLength": 13,
                       "status": "ready",
                       "priority": "high",
                       "lane": "invoices",
@@ -9756,6 +9762,9 @@
                         "correlationKey": "order-1042",
                         "concurrencyKey": "customer:1042",
                         "inputFormatId": 1,
+                        "inputByteLength": 16,
+                        "resultFormatId": 1,
+                        "resultByteLength": 13,
                         "status": "ready",
                         "priority": "high",
                         "lane": "invoices",
@@ -9771,31 +9780,15 @@
                         "version": 7,
                         "leaseLapsed": false
                       },
-                      "input": {
-                        "formatId": 1,
-                        "formatName": "json",
-                        "json": {
-                          "invoiceId": 42
-                        }
-                      },
-                      "result": {
-                        "formatId": 1,
-                        "formatName": "json",
-                        "json": {
-                          "sent": true
-                        }
-                      },
                       "checkpoints": {
                         "items": [
                           {
                             "kind": "signal",
                             "name": "approval",
                             "status": "set",
-                            "value": {
-                              "formatId": 2,
-                              "formatName": "bytes",
-                              "base64": "AQID"
-                            },
+                            "dueAtUtc": null,
+                            "valueFormatId": 1,
+                            "valueByteLength": 17,
                             "createdAtUtc": "2026-06-12T05:30:00Z",
                             "modifiedAtUtc": "2026-06-12T05:40:00Z"
                           }
@@ -10102,11 +10095,9 @@
                           "kind": "signal",
                           "name": "approval",
                           "status": "set",
-                          "value": {
-                            "formatId": 2,
-                            "formatName": "bytes",
-                            "base64": "AQID"
-                          },
+                          "dueAtUtc": null,
+                          "valueFormatId": 1,
+                          "valueByteLength": 17,
                           "createdAtUtc": "2026-06-12T05:30:00Z",
                           "modifiedAtUtc": "2026-06-12T05:40:00Z"
                         }
@@ -10212,6 +10203,185 @@
                 },
                 "examples": {
                   "listJobCheckpoints": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4",
+                      "title": "Service unavailable.",
+                      "status": 503,
+                      "detail": "The Acta API is temporarily unavailable: the database is unreachable or rejected the request."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-acta-permission": "acta.read"
+      }
+    },
+    "/v1/jobs/{jobRef}/checkpoints/{kind}/{name}/value": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Read the value one checkpoint of the job holds as the body.",
+        "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.\n\nNeeds the acta.read permission.",
+        "operationId": "getJobCheckpointValue",
+        "parameters": [
+          {
+            "name": "jobRef",
+            "in": "path",
+            "description": "The job's ref, job_ followed by 32 hex digits; where the host enables numeric lookup, id: and the job's number read the job as well.",
+            "required": true,
+            "schema": {
+              "pattern": "^(?:job_[0-9A-Fa-f]{32}|[Ii][Dd]:[\\t-\\r ]*\\+?0*[1-9][0-9]*[\\t-\\r ]*\\u0000*)$",
+              "type": "string"
+            },
+            "example": "job_00000000000000000000000000000042"
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "description": "The checkpoint's kind as the checkpoint list names it: variable, signal, timer, progress, or child.",
+            "required": true,
+            "schema": {
+              "pattern": "^(?:variable|signal|timer|progress|child)$",
+              "type": "string"
+            },
+            "example": "signal"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "description": "The checkpoint's name exactly as the checkpoint list shows it, sys names included; it is not folded to lowercase.",
+            "required": true,
+            "schema": {
+              "pattern": "^[-.0-9a-z]{1,128}$",
+              "type": "string"
+            },
+            "example": "approval"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stored payload itself: a JSON payload as application/json, any other format as application/octet-stream.",
+            "headers": {
+              "X-Acta-Payload-Format": {
+                "description": "The payload's format id, on a payload served as application/octet-stream: 2 for bytes, 128 to 255 for an application's own, and 1 for stored JSON that is not one strict JSON value.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "The stored JSON payload, one JSON value."
+                },
+                "examples": {
+                  "getJobCheckpointValue": {
+                    "value": {
+                      "approved": true
+                    }
+                  }
+                }
+              },
+              "application/octet-stream": { }
+            }
+          },
+          "204": {
+            "description": "Nothing is stored to return."
+          },
+          "400": {
+            "description": "A path or query parameter is malformed or missing; the problem's detail names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getJobCheckpointValue": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                      "title": "Invalid request.",
+                      "status": 400,
+                      "detail": "jobRef is not a valid job ref."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The call carries no credential the host accepts."
+          },
+          "403": {
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getJobCheckpointValue": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+                      "title": "Permission denied.",
+                      "status": 403,
+                      "detail": "This operation needs the acta.read permission."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target the path names, or one a filter names, does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getJobCheckpointValue": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+                      "title": "Job not found.",
+                      "status": 404
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server failed unexpectedly; the problem document leaves the cause to the host's log.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getJobCheckpointValue": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+                      "title": "Internal server error.",
+                      "status": 500,
+                      "detail": "The Acta API failed to process the request; see the host log for detail."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database could not be reached or refused the call; retry later.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getJobCheckpointValue": {
                     "value": {
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4",
                       "title": "Service unavailable.",
@@ -18047,14 +18217,6 @@
             "description": "The job.",
             "$ref": "#/components/schemas/GetJobResponse"
           },
-          "input": {
-            "description": "The job's input as a payload envelope; absent when it has none.",
-            "$ref": "#/components/schemas/StoredJobPayload"
-          },
-          "result": {
-            "description": "The job's result as a payload envelope; absent until the job has one.",
-            "$ref": "#/components/schemas/StoredJobPayload"
-          },
           "checkpoints": {
             "description": "The first page of the job's checkpoints, with their total.",
             "$ref": "#/components/schemas/ListJobCheckpointsResponse"
@@ -18107,7 +18269,7 @@
             "format": "int64"
           }
         },
-        "description": "Everything the job page shows, in one answer: the job, its input and result, the first page of its checkpoints, its explanation and lineage, the schedules that fire it, and the workers that can claim it. A part that does not apply is absent or empty, and each capped list comes with its total."
+        "description": "Everything the job page shows, in one answer: the job, the first page of its checkpoints, its explanation and lineage, the schedules that fire it, and the workers that can claim it. A part that does not apply is absent or empty, and each capped list comes with its total. It carries no payload body: the job states its input's and result's format and size."
       },
       "GetJobLineageMapChild": {
         "required": [
@@ -18359,6 +18521,9 @@
           "correlationKey",
           "concurrencyKey",
           "inputFormatId",
+          "inputByteLength",
+          "resultFormatId",
+          "resultByteLength",
           "status",
           "priority",
           "lane",
@@ -18446,6 +18611,27 @@
             "type": "integer",
             "description": "The id of the format the job's input is stored in; 0 when the job has no input.",
             "format": "uint8"
+          },
+          "inputByteLength": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The stored input's size in bytes; null when the job has no input.",
+            "format": "int64"
+          },
+          "resultFormatId": {
+            "type": "integer",
+            "description": "The id of the format the job's result is stored in; 0 while the job holds no result.",
+            "format": "uint8"
+          },
+          "resultByteLength": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The stored result's size in bytes; null while the job holds no result.",
+            "format": "int64"
           },
           "status": {
             "description": "The job's status.",
@@ -18538,7 +18724,7 @@
             "description": "Whether the job is executing past its lease on the database clock: its worker stopped heartbeating, and crash recovery reclaims it on its next pass."
           }
         },
-        "description": "One job: its identity, its place in its lineage, its status, when it runs next, who holds it, and when retention may delete it. The input is not included; read it from the job's input route."
+        "description": "One job: its identity, its place in its lineage, its status, when it runs next, who holds it, and when retention may delete it. The input and the result are stated by format and size, not included; read each from its own route."
       },
       "GetNamespaceResponse": {
         "required": [
@@ -19850,13 +20036,17 @@
         "required": [
           "kind",
           "name",
+          "status",
+          "dueAtUtc",
+          "valueFormatId",
+          "valueByteLength",
           "createdAtUtc",
           "modifiedAtUtc"
         ],
         "type": "object",
         "properties": {
           "kind": {
-            "description": "The checkpoint's kind, such as variable, signal, or timer.",
+            "description": "The checkpoint's kind: variable, signal, timer, progress, or child.",
             "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
@@ -19864,17 +20054,36 @@
             "description": "The checkpoint's name, unique within its job and kind."
           },
           "status": {
-            "description": "The checkpoint's status; absent for a kind that has none, such as a variable.",
-            "$ref": "#/components/schemas/CheckpointStatusCode"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckpointStatusCode"
+              }
+            ],
+            "description": "Pending, set, or expired for a signal or a child, pending or consumed for a timer; null for a kind that has none, such as a variable."
           },
           "dueAtUtc": {
-            "type": "string",
-            "description": "When a bounded wait expires or a timer is due, in UTC; absent otherwise.",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When a bounded wait expires or a timer is due, in UTC; null otherwise.",
             "format": "date-time"
           },
-          "value": {
-            "description": "The checkpoint's stored value as a payload envelope; absent when it holds none.",
-            "$ref": "#/components/schemas/StoredJobPayload"
+          "valueFormatId": {
+            "type": "integer",
+            "description": "The id of the format the checkpoint's value is stored in: 1 for JSON, 2 for bytes, 128 to 255 for an application's own; 0 when it holds no value.",
+            "format": "uint8"
+          },
+          "valueByteLength": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The stored value's size in bytes; null when it holds none. The value itself is read from /jobs/{jobRef}/checkpoints/{kind}/{name}/value.",
+            "format": "int64"
           },
           "createdAtUtc": {
             "type": "string",
@@ -19883,11 +20092,11 @@
           },
           "modifiedAtUtc": {
             "type": "string",
-            "description": "When the row last changed, in UTC.",
+            "description": "When the row last changed, in UTC; any write moves it.",
             "format": "date-time"
           }
         },
-        "description": "One checkpoint of a job in a page; its value is a stored payload."
+        "description": "One durable checkpoint of a job: a user variable, signal, sleep timer, progress, or child's outcome, told apart by its kind. Its value is stated by format and size and read by get checkpoint value. User checkpoints are named in dotted kebab, system ones sys.*."
       },
       "ListJobCheckpointsResponse": {
         "required": [
@@ -19931,7 +20140,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of a job's checkpoints, by kind, then name, each value a stored payload rendered and capped as the job's input is."
+        "description": "One page of a job's checkpoints, by kind, then name."
       },
       "ListJobsItem": {
         "required": [
@@ -22232,45 +22441,6 @@
           "failed",
           "interrupted"
         ]
-      },
-      "StoredJobPayload": {
-        "required": [
-          "formatId",
-          "formatName"
-        ],
-        "type": "object",
-        "properties": {
-          "formatId": {
-            "type": "integer",
-            "description": "The payload format's id: 1 for JSON, 2 for bytes, 128 to 255 for an application's own.",
-            "format": "uint8"
-          },
-          "formatName": {
-            "type": "string",
-            "description": "The payload format's name, such as json or bytes."
-          },
-          "json": {
-            "description": "A JSON payload, embedded as the JSON value itself: any JSON value, null included."
-          },
-          "base64": {
-            "type": "string",
-            "description": "A payload in any other format, base64-encoded."
-          },
-          "byteLength": {
-            "type": "integer",
-            "description": "The stored payload's size in bytes, sent when its body is withheld.",
-            "format": "int64"
-          },
-          "truncated": {
-            "type": "boolean",
-            "description": "True when the payload is larger than the inline limit and its body is withheld. A job's input and result are read whole from their own routes."
-          },
-          "malformed": {
-            "type": "boolean",
-            "description": "True when a stored JSON payload is not one valid JSON value and is sent as base64 instead."
-          }
-        },
-        "description": "A stored payload as a response carries it inside a JSON body: its format, and its body as json for a JSON payload or base64 for any other format. Past the inline limit the body is withheld, and byteLength and truncated stand in its place. Where there is no payload, the member that would carry this is absent."
       },
       "SuspendNamespaceRequest": {
         "type": "object",

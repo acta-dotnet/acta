@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text;
 using System.Text.Json;
 using Acta.Tests.AspNetCore.Fakes;
 using Xunit;
@@ -7,8 +6,8 @@ using Xunit;
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// GET /jobs/{jobRef}/checkpoints pages one job's checkpoints: the SDK page with each value rendered as a payload
-/// body, the paging query handed to the facade as sent, 404 for an unknown job, and 400 for a malformed page size.
+/// GET /jobs/{jobRef}/checkpoints pages one job's checkpoints: the SDK page with each value stated by its format id and its
+/// size, the paging query handed to the facade as sent, 404 for an unknown job, and 400 for a malformed page size.
 /// </summary>
 public sealed class JobCheckpointsEndpointTests
 {
@@ -21,7 +20,8 @@ public sealed class JobCheckpointsEndpointTests
         "counter",
         null,
         null,
-        JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"count\":3}")),
+        JobPayloadFormat.Json.Id,
+        11,
         WrittenAtUtc,
         WrittenAtUtc
     );
@@ -31,6 +31,7 @@ public sealed class JobCheckpointsEndpointTests
         "approval",
         CheckpointStatusCode.Pending,
         null,
+        0,
         null,
         WrittenAtUtc,
         WrittenAtUtc
@@ -69,7 +70,7 @@ public sealed class JobCheckpointsEndpointTests
     }
 
     [Fact]
-    public async Task A_known_job_answers_the_page_with_each_value_rendered_as_a_payload_body()
+    public async Task A_known_job_answers_the_page_with_each_value_stated_by_format_and_size()
     {
         var (fakes, _) = Recording();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
@@ -91,13 +92,17 @@ public sealed class JobCheckpointsEndpointTests
         Assert.Equal(2, items.GetArrayLength());
         Assert.Equal("variable", items[0].GetProperty("kind").GetString());
         Assert.Equal("counter", items[0].GetProperty("name").GetString());
-        var value = items[0].GetProperty("value");
-        Assert.Equal("json", value.GetProperty("formatName").GetString());
-        Assert.Equal(JobPayloadFormat.Json.Id, value.GetProperty("formatId").GetByte());
-        Assert.Equal("{\"count\":3}", value.GetProperty("json").GetRawText());
+        Assert.Equal(JobPayloadFormat.Json.Id, items[0].GetProperty("valueFormatId").GetByte());
+        Assert.Equal(11, items[0].GetProperty("valueByteLength").GetInt64());
+        Assert.False(items[0].TryGetProperty("value", out _));
+        Assert.False(items[0].TryGetProperty("valueFormatName", out _));
         Assert.Equal("signal", items[1].GetProperty("kind").GetString());
         Assert.Equal("pending", items[1].GetProperty("status").GetString());
-        Assert.False(items[1].TryGetProperty("value", out _));
+        Assert.Equal(0, items[1].GetProperty("valueFormatId").GetByte());
+        // No value is a null size, as the job snapshot states no input; the item omits nothing.
+        Assert.Equal(JsonValueKind.Null, items[1].GetProperty("valueByteLength").ValueKind);
+        Assert.Equal(JsonValueKind.Null, items[0].GetProperty("status").ValueKind);
+        Assert.Equal(JsonValueKind.Null, items[0].GetProperty("dueAtUtc").ValueKind);
     }
 
     [Fact]

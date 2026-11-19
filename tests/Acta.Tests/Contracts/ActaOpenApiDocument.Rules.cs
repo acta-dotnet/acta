@@ -132,7 +132,8 @@ internal static partial class ActaOpenApiDocument
     /// <summary>
     /// The pattern of a path parameter: a ref's for a ref, the debug lookup beside the job ref on a route that takes it, and
     /// the name syntax for every name under its kind's cap, which every route holds it to: a namespace's 64 characters, and
-    /// 128 for every other name. A key with no cap here fails the generation, so a new name states its own.
+    /// 128 for every other name. A checkpoint's kind is one of the five the checkpoint list prints, and its name is read as
+    /// stored, unfolded. A key with no cap here fails the generation, so a new name states its own.
     /// </summary>
     public static string PathPattern(string parameter, bool takesNumericJobId) =>
         parameter switch
@@ -144,6 +145,8 @@ internal static partial class ActaOpenApiDocument
             "jobName" or "scheduleName" or "calendarName" or "tenantName" or "tagName" or "signalName" => NamePattern(
                 NameSyntax.ExtendedMaxLength
             ),
+            "kind" => "^(?:variable|signal|timer|progress|child)$",
+            "name" => "^[-.0-9a-z]{1," + NameSyntax.ExtendedMaxLength.ToString(CultureInfo.InvariantCulture) + "}$",
             _ => throw new InvalidOperationException($"The path parameter {parameter} states no pattern."),
         };
 

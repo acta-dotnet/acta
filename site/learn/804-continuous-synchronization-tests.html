@@ -90,7 +90,10 @@
 <span class="hl">    <span class="k">return</span> <span class="k">await</span> _host.RunOnceAsync(_slot, Ct);</span>
 }
 
-<span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; JobAsync() =&gt; (<span class="k">await</span> _host.Jobs.GetAsync(_slot, Ct))!;</code></pre></figure>
+<span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; JobAsync() =&gt; (<span class="k">await</span> _host.Jobs.GetAsync(_slot, Ct))!;
+
+<span class="c">/// &lt;summary&gt;The watermark as the operator sees it, 0 before the first batch: the job's one variable.&lt;/summary&gt;</span>
+<span class="k">private</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; WatermarkAsync() =&gt; <span class="k">await</span> _host.Jobs.GetVariableOrDefaultAsync&lt;<span class="k">long</span>&gt;(_slot, <span class="s">&quot;watermark&quot;</span>, Ct);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Lose an attempt, and let recovery reclaim it</h2>
 <p>The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.</p>
@@ -106,7 +109,7 @@
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/804-continuous-synchronization-tests"><code>learn/800-testing/804-continuous-synchronization-tests</code></a>, as it is compiled.</p>
-<details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">321 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a recurring synchronization job</span>
+<details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">316 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a recurring synchronization job</span>
 <span class="c">// Tests for the permanent synchronization job of</span>
 <span class="c">// [109-continuous-synchronization](../../100-scheduling/109-continuous-synchronization/): a schedule forced due and</span>
 <span class="c">// one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run</span>
@@ -208,7 +211,7 @@
         <span class="k">var</span> checkpoints = (<span class="k">await</span> _host.Jobs.ListCheckpointsAsync(<span class="k">new</span> ListJobCheckpointsQuery(_slot), Ct)).Items;
         <span class="k">var</span> watermark = Assert.Single(checkpoints, c =&gt; c.Kind == CheckpointKindCode.Variable);
         Assert.Equal(<span class="s">&quot;watermark&quot;</span>, watermark.Name);
-        Assert.Equal(20, JsonSerializer.Deserialize&lt;<span class="k">long</span>&gt;(watermark.Value!.Value.Data.Span));
+        Assert.Equal(20, <span class="k">await</span> _host.Jobs.GetVariableOrDefaultAsync&lt;<span class="k">long</span>&gt;(_slot, <span class="s">&quot;watermark&quot;</span>, Ct));
     }
 
     <span class="a">[Fact]</span>
@@ -366,12 +369,7 @@
     <span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; JobAsync() =&gt; (<span class="k">await</span> _host.Jobs.GetAsync(_slot, Ct))!;
 
     <span class="c">/// &lt;summary&gt;The watermark as the operator sees it, 0 before the first batch: the job's one variable.&lt;/summary&gt;</span>
-    <span class="k">private</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; WatermarkAsync()
-    {
-        <span class="k">var</span> checkpoints = (<span class="k">await</span> _host.Jobs.ListCheckpointsAsync(<span class="k">new</span> ListJobCheckpointsQuery(_slot), Ct)).Items;
-        <span class="k">var</span> watermark = checkpoints.SingleOrDefault(c =&gt; c.Kind == CheckpointKindCode.Variable &amp;&amp; c.Name == <span class="s">&quot;watermark&quot;</span>);
-        <span class="k">return</span> watermark <span class="k">is</span> <span class="k">null</span> ? 0 : JsonSerializer.Deserialize&lt;<span class="k">long</span>&gt;(watermark.Value!.Value.Data.Span);
-    }
+    <span class="k">private</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; WatermarkAsync() =&gt; <span class="k">await</span> _host.Jobs.GetVariableOrDefaultAsync&lt;<span class="k">long</span>&gt;(_slot, <span class="s">&quot;watermark&quot;</span>, Ct);
 
     <span class="c">/// &lt;summary&gt;</span>
     <span class="c">/// The firing id from the envelope the admitter wrote, read from &lt;c&gt;checkpoints_view&lt;/c&gt; as the lab prints it: the</span>

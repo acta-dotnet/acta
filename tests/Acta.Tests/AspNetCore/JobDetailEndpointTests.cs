@@ -2,16 +2,15 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Acta.Tests.AspNetCore.Fakes;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// The aggregate GET /jobs/{jobRef}/detail composes the whole job screen from one request: snapshot,
-/// input/result/checkpoints (size-capped exactly like the depth reads), explain, lineage,
-/// this job's schedules, the definition link, and the eligible workers. Missing job is 404; an absent
-/// result or empty schedule/worker set is a null/empty field, not an error.
+/// The aggregate GET /jobs/{jobRef}/detail composes the whole job screen from one request: the snapshot, which states the input
+/// and the result by format and size, the checkpoints by format and size, explain, lineage, this job's schedules, the
+/// definition link, and the eligible workers. It carries no payload body and reads none. Missing job is 404; an empty
+/// schedule or worker set is an empty field, not an error. Each body is read from its own route, served as stored.
 /// </summary>
 public sealed class JobDetailEndpointTests
 {
@@ -33,7 +32,8 @@ public sealed class JobDetailEndpointTests
                         "counter",
                         null,
                         null,
-                        JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("3")),
+                        JobPayloadFormat.Json.Id,
+                        1,
                         new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
                         new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
                     ),
@@ -62,10 +62,15 @@ public sealed class JobDetailEndpointTests
         Assert.Equal("ready", root.GetProperty("job").GetProperty("status").GetString());
         Assert.False(root.GetProperty("job").TryGetProperty("jobId", out _));
 
-        // Depth payloads (input/result/checkpoints).
-        Assert.Equal("{\"invoiceId\":7}", root.GetProperty("input").GetProperty("json").GetRawText());
-        Assert.Equal("{\"ok\":true}", root.GetProperty("result").GetProperty("json").GetRawText());
-        Assert.Equal("counter", root.GetProperty("checkpoints").GetProperty("items")[0].GetProperty("name").GetString());
+        // Stored data by format and size: the input and the result in the snapshot, each checkpoint in its item.
+        Assert.Equal(JobPayloadFormat.Json.Id, root.GetProperty("job").GetProperty("inputFormatId").GetByte());
+        Assert.Equal(15, root.GetProperty("job").GetProperty("inputByteLength").GetInt64());
+        Assert.Equal(JobPayloadFormat.Json.Id, root.GetProperty("job").GetProperty("resultFormatId").GetByte());
+        Assert.Equal(11, root.GetProperty("job").GetProperty("resultByteLength").GetInt64());
+        var counter = root.GetProperty("checkpoints").GetProperty("items")[0];
+        Assert.Equal("counter", counter.GetProperty("name").GetString());
+        Assert.Equal(JobPayloadFormat.Json.Id, counter.GetProperty("valueFormatId").GetByte());
+        Assert.Equal(1, counter.GetProperty("valueByteLength").GetInt64());
         Assert.Equal(1, root.GetProperty("checkpoints").GetProperty("totalCount").GetInt32());
 
         // Explain, lineage.
@@ -81,6 +86,33 @@ public sealed class JobDetailEndpointTests
         Assert.False(root.GetProperty("job").TryGetProperty("definitionId", out _));
         Assert.False(root.TryGetProperty("definitionId", out _));
         Assert.Equal(JsonValueKind.Array, root.GetProperty("workers").ValueKind);
+    }
+
+    [Fact]
+    public async Task Detail_carries_no_payload_body_and_reads_none()
+    {
+        var fakes = FullyLoadedJob();
+        var reads = new List<string>();
+        fakes.Jobs.GetInput = (_, _) =>
+        {
+            reads.Add("input");
+            return ValueTask.FromResult<GetJobInputResponse?>(null);
+        };
+        fakes.Jobs.GetResult = (_, _) =>
+        {
+            reads.Add("result");
+            return ValueTask.FromResult<GetJobResultResponse?>(null);
+        };
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var host = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        using var doc = JsonDocument.Parse(await client.GetStringAsync($"/acta/api/v1/jobs/{Found}/detail", ct));
+
+        Assert.Empty(reads);
+        Assert.False(doc.RootElement.TryGetProperty("input", out _));
+        Assert.False(doc.RootElement.TryGetProperty("result", out _));
+        Assert.False(doc.RootElement.GetProperty("checkpoints").GetProperty("items")[0].TryGetProperty("value", out _));
     }
 
     // The detail names the type the definition declares the job returns, null for none, so the page can tell a job that
@@ -121,8 +153,8 @@ public sealed class JobDetailEndpointTests
     [Fact]
     public async Task Detail_answers_with_controls_disabled()
     {
-        // The detail read is on the always-on read surface: no EnableControls. A job with no
-        // result/checkpoints reports null/empty, not an error.
+        // The detail read is on the always-on read surface: no EnableControls. A job with no input, result, or checkpoints
+        // states none, not an error.
         var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations());
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
@@ -132,60 +164,15 @@ public sealed class JobDetailEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var doc = JsonDocument.Parse(body);
-        var root = doc.RootElement;
-        // No input and no result: no envelope for either.
-        Assert.False(root.TryGetProperty("input", out _));
-        Assert.False(root.TryGetProperty("result", out _));
+        var job = doc.RootElement.GetProperty("job");
+        Assert.Equal(0, job.GetProperty("inputFormatId").GetByte());
+        Assert.Equal(JsonValueKind.Null, job.GetProperty("inputByteLength").ValueKind);
+        Assert.Equal(0, job.GetProperty("resultFormatId").GetByte());
+        Assert.Equal(JsonValueKind.Null, job.GetProperty("resultByteLength").ValueKind);
     }
 
     [Fact]
-    public async Task Detail_withholds_an_oversized_payload_body_and_reports_its_size()
-    {
-        var fakes = new FakeOperations { Jobs = { StoredInput = JobPayload.Bytes(new byte[100]) } };
-        var (app, client) = await TestDashboardHost.StartAsync(
-            configureBuilder: builder => builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 64),
-            fakes: fakes
-        );
-        await using var host = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var doc = JsonDocument.Parse(body);
-        var input = doc.RootElement.GetProperty("input");
-        Assert.Equal("bytes", input.GetProperty("formatName").GetString());
-        Assert.Equal(100, input.GetProperty("byteLength").GetInt64());
-        Assert.True(input.GetProperty("truncated").GetBoolean());
-        Assert.False(input.TryGetProperty("base64", out _));
-    }
-
-    [Fact]
-    public async Task At_cap_payload_ships_the_body_without_a_truncated_flag()
-    {
-        var fakes = new FakeOperations { Jobs = { StoredInput = JobPayload.Bytes(new byte[64]) } };
-        var (app, client) = await TestDashboardHost.StartAsync(
-            configureBuilder: builder => builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 64),
-            fakes: fakes
-        );
-        await using var host = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var doc = JsonDocument.Parse(body);
-        var input = doc.RootElement.GetProperty("input");
-        Assert.Equal("bytes", input.GetProperty("formatName").GetString());
-        Assert.Equal(Convert.ToBase64String(new byte[64]), input.GetProperty("base64").GetString());
-        Assert.False(input.TryGetProperty("truncated", out _));
-        Assert.False(input.TryGetProperty("byteLength", out _));
-    }
-
-    [Fact]
-    public async Task Json_payload_is_embedded_as_its_stored_text_so_every_digit_and_character_survives()
+    public async Task A_json_input_is_served_as_its_stored_text_so_every_digit_and_character_survives()
     {
         const string stored = "{\"orderId\":9007199254740993,\"amount\":0.1000000000000000055,\"name\":\"Zoë & <Bob>\"}";
         var fakes = new FakeOperations
@@ -196,31 +183,28 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/input", ct);
 
-        using var doc = JsonDocument.Parse(body);
-        Assert.Equal(stored, doc.RootElement.GetProperty("input").GetProperty("json").GetRawText());
-        Assert.Contains($"\"json\":{stored}", body, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(Encoding.UTF8.GetBytes(stored), await response.Content.ReadAsByteArrayAsync(ct));
     }
 
     [Theory]
     [InlineData(new byte[] { 0x7B, 0x62, 0x72, 0x6F, 0x6B, 0x65, 0x6E })]
     [InlineData(new byte[] { 0x22, 0xFF, 0x22 })]
-    public async Task A_stored_json_row_that_is_not_strict_json_reads_as_base64_marked_malformed(byte[] stored)
+    public async Task A_stored_json_row_that_is_not_strict_json_is_served_as_bytes_with_the_json_format_id(byte[] stored)
     {
         var fakes = new FakeOperations { Jobs = { StoredInput = JobPayload.Trusted(JobPayloadFormat.Json, stored) } };
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
-        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-        var input = doc.RootElement.GetProperty("input");
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/input", ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("json", input.GetProperty("formatName").GetString());
-        Assert.True(input.GetProperty("malformed").GetBoolean());
-        Assert.Equal(Convert.ToBase64String(stored), input.GetProperty("base64").GetString());
-        Assert.False(input.TryGetProperty("json", out _));
+        Assert.Equal("application/octet-stream", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("1", Assert.Single(response.Headers.GetValues("X-Acta-Payload-Format")));
+        Assert.Equal(stored, await response.Content.ReadAsByteArrayAsync(ct));
     }
 }

@@ -1,5 +1,6 @@
 // Field order mirrors the server-side GetJobResponse record, which in turn mirrors the jobs entity and
-// then its jobs_state row: identity, scope/routing, caller keys, input format, runtime state, audit.
+// then its jobs_state row: identity, scope/routing, caller keys, the input's and the result's format and size, runtime
+// state, audit.
 export interface JobDetail {
   jobRef: string;
   kind: string;
@@ -12,6 +13,10 @@ export interface JobDetail {
   correlationKey: string | null;
   concurrencyKey: string | null;
   inputFormatId: number;
+  // Sizes in bytes; null, and a result format id of 0, where nothing is stored.
+  inputByteLength: number | null;
+  resultFormatId: number;
+  resultByteLength: number | null;
   status: string;
   priority: string;
   // The lane the job runs in, and while it is Blocked the lane member it waits behind.

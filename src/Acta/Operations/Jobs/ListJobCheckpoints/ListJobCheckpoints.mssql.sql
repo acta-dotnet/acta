@@ -6,7 +6,7 @@ SELECT TOP (@p_take)
     c.checkpoint_status_code AS status,
     c.due_at_utc,
     c.value_format_id,
-    c.value,
+    DATALENGTH(c.value) AS value_byte_length,
     c.created_at_utc,
     c.modified_at_utc
 FROM {{schema}}.checkpoints c

@@ -43,6 +43,12 @@ test('a rejection without a status is a job with no input to update', () => {
   assert.equal(message.text, 'Input rejected: the job has no input to update.');
 });
 
+test('a version conflict says the job changed since its input was read and that the draft is kept', () => {
+  const message = updateOutcomeMessage('version-conflict', null);
+  assert.equal(message.kind, 'warn');
+  assert.match(message.text, /changed since its input was read \(version conflict\)\. Your draft is kept/);
+});
+
 test('not-found outcome is a bad-kind message', () => {
   const message = updateOutcomeMessage('not-found', null);
   assert.equal(message.kind, 'bad');

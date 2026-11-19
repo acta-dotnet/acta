@@ -887,6 +887,9 @@ sealed record Acta.GetDefinitionResponse
     System.String? ResultTypeName { get;init; }
     System.String? RunbookUrl { get;init; }
     System.String? RunbookUrlEffective { get;init; }
+sealed record Acta.GetJobCheckpointValueResponse
+    .ctor(Acta.JobPayload Value)
+    Acta.JobPayload Value { get;init; }
 sealed record Acta.GetJobIdResponse
     .ctor(System.Int64 JobId)
     System.Int64 JobId { get;init; }
@@ -941,13 +944,14 @@ sealed record Acta.GetJobLineageMapWait
     System.String Name { get;init; }
     System.String? ChildName { get;init; }
 sealed record Acta.GetJobResponse
-    .ctor(System.Int64 JobId, Acta.JobRef JobRef, Acta.JobKindCode Kind, System.String JobNamespace, System.Int32 DefinitionId, System.String JobName, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.String? DeduplicationKey, System.String? CorrelationKey, System.String? ConcurrencyKey, System.Byte InputFormatId, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String? Lane, System.Nullable<System.Int64> BlockedBehindJobId, System.Nullable<Acta.JobRef> BlockedBehindJobRef, System.Nullable<System.DateTime> NextRunAtUtc, System.Int64 ExecutionNumber, System.Int32 FailureCount, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.Nullable<System.DateTime> RetentionUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<Acta.WorkerRef> LeasedByWorkerRef, System.Int64 Version, System.Boolean LeaseLapsed = false)
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, Acta.JobKindCode Kind, System.String JobNamespace, System.Int32 DefinitionId, System.String JobName, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.String? DeduplicationKey, System.String? CorrelationKey, System.String? ConcurrencyKey, System.Byte InputFormatId, System.Nullable<System.Int64> InputByteLength, System.Byte ResultFormatId, System.Nullable<System.Int64> ResultByteLength, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String? Lane, System.Nullable<System.Int64> BlockedBehindJobId, System.Nullable<Acta.JobRef> BlockedBehindJobRef, System.Nullable<System.DateTime> NextRunAtUtc, System.Int64 ExecutionNumber, System.Int32 FailureCount, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.Nullable<System.DateTime> RetentionUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<Acta.WorkerRef> LeasedByWorkerRef, System.Int64 Version, System.Boolean LeaseLapsed = false)
     Acta.JobKindCode Kind { get;init; }
     Acta.JobPriorityCode Priority { get;init; }
     Acta.JobRef JobRef { get;init; }
     Acta.JobStatusCode Status { get;init; }
     System.Boolean LeaseLapsed { get;init; }
     System.Byte InputFormatId { get;init; }
+    System.Byte ResultFormatId { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.Int32 DefinitionId { get;init; }
@@ -965,8 +969,10 @@ sealed record Acta.GetJobResponse
     System.Nullable<System.Int32> LeasedByWorkerId { get;init; }
     System.Nullable<System.Int32> TenantId { get;init; }
     System.Nullable<System.Int64> BlockedBehindJobId { get;init; }
+    System.Nullable<System.Int64> InputByteLength { get;init; }
     System.Nullable<System.Int64> LineageRootJobId { get;init; }
     System.Nullable<System.Int64> ParentJobId { get;init; }
+    System.Nullable<System.Int64> ResultByteLength { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String? ConcurrencyKey { get;init; }
@@ -1149,6 +1155,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobsResponse> EnqueueJobsAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobRequest> requests, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobsResponse> EnqueueJobsAsync(System.Data.Common.DbTransaction transaction, System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobRequest> requests, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ExplainJobResponse?> ExplainAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.GetJobCheckpointValueResponse?> GetCheckpointValueAsync(Acta.JobLookup job, Acta.CheckpointKindCode kind, System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobIdResponse?> GetIdAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobInputResponse?> GetInputAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobLineageMapResponse?> GetLineageMapAsync(Acta.JobLookup job, Acta.GetJobLineageMapOptions? options = null, System.Threading.CancellationToken ct = default)
@@ -1885,13 +1892,14 @@ sealed record Acta.ListEventsResponse : Acta.IPagedResponse<Acta.ListEventsItem>
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
 sealed record Acta.ListJobCheckpointsItem
-    .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<Acta.CheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Nullable<Acta.JobPayload> Value, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
+    .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<Acta.CheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Byte ValueFormatId, System.Nullable<System.Int64> ValueByteLength, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.CheckpointKindCode Kind { get;init; }
+    System.Byte ValueFormatId { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.Nullable<Acta.CheckpointStatusCode> Status { get;init; }
-    System.Nullable<Acta.JobPayload> Value { get;init; }
     System.Nullable<System.DateTime> DueAtUtc { get;init; }
+    System.Nullable<System.Int64> ValueByteLength { get;init; }
     System.String Name { get;init; }
 sealed record Acta.ListJobCheckpointsQuery
     .ctor(Acta.JobLookup Job, System.Nullable<System.Int32> PageSize = null, System.String? Cursor = null, System.Boolean IncludeTotal = false)

@@ -50,6 +50,9 @@ private async Task<ActaRunStatus> FireAsync()
 }
 
 private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(_slot, Ct))!;
+
+/// <summary>The watermark as the operator sees it, 0 before the first batch: the job's one variable.</summary>
+private async Task<long> WatermarkAsync() => await _host.Jobs.GetVariableOrDefaultAsync<long>(_slot, "watermark", Ct);
 ```
 
 ## 3. Lose an attempt, and let recovery reclaim it
@@ -80,4 +83,4 @@ Runs as a test. This program is a test project: it passes or fails with the test
 
 ## More
 
-- [The whole program](/learn/804-continuous-synchronization-tests.program.md): every file as compiled, 321 lines.
+- [The whole program](/learn/804-continuous-synchronization-tests.program.md): every file as compiled, 316 lines.

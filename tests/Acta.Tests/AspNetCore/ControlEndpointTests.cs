@@ -942,9 +942,9 @@ public sealed class ControlEndpointTests
         Assert.Equal(200, updated.Format.Id);
         Assert.Equal(bytes, updated.Data.ToArray());
 
-        var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains("\"formatId\":200", body);
-        Assert.Contains($"\"base64\":\"{Convert.ToBase64String(bytes)}\"", body);
+        var read = await client.GetAsync($"/acta/api/v1/jobs/{Found}/input", ct);
+        Assert.Equal("200", Assert.Single(read.Headers.GetValues("X-Acta-Payload-Format")));
+        Assert.Equal(bytes, await read.Content.ReadAsByteArrayAsync(ct));
     }
 
     [Fact]
@@ -959,8 +959,8 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputUpdateCalls).Format.Id);
 
-        var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains("\"formatName\":\"json\"", body);
+        var read = await client.GetAsync($"/acta/api/v1/jobs/{Found}/input", ct);
+        Assert.Equal("application/json", read.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]
@@ -976,8 +976,8 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputUpdateCalls).Format.Id);
 
-        var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains("\"formatName\":\"json\"", body);
+        var read = await client.GetAsync($"/acta/api/v1/jobs/{Found}/input", ct);
+        Assert.Equal("application/json", read.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]
@@ -1101,8 +1101,9 @@ public sealed class ControlEndpointTests
         Assert.Equal(bytes, enqueued.Input.Data.ToArray());
 
         var jobRef = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct)).RootElement.GetProperty("jobRef").GetString();
-        var body = await (await client.GetAsync($"/acta/api/v1/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains($"\"base64\":\"{Convert.ToBase64String(bytes)}\"", body);
+        var read = await client.GetAsync($"/acta/api/v1/jobs/{jobRef}/input", ct);
+        Assert.Equal("2", Assert.Single(read.Headers.GetValues("X-Acta-Payload-Format")));
+        Assert.Equal(bytes, await read.Content.ReadAsByteArrayAsync(ct));
     }
 
     [Fact]

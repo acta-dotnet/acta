@@ -1,24 +1,34 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import CopyButton from './CopyButton.svelte';
-  import { displayFormatter } from '../format.ts';
   import { jsonError, prettyJson } from '../lib/rawJson.ts';
-  import type { JobPayloadView } from '../api.ts';
 
-  // Dumb, format-aware payload preview with an optional validated-textarea edit mode. Fetching and
-  // saving live in the parent: `onSave` receives the edited JSON text. The stored JSON text is shown,
-  // copied, and edited as text, never parsed into numbers (lib/rawJson.ts). `editing` is bindable so a
-  // parent can reveal its own edit-only fields (the update reason) exactly while the editor is open. A
-  // null payload is no payload.
+  // Dumb payload preview with an optional validated-textarea edit mode, always laid out as a tools row over a body box.
+  // `json` is a JSON body's exact text, shown, copied, and edited as text, never parsed into numbers (lib/rawJson.ts);
+  // `base64` is any other body, shown as a hex preview. With neither, the box holds `placeholder`, or says there is no
+  // payload. `note` leads the tools row and `tools` follows the copy control. Copy and Edit act only on a `current`
+  // body. Fetching and saving live in the parent: `onSave` receives the edited JSON text, and the editor stays open
+  // when it answers false. `editing` is bindable so a parent can reveal its own edit-only fields while it is open.
   let {
-    payload,
+    json,
+    base64,
+    note = '',
+    current = true,
     editable = false,
     editing = $bindable(false),
-    onSave
+    onSave,
+    tools,
+    placeholder
   }: {
-    payload: JobPayloadView | null;
+    json?: string;
+    base64?: string;
+    note?: string;
+    current?: boolean;
     editable?: boolean;
     editing?: boolean;
-    onSave?: (value: string) => void | Promise<void>;
+    onSave?: (value: string) => boolean | void | Promise<boolean | void>;
+    tools?: Snippet;
+    placeholder?: Snippet;
   } = $props();
 
   const HEX_LIMIT = 64;
@@ -26,27 +36,18 @@
   let draft = $state('');
   let saving = $state(false);
 
-  let format = $derived(payload?.formatName ?? '');
-  let isNone = $derived(payload === null);
-  // A stored json row that is not strict JSON ships as base64 with `malformed` set and renders as bytes.
-  let isMalformed = $derived(payload?.malformed === true);
-  let isJson = $derived(format === 'json' && !isMalformed);
-  // Any other format (bytes, or a consumer-defined id) travels as base64.
-  let isBytes = $derived(!isNone && !isJson);
-  // A payload over the size cap ships no body, so it can be neither previewed nor edited.
-  let isTruncated = $derived(payload?.truncated === true);
-  let canEdit = $derived(editable && !isTruncated && isJson);
-
-  let jsonText = $derived(isJson ? prettyJson(payload?.json ?? 'null') : '');
-  let bytes = $derived(isBytes ? decodeBase64(payload?.base64 ?? '') : null);
+  let jsonText = $derived(json === undefined ? '' : prettyJson(json));
+  let bytes = $derived(base64 === undefined ? null : decodeBase64(base64));
+  let hasBody = $derived(json !== undefined || base64 !== undefined);
+  let canEdit = $derived(editable && current && json !== undefined);
 
   // Live validation: a draft must parse before Save is allowed.
   let parseError = $derived(editing ? jsonError(draft) ?? '' : '');
 
-  function decodeBase64(base64: string): { length: number; hex: string; truncated: boolean } {
+  function decodeBase64(text: string): { length: number; hex: string; truncated: boolean } {
     let binary = '';
     try {
-      binary = atob(base64);
+      binary = atob(text);
     } catch {
       return { length: 0, hex: '', truncated: false };
     }
@@ -69,8 +70,7 @@
     if (parseError || saving) return;
     saving = true;
     try {
-      await onSave?.(draft);
-      editing = false;
+      if ((await onSave?.(draft)) !== false) editing = false;
     } finally {
       saving = false;
     }
@@ -86,36 +86,37 @@
       <button type="button" onclick={cancelEdit} disabled={saving}>Cancel</button>
     </div>
   </div>
-{:else if isTruncated}
-  <p class="dim">Payload is {displayFormatter.bytes(payload?.byteLength)}; too large to display.</p>
-{:else if isNone}
+{:else if !hasBody && !placeholder}
   <p class="dim">No payload</p>
-{:else if isJson}
-  <div class="payload-block">
-    <div class="payload-tools"><CopyButton value={jsonText} label="Copy JSON" /></div>
-    <pre class="mono">{jsonText}</pre>
-  </div>
-  {#if canEdit}<div class="payload-actions"><button type="button" onclick={startEdit}>Edit</button></div>{/if}
 {:else}
   <div class="payload-block">
     <div class="payload-tools">
-      {#if isMalformed}<span class="dim">stored JSON is malformed; shown as bytes</span>
-      {:else if format !== 'bytes'}<span class="dim">format {format}</span>{/if}
-      <a class="payload-download" href={`data:application/octet-stream;base64,${payload?.base64 ?? ''}`} download="payload.bin">Download</a>
-      <CopyButton value={payload?.base64 ?? ''} label="Copy base64" />
+      {#if note}<span class="dim">{note}</span>{/if}
+      {#if bytes}<span class="dim">{bytes.length} bytes</span>{/if}
+      <!-- The copy control keeps its place while it waits for a current body, so nothing beside it moves. -->
+      <span class="copy-slot" class:waiting={!hasBody || !current}>
+        <CopyButton value={json !== undefined ? jsonText : (base64 ?? '')} label={json !== undefined ? 'Copy JSON' : 'Copy base64'} />
+      </span>
+      {@render tools?.()}
     </div>
-    {#if bytes}
-      <p class="dim">{bytes.length} bytes</p>
-      {#if bytes.hex}<pre class="mono">{bytes.hex}{bytes.truncated ? ' ...' : ''}</pre>{/if}
+    {#if json !== undefined}
+      <pre class="mono">{jsonText}</pre>
+    {:else if bytes}
+      <pre class="mono">{bytes.hex}{bytes.truncated ? ' ...' : ''}</pre>
+    {:else}
+      <div class="payload-box">{@render placeholder?.()}</div>
     {/if}
   </div>
+  {#if canEdit}<div class="payload-actions"><button type="button" onclick={startEdit}>Edit</button></div>{/if}
 {/if}
 
 <style>
   .payload-block { min-width: 0; }
   .payload-tools { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .copy-slot.waiting { visibility: hidden; }
   .payload-actions { display: flex; gap: 8px; margin-top: 10px; }
-  pre {
+  pre,
+  .payload-box {
     margin: 0;
     padding: 10px 12px;
     background: var(--badge-bg);
@@ -126,7 +127,6 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-  .payload-download { color: var(--accent); }
   .payload-edit textarea {
     display: block;
     width: 100%;

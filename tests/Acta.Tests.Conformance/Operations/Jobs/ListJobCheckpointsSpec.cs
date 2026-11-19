@@ -6,18 +6,21 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
-/// <summary>Conformance for ListJobCheckpoints: a job's checkpoints page by kind then name with state and value intact.</summary>
+/// <summary>
+/// Conformance for ListJobCheckpoints: a job's checkpoints page by kind then name with their state, each value stated by
+/// its format and size and read on its own.
+/// </summary>
 [ConformanceSpec(
     "job-payload-reads.checkpoints",
     "ListJobCheckpoints pages a job's checkpoints by kind then name",
     Area = "Reads",
-    Contract = "ListJobCheckpoints pages a job's checkpoints by kind then name, values intact, empty for none or no job, its cursor passing a kind this build does not know."
+    Contract = "ListJobCheckpoints pages a job's checkpoints by kind then name, each value by format and size, empty for none or no job, its cursor passing an unknown kind."
 )]
 [Deploys("add-numbers")]
 public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListJobCheckpointsSpec>>
 {
-    [Fact(DisplayName = "ListJobCheckpoints lists variable and signal checkpoints with kind, state, and value round-tripped")]
-    public async Task Checkpoints_round_trip_kind_state_and_value()
+    [Fact(DisplayName = "ListJobCheckpoints lists variable and signal checkpoints with kind, state, and each value's format and size")]
+    public async Task Checkpoints_round_trip_kind_state_and_value_size()
     {
         var ct = TestContext.Current.CancellationToken;
         var execution = Services.GetRequiredService<ExecutionOperations>();
@@ -46,16 +49,58 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(CheckpointKindCode.Variable, variable.Kind);
         Assert.Equal("fetch.status", variable.Name);
         Assert.Null(variable.Status);
-        Assert.NotNull(variable.Value);
-        Assert.Equal(variableValue.Format.Id, variable.Value!.Value.Format.Id);
-        Assert.Equal(variableValue.Data.ToArray(), variable.Value.Value.Data.ToArray());
+        Assert.Equal(variableValue.Format.Id, variable.ValueFormatId);
+        Assert.Equal((long)variableValue.Data.Length, variable.ValueByteLength);
 
         var signal = items[1];
         Assert.Equal(CheckpointKindCode.Signal, signal.Kind);
         Assert.Equal("s.ready", signal.Name);
         Assert.Equal(CheckpointStatusCode.Set, signal.Status);
-        Assert.NotNull(signal.Value);
-        Assert.Equal(signalValue.Data.ToArray(), signal.Value!.Value.Data.ToArray());
+        Assert.Equal(signalValue.Format.Id, signal.ValueFormatId);
+        Assert.Equal((long)signalValue.Data.Length, signal.ValueByteLength);
+    }
+
+    [Fact(DisplayName = "A value's size counts stored bytes: a format with no bytes is 0, and multi-byte UTF-8 counts every byte")]
+    public async Task Value_sizes_count_bytes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var execution = Services.GetRequiredService<ExecutionOperations>();
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 4))),
+            ct
+        );
+        var fence = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
+        const string text = "\"Zoë ✓ 日本語 😀\"";
+        var wide = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes(text));
+        Assert.NotEqual(text.Length, wide.Data.Length);
+        await CheckpointAccess.SetAsync(execution, fence, CheckpointKindCode.Variable, "empty", JobPayload.Bytes([]), ct);
+        await CheckpointAccess.SetAsync(execution, fence, CheckpointKindCode.Variable, "wide", wide, ct);
+        await RaiseAsync(enqueued.JobId, "s.wide", wide, ct);
+
+        var items = (await Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(enqueued.JobId)), ct)).Items;
+        var empty = Assert.Single(items, item => item.Name == "empty");
+        Assert.Equal(JobPayloadFormat.Bytes.Id, empty.ValueFormatId);
+        Assert.Equal(0L, empty.ValueByteLength);
+        Assert.Equal((long)wide.Data.Length, Assert.Single(items, item => item.Name == "wide").ValueByteLength);
+        Assert.Equal((long)wide.Data.Length, Assert.Single(items, item => item.Name == "s.wide").ValueByteLength);
+    }
+
+    [Fact(DisplayName = "A checkpoint that holds no value is listed with format 0 and no size")]
+    public async Task A_checkpoint_without_a_value_lists_no_format_and_no_size()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 3))),
+            ct
+        );
+        await RaiseAsync(enqueued.JobId, "s.present", JobPayload.None, ct);
+
+        var signal = Assert.Single(
+            (await Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(enqueued.JobId)), ct)).Items
+        );
+        Assert.Equal("s.present", signal.Name);
+        Assert.Equal(0, signal.ValueFormatId);
+        Assert.Null(signal.ValueByteLength);
     }
 
     [Fact(DisplayName = "ListJobCheckpoints answers an empty page for a job with no checkpoints and for a missing id")]
@@ -134,7 +179,7 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
                     CheckpointKindCode.Signal,
                     name,
                     value.Format.Id,
-                    value.Data.ToArray(),
+                    value.IsNone ? null : value.Data.ToArray(),
                     new JobControlInput("op", null, "seed")
                 ),
                 ct

@@ -29,6 +29,7 @@ internal static class StagedFakes
         jobs.StoredResult = Json("""{"sent":true}""");
         jobs.StoredSteps = [new ListJobStepsItem("post-invoice", StepStatusCode.Pending, null, At, At)];
         // A signal the job awaited before and an operator raised, so its payload is stored and no wait is pending.
+        var approval = Json("""{"approved":true}""");
         jobs.StoredCheckpoints =
         [
             new ListJobCheckpointsItem(
@@ -36,11 +37,13 @@ internal static class StagedFakes
                 "approval",
                 CheckpointStatusCode.Set,
                 null,
-                JobPayload.Bytes([1, 2, 3]),
+                approval.Format.Id,
+                approval.Data.Length,
                 At.AddMinutes(-30),
                 At.AddMinutes(-20)
             ),
         ];
+        jobs.StoredCheckpointValues[(CheckpointKindCode.Signal, "approval")] = approval;
         var get = jobs.Get;
         jobs.Get = async (job, ct) =>
         {
@@ -190,6 +193,9 @@ internal static class StagedFakes
         CorrelationKey: "order-1042",
         ConcurrencyKey: "customer:1042",
         InputFormatId: JobPayloadFormat.Json.Id,
+        InputByteLength: 16,
+        ResultFormatId: JobPayloadFormat.Json.Id,
+        ResultByteLength: 13,
         Status: JobStatusCode.Ready,
         Priority: JobPriorityCode.High,
         Lane: "invoices",

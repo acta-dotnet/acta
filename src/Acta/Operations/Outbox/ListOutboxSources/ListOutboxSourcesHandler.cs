@@ -9,6 +9,7 @@ namespace Acta;
 /// </summary>
 internal sealed class ListOutboxSourcesHandler(
     GetJobIdBySlotHandler getJobIdBySlot,
+    GetJobCheckpointValueHandler getJobCheckpointValue,
     IJobs jobs,
     INamespaces namespaces,
     OutboxRelayRegistry? registry = null
@@ -52,14 +53,16 @@ internal sealed class ListOutboxSourcesHandler(
             return null;
         }
 
-        // The tick summary is a variable, and variables sort first: the relay slot's first page always holds it.
-        var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(slot.JobId)), ct);
-        var written = checkpoints.Items.FirstOrDefault(c =>
-            c.Kind == CheckpointKindCode.Variable && string.Equals(c.Name, OutboxTickSummary.VariableName, StringComparison.Ordinal)
+        // One read answers the tick summary and the time of the write that stored it, so both come from the same pass.
+        var written = await getJobCheckpointValue.ReadAsync(
+            JobLookup.ById(slot.JobId),
+            CheckpointKindCode.Variable,
+            OutboxTickSummary.VariableName,
+            ct
         );
-        var status = written is { Value: { } value }
-            ? JsonSerializer.Deserialize(value.Data.Span, OutboxTickSummaryJsonContext.Default.OutboxTickSummary)
-            : null;
+        var status = written is null
+            ? null
+            : JsonSerializer.Deserialize(written.Value, OutboxTickSummaryJsonContext.Default.OutboxTickSummary);
 
         // Only a successful pass writes the variable, so its last write is that pass's end.
         return new ListOutboxSourcesItem(

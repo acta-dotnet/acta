@@ -109,7 +109,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(_slot), Ct)).Items;
         var watermark = Assert.Single(checkpoints, c => c.Kind == CheckpointKindCode.Variable);
         Assert.Equal("watermark", watermark.Name);
-        Assert.Equal(20, JsonSerializer.Deserialize<long>(watermark.Value!.Value.Data.Span));
+        Assert.Equal(20, await _host.Jobs.GetVariableOrDefaultAsync<long>(_slot, "watermark", Ct));
     }
 
     [Fact]
@@ -267,12 +267,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(_slot, Ct))!;
 
     /// <summary>The watermark as the operator sees it, 0 before the first batch: the job's one variable.</summary>
-    private async Task<long> WatermarkAsync()
-    {
-        var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(_slot), Ct)).Items;
-        var watermark = checkpoints.SingleOrDefault(c => c.Kind == CheckpointKindCode.Variable && c.Name == "watermark");
-        return watermark is null ? 0 : JsonSerializer.Deserialize<long>(watermark.Value!.Value.Data.Span);
-    }
+    private async Task<long> WatermarkAsync() => await _host.Jobs.GetVariableOrDefaultAsync<long>(_slot, "watermark", Ct);
 
     /// <summary>
     /// The firing id from the envelope the admitter wrote, read from <c>checkpoints_view</c> as the lab prints it: the

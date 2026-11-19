@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Flat <c>checkpoints</c> row for the job read surface, in SELECT order. <see cref="KindId"/> stays the stored byte
 /// because it is the cursor's key: a kind this build does not know decodes to id 0, and a cursor built from that would
-/// read the same rows again. Value bytes reconstitute a <see cref="JobPayload"/> (None format id means no payload).
+/// read the same rows again.
 /// </summary>
 [DbProjection]
 internal sealed record ListJobCheckpointsRow(
@@ -12,7 +12,7 @@ internal sealed record ListJobCheckpointsRow(
     CheckpointStatusCode? Status,
     DateTime? DueAtUtc,
     byte ValueFormatId,
-    byte[]? Value,
+    long? ValueByteLength,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc
 )
@@ -23,7 +23,8 @@ internal sealed record ListJobCheckpointsRow(
             CheckpointName,
             Status,
             DueAtUtc,
-            ValueFormatId == 0 ? null : JobPayload.Trusted(JobPayloadFormat.ForId(ValueFormatId), Value ?? []),
+            ValueFormatId,
+            ValueByteLength,
             CreatedAtUtc,
             ModifiedAtUtc
         );

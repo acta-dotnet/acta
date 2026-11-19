@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { advanceNow } from './time.ts';
-import { quotePayloadJson, RawJson, stringifyBody } from './lib/rawJson.ts';
+import { RawJson, stringifyBody } from './lib/rawJson.ts';
 import type { JobDetail, JobExplanation, JobLineage, JobWorker } from './routes/job-detail/types.ts';
 
 export const online = writable(true);
@@ -71,12 +71,11 @@ interface ParsedJson {
   valid: boolean;
 }
 
-// A payload envelope's json member arrives as its exact text (lib/rawJson.ts), never as a rebuilt value.
 async function parseJson(response: Response): Promise<ParsedJson> {
   const text = await response.text();
   if (!text) return { body: null, valid: false };
   try {
-    return { body: JSON.parse(quotePayloadJson(text)) as unknown, valid: true };
+    return { body: JSON.parse(text) as unknown, valid: true };
   } catch {
     return { body: null, valid: false };
   }
@@ -255,8 +254,8 @@ export type ControlAction = 'applied' | 'not-found' | 'rejected' | 'accepted' | 
 
 // All seven job-control verbs (pause/resume/restart/cancel/reschedule/reprioritize/purge) return this
 // shape at `jobs/{jobRef}/{action}`; JobControls.svelte drives them all through useControlMutation
-// (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function. The
-// dashboard sends no expectedVersion, so 'version-conflict' only reaches other API callers.
+// (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function. Of these and
+// the input update, only the input update sends expectedVersion, so only it meets 'version-conflict' here.
 export interface JobControlResponse {
   // Why a signal raise or clear was refused; null for every other verb and outcome.
   reason?: string | null;
@@ -679,21 +678,6 @@ export async function archiveCalendar(
   );
 }
 
-// The payload envelope the detail and checkpoint reads carry; no envelope is no payload. A json payload's
-// `json` is the embedded value's exact text, as parseJson keeps it (lib/rawJson.ts); any other format (bytes
-// or a consumer-defined id) is base64. A stored json row that is not strict JSON ships as base64 with
-// `malformed` set. A payload past the server's size cap ships no body field: `truncated` is true and
-// `byteLength` carries its stored size. PayloadView.svelte dispatches on `formatName` and renders the match.
-export interface JobPayloadView {
-  formatName: string;
-  formatId: number;
-  json?: string;
-  base64?: string;
-  byteLength?: number;
-  truncated?: boolean;
-  malformed?: boolean;
-}
-
 // One schedule bound to a job's recurring slot, as it appears inside the aggregate detail (the same
 // shape the /schedules list returns; JobSchedulesPanel reads this subset).
 export interface JobScheduleView {
@@ -710,14 +694,12 @@ export interface JobScheduleView {
 }
 
 // GET /jobs/{jobRef}/detail: the whole job screen in one aggregate so a lightweight job renders from a
-// single request. Composed server-side after one job-id resolution; the input/result/checkpoint
-// payloads are size-capped. An absent input or result, or an empty schedule/worker set, is a missing,
-// null, or empty field. The unbounded event history keeps its own paged endpoint (JobEventsPanel), so
-// it is not part of this shape.
+// single request. Composed server-side after one job-id resolution. It carries no payload body: the job states
+// its input's and result's format and size, a checkpoint its value's, and each body is read from its own route
+// (payloadRoutes). An empty schedule/worker set is a null or empty field. The unbounded event history keeps its
+// own paged endpoint (JobEventsPanel), so it is not part of this shape.
 export interface JobDetailView {
   job: JobDetail;
-  input?: JobPayloadView | null;
-  result?: JobPayloadView | null;
   // The first page; GET /jobs/{ref}/checkpoints continues it from nextCursor.
   checkpoints: Paged<JobCheckpoint>;
   explain: JobExplanation | null;
@@ -734,13 +716,17 @@ export interface JobDetailView {
 }
 
 // One checkpoint row (variable/signal/timer/progress/child); kind and state are kebab code
-// strings. `value` carries the format-dispatched payload shape when the checkpoint holds one.
+// strings. A value is stated by its format id and size, format 0 and no size when there is none, and is read
+// from payloadRoutes.checkpointValue.
 export interface JobCheckpoint {
   kind: string;
   name: string;
-  status?: string;
-  dueAtUtc?: string;
-  value?: JobPayloadView;
+  status: string | null;
+  dueAtUtc: string | null;
+  valueFormatId: number;
+  valueByteLength: number | null;
+  createdAtUtc: string;
+  modifiedAtUtc: string;
 }
 
 // GET /definitions/{ns}/{name}/input-template: the compile-time shape of a job's input. `templateJson`
@@ -771,22 +757,88 @@ export async function getDefinitionInputTemplate(
   }
 }
 
+// The routes that serve a stored payload whole as the body: a job's input, its result, and one checkpoint's value.
+export const payloadRoutes = {
+  input: (jobRef: string) => `jobs/${encodeURIComponent(jobRef)}/input`,
+  result: (jobRef: string) => `jobs/${encodeURIComponent(jobRef)}/result`,
+  checkpointValue: (jobRef: string, kind: string, name: string) =>
+    `jobs/${encodeURIComponent(jobRef)}/checkpoints/${encodeURIComponent(kind)}/${encodeURIComponent(name)}/value`
+};
+
 // GET /jobs/{jobRef}/input answers the stored input itself: the JSON text of a json input, read as text so every
 // digit is kept. Null when the job has no input, is gone, or stores another format, which travels as raw bytes.
 export async function getJobInputJson(jobRef: string, options: { signal?: AbortSignal } = {}): Promise<string | null> {
-  const response = await send(apiUrl(`jobs/${encodeURIComponent(jobRef)}/input`), { signal: options.signal });
+  const response = await send(apiUrl(payloadRoutes.input(jobRef)), { signal: options.signal });
   if (response.status === 204 || response.status === 404) return null;
-  if (response.status === 401) throw sessionError();
-  if (!response.ok) {
-    const problem = (await parseJson(response)).body;
-    throw new ApiError(
-      response.status,
-      problemValue(problem, 'title'),
-      problemValue(problem, 'detail'),
-      problemValue(problem, 'traceId')
-    );
-  }
+  if (!response.ok) throw await problemError(response);
   return response.headers.get('Content-Type')?.startsWith('application/json') ? await response.text() : null;
+}
+
+// The absolute URL of an API path, for a link the browser follows itself: a read sends no header of its own, so a
+// same-origin link carries the same cookie or host sign-in a fetch does.
+export function apiHref(path: string): string {
+  return apiUrl(path).href;
+}
+
+// What one payload route answered: a json body as its exact text, any other body as base64 under its format id (1
+// there is stored json that is not strict JSON), nothing stored, or a body past the limit, which is never held.
+export type PayloadRead =
+  | { kind: 'json'; text: string }
+  | { kind: 'bytes'; formatId: number; base64: string }
+  | { kind: 'none' }
+  | { kind: 'over'; byteLength: number };
+
+// Reads one payload route (payloadRoutes). Only the two shapes the routes serve are a payload: application/json, and
+// application/octet-stream with X-Acta-Payload-Format. Any other answer, such as a sign-in page a proxy put in its
+// place, throws, as does a 404 for a job that is gone.
+export async function getJobPayload(path: string, options: { signal?: AbortSignal; limit: number }): Promise<PayloadRead> {
+  const response = await send(apiUrl(path), { signal: options.signal });
+  if (response.status === 204) return { kind: 'none' };
+  if (!response.ok) throw await problemError(response);
+  const json = response.headers.get('Content-Type')?.startsWith('application/json') === true;
+  const formatId = Number(response.headers.get('X-Acta-Payload-Format') ?? NaN);
+  if (!json && !(response.headers.get('Content-Type')?.startsWith('application/octet-stream') && Number.isInteger(formatId))) {
+    await response.body?.cancel();
+    throw new ApiError(response.status, 'Not a payload.', 'The server answered with something other than the stored payload.', null);
+  }
+  const declared = Number(response.headers.get('Content-Length') ?? NaN);
+  if (Number.isFinite(declared) && declared > options.limit) {
+    await response.body?.cancel();
+    return { kind: 'over', byteLength: declared };
+  }
+  const body = await readUpTo(response, options.limit);
+  if (typeof body === 'number') return { kind: 'over', byteLength: body };
+  if (json) return { kind: 'json', text: new TextDecoder().decode(body) };
+  let binary = '';
+  for (const byte of body) binary += String.fromCharCode(byte);
+  return { kind: 'bytes', formatId, base64: btoa(binary) };
+}
+
+// The body's bytes, or only its length once it passes the limit: past it the rest is counted and dropped, never held.
+async function readUpTo(response: Response, limit: number): Promise<Uint8Array | number> {
+  const reader = response.body?.getReader();
+  if (!reader) return new Uint8Array(0);
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (let next = await reader.read(); !next.done; next = await reader.read()) {
+    total += next.value.length;
+    if (total <= limit) chunks.push(next.value);
+  }
+  if (total > limit) return total;
+  const body = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, at);
+    at += chunk.length;
+  }
+  return body;
+}
+
+// A failed read as the API's problem; a 401 ends the session as every other call's does.
+async function problemError(response: Response): Promise<ApiError> {
+  if (response.status === 401) return sessionError();
+  const problem = (await parseJson(response)).body;
+  return new ApiError(response.status, problemValue(problem, 'title'), problemValue(problem, 'detail'), problemValue(problem, 'traceId'));
 }
 
 // POST /jobs enqueue outcome: the assigned public ref and the coarse action ('inserted' for a fresh

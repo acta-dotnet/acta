@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 /// Conformance for <c>GetJob</c>: a point-read that returns the <c>GetJobResponse</c> projection for a
 /// known job id, and <c>null</c> for an unknown id. Exercises the column mapping (id, status,
 /// deduplication key, namespace, name, definition, priority, execution number, parent, next run,
-/// input format, tenant) and the absent-row sentinel.
+/// the input's and the result's format and size, tenant) and the absent-row sentinel.
 /// </summary>
 [ConformanceSpec(
     "get-job.point-read",
@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "GetJob returns the GetJobResponse projection for a matching job row and null when no row matches the supplied id."
 )]
-[Deploys("add-numbers")]
+[Deploys("add-numbers", "cancellable")]
 public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobSpec>>
 {
     [Fact(DisplayName = "A known job id returns a populated GetJobResponse whose id and Ready status match the enqueued row")]
@@ -102,6 +102,74 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
 
         Assert.Null(snapshot);
     }
+
+    [Fact(DisplayName = "The snapshot states the input's and the result's format and size, and no size where there is none")]
+    public async Task Snapshot_states_the_input_and_the_result_by_format_and_size()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var input = JobPayload.Json(new AddNumbers(2, 3));
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", input), ct);
+
+        var ready = (await Jobs.GetAsync(job, ct))!;
+        Assert.Equal(input.Format.Id, ready.InputFormatId);
+        Assert.Equal((long)input.Data.Length, ready.InputByteLength);
+        Assert.Equal(0, ready.ResultFormatId);
+        Assert.Null(ready.ResultByteLength);
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(job, ct));
+        var result = (await Jobs.GetResultAsync(job, ct))!.Result;
+        var done = (await Jobs.GetAsync(job, ct))!;
+        Assert.Equal(result.Format.Id, done.ResultFormatId);
+        Assert.Equal((long)result.Data.Length, done.ResultByteLength);
+
+        var noInput = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "cancellable", JobPayload.None), ct);
+        var none = (await Jobs.GetAsync(noInput, ct))!;
+        Assert.Equal(0, none.InputFormatId);
+        Assert.Null(none.InputByteLength);
+
+        // A restart clears the result, and the snapshot says so: format 0 and no size.
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(job, "run it again", ct: ct)).Action);
+        var restarted = (await Jobs.GetAsync(job, ct))!;
+        Assert.Equal(0, restarted.ResultFormatId);
+        Assert.Null(restarted.ResultByteLength);
+    }
+
+    [Fact(DisplayName = "A size counts stored bytes: a format with no bytes is 0, and multi-byte UTF-8 counts every byte")]
+    public async Task Snapshot_sizes_count_bytes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var empty = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Bytes([])), ct);
+        await StoreResultAsync(empty.JobId, JobPayloadFormat.Bytes.Id, [], ct);
+
+        var stated = (await Jobs.GetAsync(empty, ct))!;
+        Assert.Equal(JobPayloadFormat.Bytes.Id, stated.InputFormatId);
+        Assert.Equal(0L, stated.InputByteLength);
+        Assert.Equal(JobPayloadFormat.Bytes.Id, stated.ResultFormatId);
+        Assert.Equal(0L, stated.ResultByteLength);
+
+        const string text = "{\"message\":\"Zoë ✓ 日本語 😀\"}";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        Assert.NotEqual(text.Length, bytes.Length);
+        var wide = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.FromBytes(JobPayloadFormat.Json, bytes)),
+            ct
+        );
+        await StoreResultAsync(wide.JobId, JobPayloadFormat.Json.Id, bytes, ct);
+
+        var multiByte = (await Jobs.GetAsync(wide, ct))!;
+        Assert.Equal((long)bytes.Length, multiByte.InputByteLength);
+        Assert.Equal((long)bytes.Length, multiByte.ResultByteLength);
+    }
+
+    // A result as a completion leaves one on a job that is not executing, stored with its exact bytes.
+    private Task StoreResultAsync(long jobId, byte formatId, byte[] result, CancellationToken ct) =>
+        Db.ExecuteRawAsync(
+            "UPDATE {schema}.jobs_state SET result_format_id = @p_format, result = @p_value WHERE job_id = @p_job_id",
+            ct,
+            ("@p_format", formatId),
+            ("@p_value", result),
+            ("@p_job_id", jobId)
+        );
 
     [Fact(DisplayName = "An executing job past its lease reads LeaseLapsed, and one inside its lease does not")]
     public async Task An_executing_job_past_its_lease_reads_lapsed()

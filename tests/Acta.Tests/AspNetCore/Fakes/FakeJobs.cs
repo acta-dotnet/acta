@@ -44,6 +44,12 @@ internal sealed class FakeJobs : IJobs
             var items = Resolve(query.Job) == 42 ? StoredCheckpoints : [];
             return ValueTask.FromResult(new ListJobCheckpointsResponse(items, null, false, 50, query.IncludeTotal ? items.Count : null));
         };
+        GetCheckpointValue = (job, kind, name, _) =>
+            ValueTask.FromResult<GetJobCheckpointValueResponse?>(
+                Resolve(job) == 42 && StoredCheckpointValues.TryGetValue((kind, name), out var value)
+                    ? new GetJobCheckpointValueResponse(value)
+                    : null
+            );
         ListSteps = (query, _) =>
         {
             var items = Resolve(query.Job) == 42 ? StoredSteps : [];
@@ -110,6 +116,9 @@ internal sealed class FakeJobs : IJobs
 
     public IReadOnlyList<ListJobCheckpointsItem> StoredCheckpoints { get; set; } = [];
 
+    /// <summary>The values the found job's checkpoints hold, by kind and name; the list states each by format and size.</summary>
+    public Dictionary<(CheckpointKindCode Kind, string Name), JobPayload> StoredCheckpointValues { get; } = [];
+
     public IReadOnlyList<ListJobStepsItem> StoredSteps { get; set; } = [];
 
     public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, long? ExpectedVersion)> ControlCalls { get; } = [];
@@ -146,6 +155,14 @@ internal sealed class FakeJobs : IJobs
     public Func<JobLookup, CancellationToken, ValueTask<GetJobResultResponse?>> GetResult { get; set; }
 
     public Func<ListJobCheckpointsQuery, CancellationToken, ValueTask<ListJobCheckpointsResponse>> ListCheckpoints { get; set; }
+
+    public Func<
+        JobLookup,
+        CheckpointKindCode,
+        string,
+        CancellationToken,
+        ValueTask<GetJobCheckpointValueResponse?>
+    > GetCheckpointValue { get; set; }
 
     public Func<ListJobStepsQuery, CancellationToken, ValueTask<ListJobStepsResponse>> ListSteps { get; set; }
 
@@ -193,6 +210,13 @@ internal sealed class FakeJobs : IJobs
 
     ValueTask<ListJobCheckpointsResponse> IJobs.ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct) =>
         ListCheckpoints(query, ct);
+
+    ValueTask<GetJobCheckpointValueResponse?> IJobs.GetCheckpointValueAsync(
+        JobLookup job,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct
+    ) => GetCheckpointValue(job, kind, name, ct);
 
     ValueTask<ListJobStepsResponse> IJobs.ListStepsAsync(ListJobStepsQuery query, CancellationToken ct) => ListSteps(query, ct);
 
@@ -382,7 +406,7 @@ internal sealed class FakeJobs : IJobs
     {
         if (IsFound(job) || (job.JobNamespace == "billing" && job.DeduplicationKey == "ck-1"))
         {
-            return Snapshot(42, "billing", "send-invoice");
+            return Snapshot(42, "billing", "send-invoice", StoredInput, StoredResult);
         }
 
         // An enqueued ref resolves to its recorded request so the aggregate detail read can compose
@@ -390,7 +414,7 @@ internal sealed class FakeJobs : IJobs
         if (Resolve(job) is { } enqueuedId && enqueuedId - 101 is >= 0 and var i && i < EnqueueRequests.Count)
         {
             var request = EnqueueRequests[(int)i];
-            return Snapshot(enqueuedId, request.JobNamespace, request.JobName);
+            return Snapshot(enqueuedId, request.JobNamespace, request.JobName, _enqueuedInputs.GetValueOrDefault(enqueuedId), null);
         }
 
         return null;
@@ -464,7 +488,8 @@ internal sealed class FakeJobs : IJobs
         : job.JobRef == RejectedJobRef ? (43, ControlAction.Rejected, JobStatusCode.Succeeded, CurrentJobVersion)
         : (42, ControlAction.Applied, applied, CurrentJobVersion + 1);
 
-    private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName) =>
+    // The snapshot states the stored input and result by format and size, as the store's does.
+    private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName, JobPayload? input, JobPayload? result) =>
         new(
             JobId: jobId,
             JobRef: jobId == 42 ? FoundJobRef : EnqueuedRef(jobId),
@@ -487,7 +512,10 @@ internal sealed class FakeJobs : IJobs
             BlockedBehindJobRef: null,
             ExecutionNumber: 0,
             FailureCount: 0,
-            InputFormatId: 0,
+            InputFormatId: input?.Format.Id ?? 0,
+            InputByteLength: input is { IsNone: false } stored ? stored.Data.Length : null,
+            ResultFormatId: result?.Format.Id ?? 0,
+            ResultByteLength: result is { IsNone: false } produced ? produced.Data.Length : null,
             NextRunAtUtc: null,
             LeasedByWorkerId: null,
             LeaseExpiresAtUtc: null,

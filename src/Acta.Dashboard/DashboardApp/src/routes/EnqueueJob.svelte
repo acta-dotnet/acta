@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, enqueueJob, getDefinitionInputTemplate, getJobInputJson, type JobPayloadView, type Paged } from '../api.ts';
+  import { api, enqueueJob, getDefinitionInputTemplate, getJobInputJson, type Paged } from '../api.ts';
   import { capabilitiesQuery, can, ENABLE_CONTROLS_HINT, Permission, keys, namespaceNamesQuery } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
@@ -134,8 +134,6 @@
     if (seed !== undefined) inputJson = seed;
   });
 
-  let inputPayload = $derived<JobPayloadView>({ formatName: 'json', formatId: 1, json: inputJson });
-
   // PayloadView reports the validated draft text.
   function applyInput(value: string): void {
     inputEdited = true;
@@ -255,7 +253,7 @@
             <span>Provide input (JSON)</span>
           </label>
           {#if includeInput}
-            <div class="enqueue-input"><PayloadView payload={inputPayload} editable={!busy} onSave={applyInput} /></div>
+            <div class="enqueue-input"><PayloadView json={inputJson} editable={!busy} onSave={applyInput} /></div>
           {/if}
 
           <label class="detail-field">

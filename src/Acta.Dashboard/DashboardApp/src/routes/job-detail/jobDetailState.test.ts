@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   activeWaitLabel,
   buildIncidentSummary,
@@ -74,9 +75,15 @@ test('an unfamiliar wait kind names itself instead of borrowing another kind nam
   assert.deepEqual(activeWaitLabel('child', 'legacy-latch'), { kind: 'child', name: 'legacy-latch' });
 });
 
-test('payload format labels known and unknown ids', () => {
-  assert.equal(payloadFormatLabel(1), 'json');
-  assert.equal(payloadFormatLabel(9), 'format #9');
+// The names are the server's own: each is read from JobPayloadFormat.cs, so a rename there fails here.
+test("payload format names match the server's JobPayloadFormat", () => {
+  const source = readFileSync(new URL('../../../../../Acta/Payloads/JobPayloadFormat.cs', import.meta.url), 'utf8');
+  const builtIn = (id: number) => source.match(new RegExp(`BuiltIn\\(${id}, "([a-z-]+)"\\)`))?.[1];
+  assert.equal(payloadFormatLabel(0), source.match(/NoneName = "([a-z-]+)"/)?.[1]);
+  assert.equal(payloadFormatLabel(1), builtIn(1));
+  assert.equal(payloadFormatLabel(2), builtIn(2));
+  assert.match(source, /_ => Custom\(id, \$"custom-\{id\}"\)/);
+  assert.equal(payloadFormatLabel(200), 'custom-200');
 });
 
 test('incident summary includes current evidence in newest-first order', () => {

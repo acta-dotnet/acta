@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// One job: its identity, its place in its lineage, its status, when it runs next, who holds it, and when retention may delete it. The
-/// input is not included; read it from the job's input route.
+/// input and the result are stated by format and size, not included; read each from its own route.
 /// </summary>
 /// <param name="JobId">The job's internal id; the JSON omits it and carries jobRef.</param>
 /// <param name="DefinitionId">The internal id of the job's definition; the JSON omits it.</param>
@@ -27,6 +27,9 @@ namespace Acta;
 /// <param name="ConcurrencyKey">The job's concurrency key, when it was enqueued with one; jobs that share a key run at most as many at
 /// once as the definition's concurrency limit allows.</param>
 /// <param name="InputFormatId">The id of the format the job's input is stored in; 0 when the job has no input.</param>
+/// <param name="InputByteLength">The stored input's size in bytes; null when the job has no input.</param>
+/// <param name="ResultFormatId">The id of the format the job's result is stored in; 0 while the job holds no result.</param>
+/// <param name="ResultByteLength">The stored result's size in bytes; null while the job holds no result.</param>
 /// <param name="Status">The job's status.</param>
 /// <param name="Priority">The job's priority.</param>
 /// <param name="Lane">The lane the job runs in, or null; a lane runs one job at a time, in enqueue order.</param>
@@ -63,6 +66,9 @@ public sealed record GetJobResponse(
     string? CorrelationKey,
     string? ConcurrencyKey,
     byte InputFormatId,
+    long? InputByteLength,
+    byte ResultFormatId,
+    long? ResultByteLength,
     JobStatusCode Status,
     JobPriorityCode Priority,
     string? Lane,

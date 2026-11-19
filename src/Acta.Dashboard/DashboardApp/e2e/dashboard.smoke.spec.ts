@@ -40,6 +40,9 @@ const job = {
   executionNumber: 1,
   failureCount: 1,
   inputFormatId: 1,
+  inputByteLength: 16,
+  resultFormatId: 0,
+  resultByteLength: null,
   nextRunAtUtc: null,
   leasedByWorkerRef: null,
   leaseExpiresAtUtc: null,
@@ -278,8 +281,21 @@ async function mockDashboard(
     checkpoints?: unknown[];
     // Called for each DELETE of the job's approval signal, which then answers applied.
     onClearSignal?: () => void;
+    // The job row the detail read carries; the failed job unless a test names one.
+    jobRow?: Record<string, unknown>;
+    // Called for each read of the job's result, which answers {"sent":true}.
+    onResultRead?: () => void;
+    // Called for each read of the job's input, which answers {"invoiceId":42}.
+    onInputRead?: () => void;
+    // Sees each input update's body; the update applies when its expectedVersion is the job's version, and moves it.
+    onInputUpdate?: (body: Record<string, unknown>) => void;
+    // Writes made elsewhere: each one moves the job's version, as another operator's update would.
+    otherWrites?: { count: number };
   }
 ): Promise<void> {
+  let inputUpdates = 0;
+  const jobVersion = () =>
+    Number((options.jobRow ?? job).version ?? 0) + inputUpdates + (options.otherWrites?.count ?? 0);
   await page.route('**/api/v1/**', async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -446,9 +462,7 @@ async function mockDashboard(
     // The detail read also answers the job's numeric target, as a host with numeric lookup does.
     if (path === `jobs/${jobRef}/detail` || path === 'jobs/id:4242/detail') {
       return json({
-        job,
-        input: { json: { invoiceId: 42 }, formatId: 1, formatName: 'json' },
-        result: null,
+        job: { ...(options.jobRow ?? job), version: jobVersion() },
         checkpoints: {
           items: options.checkpoints ?? [],
           nextCursor: null,
@@ -483,6 +497,26 @@ async function mockDashboard(
       options.onRestart?.();
       return json({ action: 'applied', status: 'ready', version: 4 });
     }
+    // Each payload route serves its body whole, as the server does; the detail read carries none. An input update moves
+    // the job's version, as the server's does, so the page reads the input again.
+    if (path === `jobs/${jobRef}/input` && request.method() === 'PUT') {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      options.onInputUpdate?.(body);
+      if (body.expectedVersion !== jobVersion()) {
+        return json({ action: 'version-conflict', status: 'failed', version: jobVersion() }, 409);
+      }
+      inputUpdates++;
+      return json({ action: 'applied', status: 'failed', version: jobVersion() });
+    }
+    if (path === `jobs/${jobRef}/input`) {
+      options.onInputRead?.();
+      return json({ invoiceId: 42 });
+    }
+    if (path === `jobs/${jobRef}/result`) {
+      options.onResultRead?.();
+      return json({ sent: true });
+    }
+    if (path === `jobs/${jobRef}/checkpoints/signal/approval/value`) return json({ approved: false });
     if (path === `jobs/${jobRef}/signals/approval` && request.method() === 'POST') return json({ action: 'applied' });
     if (path === `jobs/${jobRef}/signals/approval` && request.method() === 'DELETE') {
       options.onClearSignal?.();
@@ -805,7 +839,16 @@ test('safe single-job control sends exactly one restart request', async ({ page 
   expect(restartRequests).toBe(1);
 });
 
-const approvalSignal = { kind: 'signal', name: 'approval', status: 'set', value: { json: { approved: false }, formatId: 1, formatName: 'json' } };
+const approvalSignal = {
+  kind: 'signal',
+  name: 'approval',
+  status: 'set',
+  dueAtUtc: null,
+  valueFormatId: 1,
+  valueByteLength: 18,
+  createdAtUtc: '2026-07-14T07:56:00Z',
+  modifiedAtUtc: '2026-07-14T07:57:00Z'
+};
 
 test("a finished job's signal clears after its confirmation", async ({ page }) => {
   let clears = 0;
@@ -829,6 +872,118 @@ test('a reader sees no Clear action on a signal', async ({ page }) => {
   await page.locator('#job-data > summary').click();
   await expect(page.getByRole('table', { name: 'Job checkpoints' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Clear signal/ })).toHaveCount(0);
+});
+
+test("a checkpoint's value is read only when its row is opened", async ({ page }) => {
+  const reads: string[] = [];
+  await mockDashboard(page, {
+    controls: false,
+    checkpoints: [approvalSignal],
+    onRequest: (path) => {
+      if (path.endsWith('/value')) reads.push(path);
+    }
+  });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await page.locator('#job-data > summary').click();
+  const table = page.getByRole('table', { name: 'Job checkpoints' });
+  await expect(table.getByText('json, 18 B')).toBeVisible();
+  // The row offers its download before anything is read; the link costs no request.
+  await expect(table.getByRole('link', { name: 'Download signal approval' })).toHaveAttribute(
+    'download',
+    `${jobRef}-signal-approval.json`
+  );
+  expect(reads).toHaveLength(0);
+  await table.locator('summary').click();
+  await expect(table.getByText('"approved": false')).toBeVisible();
+  expect(reads).toEqual([`jobs/${jobRef}/checkpoints/signal/approval/value`]);
+});
+
+test('the input, the result, and a checkpoint value are each read from their own route', async ({ page }) => {
+  const done = { ...job, status: 'succeeded', resultFormatId: 1, resultByteLength: 13 };
+  await mockDashboard(page, { controls: false, jobRow: done, checkpoints: [approvalSignal] });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  const result = page.getByRole('region', { name: 'Job result' });
+  await expect(result).toContainText('"sent": true');
+  await expect(result.getByRole('link', { name: 'Download result' })).toHaveAttribute('download', `${jobRef}-result.json`);
+  await page.locator('#job-data > summary').click();
+  await expect(page.getByRole('region', { name: 'Job input' })).toContainText('"invoiceId": 42');
+  const table = page.getByRole('table', { name: 'Job checkpoints' });
+  await table.locator('summary').click();
+  await expect(table.getByText('"approved": false')).toBeVisible();
+});
+
+test('a payload over the display limit states its size and offers its download without being read', async ({ page }) => {
+  let resultReads = 0;
+  const large = { ...job, status: 'succeeded', resultFormatId: 2, resultByteLength: 12 * 1048576 };
+  await mockDashboard(page, { controls: false, jobRow: large, onResultRead: () => resultReads++ });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  const result = page.getByRole('region', { name: 'Job result' });
+  await expect(result).toContainText('Payload is 12.0 MB; too large to display.');
+  const link = result.getByRole('link', { name: 'Download result' });
+  await expect(link).toHaveAttribute('href', new RegExp(`/api/v1/jobs/${jobRef}/result$`));
+  expect(resultReads).toBe(0);
+
+  // The browser follows the link itself and saves the route's answer under the link's name.
+  const [download] = await Promise.all([page.waitForEvent('download'), link.click()]);
+  expect(download.suggestedFilename()).toBe(`${jobRef}-result.bin`);
+});
+
+test('an input is read when its disclosure opens, edited as a compare-and-set, and a larger one is not editable here', async ({ page }) => {
+  let inputReads = 0;
+  const updates: Record<string, unknown>[] = [];
+  const otherWrites = { count: 0 };
+  await mockDashboard(page, {
+    controls: true,
+    jobRow: { ...job, version: 7 },
+    onInputRead: () => inputReads++,
+    onInputUpdate: (body) => updates.push(body),
+    otherWrites
+  });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+  await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
+  expect(inputReads).toBe(0);
+
+  await page.locator('#job-data > summary').click();
+  const input = page.getByRole('region', { name: 'Job input' });
+  await expect(input).toContainText('"invoiceId": 42');
+  expect(inputReads).toBe(1);
+  await input.getByRole('button', { name: 'Edit' }).click();
+  const editor = input.getByRole('textbox', { name: 'Payload editor' });
+  await editor.fill('{"invoiceId": 43}');
+
+  // Another write moves the job while the draft is open: the page reads the input again and the draft stays.
+  otherWrites.count = 1;
+  await page.getByRole('button', { name: 'Refresh now' }).click();
+  await expect.poll(() => inputReads).toBe(2);
+  await expect(editor).toHaveValue('{"invoiceId": 43}');
+
+  // The draft started from version 7, so its save is refused and the draft stays open.
+  await input.getByRole('button', { name: 'Save' }).click();
+  await expect(input.getByText(/version conflict/)).toBeVisible();
+  await expect(editor).toHaveValue('{"invoiceId": 43}');
+  expect(updates.map((body) => body.expectedVersion)).toEqual([7]);
+
+  // Edited again from the current input, the save names version 8 and applies.
+  await input.getByRole('button', { name: 'Cancel' }).click();
+  await input.getByRole('button', { name: 'Edit' }).click();
+  await editor.fill('{"invoiceId": 44}');
+  await input.getByRole('button', { name: 'Save' }).click();
+  await expect(input.getByText(/Input updated/)).toBeVisible();
+  expect(updates.map((body) => body.expectedVersion)).toEqual([7, 8]);
+  expect(updates[1]!.input).toEqual({ json: { invoiceId: 44 } });
+  await expect.poll(() => inputReads).toBe(3);
+
+  await page.unroute('**/api/v1/**');
+  inputReads = 0;
+  await mockDashboard(page, { controls: true, jobRow: { ...job, inputByteLength: 300 * 1024 }, onInputRead: () => inputReads++ });
+  await page.reload();
+  await page.locator('#job-data > summary').click();
+  await expect(input).toContainText('This input is too large to edit here.');
+  await expect(input.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+  expect(inputReads).toBe(0);
 });
 
 // A system job's signals are commands it has yet to apply, so the server refuses their clear and the panel offers none.
@@ -1447,7 +1602,16 @@ test('Focus lineage loads selected children on demand and explores descendants i
   const failedRef = 'job_019f9b3509487d1b911f202072c9e1a4';
   const branchRef = 'job_019f9b3509487d1b911f202072c9e1a5';
   const leafRef = 'job_019f9b3509487d1b911f202072c9e1a6';
-  const parent = { ...job, kind: 'ordinary', version: 1, jobName: 'publish-manuscript', status: 'suspended', failureCount: 0 };
+  const parent = {
+    ...job,
+    kind: 'ordinary',
+    version: 1,
+    jobName: 'publish-manuscript',
+    status: 'suspended',
+    failureCount: 0,
+    inputFormatId: 0,
+    inputByteLength: null
+  };
   // The page job has an ancestor of its own: the API lists a branch's ancestors farthest first, so the
   // explored child's path must start below this job, not repeat the ancestors above it.
   const root = { ...parent, jobRef: 'job_019f9b3509487d1b911f202072c9e1a3', jobName: 'publish-catalog' };
@@ -1455,7 +1619,7 @@ test('Focus lineage loads selected children on demand and explores descendants i
   const branch = { ...parent, jobRef: branchRef, jobName: 'typeset-pdf', parentJobRef: jobRef };
   const leaf = { ...parent, jobRef: leafRef, jobName: 'render-chapter', status: 'executing', parentJobRef: branchRef };
   const detail = (row: typeof parent, children: typeof parent[], ancestors: typeof parent[] = []) => ({
-    job: row, input: null, result: null, resultTypeName: null, maxAttemptsEffective: 3,
+    job: row, resultTypeName: null, maxAttemptsEffective: 3,
     checkpoints: paged([]), schedules: [], schedulesTotal: 0, workers: [], workersTotal: 0,
     explain: { headline: 'Waiting for child jobs.', reason: row.status === 'failed' ? 'Source asset is 96 DPI. This job requires 300 DPI.' : null, activeWait: null, lease: null, lastExecutedBy: null, steps: [], stepsHasMore: false, nextActions: [] },
     lineage: { job: row, ancestors, ancestorsHasMore: false, children, childrenHasMore: false, steps: [], stepsHasMore: false, activeWait: null }
@@ -1594,7 +1758,7 @@ test('a paused job waiting on a signal keeps Resume in the Actions menu', async 
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
-      job: paused, input: null, result: null, resultTypeName: null, maxAttemptsEffective: 3,
+      job: paused, resultTypeName: null, maxAttemptsEffective: 3,
       checkpoints: { items: [], nextCursor: null, hasMore: false, totalCount: 0 }, schedules: [], schedulesTotal: 0, workers: [], workersTotal: 0,
       explain: { headline: 'Paused while waiting for approval.', reason: null, activeWait: { kind: 'Signal', name: 'approval', dueAtUtc: null }, lease: null, lastExecutedBy: null, steps: [], stepsHasMore: false, nextActions: [] },
       lineage: { job: paused, ancestors: [], ancestorsHasMore: false, children: [], childrenHasMore: false, steps: [], stepsHasMore: false, activeWait: null }
@@ -1614,7 +1778,7 @@ async function routeJobDetail(page: Page, row: Record<string, unknown>, extra: R
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
-      job: row, input: null, result: null, resultTypeName: null, maxAttemptsEffective: 5,
+      job: row, resultTypeName: null, maxAttemptsEffective: 5,
       checkpoints: { items: [], nextCursor: null, hasMore: false, totalCount: 0 }, schedules: [], schedulesTotal: 0, workers: [], workersTotal: 0,
       explain: { headline: 'Waiting.', reason: null, activeWait: null, lease: null, lastExecutedBy: null, steps: [], stepsHasMore: false, nextActions: [] },
       lineage: { job: row, ancestors: [], ancestorsHasMore: false, children: [], childrenHasMore: false, steps: [], stepsHasMore: false, activeWait: null },
@@ -1766,6 +1930,16 @@ const scanned: Array<[RouteName, string, (page: Page) => Promise<void>]> = [
     await openJob(page, { controls: true, checkpoints: [approvalSignal] });
     await page.locator('#job-data > summary').click();
     await expect(page.getByRole('button', { name: 'Clear signal approval' })).toBeVisible();
+  }],
+  ['job-detail', 'a result over the display limit', async (page) => {
+    await openJob(page, { controls: true, jobRow: { ...job, status: 'succeeded', resultFormatId: 2, resultByteLength: 12 * 1048576 } });
+    await expect(page.getByRole('link', { name: 'Download result' })).toBeVisible();
+  }],
+  ['job-detail', "a checkpoint's value, opened", async (page) => {
+    await openJob(page, { controls: true, checkpoints: [approvalSignal] });
+    await page.locator('#job-data > summary').click();
+    await page.getByRole('table', { name: 'Job checkpoints' }).locator('summary').click();
+    await expect(page.getByText('"approved": false')).toBeVisible();
   }],
   ['job-detail', 'the signal form', async (page) => {
     await openJob(page);

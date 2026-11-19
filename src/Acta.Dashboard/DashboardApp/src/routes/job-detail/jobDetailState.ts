@@ -104,8 +104,12 @@ export function activeWaitLabel(kind: string, name: string): { kind: string; nam
   }
 }
 
+/**
+ * A payload format's name from its id, as the server's JobPayloadFormat.ForId(id).Name prints it: none, the built-in
+ * json and bytes, and custom-N for an application's own, whose registered name only the host knows.
+ */
 export function payloadFormatLabel(id: number): string {
-  return ({ 0: 'none', 1: 'json', 2: 'bytes' } as Record<number, string>)[id] ?? `format #${id}`;
+  return ({ 0: 'none', 1: 'json', 2: 'bytes' } as Record<number, string>)[id] ?? `custom-${id}`;
 }
 
 export function buildIncidentSummary(

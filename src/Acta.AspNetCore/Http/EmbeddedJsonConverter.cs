@@ -6,7 +6,7 @@ namespace Acta.AspNetCore;
 
 /// <summary>
 /// Reads an embedded JSON value as any value, a JSON null included, and writes it back as its exact source text, so a
-/// stored payload reaches the wire byte for byte, every digit and every character as stored.
+/// stored value, such as a calendar's definition, reaches the wire byte for byte, every digit and every character as stored.
 /// </summary>
 internal sealed class EmbeddedJsonConverter : JsonConverter<JsonElement?>
 {

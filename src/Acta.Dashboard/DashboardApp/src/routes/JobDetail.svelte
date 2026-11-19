@@ -46,8 +46,9 @@
   let events: EventItem[] = $state([]);
 
   // One aggregate read renders the whole screen: snapshot plus explain, lineage, eligible workers, the
-  // definition link, this job's schedules, and the input/result/checkpoint payloads. Only the unbounded
-  // event history keeps its own query (JobEventsPanel). Polls on the same paused/terminal rules the
+  // definition link, this job's schedules, and the first page of checkpoints. It states the input, the result,
+  // and each checkpoint value by format and size; StoredPayload reads each body from its own route. Only the
+  // unbounded event history keeps its own query (JobEventsPanel). Polls on the same paused/terminal rules the
   // snapshot poll used; read the store while building the options so pausing cancels the interval.
   const detailQuery = createQuery(() => {
     const paused = $livePaused;
@@ -135,7 +136,14 @@
     if (job && detail && detail.checkpoints.items.length > 0) checkpointsSeenFor = job.jobRef;
   });
   let showCheckpoints = $derived(!!detail && (detail.checkpoints.items.length > 0 || checkpointsSeenFor === job?.jobRef));
-  let hasData = $derived(!!detail && (!!detail.input || showCheckpoints));
+  let hasInput = $derived(job?.inputByteLength != null);
+  let hasData = $derived(!!detail && (hasInput || showCheckpoints));
+  // The input is read when the stored-data disclosure first opens, and its panel stays mounted after it closes, so an
+  // open draft and its outcome message survive.
+  let dataSeen = $state(false);
+  $effect(() => {
+    if (dataOpen) dataSeen = true;
+  });
   let hasSchedules = $derived(!!detail && (detail.schedules.length > 0 || (detail.schedulesTotal ?? 0) > 0));
   const tabFilters = createUrlFilters({ tab: 'tab', execution: 'execution' }, { tab: '', execution: '' });
   let focusExecution = $derived(/^\d+$/.test($tabFilters.execution) ? Number($tabFilters.execution) : null);
@@ -235,7 +243,7 @@
 
       {#if hasLineage}<JobLineage bind:this={lineagePanel} {job} {lineage} />{/if}
       <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
-      {#if detail.result}<JobResultPanel result={detail.result} resultTypeName={detail.resultTypeName} />{/if}
+      {#if job.resultByteLength != null}<JobResultPanel jobRef={job.jobRef} formatId={job.resultFormatId} byteLength={job.resultByteLength} version={`${job.resultFormatId}|${job.resultByteLength}|${job.modifiedAtUtc}`} />{/if}
 
       <FocusDisclosure title="Activity" hint={hasExecutions ? heroAttempt : 'Events and history'} bind:open={activityOpen} id="job-activity">
         <div hidden={executionsOpen}>
@@ -251,8 +259,8 @@
       </FocusDisclosure>
 
       {#if hasData}
-        <FocusDisclosure title={detail.checkpoints.items.length ? 'Data and checkpoints' : 'Stored data'} hint={(detail.input ? 'Input' : '') + (detail.checkpoints.items.length ? (detail.input ? ' · ' : '') + detail.checkpoints.items.length + (detail.checkpoints.items.length === 1 ? ' checkpoint' : ' checkpoints') : '')} bind:open={dataOpen} id="job-data">
-          {#if detail.input}<JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onUpdated={reload} />{/if}
+        <FocusDisclosure title={detail.checkpoints.items.length ? 'Data and checkpoints' : 'Stored data'} hint={(hasInput ? 'Input' : '') + (detail.checkpoints.items.length ? (hasInput ? ' · ' : '') + detail.checkpoints.items.length + (detail.checkpoints.items.length === 1 ? ' checkpoint' : ' checkpoints') : '')} bind:open={dataOpen} id="job-data">
+          {#if job.inputByteLength != null}<JobInputPanel jobRef={job.jobRef} formatId={job.inputFormatId} byteLength={job.inputByteLength} version={job.version} active={dataSeen} status={job.status} canControl={canControlNow} onUpdated={reload} />{/if}
           {#if showCheckpoints}<JobCheckpointsPanel checkpoints={detail.checkpoints.items} total={detail.checkpoints.totalCount} jobRef={job.jobRef} jobName={job.jobName} status={job.status} kind={job.kind} canControl={canControlNow} onCleared={reload} />{/if}
         </FocusDisclosure>
       {/if}

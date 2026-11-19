@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Options;
 
 namespace Acta.AspNetCore;
 
@@ -12,13 +11,7 @@ internal static class GetJobDetailEndpoint
         reads
             .MapGet(
                 "/jobs/{jobRef}/detail",
-                async Task<IResult> (
-                    string jobRef,
-                    IJobs jobs,
-                    IActaOperations operations,
-                    IOptions<JobsOptions> jobsOptions,
-                    CancellationToken ct
-                ) =>
+                async Task<IResult> (string jobRef, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
                 {
                     if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                     {
@@ -31,13 +24,7 @@ internal static class GetJobDetailEndpoint
                         return RouteTable.NotFound("Job");
                     }
 
-                    var detail = await GetJobDetailResponse.ComposeAsync(
-                        jobs,
-                        operations,
-                        snapshot,
-                        jobsOptions.Value.MaxInlinePayloadBytes,
-                        ct
-                    );
+                    var detail = await GetJobDetailResponse.ComposeAsync(jobs, operations, snapshot, ct);
                     return Results.Json(detail, ActaApiJsonContext.Relaxed.GetJobDetailResponse);
                 }
             )

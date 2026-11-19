@@ -19,6 +19,7 @@ internal sealed class JobsOperations(
     GetJobInputHandler getJobInput,
     GetJobResultHandler getJobResult,
     ListJobCheckpointsHandler listJobCheckpoints,
+    GetJobCheckpointValueHandler getJobCheckpointValue,
     GetJobVariableOrDefaultHandler getJobVariableOrDefault,
     GetJobStepResultOrDefaultHandler getJobStepResultOrDefault,
     ListJobStepsHandler listJobSteps,
@@ -160,6 +161,13 @@ internal sealed class JobsOperations(
 
     public ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
         listJobCheckpoints.HandleAsync(query, ct);
+
+    public ValueTask<GetJobCheckpointValueResponse?> GetCheckpointValueAsync(
+        JobLookup job,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct = default
+    ) => getJobCheckpointValue.HandleAsync(new GetJobCheckpointValueQuery(job, kind, name), ct);
 
     public async ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default) =>
         await getJobVariableOrDefault.HandleAsync(new GetJobVariableOrDefaultQuery(job, name), ct) is { } variable

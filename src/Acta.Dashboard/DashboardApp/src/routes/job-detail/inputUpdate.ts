@@ -26,8 +26,8 @@ export interface UpdateMessage {
 }
 
 // Maps the JobControlResponse outcome to the operator-facing banner. A rejection with a status is the
-// in-flight 409; one without is a job with no input to update; not-found means the job vanished between
-// load and save.
+// in-flight 409; one without is a job with no input to update; a version conflict is the job having moved
+// on since the edited input was read; not-found means the job vanished between load and save.
 export function updateOutcomeMessage(action: string, status: string | null): UpdateMessage {
   switch (action) {
     case 'applied':
@@ -38,6 +38,11 @@ export function updateOutcomeMessage(action: string, status: string | null): Upd
           status === null
             ? 'Input rejected: the job has no input to update.'
             : 'Input rejected: the job is in flight and cannot be updated right now.',
+        kind: 'warn'
+      };
+    case 'version-conflict':
+      return {
+        text: 'Input update rejected: the job changed since its input was read (version conflict). Your draft is kept; cancel and edit again to start from the current input.',
         kind: 'warn'
       };
     default:

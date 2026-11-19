@@ -478,6 +478,9 @@ public class CliRunnerClipboardTests
                         CorrelationKey: null,
                         ConcurrencyKey: null,
                         InputFormatId: 0,
+                        InputByteLength: null,
+                        ResultFormatId: 0,
+                        ResultByteLength: null,
                         Status: JobStatusCode.Ready,
                         Priority: JobPriorityCode.Normal,
                         Lane: null,
@@ -639,6 +642,13 @@ public class CliRunnerClipboardTests
 
         public ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
+
+        public ValueTask<GetJobCheckpointValueResponse?> GetCheckpointValueAsync(
+            JobLookup job,
+            CheckpointKindCode kind,
+            string name,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
 
         public ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();

@@ -3,13 +3,11 @@ using System.Text.Json.Serialization;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Everything the job page shows, in one answer: the job, its input and result, the first page of its checkpoints, its explanation and
-/// lineage, the schedules that fire it, and the workers that can claim it. A part that does not apply is absent or empty, and each capped
-/// list comes with its total.
+/// Everything the job page shows, in one answer: the job, the first page of its checkpoints, its explanation and lineage, the
+/// schedules that fire it, and the workers that can claim it. A part that does not apply is absent or empty, and each capped list
+/// comes with its total. It carries no payload body: the job states its input's and result's format and size.
 /// </summary>
 /// <param name="Job">The job.</param>
-/// <param name="Input">The job's input as a payload envelope; absent when it has none.</param>
-/// <param name="Result">The job's result as a payload envelope; absent until the job has one.</param>
 /// <param name="Checkpoints">The first page of the job's checkpoints, with their total.</param>
 /// <param name="Explain">The explanation of the job's current state.</param>
 /// <param name="Lineage">The job's lineage map.</param>
@@ -22,8 +20,6 @@ namespace Acta.AspNetCore;
 /// <param name="WorkersTotal">How many such workers there are; absent with workers.</param>
 internal sealed record GetJobDetailResponse(
     GetJobResponse Job,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] StoredJobPayload? Input,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] StoredJobPayload? Result,
     ListJobCheckpointsResponse Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ExplainJobResponse? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobLineageMapResponse? Lineage,
@@ -56,14 +52,11 @@ internal sealed record GetJobDetailResponse(
         IJobs jobs,
         IActaOperations operations,
         GetJobResponse job,
-        int maxInlineBytes,
         CancellationToken ct
     )
     {
         var byId = JobLookup.ById(job.JobId);
 
-        var input = (await jobs.GetInputAsync(byId, ct))?.Input;
-        var result = (await jobs.GetResultAsync(byId, ct))?.Result;
         var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(byId, IncludeTotal: true), ct);
         var explain = await jobs.ExplainAsync(byId, ct);
         var lineage = await jobs.GetLineageMapAsync(byId, new GetJobLineageMapOptions(ChildLimit), ct);
@@ -90,9 +83,7 @@ internal sealed record GetJobDetailResponse(
 
         return new GetJobDetailResponse(
             job,
-            StoredJobPayload.From(input, maxInlineBytes),
-            StoredJobPayload.From(result, maxInlineBytes),
-            ListJobCheckpointsResponse.From(checkpoints, maxInlineBytes),
+            checkpoints,
             explain,
             lineage,
             schedules.Items,
