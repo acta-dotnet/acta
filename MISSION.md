@@ -4,6 +4,10 @@ Durable work for every .NET app, using the database it already has.
 
 Install a package, point it at SQL Server, PostgreSQL, or SQLite, and jobs survive crashes, deploys, and outages. No cluster, no broker, nothing new to operate. Acta is the default between a timer in a hosted service and a workflow cluster.
 
+## Vision
+
+Become trusted infrastructure for persistent, autonomous, and outcome-driven applications.
+
 ## Principles
 
 - Correctness first, then speed, then everything else.
