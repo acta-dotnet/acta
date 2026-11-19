@@ -311,6 +311,62 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .callout p { margin: 0 0 0.7rem; }
 .callout p:last-child { margin-bottom: 0; }
 
+/* fold: detail a reader opens on purpose, closed by default */
+.fold { border-bottom: 1px solid var(--hair); }
+.hint + .fold { border-top: 1px solid var(--hair); margin-top: 1.4rem; }
+.fold > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 0.2rem 1rem; padding: 1.1rem 0; cursor: pointer; list-style: none; }
+.fold > summary::-webkit-details-marker { display: none; }
+/* the toggle is two drawn bars in a ring; opening shrinks the upright one away, leaving a minus */
+.fold > summary::after {
+  content: ""; grid-column: 2; grid-row: 1; align-self: center; width: 1.75rem; height: 1.75rem; border: 1px solid var(--hair); border-radius: 50%;
+  background: linear-gradient(var(--verdi), var(--verdi)) center / 0.7rem 1.5px no-repeat, linear-gradient(var(--verdi), var(--verdi)) center / 1.5px 0.7rem no-repeat;
+  transition: background-size 0.22s ease, background-color 0.22s ease, border-color 0.22s ease;
+}
+.fold > summary:hover::after { border-color: var(--verdi); }
+.fold[open] > summary::after { background-size: 0.7rem 1.5px, 1.5px 0; background-color: var(--verdi-wash); border-color: var(--verdi); }
+.fold > summary b { grid-column: 1; font-family: var(--serif); font-weight: 500; font-size: 1.25rem; line-height: 1.2; color: var(--text); }
+.fold > summary span { grid-column: 1; color: var(--muted); font-size: 0.97rem; }
+.fold > summary:hover b { color: var(--verdi); }
+.fold[open] { padding-bottom: 2rem; }
+.fold > .lede + .lede, .fold > .hint { margin-top: 0.9rem; }
+.fold .vs { margin-top: 1.5rem; }
+.fold > .ref { margin-top: 0.2rem; }
+
+/* sits: a name and what is true of it; the row that names Acta carries the page's one large statement */
+.sits { margin: 1.5rem 0 0; }
+.sit { display: grid; gap: 0.35rem; align-items: baseline; padding: 1.15rem 0; border-top: 1px solid var(--hair-soft); }
+.sit dt { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 1.25rem; line-height: 1.2; color: var(--text); }
+.sit dd { margin: 0; color: var(--muted); font-size: 1.02rem; max-width: 62ch; }
+.sit dd p { margin: 0; }
+.sit dd .changes { margin: 0; gap: 0.5rem; }
+.sit dd .changes li { font-size: 1.02rem; }
+.sit.acta { border-top: 0; padding: 1.8rem 0 3.4rem; }
+.sit.acta dt, .sit .claim { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 2.8vw, 2.6rem); line-height: 1.16; }
+.sit.acta dt { color: var(--verdi); }
+.sit .claim { position: relative; font-style: italic; color: var(--text); max-width: 25ch; text-wrap: balance; }
+.sit .claim::before { content: "\201C"; }
+.sit .claim::after { content: "\201D"; }
+.sit .claim + p { margin-top: 1.5rem; }
+.sit.aside dd { font-size: 0.95rem; }
+
+/* axis: every row of a page shares one second column, so names line up on the left edge and what to read on the other */
+.axis .ref-group { margin-top: 4rem; }
+.axis .ref-row dd, .axis .vs-row .why { max-width: 62ch; }
+.axis .ref-row.pick dd { color: var(--text); font-weight: 600; }
+.axis .vs-row { align-items: baseline; padding: 1.25rem 0; }
+.axis .vs-row .why { align-self: auto; }
+.axis .vs-row .who b { font-size: 1.25rem; }
+.axis .vs-row .who span { display: block; margin-top: 0.3rem; font-family: var(--sans); font-size: 0.95rem; letter-spacing: 0; text-transform: none; color: var(--muted); }
+@media (min-width: 861px) {
+  .axis { --rail: 21rem; --rail-gap: 3rem; }
+  .axis .ref-row, .axis .vs-row, .axis .sit { grid-template-columns: var(--rail) minmax(0, 1fr); column-gap: var(--rail-gap); }
+  .axis .fold > summary { grid-template-columns: var(--rail) minmax(0, 1fr) auto; column-gap: var(--rail-gap); }
+  .axis .fold > summary span { grid-column: 2; }
+  .axis .fold > summary::after { grid-column: 3; }
+  .axis .sit .claim::before { position: absolute; right: 100%; margin-right: 0.06em; }
+  .axis .actions, .axis .fold > .lede, .axis .fold > .hint { margin-left: calc(var(--rail) + var(--rail-gap)); }
+}
+
 /* cross-links at the end of a section */
 .also { margin: 2.4rem 0 0; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
 .also a { text-decoration: none; }
@@ -352,7 +408,7 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .skip-link, .button, .copy, .golink, .golink::after, .theme button { transition: none; }
+  .skip-link, .button, .copy, .golink, .golink::after, .theme button, .fold > summary::after { transition: none; }
 }
 @media print {
   :root { --text: #111; --muted: #333; --faint: #555; --panel: #fff; --panel-2: #f4f4f4; --hair: #ccc; --hair-soft: #ddd; --verdi: #0a6b52; --code: #111; --code-inline: #111; }
