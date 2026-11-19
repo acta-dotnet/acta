@@ -11,6 +11,7 @@ namespace Acta;
 internal sealed class HandlerInvocation(
     IJobPayloadSerializerRegistry serializers,
     JobBehaviorPipeline pipeline,
+    NonRetryableExceptions nonRetryableExceptions,
     int maxInlinePayloadBytes,
     ILogger log,
     ActaMetrics? metrics
@@ -109,7 +110,7 @@ internal sealed class HandlerInvocation(
             // A debugger stops only on an exception that passed through the handler's code. For a swallowed control flow
             // that is the control exception the handler caught, not the one reporting it.
             Debugger.BreakForUserUnhandledException(ex is SwallowedControlException { InnerException: { } swallowed } ? swallowed : ex);
-            completion = Faulted(ex, inputDeserialized, descriptor, job);
+            completion = Faulted(ex, inputDeserialized, descriptor, job, jobContext.CancellationToken.IsCancellationRequested);
         }
 
         if (jobContext.Fenced)
@@ -305,33 +306,15 @@ internal sealed class HandlerInvocation(
         };
     }
 
-    /// <summary>
-    /// A failure retrying cannot change: a programming error, a failed at-most-once step that throws again on every
-    /// replay, a handler DI cannot build from the same registrations, a finished body whose result could not be
-    /// recorded, a handler that went on after its own control flow, or a waited job's failure or an expired wait
-    /// rethrown (ThrowIfFailed, ThrowIfAnyFailed, ThrowIfTimedOut, ValueOrThrow), which a replay reads from the same
-    /// checkpoint. It lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry budget
-    /// untouched.
-    /// </summary>
-    internal static bool IsNonRetryable(Exception ex) =>
-        ex
-            is NotImplementedException
-                or NotSupportedException
-                or StepFailedException
-                or HandlerActivationException
-                or ResultNotRecordedException
-                or SwallowedControlException
-                or JobFailedException
-                or ChildGroupException
-                or JobWaitTimeoutException
-                or SignalWaitTimeoutException
-                or InvalidDurableNameException
-                or StepResultContractMismatchException
-                or SignalValueContractMismatchException;
-
-    private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
+    private ExecutionCompletion Faulted(
+        Exception ex,
+        bool inputDeserialized,
+        JobDescriptor descriptor,
+        ClaimedJob job,
+        bool attemptCancelled
+    )
     {
-        var nonRetryable = IsNonRetryable(ex);
+        var nonRetryable = nonRetryableExceptions.Matches(ex, descriptor.JobName, attemptCancelled);
         if (!inputDeserialized && log.IsEnabled(LogLevel.Warning))
         {
             ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, new JobRef(job.JobRef).ToString());

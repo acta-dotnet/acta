@@ -117,20 +117,35 @@ public abstract partial class JobContext
     /// Whether <paramref name="exception"/>, left uncaught, ends this job with no further attempt: <see cref="FailAsync"/>
     /// or <see cref="CancelAsync"/>, an expired wait, an interrupted or failed step, a non-retryable exception, or any other
     /// error on the last attempt (<see cref="IsLastAttempt"/>). False for a wait, sleep, reschedule or pause, which end
-    /// only the attempt, and for an exception of a cancelled attempt, where a compensation step could not run. A catch
-    /// that compensates filters on it: <c>catch (Exception ex) when (ctx.EndsJob(ex)) { ...; throw; }</c>.
+    /// only the attempt, for an exception of a cancelled attempt, where a compensation step could not run, and for any
+    /// exception once another execution holds the job. A catch that compensates filters on it:
+    /// <c>catch (Exception ex) when (ctx.EndsJob(ex)) { ...; throw; }</c>.
     /// </summary>
     public bool EndsJob(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
         return exception switch
         {
+            _ when IsFenced => false,
             HandlerFailException or HandlerCancelException or StepInterruptedException => true,
             JobControlException or ExecutionFencedException => false,
             OperationCanceledException when CancellationToken.IsCancellationRequested => false,
-            _ => HandlerInvocation.IsNonRetryable(exception) || IsLastAttempt,
+            StepOwnershipLostException => IsLastAttempt,
+            _ => IsNonRetryable(exception) || IsLastAttempt,
         };
     }
+
+    /// <summary>
+    /// Whether a write of this attempt was refused because another execution holds the job: the worker then writes no
+    /// completion for it, so nothing it throws ends the job.
+    /// </summary>
+    private protected virtual bool IsFenced => false;
+
+    /// <summary>
+    /// Whether <paramref name="exception"/> ends the job on any attempt: Acta's built-in list, to which the runtime context
+    /// adds the host's <c>DoNotRetry</c> types.
+    /// </summary>
+    private protected virtual bool IsNonRetryable(Exception exception) => NonRetryableExceptions.IsBuiltIn(exception);
 
     private JobControlException? _thrownControl;
 

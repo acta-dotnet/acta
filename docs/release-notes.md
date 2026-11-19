@@ -1,5 +1,18 @@
 # Release notes
 
+## 1.0.0-rc.15
+
+Not yet released.
+
+### Additions
+
+- `j.DoNotRetry<TException>()` in `UseActa` declares an exception type that ends a job at once. A handler that throws it, or a type derived from it, fails at once with no retry, no failure charged and reason `non-retryable-exception`, as `NotSupportedException` always has; a permanent job fails that firing and returns to `Idle`. `ctx.EndsJob(ex)` answers true for it, so a compensating catch runs. Only the thrown exception is matched, never one it wraps, and Acta's own `sys.` jobs keep the built-in list. Nothing new is built in: an `ArgumentException` is still retried until the application declares it. A declared type thrown by an attempt that was already cancelled is left to the retry budget.
+
+### Fixes
+
+- `ctx.EndsJob(ex)` answers false for every exception once a write of the attempt was refused because another execution holds the job. It answered true for a failure that would have ended the job, so a compensating catch could run in an attempt that no longer owned it.
+- The worker's log for a permanent job whose firing a non-retryable exception ended said "the job failed for good". It says the firing failed and the job is idle until its next firing, which is what happened.
+
 ## 1.0.0-rc.14
 
 Tagged 2026-11-18. rc.14 gives every persisted code its final name and id before the 1.0.0 freeze, folds the candidates' migrations into one baseline, and settles what the events of a sleep, a raise, a child wait and a startup release store. The schema changes: a database an earlier candidate provisioned is dropped and reprovisioned.

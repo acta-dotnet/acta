@@ -15,6 +15,7 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     private readonly List<CatalogDeclaration> _references = [];
     private readonly List<Func<IServiceProvider, IJobPipelineBehavior>> _pipelineBehaviors = [];
     private readonly HashSet<Type> _pipelineBehaviorTypes = [];
+    private readonly HashSet<Type> _doNotRetryTypes = [];
 
     public IServiceCollection Services { get; } = services;
 
@@ -39,6 +40,12 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     /// <c>JobBehaviorPipeline</c>.
     /// </summary>
     internal IReadOnlyList<Func<IServiceProvider, IJobPipelineBehavior>> PipelineBehaviors => _pipelineBehaviors;
+
+    /// <summary>
+    /// The exception types declared via <c>DoNotRetry</c>. Read by <see cref="ActaServiceCollectionExtensions.UseActa"/> to
+    /// build the <c>NonRetryableExceptions</c> every worker classifies with.
+    /// </summary>
+    internal IReadOnlyCollection<Type> DoNotRetryTypes => _doNotRetryTypes;
 
     public IActaBuilder ConfigureOptions(Action<JobsOptions> configure)
     {
@@ -136,6 +143,13 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
             Services.Add(new ServiceDescriptor(typeof(TBehavior), typeof(TBehavior), lifetime));
             _pipelineBehaviors.Add(static sp => sp.GetRequiredService<TBehavior>());
         }
+        return this;
+    }
+
+    public IActaBuilder DoNotRetry<TException>()
+        where TException : Exception
+    {
+        _doNotRetryTypes.Add(typeof(TException));
         return this;
     }
 }

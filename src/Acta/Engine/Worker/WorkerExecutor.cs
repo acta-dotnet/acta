@@ -19,6 +19,7 @@ internal sealed class WorkerExecutor(
     IServiceProvider rootServices,
     JobsOptions options,
     JobBehaviorPipeline pipeline,
+    NonRetryableExceptions nonRetryableExceptions,
     WorkerContext context,
     InFlightJobRegistry registry,
     WorkerFinalizer finalizer,
@@ -38,6 +39,7 @@ internal sealed class WorkerExecutor(
     private readonly HandlerInvocation _invocation = new(
         serializers,
         pipeline,
+        nonRetryableExceptions,
         options.MaxInlinePayloadBytes,
         new ActaLog.NonThrowingLogger(log ?? NullLogger.Instance),
         metrics
@@ -348,7 +350,8 @@ internal sealed class WorkerExecutor(
             tenantName,
             workerId,
             clock,
-            InFlightJob.LeaseRunway(_options)
+            InFlightJob.LeaseRunway(_options),
+            nonRetryableExceptions
         );
         attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
         return jobContext;

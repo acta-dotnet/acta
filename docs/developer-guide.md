@@ -200,7 +200,7 @@ catch (Exception ex) when (ctx.EndsJob(ex))
 }
 ```
 
-`ctx.EndsJob(ex)` answers what the worker will do with the exception: true for `ctx.FailAsync` and `CancelAsync`, an expired wait, an interrupted step, a non-retryable exception (`StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, `NotSupportedException`, `NotImplementedException`, and a waited job's failure or timeout rethrown by `ThrowIfFailed`, `ThrowIfAnyFailed` or `ValueOrThrow`), and any other error when `IsLastAttempt` is true; false for a wait, sleep, reschedule or pause, which end only the attempt, and for the exception of a cancelled attempt.
+`ctx.EndsJob(ex)` answers what the worker will do with the exception: true for `ctx.FailAsync` and `CancelAsync`, an expired wait, an interrupted step, a non-retryable exception (`StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, `NotSupportedException`, `NotImplementedException`, a waited job's failure or timeout rethrown by `ThrowIfFailed`, `ThrowIfAnyFailed` or `ValueOrThrow`, and a type the application declared with `DoNotRetry`), and any other error when `IsLastAttempt` is true; false for a wait, sleep, reschedule or pause, which end only the attempt, and for the exception of a cancelled attempt.
 
 Compensation in a catch is best effort. A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running, so the compensation is an idempotent step of its own. Work whose compensation must happen runs the risky part as a child job, and the parent compensates when the child lands `Failed`: `WaitChildAsync` survives crashes.
 
@@ -569,7 +569,19 @@ Every exception type Acta defines derives from `ActaException`, so one catch tak
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, an uncaught `StepFailedException`, a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)), a handler result that is null, cannot be serialized or is larger than `MaxInlinePayloadBytes`, and a waited job's failure or timeout rethrown (`JobFailedException`, `ChildGroupException` and `JobWaitTimeoutException` from `ThrowIfFailed`, `ThrowIfAnyFailed` and `ValueOrThrow`) are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. The rule holds for every wait that throws them, a handler's own `IJobs.WaitAsync(...)` with a timeout included, where the waited job may still finish: `ThrowIfFailed()` after that wait timed out fails the job for good, so read the outcome's `TimedOut`, or catch `JobWaitTimeoutException`, where a later attempt should wait again. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, an uncaught `StepFailedException`, a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)), a handler result that is null, cannot be serialized or is larger than `MaxInlinePayloadBytes`, and a waited job's failure or timeout rethrown (`JobFailedException`, `ChildGroupException` and `JobWaitTimeoutException` from `ThrowIfFailed`, `ThrowIfAnyFailed` and `ValueOrThrow`) are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. The rule holds for every wait that throws them, a handler's own `IJobs.WaitAsync(...)` with a timeout included, where the waited job may still finish: `ThrowIfFailed()` after that wait timed out fails the job for good, so read the outcome's `TimedOut`, or catch `JobWaitTimeoutException`, where a later attempt should wait again.
+
+Every exception Acta has no reason to call final is retried, an `ArgumentException` or your own validation error included: only the application knows that a type can never succeed. Declare the types that are final once, where the app is wired:
+
+```csharp
+builder.Services.UseActa(j =>
+{
+    j.DoNotRetry<ArgumentException>();
+    // ...
+});
+```
+
+A declared type, and every type derived from it, then ends a job exactly as the list above does. Only the thrown exception is matched, never one it wraps, and Acta's own `sys.` jobs keep the built-in list. One thrown by an attempt that was already cancelled, by a timeout or a lapsed lease, is left to the retry budget, since a cancellation can surface as any exception. `ctx.FailAsync` stays the way to end one job from inside its handler for a reason no exception type carries; it stops a permanent job, where a non-retryable exception fails only the firing.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 

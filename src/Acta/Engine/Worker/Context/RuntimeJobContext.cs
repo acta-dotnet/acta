@@ -36,7 +36,8 @@ internal sealed partial class RuntimeJobContext(
     string? tenantName = null,
     int workerId = 0,
     Acta.IActaClock? clock = null,
-    TimeSpan? leaseRunway = null
+    TimeSpan? leaseRunway = null,
+    NonRetryableExceptions? nonRetryableExceptions = null
 ) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
@@ -58,6 +59,7 @@ internal sealed partial class RuntimeJobContext(
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ActaMetrics? _metrics = metrics;
     private readonly Acta.IActaClock? _clock = clock;
+    private readonly NonRetryableExceptions _nonRetryableExceptions = nonRetryableExceptions ?? new([]);
     private int _fenced;
 
     /// <summary>
@@ -81,6 +83,11 @@ internal sealed partial class RuntimeJobContext(
 
     public override bool IsLastAttempt =>
         _descriptor is { } d && FailureRetry is { } retry && WorkerFinalizer.FailureEndsJob(d, retry, TimeUntilDeadline);
+
+    private protected override bool IsFenced => Fenced;
+
+    private protected override bool IsNonRetryable(Exception exception) =>
+        _nonRetryableExceptions.Matches(exception, JobName, CancellationToken.IsCancellationRequested);
 
     private ExecutionFence Fence => new(JobId, ExecutionNumber, WorkerId);
 

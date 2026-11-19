@@ -401,6 +401,8 @@ internal sealed partial class WorkerFinalizer(
         {
             EventReason.DefinitionRetired => "the job's definition is retired, so the job is cancelled",
             EventReason.DeadlineExceeded => "a retry would pass the job's deadline, so the job is cancelled",
+            EventReason.NonRetryableException or EventReason.WaitTimedOut when planned.Row.FinalStatus == JobStatusCode.Idle =>
+                $"{thrown.GetType().Name} is never retried, so the firing failed and the job is idle until its next firing",
             EventReason.NonRetryableException or EventReason.WaitTimedOut =>
                 $"{thrown.GetType().Name} is never retried, so the job failed for good",
             _ when planned.Row.FinalStatus == JobStatusCode.Idle =>

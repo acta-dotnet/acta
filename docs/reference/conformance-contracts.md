@@ -733,6 +733,16 @@
   - A verb applies (A), is already in state (=), or is rejected (-) from each status of an ordinary job as the table says
   - A verb applies or is rejected from an Idle permanent job as the table says
 
+### DoNotRetry types end a job at once, as a built-in non-retryable exception does
+- **Contract:** A type declared with DoNotRetry, or one derived from it, fails the job or the firing at once with its budget untouched, and ctx.EndsJob agrees.
+- **Guarantees:**
+  - An ArgumentException is retried when the host declares nothing
+  - With ArgumentException declared, the handler's ArgumentException lands Failed at once with its budget untouched
+  - A type derived from a declared one matches it: ArgumentNullException under a declared ArgumentException
+  - A compensating catch filtered on ctx.EndsJob runs on the first attempt for a declared type
+  - A permanent job whose handler throws a declared type fails that firing and returns to Idle
+  - With Exception declared, a handler that sleeps still parks and its job is not failed
+
 ### Handler Fail Cancel Pause finalize the attempt without returning to user code
 - **Contract:** Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written.
 - **Guarantees:**
@@ -1062,7 +1072,7 @@
 ### A handler write from an attempt that no longer holds its job changes nothing
 - **Contract:** A write from a superseded attempt, on any worker, changes nothing, while the current attempt's writes and completion land and the stale one stops uncharged.
 - **Guarantees:**
-  - A superseded variable write leaves the current attempt's receipt as it wrote it
+  - A superseded variable write leaves the current attempt's receipt as it wrote it, and the superseded attempt's EndsJob answers false from then on
   - A superseded get-or-set stores nothing, so the current attempt's first value is its own
   - A superseded delete leaves the current attempt's variable in place
   - A superseded progress report leaves the current attempt's progress

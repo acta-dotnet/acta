@@ -1071,6 +1071,7 @@ interface Acta.IActaBuilder
     Acta.IActaBuilder AddPayloadSerializer<TSerializer>() where TSerializer : class, Acta.IJobPayloadSerializer
     Acta.IActaBuilder AddPipelineBehavior<TBehavior>(Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime.Scoped) where TBehavior : class, Acta.IJobPipelineBehavior
     Acta.IActaBuilder ConfigureOptions(System.Action<Acta.JobsOptions> configure)
+    Acta.IActaBuilder DoNotRetry<TException>() where TException : System.Exception
     Acta.IActaBuilder Reference<TManifest>(System.String jobNamespace) where TManifest : class, Acta.IJobManifest
     Acta.IActaBuilder Run(System.String jobNamespace, System.Action<Acta.IWorkerBuilder> configure)
     Acta.IActaBuilder Run<TManifest>(System.String jobNamespace, System.String? ownerTeam = null, System.String? description = null) where TManifest : class, Acta.IJobManifest

@@ -84,4 +84,14 @@ public interface IActaBuilder
         ServiceLifetime lifetime = ServiceLifetime.Scoped
     )
         where TBehavior : class, IJobPipelineBehavior;
+
+    /// <summary>
+    /// Declare that an uncaught <typeparamref name="TException"/>, or a type derived from it, ends a job at once: no
+    /// retry, the failure budget untouched, reason <c>non-retryable-exception</c>, as <see cref="NotSupportedException"/>
+    /// does. Only the thrown exception's own type is matched, never an inner one. A permanent job's firing fails and the
+    /// job returns to Idle for its next one. Acta's own <c>sys.</c> jobs are not affected. Without a registration every
+    /// exception outside Acta's built-in list is retried under the job's <c>MaxAttempts</c> and <c>Backoff</c>.
+    /// </summary>
+    IActaBuilder DoNotRetry<TException>()
+        where TException : Exception;
 }

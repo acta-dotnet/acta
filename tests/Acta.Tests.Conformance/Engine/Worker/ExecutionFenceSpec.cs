@@ -28,7 +28,9 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
-    [Theory(DisplayName = "A superseded variable write leaves the current attempt's receipt as it wrote it")]
+    [Theory(
+        DisplayName = "A superseded variable write leaves the current attempt's receipt as it wrote it, and the superseded attempt's EndsJob answers false from then on"
+    )]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Variable_set(bool sameWorker)
@@ -41,6 +43,11 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         await AssertFencedOutAsync(old, () => old.Ctx.SetVariableAsync(Receipt, "stale", ct), ct);
 
+        // The worker writes no completion for the refused attempt, so nothing it throws ends the job.
+        Assert.False(old.Ctx.EndsJob(new NotSupportedException("never retried")));
+        Assert.False(old.Ctx.EndsJob(new StepInterruptedException("charge")));
+        Assert.True(current.Ctx.EndsJob(new NotSupportedException("never retried")));
+        Assert.True(current.Ctx.EndsJob(new StepInterruptedException("charge")));
         Assert.Equal("current", await current.Ctx.GetVariableAsync<string>(Receipt, ct));
         await current.Ctx.SetVariableAsync(Receipt, "current-2", ct);
         Assert.Equal("current-2", await current.Ctx.GetVariableAsync<string>(Receipt, ct));

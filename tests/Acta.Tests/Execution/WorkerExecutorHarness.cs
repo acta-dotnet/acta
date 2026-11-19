@@ -41,7 +41,8 @@ internal sealed class WorkerExecutorHarness(
     bool inputDeserializationThrows = false,
     string jobName = "harness-job",
     JobStatusCode unmatchedRowStatus = JobStatusCode.Executing,
-    byte[]? replayedStepResult = null
+    byte[]? replayedStepResult = null,
+    Type[]? doNotRetry = null
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -268,6 +269,7 @@ internal sealed class WorkerExecutorHarness(
             new StoreOnlyServices(_store.Execution, _store.Jobs, scopeDisposalThrows, scopeDisposalTime),
             options,
             new JobBehaviorPipeline([]),
+            new NonRetryableExceptions(doNotRetry ?? []),
             context,
             registry,
             finalizer,

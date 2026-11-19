@@ -309,7 +309,10 @@ public static class ActaServiceCollectionExtensions
         );
     }
 
-    /// <summary>What the builder declared: alert channels and routing, the enqueue indexes, the pipeline, the workers, and outbox relays.</summary>
+    /// <summary>
+    /// What the builder declared: alert channels and routing, the enqueue indexes, the pipeline, the non-retryable exceptions,
+    /// the workers, and outbox relays.
+    /// </summary>
     private static void AddDeclared(IServiceCollection services, ActaBuilder builder)
     {
         services.TryAddSingleton(new AlertChannelRegistry(builder.Workers));
@@ -364,6 +367,7 @@ public static class ActaServiceCollectionExtensions
         // the order and never captures a scope, so per-attempt resolution runs against the attempt
         // scope inside JobBehaviorPipeline.Build.
         services.AddSingleton(new JobBehaviorPipeline(builder.PipelineBehaviors.ToArray()));
+        services.AddSingleton(new NonRetryableExceptions([.. builder.DoNotRetryTypes]));
 
         // One WorkerRuntime per declared worker: a process running several j.Run(...) calls fans out
         // one claim/dispatch/heartbeat trio per namespace. WorkerRuntime.Create binds the per-worker

@@ -183,6 +183,12 @@ charges nothing. A step with a result returns a value: a body that returns null,
 `MaxInlinePayloadBytes`, fails the job for good, since a retry would run the body again; a step with
 nothing to return takes a body that returns no value.
 
+Every exception Acta has no reason to call final is retried, an `ArgumentException` or a validation
+error included. Declare the types that can never succeed once, in `UseActa`:
+`j.DoNotRetry<ArgumentException>();`. That type and every type derived from it then fails a job at
+once, with no retry and no failure charged (reason `non-retryable-exception`); a permanent job's
+firing fails and the job returns to Idle. Only the thrown exception is matched, never one it wraps. `ctx.FailAsync("why")` ends one job from inside its handler.
+
 To compensate before a failure ends the job, catch on `ctx.EndsJob(ex)`:
 `catch (Exception ex) when (ctx.EndsJob(ex)) { await ctx.RunStepAsync("release-stock", ...); throw; }`.
 It is true for `ctx.FailAsync` and `CancelAsync`, for a non-retryable exception such as `StepFailedException` or a waited child's failure rethrown,

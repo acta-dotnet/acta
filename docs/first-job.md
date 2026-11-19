@@ -230,6 +230,10 @@ The console warns that the handler `threw on attempt (1 of 15, TimeoutException:
 
 Make the carrier flaky again and `curl -X POST http://localhost:5090/orders/1045/ship-now` answers 202 with the ref after five seconds, not the label: the wait timed out, and the job still ships at its retry.
 
+### A failure only your application knows is final
+
+Acta retries every exception it has no reason to call final, an `ArgumentException` for a malformed order included, because only the application knows that a type can never succeed. Left alone, such a job keeps its fifteen attempts and fails about four and a half days later. Say which types are final once, in the `UseActa` call: `j.DoNotRetry<ArgumentException>();`. A job that throws one, or a type derived from it, then fails at once and is not retried, whatever attempts it had left. To end one job for a reason no exception type carries, the handler calls `ctx.FailAsync("why")`.
+
 ## What each piece does
 
 ### Two ways to enqueue
