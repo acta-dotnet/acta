@@ -6,7 +6,7 @@ namespace Acta;
 /// <summary><see cref="IDefinitions.ListAsync"/>: definitions by namespace, then name, one keyset page at a time.</summary>
 internal sealed class ListDefinitionsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListDefinitionsResponse> HandleAsync(ListDefinitionsQuery query, CancellationToken ct)
+    public async Task<ListDefinitionsResponse> HandleAsync(ListDefinitionsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

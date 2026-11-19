@@ -13,14 +13,14 @@ internal sealed class FakeNamespaces : INamespaces
         Get = static (jobNamespace, _) =>
         {
             NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
-            return ValueTask.FromResult<GetNamespaceResponse?>(
+            return Task.FromResult<GetNamespaceResponse?>(
                 jobNamespace == "billing"
                     ? new GetNamespaceResponse(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", "1.6.2+5c0ffee", 3)
                     : null
             );
         };
         List = static (_, _) =>
-            ValueTask.FromResult(
+            Task.FromResult(
                 new ListNamespacesResponse(
                     [
                         new ListNamespacesItem(1, "sys", NamespaceStatusCode.Active, null, "system", null, 0),
@@ -50,44 +50,35 @@ internal sealed class FakeNamespaces : INamespaces
     /// <summary>Applied admin verbs, named suspend, resume, or patch.</summary>
     public List<(string Verb, string NamespaceName, string? ReasonMessage, string? Actor)> AdminCalls { get; } = [];
 
-    public Func<string, CancellationToken, ValueTask<GetNamespaceResponse?>> Get { get; set; }
+    public Func<string, CancellationToken, Task<GetNamespaceResponse?>> Get { get; set; }
 
-    public Func<ListNamespacesQuery, CancellationToken, ValueTask<ListNamespacesResponse>> List { get; set; }
+    public Func<ListNamespacesQuery, CancellationToken, Task<ListNamespacesResponse>> List { get; set; }
 
-    public Func<string, string?, string?, CancellationToken, ValueTask<SuspendNamespaceResponse>> Suspend { get; set; }
+    public Func<string, string?, string?, CancellationToken, Task<SuspendNamespaceResponse>> Suspend { get; set; }
 
-    public Func<string, string?, string?, CancellationToken, ValueTask<ResumeNamespaceResponse>> Resume { get; set; }
+    public Func<string, string?, string?, CancellationToken, Task<ResumeNamespaceResponse>> Resume { get; set; }
 
-    public Func<
-        string,
-        long,
-        string?,
-        string?,
-        string?,
-        string?,
-        CancellationToken,
-        ValueTask<UpdateNamespaceResponse>
-    > Update { get; set; }
+    public Func<string, long, string?, string?, string?, string?, CancellationToken, Task<UpdateNamespaceResponse>> Update { get; set; }
 
-    ValueTask<GetNamespaceResponse?> INamespaces.GetAsync(string jobNamespace, CancellationToken ct) => Get(jobNamespace, ct);
+    Task<GetNamespaceResponse?> INamespaces.GetAsync(string jobNamespace, CancellationToken ct) => Get(jobNamespace, ct);
 
-    ValueTask<ListNamespacesResponse> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
+    Task<ListNamespacesResponse> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<SuspendNamespaceResponse> INamespaces.SuspendAsync(
+    Task<SuspendNamespaceResponse> INamespaces.SuspendAsync(
         string jobNamespace,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
     ) => Suspend(jobNamespace, reasonMessage, actor, ct);
 
-    ValueTask<ResumeNamespaceResponse> INamespaces.ResumeAsync(
+    Task<ResumeNamespaceResponse> INamespaces.ResumeAsync(
         string jobNamespace,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
     ) => Resume(jobNamespace, reasonMessage, actor, ct);
 
-    ValueTask<UpdateNamespaceResponse> INamespaces.UpdateAsync(
+    Task<UpdateNamespaceResponse> INamespaces.UpdateAsync(
         string jobNamespace,
         long expectedVersion,
         string? ownerTeam,
@@ -97,7 +88,7 @@ internal sealed class FakeNamespaces : INamespaces
         CancellationToken ct
     ) => Update(jobNamespace, expectedVersion, ownerTeam, description, reasonMessage, actor, ct);
 
-    private ValueTask<T> Apply<T>(
+    private Task<T> Apply<T>(
         string verb,
         string jobNamespace,
         string? reasonMessage,
@@ -109,15 +100,15 @@ internal sealed class FakeNamespaces : INamespaces
         _ = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (jobNamespace == "missing")
         {
-            return ValueTask.FromResult(response(ControlAction.NotFound, null));
+            return Task.FromResult(response(ControlAction.NotFound, null));
         }
 
         if (expectedVersion == 999)
         {
-            return ValueTask.FromResult(response(ControlAction.VersionConflict, 5));
+            return Task.FromResult(response(ControlAction.VersionConflict, 5));
         }
 
         AdminCalls.Add((verb, jobNamespace, reasonMessage, actor));
-        return ValueTask.FromResult(response(ControlAction.Applied, (expectedVersion ?? 3) + 1));
+        return Task.FromResult(response(ControlAction.Applied, (expectedVersion ?? 3) + 1));
     }
 }

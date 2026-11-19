@@ -15,7 +15,7 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
     /// <summary>The most direct children a map carries, whatever the options ask.</summary>
     internal const int MaxChildLimit = 1000;
 
-    public async ValueTask<GetJobLineageMapResponse?> HandleAsync(GetJobLineageMapQuery query, CancellationToken ct)
+    public async Task<GetJobLineageMapResponse?> HandleAsync(GetJobLineageMapQuery query, CancellationToken ct)
     {
         if (await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId })
         {

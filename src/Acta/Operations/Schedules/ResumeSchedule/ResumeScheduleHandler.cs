@@ -15,7 +15,7 @@ internal sealed class ResumeScheduleHandler(
 {
     private static readonly ResumeScheduleResponse NotFound = new(ControlAction.NotFound, null, null, null, null);
 
-    public async ValueTask<ResumeScheduleResponse> HandleAsync(ResumeScheduleCommand command, CancellationToken ct)
+    public async Task<ResumeScheduleResponse> HandleAsync(ResumeScheduleCommand command, CancellationToken ct)
     {
         if (await getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {

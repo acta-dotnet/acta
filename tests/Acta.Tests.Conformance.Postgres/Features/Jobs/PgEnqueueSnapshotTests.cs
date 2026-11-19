@@ -34,7 +34,7 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
             Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
         }
 
-        var child = Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, ParentJobId: parent.JobId), ct).AsTask();
+        var child = Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, ParentJobId: parent.JobId), ct);
         await LockWaitProbe.WaitAsync(Db, "enqueue_job", LockWait.Row, child, cancel, ct);
         await cancel.CommitAsync(ct);
 
@@ -66,7 +66,7 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
         // The key exists and this transaction cannot see it: neither a second job nor the first one's id is an honest
         // answer, so the caller retries its transaction, as for any serialization failure.
         var failed = await Assert.ThrowsAnyAsync<Exception>(() =>
-            Jobs.EnqueueAsync(transaction, new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, DeduplicationKey: key), ct).AsTask()
+            Jobs.EnqueueAsync(transaction, new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, DeduplicationKey: key), ct)
         );
         Assert.Equal("40001", Assert.IsType<Npgsql.PostgresException>(failed).SqlState);
     }
@@ -110,7 +110,7 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
             await cmd.ExecuteNonQueryAsync(ct);
         }
 
-        var batch = Jobs.EnqueueJobsAsync(transaction, named, ct).AsTask();
+        var batch = Jobs.EnqueueJobsAsync(transaction, named, ct);
         await LockWaitProbe.WaitAsync(Db, "enqueue_jobs", LockWait.ApplicationLock, batch, hold, ct);
 
         // What a deploy of the definition with a Forbidden requirement writes, committed while the batch is held.

@@ -352,8 +352,7 @@ public sealed class NullResultSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     private async Task<object?> ReadAsNullableIntAsync(string method, params object?[] arguments)
     {
         var read = typeof(IJobs).GetMethods().Single(m => m.Name == method && m.IsGenericMethodDefinition).MakeGenericMethod(typeof(int?));
-        var pending = read.Invoke(Jobs, arguments)!;
-        var task = (Task)pending.GetType().GetMethod(nameof(ValueTask.AsTask))!.Invoke(pending, null)!;
+        var task = (Task)read.Invoke(Jobs, arguments)!;
         await task;
         return task.GetType().GetProperty(nameof(Task<object>.Result))!.GetValue(task);
     }

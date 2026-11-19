@@ -7,7 +7,7 @@ namespace Acta;
 public interface IDefinitions
 {
     /// <summary>Apply <paramref name="overrides"/> to the definition named by <paramref name="jobNamespace"/> and <paramref name="jobName"/>, guarded by <paramref name="expectedVersion"/>. Missing is NotFound; a stale version is VersionConflict.</summary>
-    ValueTask<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
+    Task<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         long expectedVersion,
@@ -25,7 +25,7 @@ public interface IDefinitions
     /// again. A registration that declares the definition makes it Active again. Missing is NotFound, a stale version
     /// VersionConflict, an already retired definition Applied.
     /// </summary>
-    ValueTask<RetireDefinitionResponse> RetireAsync(
+    Task<RetireDefinitionResponse> RetireAsync(
         string jobNamespace,
         string jobName,
         long expectedVersion,
@@ -35,7 +35,7 @@ public interface IDefinitions
     );
 
     /// <summary>Read a single job definition's full detail by its natural key, or null when none matches.</summary>
-    ValueTask<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
+    Task<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
 
     /// <summary>
     /// Read how long a definition's executions took over a range and how many failed, per interval and as a duration
@@ -43,10 +43,10 @@ public interface IDefinitions
     /// events retention has removed reads empty, and a definition that records failures only shows few successes. A
     /// range outside the query's bounds throws <see cref="InvalidQueryException"/>.
     /// </summary>
-    ValueTask<GetDefinitionPerformanceResponse?> GetPerformanceAsync(GetDefinitionPerformanceQuery query, CancellationToken ct = default);
+    Task<GetDefinitionPerformanceResponse?> GetPerformanceAsync(GetDefinitionPerformanceQuery query, CancellationToken ct = default);
 
     /// <summary>List job definitions ordered by namespace then name, optionally filtered by namespace and status.</summary>
-    ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
+    Task<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// The input contract of a registered job, read from the in-process generated manifest: no
@@ -54,9 +54,5 @@ public interface IDefinitions
     /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly. The key is trimmed and
     /// folded to lowercase as every name is, and one that is no name throws <see cref="InvalidQueryException"/>.
     /// </summary>
-    ValueTask<GetDefinitionInputTemplateResponse?> GetInputTemplateAsync(
-        string jobNamespace,
-        string jobName,
-        CancellationToken ct = default
-    );
+    Task<GetDefinitionInputTemplateResponse?> GetInputTemplateAsync(string jobNamespace, string jobName, CancellationToken ct = default);
 }

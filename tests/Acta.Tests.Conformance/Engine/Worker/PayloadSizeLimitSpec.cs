@@ -140,7 +140,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         try
         {
             var statuses = await SpecWaits.RepeatUntilAsync(
-                async () => await Task.WhenAll(enqueued.Select(job => Jobs.GetStatusAsync(job, ct).AsTask())),
+                async () => await Task.WhenAll(enqueued.Select(job => Jobs.GetStatusAsync(job, ct))),
                 answers => answers.All(answer => answer?.Status == JobStatusCode.Succeeded),
                 ct
             );
@@ -158,7 +158,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         }
     }
 
-    private ValueTask<EnqueueJobResponse> EnqueueOversizeResultAsync(int length, CancellationToken ct) =>
+    private Task<EnqueueJobResponse> EnqueueOversizeResultAsync(int length, CancellationToken ct) =>
         Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, "oversize-result-probe", JobPayload.Json(new OversizeResultInput(length))),
             ct

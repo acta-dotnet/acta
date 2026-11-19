@@ -347,7 +347,7 @@ public sealed class DashboardApiEndpointTests
         fakes.Definitions.GetPerformance = (read, _) =>
         {
             reads.Add(read);
-            return ValueTask.FromResult<GetDefinitionPerformanceResponse?>(null);
+            return Task.FromResult<GetDefinitionPerformanceResponse?>(null);
         };
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;

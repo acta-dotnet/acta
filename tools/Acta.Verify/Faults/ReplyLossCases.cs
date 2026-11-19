@@ -38,7 +38,7 @@ internal static class ReplyLossCases
             JobPayload.Json(input, WorkJson.Default.WorkInput),
             DeduplicationKey: input.Key
         );
-        var submission = jobs.EnqueueAsync(request, ct).AsTask();
+        var submission = jobs.EnqueueAsync(request, ct);
         // The worker starts after the enqueue, so the completion injection can name the case's job.
         using var worker = OwnedWorker.Start(state, effects, enqueueLoss ? null : injection with { JobId = (await submission).JobId });
         await worker.ReadyAsync(ct);

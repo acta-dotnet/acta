@@ -92,8 +92,7 @@ public sealed class TagEndpointTests
     public async Task List_tags_answers_an_empty_page_for_a_known_target_without_tags()
     {
         var fakes = new FakeOperations();
-        fakes.Tags.List = static (query, _) =>
-            ValueTask.FromResult(new ListTagsResponse([], null, false, 50, query.IncludeTotal ? 0 : null));
+        fakes.Tags.List = static (query, _) => Task.FromResult(new ListTagsResponse([], null, false, 50, query.IncludeTotal ? 0 : null));
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;

@@ -17,21 +17,19 @@ internal sealed class CalendarsOperations(
     CalendarSources sources
 ) : ICalendars
 {
-    public ValueTask<ListCalendarsResponse> ListAsync(ListCalendarsQuery query, CancellationToken ct = default) =>
+    public Task<ListCalendarsResponse> ListAsync(ListCalendarsQuery query, CancellationToken ct = default) =>
         listCalendars.HandleAsync(query, ct);
 
-    public ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, long? version = null, CancellationToken ct = default) =>
+    public Task<GetCalendarResponse?> GetAsync(CalendarLookup calendar, long? version = null, CancellationToken ct = default) =>
         getCalendar.HandleAsync(new GetCalendarQuery(calendar, version), ct);
 
-    public ValueTask<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default) =>
+    public Task<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default) =>
         listCalendarVersions.HandleAsync(query, ct);
 
-    public ValueTask<ListCalendarDependentsResponse> ListDependentsAsync(
-        ListCalendarDependentsQuery query,
-        CancellationToken ct = default
-    ) => listCalendarDependents.HandleAsync(query, ct);
+    public Task<ListCalendarDependentsResponse> ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default) =>
+        listCalendarDependents.HandleAsync(query, ct);
 
-    public ValueTask<SaveCalendarDraftResponse> SaveDraftAsync(
+    public Task<SaveCalendarDraftResponse> SaveDraftAsync(
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
@@ -45,16 +43,16 @@ internal sealed class CalendarsOperations(
             ct
         );
 
-    public async ValueTask<PreviewCalendarResponse?> PreviewAsync(
+    public Task<PreviewCalendarResponse?> PreviewAsync(
         CalendarLookup calendar,
         long version,
         DateTimeOffset? fromUtc = null,
         int count = 10,
         string? timeZoneId = null,
         CancellationToken ct = default
-    ) => await previewCalendar.HandleAsync(new PreviewCalendarQuery(calendar, version, fromUtc?.UtcDateTime, count, timeZoneId), ct);
+    ) => previewCalendar.HandleAsync(new PreviewCalendarQuery(calendar, version, fromUtc?.UtcDateTime, count, timeZoneId), ct);
 
-    public async ValueTask<PublishCalendarResponse> PublishAsync(
+    public Task<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,
         long candidateVersion,
         long? expectedCurrentVersion = null,
@@ -63,12 +61,12 @@ internal sealed class CalendarsOperations(
         string? actor = null,
         CancellationToken ct = default
     ) =>
-        await publishCalendar.HandleAsync(
+        publishCalendar.HandleAsync(
             new PublishCalendarCommand(calendar, candidateVersion, expectedCurrentVersion, overdue, reasonMessage, actor),
             ct
         );
 
-    public ValueTask<ArchiveCalendarResponse> ArchiveAsync(
+    public Task<ArchiveCalendarResponse> ArchiveAsync(
         CalendarLookup calendar,
         long? expectedCurrentVersion = null,
         string? reasonMessage = null,

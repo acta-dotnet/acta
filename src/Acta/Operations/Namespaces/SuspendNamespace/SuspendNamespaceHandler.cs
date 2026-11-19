@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="INamespaces.SuspendAsync"/>: checks the name and stamps the operator; the SQL does the rest.</summary>
 internal sealed class SuspendNamespaceHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<SuspendNamespaceResponse> HandleAsync(SuspendNamespaceCommand command, CancellationToken ct)
+    public async Task<SuspendNamespaceResponse> HandleAsync(SuspendNamespaceCommand command, CancellationToken ct)
     {
         var name = NameSyntax.Canonicalize(command.NamespaceName, "jobNamespace", reserveSystem: true);
 

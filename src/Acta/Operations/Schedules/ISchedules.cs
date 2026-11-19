@@ -7,10 +7,10 @@ namespace Acta;
 public interface ISchedules
 {
     /// <summary>Point-read the schedule identified by <paramref name="schedule"/>, in any status, with the members its <see cref="ListSchedulesItem"/> carries; null when the path names no schedule. A malformed name throws <see cref="ArgumentException"/>.</summary>
-    ValueTask<GetScheduleResponse?> GetAsync(ScheduleLookup schedule, CancellationToken ct = default);
+    Task<GetScheduleResponse?> GetAsync(ScheduleLookup schedule, CancellationToken ct = default);
 
     /// <summary>Pause the schedule identified by <paramref name="schedule"/>. Null <paramref name="untilUtc"/> pauses indefinitely; a timestamp auto-resumes. Records <paramref name="reasonMessage"/> on the audit event, and <paramref name="actor"/> as its actor: the operator identity (e.g. the authenticated principal name), null when unknown. A missing or orphaned schedule is NotFound; a past untilUtc is Rejected.</summary>
-    ValueTask<PauseScheduleResponse> PauseAsync(
+    Task<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
         DateTimeOffset? untilUtc = null,
         string? reasonMessage = null,
@@ -19,7 +19,7 @@ public interface ISchedules
     );
 
     /// <summary>Resume the schedule identified by <paramref name="schedule"/>: clears the pause and keeps the cursor, so the misfire policy decides the missed window at the next admission pass. <paramref name="actor"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. A missing or orphaned schedule is NotFound.</summary>
-    ValueTask<ResumeScheduleResponse> ResumeAsync(
+    Task<ResumeScheduleResponse> ResumeAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,
         string? actor = null,
@@ -27,7 +27,7 @@ public interface ISchedules
     );
 
     /// <summary>Fires the schedule identified by <paramref name="schedule"/> right now as a manual firing: on a Permanent definition the permanent job is fired when it is Idle, on a PerOccurrence definition a manual root is admitted and charged to the schedule, and no schedule cursor moves. <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown. <paramref name="reasonMessage"/> rides the audit event's reason message alongside the schedule name (this verb writes no schedule row, so the reasonMessage is not persisted anywhere else). Missing/orphaned schedule is NotFound; a paused schedule is Rejected (resume first), and so is one in a suspended namespace, a permanent job that is not Idle, or a schedule already at capacity. Applied answers the job it made ready as <see cref="TriggerScheduleResponse.JobRef"/>, the permanent job or the new root, which has not run yet. Calls are not deduplicated: a retry after a lost response admits a second root on a PerOccurrence definition, while a permanent job rejects it until it is Idle again.</summary>
-    ValueTask<TriggerScheduleResponse> TriggerAsync(
+    Task<TriggerScheduleResponse> TriggerAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,
         string? actor = null,
@@ -35,7 +35,7 @@ public interface ISchedules
     );
 
     /// <summary>List schedules next-run first, optionally filtered by namespace, name, and liveness.</summary>
-    ValueTask<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default);
+    Task<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// Previews up to <paramref name="count"/> (clamped to [1, 50]) upcoming fire instants for the schedule identified
@@ -45,5 +45,5 @@ public interface ISchedules
     /// entries, down to none, when the expression is exhausted (an unsatisfiable cron field
     /// combination); a missing schedule is null.
     /// </summary>
-    ValueTask<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default);
+    Task<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default);
 }

@@ -10,7 +10,7 @@ namespace Acta;
 /// </summary>
 internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect, IOptions<JobsOptions> options)
 {
-    public async ValueTask<GetOverviewResponse> HandleAsync(GetOverviewQuery query, CancellationToken ct)
+    public async Task<GetOverviewResponse> HandleAsync(GetOverviewQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

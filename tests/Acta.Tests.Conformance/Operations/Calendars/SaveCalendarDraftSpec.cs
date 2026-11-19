@@ -222,7 +222,7 @@ public sealed class SaveCalendarDraftSpec : ActaStorageTestBase<ConformanceFixtu
         }
 
         Task<SaveCalendarDraftResponse> SaveAsync(CalendarLookup calendar) =>
-            Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, ct: ct).AsTask();
+            Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, ct: ct);
     }
 
     [Fact(
@@ -237,8 +237,8 @@ public sealed class SaveCalendarDraftSpec : ActaStorageTestBase<ConformanceFixtu
             await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, ct: ct);
 
             var saves = await CalendarTestOps.RaceAsync(
-                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(2), ct: ct).AsTask(),
-                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(3), ct: ct).AsTask()
+                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(2), ct: ct),
+                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(3), ct: ct)
             );
 
             Assert.All(saves, save => Assert.Equal(ControlAction.Applied, save.Action));
@@ -273,8 +273,8 @@ public sealed class SaveCalendarDraftSpec : ActaStorageTestBase<ConformanceFixtu
             await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, ct: ct);
 
             var saves = await CalendarTestOps.RaceAsync(
-                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(2), ct: ct).AsTask(),
-                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(2), ct: ct).AsTask()
+                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(2), ct: ct),
+                () => Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, Revision(2), ct: ct)
             );
 
             Assert.Equal([ControlAction.Applied, ControlAction.AlreadyInState], saves.Select(save => save.Action).Order());

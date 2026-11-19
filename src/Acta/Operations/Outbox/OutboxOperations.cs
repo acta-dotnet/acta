@@ -15,15 +15,13 @@ internal sealed class OutboxOperations(
     ConsumeOutboxSignalHandler consumeOutboxSignal
 ) : IOutbox
 {
-    public ValueTask<ListOutboxSourcesResponse> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default) =>
+    public Task<ListOutboxSourcesResponse> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default) =>
         listOutboxSources.HandleAsync(query, ct);
 
-    public ValueTask<ListQuarantinedOutboxResponse> ListQuarantinedAsync(
-        ListQuarantinedOutboxQuery query,
-        CancellationToken ct = default
-    ) => listQuarantinedOutbox.HandleAsync(query, ct);
+    public Task<ListQuarantinedOutboxResponse> ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct = default) =>
+        listQuarantinedOutbox.HandleAsync(query, ct);
 
-    public ValueTask<RequeueOutboxResponse> RequeueAsync(
+    public Task<RequeueOutboxResponse> RequeueAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds = null,
         string? reasonMessage = null,
@@ -31,7 +29,7 @@ internal sealed class OutboxOperations(
         CancellationToken ct = default
     ) => requeueOutbox.HandleAsync(new RequeueOutboxCommand(jobNamespace, outboxIds, reasonMessage, actor), ct);
 
-    public ValueTask<DiscardOutboxResponse> DiscardAsync(
+    public Task<DiscardOutboxResponse> DiscardAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds = null,
         bool all = false,

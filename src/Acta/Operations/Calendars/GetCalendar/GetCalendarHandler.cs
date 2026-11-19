@@ -8,7 +8,7 @@ namespace Acta;
 /// </summary>
 internal sealed class GetCalendarHandler(GetCalendarVersionHandler getCalendarVersion, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<GetCalendarResponse?> HandleAsync(GetCalendarQuery query, CancellationToken ct)
+    public async Task<GetCalendarResponse?> HandleAsync(GetCalendarQuery query, CancellationToken ct)
     {
         var (jobNamespace, calendarName) = CalendarControl.Names(query.Calendar);
         var head = await session.QuerySingleAsync(

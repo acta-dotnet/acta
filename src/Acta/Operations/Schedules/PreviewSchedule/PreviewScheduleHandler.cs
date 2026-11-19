@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class PreviewScheduleHandler(GetScheduleTargetHandler getScheduleTarget, CalendarsOperations calendars)
 {
-    public async ValueTask<PreviewScheduleResponse?> HandleAsync(PreviewScheduleQuery query, CancellationToken ct)
+    public async Task<PreviewScheduleResponse?> HandleAsync(PreviewScheduleQuery query, CancellationToken ct)
     {
         if (await getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(query.Schedule), ct) is not { } target)
         {

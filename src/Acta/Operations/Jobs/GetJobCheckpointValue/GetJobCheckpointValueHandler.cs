@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class GetJobCheckpointValueHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<GetJobCheckpointValueResponse?> HandleAsync(GetJobCheckpointValueQuery query, CancellationToken ct) =>
+    public async Task<GetJobCheckpointValueResponse?> HandleAsync(GetJobCheckpointValueQuery query, CancellationToken ct) =>
         await ReadAsync(query.Job, query.Kind, query.Name, ct) is { } row ? new GetJobCheckpointValueResponse(row.Payload) : null;
 
     /// <summary>The checkpoint's stored value with the time of its write, or null as the public read answers it.</summary>

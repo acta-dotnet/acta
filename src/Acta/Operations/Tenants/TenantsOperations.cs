@@ -11,34 +11,34 @@ internal sealed class TenantsOperations(
     GetTenantNameHandler getTenantName
 ) : ITenants
 {
-    public ValueTask<RegisterTenantResponse> RegisterAsync(
+    public Task<RegisterTenantResponse> RegisterAsync(
         string tenantName,
         string? displayName = null,
         string? description = null,
         CancellationToken ct = default
     ) => registerTenant.HandleAsync(new RegisterTenantCommand(tenantName, displayName, description), ct);
 
-    public ValueTask<GetTenantResponse?> GetAsync(string tenantName, CancellationToken ct = default) =>
+    public Task<GetTenantResponse?> GetAsync(string tenantName, CancellationToken ct = default) =>
         getTenant.HandleAsync(new GetTenantQuery(tenantName), ct);
 
-    public ValueTask<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
+    public Task<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
         listTenants.HandleAsync(query, ct);
 
-    public ValueTask<SuspendTenantResponse> SuspendAsync(
+    public Task<SuspendTenantResponse> SuspendAsync(
         string tenantName,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) => suspendTenant.HandleAsync(new SuspendTenantCommand(tenantName, reasonMessage, actor), ct);
 
-    public ValueTask<ResumeTenantResponse> ResumeAsync(
+    public Task<ResumeTenantResponse> ResumeAsync(
         string tenantName,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) => resumeTenant.HandleAsync(new ResumeTenantCommand(tenantName, reasonMessage, actor), ct);
 
-    public ValueTask<UpdateTenantResponse> UpdateAsync(
+    public Task<UpdateTenantResponse> UpdateAsync(
         string tenantName,
         long expectedVersion,
         string? displayName,

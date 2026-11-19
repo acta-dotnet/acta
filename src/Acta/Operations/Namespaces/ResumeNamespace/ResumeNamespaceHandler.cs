@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class ResumeNamespaceHandler(IDbSession session, ISqlDialect dialect, WorkerWakeupPublisher wakeup)
 {
-    public async ValueTask<ResumeNamespaceResponse> HandleAsync(ResumeNamespaceCommand command, CancellationToken ct)
+    public async Task<ResumeNamespaceResponse> HandleAsync(ResumeNamespaceCommand command, CancellationToken ct)
     {
         var name = NameSyntax.Canonicalize(command.NamespaceName, "jobNamespace", reserveSystem: true);
 

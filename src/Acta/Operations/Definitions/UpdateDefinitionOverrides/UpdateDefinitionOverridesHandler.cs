@@ -7,7 +7,7 @@ namespace Acta;
 /// </summary>
 internal sealed class UpdateDefinitionOverridesHandler(GetDefinitionIdHandler getDefinitionId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<UpdateDefinitionOverridesResponse> HandleAsync(UpdateDefinitionOverridesCommand command, CancellationToken ct)
+    public async Task<UpdateDefinitionOverridesResponse> HandleAsync(UpdateDefinitionOverridesCommand command, CancellationToken ct)
     {
         var overrides = Normalize(command.Overrides);
         if (

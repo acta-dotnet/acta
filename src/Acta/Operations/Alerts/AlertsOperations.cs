@@ -33,24 +33,23 @@ internal sealed class AlertsOperations(
     internal Task<ListPoisonAlertEventsResponse> ListPoisonAlertEventsAsync(int namespaceId, string poisonJson, CancellationToken ct) =>
         listPoisonAlertEvents.HandleAsync(new ListPoisonAlertEventsQuery(namespaceId, poisonJson), ct);
 
-    public ValueTask<AcknowledgeAlertResponse> AcknowledgeAsync(
+    public Task<AcknowledgeAlertResponse> AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) => acknowledgeAlert.HandleAsync(new AcknowledgeAlertCommand(alertRef, reasonMessage, actor), ct);
 
-    public ValueTask<ResolveAlertResponse> ResolveAsync(
+    public Task<ResolveAlertResponse> ResolveAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) => resolveAlert.HandleAsync(new ResolveAlertCommand(alertRef, reasonMessage, actor), ct);
 
-    public ValueTask<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
-        listAlerts.HandleAsync(query, ct);
+    public Task<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default) => listAlerts.HandleAsync(query, ct);
 
-    public ValueTask<GetAlertResponse?> GetAsync(AlertRef alertRef, CancellationToken ct = default) =>
+    public Task<GetAlertResponse?> GetAsync(AlertRef alertRef, CancellationToken ct = default) =>
         getAlert.HandleAsync(new GetAlertQuery(alertRef), ct);
 
     /// <summary>

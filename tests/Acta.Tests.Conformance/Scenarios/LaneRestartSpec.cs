@@ -85,7 +85,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
             var complete = await StartedAsync(head, ct);
 
             var completion = complete();
-            var restart = Jobs.RestartAsync(failed, "racing the head", ct: ct).AsTask();
+            var restart = Jobs.RestartAsync(failed, "racing the head", ct: ct);
             await Task.WhenAll(completion, restart);
 
             Assert.Equal(CompleteExecutionsAction.Completed, (await completion).Action);
@@ -105,8 +105,8 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         var version = (await Jobs.GetAsync(done, ct))!.Version;
 
         var outcomes = await Task.WhenAll(
-            Jobs.RestartAsync(done, expectedVersion: version, ct: ct).AsTask(),
-            Jobs.RestartAsync(done, expectedVersion: version, ct: ct).AsTask()
+            Jobs.RestartAsync(done, expectedVersion: version, ct: ct),
+            Jobs.RestartAsync(done, expectedVersion: version, ct: ct)
         );
         var again = await Jobs.RestartAsync(done, expectedVersion: version, ct: ct);
 

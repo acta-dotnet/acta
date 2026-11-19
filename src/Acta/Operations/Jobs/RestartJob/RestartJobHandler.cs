@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="IJobs.RestartAsync"/>: reruns a job that is not executing; a recurring job's slot with no firing outstanding returns to Idle instead.</summary>
 internal sealed class RestartJobHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, WorkerWakeupPublisher wakeup)
 {
-    public async ValueTask<RestartJobResponse> HandleAsync(RestartJobCommand command, CancellationToken ct)
+    public async Task<RestartJobResponse> HandleAsync(RestartJobCommand command, CancellationToken ct)
     {
         if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {

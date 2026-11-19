@@ -813,3 +813,10 @@ dotnet_diagnostic.CA1820.severity = none
 # when a proxy is created.
 [tests/Acta.Tests/{AspNetCore/Fakes/UnreachableDatabase,Contracts/FacadeFaults}.cs]
 dotnet_diagnostic.CA1852.severity = none
+
+# CA2025: the younger enqueue in LaneLockOrderSpec and the held batch in PgEnqueueSnapshotTests. Each fact starts a
+# transactional enqueue and leaves it waiting on a lock while it checks the wait; a passing fact awaits it before the
+# transaction is committed or disposed. The rule clears a stored task only when an explicit Dispose call follows its
+# await, so it reports every task stored across an `await using` declaration.
+[tests/{Acta.Tests.Conformance/Scenarios/LaneLockOrderSpec,Acta.Tests.Conformance.Postgres/Features/Jobs/PgEnqueueSnapshotTests}.cs]
+dotnet_diagnostic.CA2025.severity = none

@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="IJobs.ListCheckpointsAsync"/>: resolves the lookup, then one keyset page of the job's checkpoints.</summary>
 internal sealed class ListJobCheckpointsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListJobCheckpointsResponse> HandleAsync(ListJobCheckpointsQuery query, CancellationToken ct)
+    public async Task<ListJobCheckpointsResponse> HandleAsync(ListJobCheckpointsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 

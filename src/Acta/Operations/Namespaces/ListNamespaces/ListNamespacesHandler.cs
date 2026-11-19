@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="INamespaces.ListAsync"/>: namespaces by name ascending, one keyset page at a time.</summary>
 internal sealed class ListNamespacesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListNamespacesResponse> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
+    public async Task<ListNamespacesResponse> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var fragment = QueryValidation.ValidateNameFragment(query.NameContains, nameof(query.NameContains), NameSyntax.DefaultMaxLength);

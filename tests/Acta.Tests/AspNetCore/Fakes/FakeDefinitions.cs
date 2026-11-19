@@ -20,17 +20,17 @@ internal sealed class FakeDefinitions : IDefinitions
             }
 
             var (action, version) = Outcome(jobName, expectedVersion);
-            return ValueTask.FromResult(new UpdateDefinitionOverridesResponse(action, version));
+            return Task.FromResult(new UpdateDefinitionOverridesResponse(action, version));
         };
         Retire = static (_, jobName, expectedVersion, _, _, _) =>
         {
             var (action, version) = Outcome(jobName, expectedVersion);
-            return ValueTask.FromResult(new RetireDefinitionResponse(action, version));
+            return Task.FromResult(new RetireDefinitionResponse(action, version));
         };
-        Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
-        GetPerformance = static (query, _) => ValueTask.FromResult(Performance(query));
+        Get = static (jobNamespace, jobName, _) => Task.FromResult(Detail(jobNamespace, jobName));
+        GetPerformance = static (query, _) => Task.FromResult(Performance(query));
         List = static (query, _) =>
-            ValueTask.FromResult(new ListDefinitionsResponse(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
+            Task.FromResult(new ListDefinitionsResponse(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
         GetInputTemplate = InputTemplate;
     }
 
@@ -42,20 +42,20 @@ internal sealed class FakeDefinitions : IDefinitions
         string?,
         string?,
         CancellationToken,
-        ValueTask<UpdateDefinitionOverridesResponse>
+        Task<UpdateDefinitionOverridesResponse>
     > UpdateOverrides { get; set; }
 
-    public Func<string, string, long, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
+    public Func<string, string, long, string?, string?, CancellationToken, Task<RetireDefinitionResponse>> Retire { get; set; }
 
-    public Func<string, string, CancellationToken, ValueTask<GetDefinitionResponse?>> Get { get; set; }
+    public Func<string, string, CancellationToken, Task<GetDefinitionResponse?>> Get { get; set; }
 
-    public Func<GetDefinitionPerformanceQuery, CancellationToken, ValueTask<GetDefinitionPerformanceResponse?>> GetPerformance { get; set; }
+    public Func<GetDefinitionPerformanceQuery, CancellationToken, Task<GetDefinitionPerformanceResponse?>> GetPerformance { get; set; }
 
-    public Func<ListDefinitionsQuery, CancellationToken, ValueTask<ListDefinitionsResponse>> List { get; set; }
+    public Func<ListDefinitionsQuery, CancellationToken, Task<ListDefinitionsResponse>> List { get; set; }
 
     public Func<string, string, GetDefinitionInputTemplateResponse?> GetInputTemplate { get; set; }
 
-    ValueTask<UpdateDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
+    Task<UpdateDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         long expectedVersion,
@@ -65,7 +65,7 @@ internal sealed class FakeDefinitions : IDefinitions
         CancellationToken ct
     ) => UpdateOverrides(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor, ct);
 
-    ValueTask<RetireDefinitionResponse> IDefinitions.RetireAsync(
+    Task<RetireDefinitionResponse> IDefinitions.RetireAsync(
         string jobNamespace,
         string jobName,
         long expectedVersion,
@@ -74,21 +74,19 @@ internal sealed class FakeDefinitions : IDefinitions
         CancellationToken ct
     ) => Retire(jobNamespace, jobName, expectedVersion, reasonMessage, actor, ct);
 
-    ValueTask<GetDefinitionResponse?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
+    Task<GetDefinitionResponse?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
         Get(jobNamespace, jobName, ct);
 
-    ValueTask<GetDefinitionPerformanceResponse?> IDefinitions.GetPerformanceAsync(
-        GetDefinitionPerformanceQuery query,
-        CancellationToken ct
-    ) => GetPerformance(query, ct);
+    Task<GetDefinitionPerformanceResponse?> IDefinitions.GetPerformanceAsync(GetDefinitionPerformanceQuery query, CancellationToken ct) =>
+        GetPerformance(query, ct);
 
-    ValueTask<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
+    Task<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<GetDefinitionInputTemplateResponse?> IDefinitions.GetInputTemplateAsync(
+    Task<GetDefinitionInputTemplateResponse?> IDefinitions.GetInputTemplateAsync(
         string jobNamespace,
         string jobName,
         CancellationToken ct
-    ) => ValueTask.FromResult(GetInputTemplate(jobNamespace, jobName));
+    ) => Task.FromResult(GetInputTemplate(jobNamespace, jobName));
 
     /// <summary>The outcome and the version after it: the definition's current version on a conflict, one past the expected on an apply.</summary>
     private static (ControlAction Action, long? Version) Outcome(string jobName, long expectedVersion) =>

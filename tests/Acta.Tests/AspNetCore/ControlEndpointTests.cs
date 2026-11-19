@@ -870,7 +870,7 @@ public sealed class ControlEndpointTests
     public async Task A_rejected_purge_answers_the_jobs_status()
     {
         var fakes = new FakeOperations();
-        fakes.Jobs.Purge = (_, _, _, _) => ValueTask.FromResult(new PurgeJobResponse(42, ControlAction.Rejected, JobStatusCode.Failed));
+        fakes.Jobs.Purge = (_, _, _, _) => Task.FromResult(new PurgeJobResponse(42, ControlAction.Rejected, JobStatusCode.Failed));
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 

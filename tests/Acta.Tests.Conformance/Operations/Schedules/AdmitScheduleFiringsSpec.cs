@@ -314,7 +314,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         Task<SuspendNamespaceResponse> pending;
         try
         {
-            pending = Namespaces.SuspendAsync(TestNamespace, ct: ct).AsTask();
+            pending = Namespaces.SuspendAsync(TestNamespace, ct: ct);
             await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
             Assert.False(pending.IsCompleted, "the suspension did not wait for the admission's schedule lock");
         }
@@ -344,7 +344,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         var target = await Services.GetRequiredService<GetScheduleTargetHandler>().HandleAsync(new GetScheduleTargetQuery(lookup), ct);
         Assert.Equal(NamespaceStatusCode.Active, target!.NamespaceStatus);
         var schedules = Services.GetRequiredService<IActaOperations>().Schedules;
-        var pending = schedules.TriggerAsync(lookup, ct: ct).AsTask();
+        var pending = schedules.TriggerAsync(lookup, ct: ct);
         var firingSql = Db.Provider == DbProvider.SqlServer ? "@p_schedule_id" : "pg_advisory_xact_lock_shared";
         await LockWaitProbe.WaitAsync(Db, firingSql, LockWait.ApplicationLock, pending, suspension, ct);
         await using (var cmd = connection.CreateCommand())

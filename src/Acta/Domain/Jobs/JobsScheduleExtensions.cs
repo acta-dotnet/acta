@@ -13,7 +13,7 @@ public static class JobsScheduleExtensions
     /// Typed enqueue whose first run waits <paramref name="delay"/> (database clock, whole seconds rounded up). Creates
     /// one job, not a recurring schedule.
     /// </summary>
-    public static ValueTask<JobHandle> ScheduleAsync<TInput>(
+    public static Task<JobHandle> ScheduleAsync<TInput>(
         this IJobs jobs,
         TInput input,
         TimeSpan delay,
@@ -26,7 +26,7 @@ public static class JobsScheduleExtensions
     /// Typed enqueue whose first run is at <paramref name="runAt"/>. Creates one job, not a recurring schedule. A
     /// <see cref="DateTime"/> converts as it does to any <see cref="DateTimeOffset"/>: an unspecified kind reads as local time.
     /// </summary>
-    public static ValueTask<JobHandle> ScheduleAsync<TInput>(
+    public static Task<JobHandle> ScheduleAsync<TInput>(
         this IJobs jobs,
         TInput input,
         DateTimeOffset runAt,
@@ -36,7 +36,7 @@ public static class JobsScheduleExtensions
         where TInput : notnull => Required(jobs).EnqueueAsync(input, At(runAt, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<JobHandle> ScheduleAsync<TInput>(
+    public static Task<JobHandle> ScheduleAsync<TInput>(
         this IJobs jobs,
         JobCall<TInput> job,
         TimeSpan delay,
@@ -46,7 +46,7 @@ public static class JobsScheduleExtensions
         where TInput : notnull => Required(jobs).EnqueueAsync(job, After(delay, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, TInput, DateTimeOffset, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<JobHandle> ScheduleAsync<TInput>(
+    public static Task<JobHandle> ScheduleAsync<TInput>(
         this IJobs jobs,
         JobCall<TInput> job,
         DateTimeOffset runAt,
@@ -56,7 +56,7 @@ public static class JobsScheduleExtensions
         where TInput : notnull => Required(jobs).EnqueueAsync(job, At(runAt, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<JobHandle<TResult>> ScheduleAsync<TInput, TResult>(
+    public static Task<JobHandle<TResult>> ScheduleAsync<TInput, TResult>(
         this IJobs jobs,
         JobCall<TInput, TResult> job,
         TimeSpan delay,
@@ -67,7 +67,7 @@ public static class JobsScheduleExtensions
         where TResult : notnull => Required(jobs).EnqueueAsync(job, After(delay, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, TInput, DateTimeOffset, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<JobHandle<TResult>> ScheduleAsync<TInput, TResult>(
+    public static Task<JobHandle<TResult>> ScheduleAsync<TInput, TResult>(
         this IJobs jobs,
         JobCall<TInput, TResult> job,
         DateTimeOffset runAt,
@@ -78,7 +78,7 @@ public static class JobsScheduleExtensions
         where TResult : notnull => Required(jobs).EnqueueAsync(job, At(runAt, configure), ct);
 
     /// <summary>Transactional twin of the delayed typed schedule; the transactional enqueue rules apply.</summary>
-    public static ValueTask<EnqueueJobResponse> ScheduleAsync<TInput>(
+    public static Task<EnqueueJobResponse> ScheduleAsync<TInput>(
         this IJobs jobs,
         DbTransaction transaction,
         TInput input,
@@ -89,7 +89,7 @@ public static class JobsScheduleExtensions
         where TInput : notnull => Required(jobs).EnqueueAsync(transaction, input, After(delay, configure), ct);
 
     /// <summary>Transactional twin of the timed typed schedule; the transactional enqueue rules apply.</summary>
-    public static ValueTask<EnqueueJobResponse> ScheduleAsync<TInput>(
+    public static Task<EnqueueJobResponse> ScheduleAsync<TInput>(
         this IJobs jobs,
         DbTransaction transaction,
         TInput input,
@@ -100,7 +100,7 @@ public static class JobsScheduleExtensions
         where TInput : notnull => Required(jobs).EnqueueAsync(transaction, input, At(runAt, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, DbTransaction, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<EnqueueJobResponse> ScheduleAsync<TInput>(
+    public static Task<EnqueueJobResponse> ScheduleAsync<TInput>(
         this IJobs jobs,
         DbTransaction transaction,
         JobCall<TInput> job,
@@ -111,7 +111,7 @@ public static class JobsScheduleExtensions
         where TInput : notnull => Required(jobs).EnqueueAsync(transaction, job, After(delay, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, DbTransaction, TInput, DateTimeOffset, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<EnqueueJobResponse> ScheduleAsync<TInput>(
+    public static Task<EnqueueJobResponse> ScheduleAsync<TInput>(
         this IJobs jobs,
         DbTransaction transaction,
         JobCall<TInput> job,
@@ -122,7 +122,7 @@ public static class JobsScheduleExtensions
         where TInput : notnull => Required(jobs).EnqueueAsync(transaction, job, At(runAt, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, DbTransaction, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<EnqueueJobResponse> ScheduleAsync<TInput, TResult>(
+    public static Task<EnqueueJobResponse> ScheduleAsync<TInput, TResult>(
         this IJobs jobs,
         DbTransaction transaction,
         JobCall<TInput, TResult> job,
@@ -134,7 +134,7 @@ public static class JobsScheduleExtensions
         where TResult : notnull => Required(jobs).EnqueueAsync(transaction, job, After(delay, configure), ct);
 
     /// <inheritdoc cref="ScheduleAsync{TInput}(IJobs, DbTransaction, TInput, DateTimeOffset, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public static ValueTask<EnqueueJobResponse> ScheduleAsync<TInput, TResult>(
+    public static Task<EnqueueJobResponse> ScheduleAsync<TInput, TResult>(
         this IJobs jobs,
         DbTransaction transaction,
         JobCall<TInput, TResult> job,

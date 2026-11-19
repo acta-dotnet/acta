@@ -8,7 +8,7 @@ internal sealed class ReprioritizeJobHandler(
     WorkerWakeupPublisher wakeup
 )
 {
-    public async ValueTask<ReprioritizeJobResponse> HandleAsync(ReprioritizeJobCommand command, CancellationToken ct)
+    public async Task<ReprioritizeJobResponse> HandleAsync(ReprioritizeJobCommand command, CancellationToken ct)
     {
         RequireBand(command.Priority);
 

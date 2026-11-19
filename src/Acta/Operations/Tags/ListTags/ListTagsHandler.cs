@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="ITags.ListAsync"/>: resolves the target, then one keyset page of its tags by name.</summary>
 internal sealed class ListTagsHandler(GetTagTargetHandler getTagTarget, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListTagsResponse> HandleAsync(ListTagsQuery query, CancellationToken ct)
+    public async Task<ListTagsResponse> HandleAsync(ListTagsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(query.Target, "target");

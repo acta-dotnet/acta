@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="IJobs.ListStepsAsync"/>: resolves the lookup, then one keyset page of the job's steps, newest first.</summary>
 internal sealed class ListJobStepsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListJobStepsResponse> HandleAsync(ListJobStepsQuery query, CancellationToken ct)
+    public async Task<ListJobStepsResponse> HandleAsync(ListJobStepsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 

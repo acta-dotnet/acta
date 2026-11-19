@@ -18,29 +18,29 @@ public record JobHandle : EnqueueJobResponse
     }
 
     /// <inheritdoc cref="IJobs.GetStatusAsync"/>
-    public ValueTask<GetJobStatusResponse?> GetStatusAsync(CancellationToken ct = default) => _jobs.GetStatusAsync(this, ct);
+    public Task<GetJobStatusResponse?> GetStatusAsync(CancellationToken ct = default) => _jobs.GetStatusAsync(this, ct);
 
     /// <inheritdoc cref="IJobs.WaitAsync"/>
-    public ValueTask<JobOutcome> WaitAsync(TimeSpan? timeout = null, CancellationToken ct = default) => _jobs.WaitAsync(this, timeout, ct);
+    public Task<JobOutcome> WaitAsync(TimeSpan? timeout = null, CancellationToken ct = default) => _jobs.WaitAsync(this, timeout, ct);
 
     /// <inheritdoc cref="IJobs.WaitAsync{TResult}"/>
-    public ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(TimeSpan? timeout = null, CancellationToken ct = default)
+    public Task<JobOutcome<TResult>> WaitAsync<TResult>(TimeSpan? timeout = null, CancellationToken ct = default)
         where TResult : notnull => _jobs.WaitAsync<TResult>(this, timeout, ct);
 
     /// <inheritdoc cref="IJobs.GetResultAsync{TResult}"/>
-    public ValueTask<TResult> GetResultAsync<TResult>(CancellationToken ct = default)
+    public Task<TResult> GetResultAsync<TResult>(CancellationToken ct = default)
         where TResult : notnull => _jobs.GetResultAsync<TResult>(this, ct);
 
     /// <inheritdoc cref="IJobs.TryGetResultAsync{TResult}"/>
-    public ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(CancellationToken ct = default) =>
+    public Task<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(CancellationToken ct = default) =>
         _jobs.TryGetResultAsync<TResult>(this, ct);
 
     /// <inheritdoc cref="IJobs.CancelAsync"/>
-    public ValueTask<CancelJobResponse> CancelAsync(string? reasonMessage = null, string? actor = null, CancellationToken ct = default) =>
+    public Task<CancelJobResponse> CancelAsync(string? reasonMessage = null, string? actor = null, CancellationToken ct = default) =>
         _jobs.CancelAsync(this, reasonMessage, actor, ct: ct);
 
     /// <inheritdoc cref="IJobs.ExplainAsync"/>
-    public ValueTask<ExplainJobResponse?> ExplainAsync(CancellationToken ct = default) => _jobs.ExplainAsync(this, ct);
+    public Task<ExplainJobResponse?> ExplainAsync(CancellationToken ct = default) => _jobs.ExplainAsync(this, ct);
 }
 
 /// <summary>
@@ -55,12 +55,12 @@ public record JobHandle<TResult> : JobHandle
         : base(jobs, jobId, jobRef, action) { }
 
     /// <inheritdoc cref="IJobs.WaitAsync{TResult}"/>
-    public new ValueTask<JobOutcome<TResult>> WaitAsync(TimeSpan? timeout = null, CancellationToken ct = default) =>
+    public new Task<JobOutcome<TResult>> WaitAsync(TimeSpan? timeout = null, CancellationToken ct = default) =>
         WaitAsync<TResult>(timeout, ct);
 
     /// <inheritdoc cref="IJobs.GetResultAsync{TResult}"/>
-    public ValueTask<TResult> GetResultAsync(CancellationToken ct = default) => GetResultAsync<TResult>(ct);
+    public Task<TResult> GetResultAsync(CancellationToken ct = default) => GetResultAsync<TResult>(ct);
 
     /// <inheritdoc cref="IJobs.TryGetResultAsync{TResult}"/>
-    public ValueTask<(bool Found, TResult? Value)> TryGetResultAsync(CancellationToken ct = default) => TryGetResultAsync<TResult>(ct);
+    public Task<(bool Found, TResult? Value)> TryGetResultAsync(CancellationToken ct = default) => TryGetResultAsync<TResult>(ct);
 }

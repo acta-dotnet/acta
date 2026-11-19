@@ -88,6 +88,6 @@ public sealed class SqliteEphemeralTests
             ct
         );
 
-    private static ValueTask<EnqueueJobResponse> EnqueueAsync(IActaTestHost host, CancellationToken ct) =>
+    private static Task<EnqueueJobResponse> EnqueueAsync(IActaTestHost host, CancellationToken ct) =>
         host.Jobs.EnqueueAsync(new EnqueueJobRequest(Namespace, "add-numbers", JobPayload.Json(new TestJobs.AddNumbers(1, 2))), ct);
 }

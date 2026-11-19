@@ -32,7 +32,7 @@ public sealed class JobStepsEndpointTests
         fakes.Jobs.ListSteps = (query, _) =>
         {
             queries.Add(query);
-            return ValueTask.FromResult(new ListJobStepsResponse([Ship, Charge], "page-2", true, 2, query.IncludeTotal ? 5 : null));
+            return Task.FromResult(new ListJobStepsResponse([Ship, Charge], "page-2", true, 2, query.IncludeTotal ? 5 : null));
         };
         return (fakes, queries);
     }

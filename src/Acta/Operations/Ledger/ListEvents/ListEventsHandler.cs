@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="ILedger.ListEventsAsync"/>: resolves the job and worker filters, then one keyset page, newest first.</summary>
 internal sealed class ListEventsHandler(GetJobIdHandler getJobId, GetWorkerHandler getWorker, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListEventsResponse> HandleAsync(ListEventsQuery query, CancellationToken ct)
+    public async Task<ListEventsResponse> HandleAsync(ListEventsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

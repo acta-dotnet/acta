@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="INamespaces.UpdateAsync"/>: checks the name and the text fields and stamps the operator; the SQL does the rest.</summary>
 internal sealed class UpdateNamespaceHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<UpdateNamespaceResponse> HandleAsync(UpdateNamespaceCommand command, CancellationToken ct)
+    public async Task<UpdateNamespaceResponse> HandleAsync(UpdateNamespaceCommand command, CancellationToken ct)
     {
         var name = NameSyntax.Canonicalize(command.NamespaceName, "jobNamespace", reserveSystem: true);
         CatalogValidation.ValidateNamespace(command.OwnerTeam, command.Description);

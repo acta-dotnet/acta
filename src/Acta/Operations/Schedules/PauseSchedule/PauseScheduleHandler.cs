@@ -11,7 +11,7 @@ internal sealed class PauseScheduleHandler(GetScheduleTargetHandler getScheduleT
     private static readonly PauseScheduleResponse NotFound = new(ControlAction.NotFound, null, null, null, null);
     private static readonly PauseScheduleResponse Rejected = new(ControlAction.Rejected, null, null, null, null);
 
-    public async ValueTask<PauseScheduleResponse> HandleAsync(PauseScheduleCommand command, CancellationToken ct)
+    public async Task<PauseScheduleResponse> HandleAsync(PauseScheduleCommand command, CancellationToken ct)
     {
         if (await getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {

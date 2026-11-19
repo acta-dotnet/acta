@@ -128,7 +128,7 @@ public sealed class DoNotRetrySpec : ActaTestBase<ConformanceFixture>
         Assert.Empty(await EventsAsync(host, enqueued.JobId, EventCode.JobExecutionFailed, ct));
     }
 
-    private ValueTask<EnqueueJobResponse> EnqueueAsync(IActaTestHost host, string jobName, CancellationToken ct) =>
+    private Task<EnqueueJobResponse> EnqueueAsync(IActaTestHost host, string jobName, CancellationToken ct) =>
         host.Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, JobPayload.None), ct);
 
     private static async Task<IReadOnlyList<EventEntity>> EventsAsync(

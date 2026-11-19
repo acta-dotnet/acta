@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="ICalendars.ListVersionsAsync"/>: one keyset page of the family's versions, newest first.</summary>
 internal sealed class ListCalendarVersionsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListCalendarVersionsResponse> HandleAsync(ListCalendarVersionsQuery query, CancellationToken ct)
+    public async Task<ListCalendarVersionsResponse> HandleAsync(ListCalendarVersionsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 

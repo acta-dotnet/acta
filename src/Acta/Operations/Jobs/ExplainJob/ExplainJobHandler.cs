@@ -12,7 +12,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     /// <summary>The newest steps an explanation narrates; <see cref="IJobs.ListStepsAsync"/> pages every step.</summary>
     internal const int StepLimit = 50;
 
-    public async ValueTask<ExplainJobResponse?> HandleAsync(ExplainJobQuery query, CancellationToken ct)
+    public async Task<ExplainJobResponse?> HandleAsync(ExplainJobQuery query, CancellationToken ct)
     {
         if (
             await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId }

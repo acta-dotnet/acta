@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="IAlerts.ListAsync"/>: resolves the job filter, then alerts newest first, one keyset page at a time.</summary>
 internal sealed class ListAlertsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListAlertsResponse> HandleAsync(ListAlertsQuery query, CancellationToken ct)
+    public async Task<ListAlertsResponse> HandleAsync(ListAlertsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

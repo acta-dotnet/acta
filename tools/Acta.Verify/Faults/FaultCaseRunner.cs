@@ -265,12 +265,8 @@ internal static class FaultCaseRunner
                 }
                 fault = new(boundary, [input.Key], reached, true, false, RecordedAtUtc: DateTimeOffset.UtcNow);
                 observingRecovery = true;
-                await WaitAsync(
-                    async () => (await RecoveryReadAsync(() => jobs.GetAsync(root, ct).AsTask()))?.Status.IsFinished == true,
-                    bound,
-                    ct
-                );
-                var finalRoot = await RecoveryReadAsync(() => jobs.GetAsync(root, ct).AsTask());
+                await WaitAsync(async () => (await RecoveryReadAsync(() => jobs.GetAsync(root, ct)))?.Status.IsFinished == true, bound, ct);
+                var finalRoot = await RecoveryReadAsync(() => jobs.GetAsync(root, ct));
                 var reclaim = finalRoot is { ExecutionNumber: > 1 };
                 fault = fault with { ReclaimObserved = reclaim };
                 if (scenario.Id != "cancel-descendants")

@@ -22,7 +22,7 @@ internal sealed class TriggerScheduleHandler(
     /// <summary>Reads of a per-occurrence schedule whose state another writer moved between the read and the apply.</summary>
     private const int MaxReplans = 2;
 
-    public async ValueTask<TriggerScheduleResponse> HandleAsync(TriggerScheduleCommand command, CancellationToken ct)
+    public async Task<TriggerScheduleResponse> HandleAsync(TriggerScheduleCommand command, CancellationToken ct)
     {
         for (var replan = 0; ; replan++)
         {

@@ -14,7 +14,7 @@ public interface IAlerts
     /// <paramref name="reasonMessage"/> is folded into the audit event's reason beside the alert ref, and
     /// <paramref name="actor"/> is recorded on it as the operator identity; null when unknown.
     /// </summary>
-    ValueTask<AcknowledgeAlertResponse> AcknowledgeAsync(
+    Task<AcknowledgeAlertResponse> AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
         string? actor = null,
@@ -29,7 +29,7 @@ public interface IAlerts
     /// <paramref name="reasonMessage"/> is folded into the audit event's reason beside the alert ref, and
     /// <paramref name="actor"/> is recorded on it as the operator identity; null when unknown.
     /// </summary>
-    ValueTask<ResolveAlertResponse> ResolveAsync(
+    Task<ResolveAlertResponse> ResolveAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
         string? actor = null,
@@ -40,8 +40,8 @@ public interface IAlerts
     /// List alerts newest first, optionally filtered by namespace, job, resolution, acknowledgement,
     /// severity, and delivery status.
     /// </summary>
-    ValueTask<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default);
+    Task<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default);
 
     /// <summary>Point-read one alert by ref; null when it does not exist.</summary>
-    ValueTask<GetAlertResponse?> GetAsync(AlertRef alertRef, CancellationToken ct = default);
+    Task<GetAlertResponse?> GetAsync(AlertRef alertRef, CancellationToken ct = default);
 }

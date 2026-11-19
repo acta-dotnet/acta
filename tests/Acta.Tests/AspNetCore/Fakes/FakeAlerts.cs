@@ -19,51 +19,51 @@ internal sealed class FakeAlerts : IAlerts
         {
             if (alertRef == default)
             {
-                return ValueTask.FromResult(new AcknowledgeAlertResponse(alertRef, ControlAction.NotFound, null, null));
+                return Task.FromResult(new AcknowledgeAlertResponse(alertRef, ControlAction.NotFound, null, null));
             }
 
             AcknowledgeCalls.Add((alertRef, reason, actor));
-            return ValueTask.FromResult(new AcknowledgeAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, null));
+            return Task.FromResult(new AcknowledgeAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, null));
         };
         Resolve = (alertRef, reason, actor, _) =>
         {
             if (alertRef == default)
             {
-                return ValueTask.FromResult(new ResolveAlertResponse(alertRef, ControlAction.NotFound, null, null));
+                return Task.FromResult(new ResolveAlertResponse(alertRef, ControlAction.NotFound, null, null));
             }
 
             ResolveCalls.Add((alertRef, reason, actor));
-            return ValueTask.FromResult(new ResolveAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, ResolvedAt));
+            return Task.FromResult(new ResolveAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, ResolvedAt));
         };
-        List = static (_, _) => ValueTask.FromResult(new ListAlertsResponse([], null, false, 50, null));
-        Get = static (alertRef, _) => ValueTask.FromResult<GetAlertResponse?>(alertRef == KnownAlertRef ? Known : null);
+        List = static (_, _) => Task.FromResult(new ListAlertsResponse([], null, false, 50, null));
+        Get = static (alertRef, _) => Task.FromResult<GetAlertResponse?>(alertRef == KnownAlertRef ? Known : null);
     }
 
     public List<(AlertRef AlertRef, string? Note, string? Actor)> AcknowledgeCalls { get; } = [];
 
     public List<(AlertRef AlertRef, string? Note, string? Actor)> ResolveCalls { get; } = [];
 
-    public Func<AlertRef, string?, string?, CancellationToken, ValueTask<AcknowledgeAlertResponse>> Acknowledge { get; set; }
+    public Func<AlertRef, string?, string?, CancellationToken, Task<AcknowledgeAlertResponse>> Acknowledge { get; set; }
 
-    public Func<AlertRef, string?, string?, CancellationToken, ValueTask<ResolveAlertResponse>> Resolve { get; set; }
+    public Func<AlertRef, string?, string?, CancellationToken, Task<ResolveAlertResponse>> Resolve { get; set; }
 
-    public Func<ListAlertsQuery, CancellationToken, ValueTask<ListAlertsResponse>> List { get; set; }
+    public Func<ListAlertsQuery, CancellationToken, Task<ListAlertsResponse>> List { get; set; }
 
-    public Func<AlertRef, CancellationToken, ValueTask<GetAlertResponse?>> Get { get; set; }
+    public Func<AlertRef, CancellationToken, Task<GetAlertResponse?>> Get { get; set; }
 
-    ValueTask<AcknowledgeAlertResponse> IAlerts.AcknowledgeAsync(
+    Task<AcknowledgeAlertResponse> IAlerts.AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
     ) => Acknowledge(alertRef, reasonMessage, actor, ct);
 
-    ValueTask<ResolveAlertResponse> IAlerts.ResolveAsync(AlertRef alertRef, string? reasonMessage, string? actor, CancellationToken ct) =>
+    Task<ResolveAlertResponse> IAlerts.ResolveAsync(AlertRef alertRef, string? reasonMessage, string? actor, CancellationToken ct) =>
         Resolve(alertRef, reasonMessage, actor, ct);
 
-    ValueTask<ListAlertsResponse> IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct) => List(query, ct);
+    Task<ListAlertsResponse> IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<GetAlertResponse?> IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct) => Get(alertRef, ct);
+    Task<GetAlertResponse?> IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct) => Get(alertRef, ct);
 
     private static readonly GetAlertResponse Known = new(
         KnownAlertRef,

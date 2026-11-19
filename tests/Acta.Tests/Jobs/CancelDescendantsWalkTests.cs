@@ -52,7 +52,7 @@ public sealed class CancelDescendantsWalkTests
         var cancel = session.Services().GetRequiredService<CancelJobHandler>();
 
         using var caller = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var cancelling = cancel.HandleAsync(new CancelJobCommand(JobLookup.ById(1), null, null, null), caller.Token).AsTask();
+        var cancelling = cancel.HandleAsync(new CancelJobCommand(JobLookup.ById(1), null, null, null), caller.Token);
         await latching.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
         await caller.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelling);

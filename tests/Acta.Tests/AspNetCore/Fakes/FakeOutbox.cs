@@ -15,10 +15,8 @@ internal sealed class FakeOutbox : IOutbox
     public FakeOutbox()
     {
         ListSources = static (query, _) =>
-            ValueTask.FromResult(
-                new ListOutboxSourcesResponse(query.JobNamespace is null or "billing" ? [Billing] : [], null, false, 50, null)
-            );
-        ListQuarantined = static (query, _) => ValueTask.FromResult(Quarantined(query));
+            Task.FromResult(new ListOutboxSourcesResponse(query.JobNamespace is null or "billing" ? [Billing] : [], null, false, 50, null));
+        ListQuarantined = static (query, _) => Task.FromResult(Quarantined(query));
         Requeue = (jobNamespace, outboxIds, reason, actor, _) =>
             Control("requeue", jobNamespace, outboxIds, false, reason, actor, static (action, pendingSince) =>
                 new RequeueOutboxResponse(action, pendingSince)
@@ -39,29 +37,20 @@ internal sealed class FakeOutbox : IOutbox
         string? Actor
     )> ControlCalls { get; } = [];
 
-    public Func<ListOutboxSourcesQuery, CancellationToken, ValueTask<ListOutboxSourcesResponse>> ListSources { get; set; }
+    public Func<ListOutboxSourcesQuery, CancellationToken, Task<ListOutboxSourcesResponse>> ListSources { get; set; }
 
-    public Func<ListQuarantinedOutboxQuery, CancellationToken, ValueTask<ListQuarantinedOutboxResponse>> ListQuarantined { get; set; }
+    public Func<ListQuarantinedOutboxQuery, CancellationToken, Task<ListQuarantinedOutboxResponse>> ListQuarantined { get; set; }
 
-    public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, ValueTask<RequeueOutboxResponse>> Requeue { get; set; }
+    public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, Task<RequeueOutboxResponse>> Requeue { get; set; }
 
-    public Func<
-        string,
-        IReadOnlyList<Guid>?,
-        bool,
-        string?,
-        string?,
-        CancellationToken,
-        ValueTask<DiscardOutboxResponse>
-    > Discard { get; set; }
+    public Func<string, IReadOnlyList<Guid>?, bool, string?, string?, CancellationToken, Task<DiscardOutboxResponse>> Discard { get; set; }
 
-    ValueTask<ListOutboxSourcesResponse> IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct) =>
-        ListSources(query, ct);
+    Task<ListOutboxSourcesResponse> IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct) => ListSources(query, ct);
 
-    ValueTask<ListQuarantinedOutboxResponse> IOutbox.ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct) =>
+    Task<ListQuarantinedOutboxResponse> IOutbox.ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct) =>
         ListQuarantined(query, ct);
 
-    ValueTask<RequeueOutboxResponse> IOutbox.RequeueAsync(
+    Task<RequeueOutboxResponse> IOutbox.RequeueAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
         string? reasonMessage,
@@ -69,7 +58,7 @@ internal sealed class FakeOutbox : IOutbox
         CancellationToken ct
     ) => Requeue(jobNamespace, outboxIds, reasonMessage, actor, ct);
 
-    ValueTask<DiscardOutboxResponse> IOutbox.DiscardAsync(
+    Task<DiscardOutboxResponse> IOutbox.DiscardAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
         bool all,
@@ -110,7 +99,7 @@ internal sealed class FakeOutbox : IOutbox
             )
             : throw new InvalidOperationException($"Namespace '{query.JobNamespace}' has no outbox relay registered in this process.");
 
-    private ValueTask<T> Control<T>(
+    private Task<T> Control<T>(
         string verb,
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
@@ -123,15 +112,15 @@ internal sealed class FakeOutbox : IOutbox
         _ = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
         if (jobNamespace == "missing")
         {
-            return ValueTask.FromResult(response(ControlAction.NotFound, null));
+            return Task.FromResult(response(ControlAction.NotFound, null));
         }
 
         if (jobNamespace == "rejected")
         {
-            return ValueTask.FromResult(response(ControlAction.Rejected, PendingSince));
+            return Task.FromResult(response(ControlAction.Rejected, PendingSince));
         }
 
         ControlCalls.Add((verb, jobNamespace, outboxIds, all, reasonMessage, actor));
-        return ValueTask.FromResult(response(ControlAction.Accepted, null));
+        return Task.FromResult(response(ControlAction.Accepted, null));
     }
 }

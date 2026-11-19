@@ -96,12 +96,12 @@ public sealed class JobDetailEndpointTests
         fakes.Jobs.GetInput = (_, _) =>
         {
             reads.Add("input");
-            return ValueTask.FromResult<GetJobInputResponse?>(null);
+            return Task.FromResult<GetJobInputResponse?>(null);
         };
         fakes.Jobs.GetResult = (_, _) =>
         {
             reads.Add("result");
-            return ValueTask.FromResult<GetJobResultResponse?>(null);
+            return Task.FromResult<GetJobResultResponse?>(null);
         };
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var host = app;

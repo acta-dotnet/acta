@@ -44,9 +44,7 @@ public sealed class JobCheckpointsEndpointTests
         fakes.Jobs.ListCheckpoints = (query, _) =>
         {
             queries.Add(query);
-            return ValueTask.FromResult(
-                new ListJobCheckpointsResponse([Counter, Approval], "page-2", true, 2, query.IncludeTotal ? 5 : null)
-            );
+            return Task.FromResult(new ListJobCheckpointsResponse([Counter, Approval], "page-2", true, 2, query.IncludeTotal ? 5 : null));
         };
         return (fakes, queries);
     }

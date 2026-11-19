@@ -29,7 +29,7 @@ internal sealed class GetDefinitionPerformanceHandler(GetDefinitionIdHandler get
         .. Enumerable.Range(0, BinLimit - 9).Select(static i => BinSteps[i % 10] * (long)Math.Pow(10, i / 10)),
     ];
 
-    public async ValueTask<GetDefinitionPerformanceResponse?> HandleAsync(GetDefinitionPerformanceQuery query, CancellationToken ct)
+    public async Task<GetDefinitionPerformanceResponse?> HandleAsync(GetDefinitionPerformanceQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         // Whole milliseconds place an execution in the same interval on every provider: SQLite stores an instant as

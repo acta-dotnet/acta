@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="ITags.RemoveAsync"/>: checks the name, resolves the target, then one remove.</summary>
 internal sealed class RemoveTagHandler(GetTagTargetHandler getTagTarget, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<RemoveTagResponse> HandleAsync(RemoveTagCommand command, CancellationToken ct)
+    public async Task<RemoveTagResponse> HandleAsync(RemoveTagCommand command, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command.Target, "target");
         var name = NameSyntax.Canonicalize(command.Name, "name", TagLimits.MaxNameLength, reserveSystem: true);

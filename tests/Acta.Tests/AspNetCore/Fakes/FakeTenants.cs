@@ -16,19 +16,19 @@ internal sealed class FakeTenants : ITenants
         {
             NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
             RegisterCalls.Add((tenantName, displayName, description));
-            return ValueTask.FromResult(new RegisterTenantResponse(7, tenantName));
+            return Task.FromResult(new RegisterTenantResponse(7, tenantName));
         };
         Get = static (tenantName, _) =>
         {
             NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength);
-            return ValueTask.FromResult<GetTenantResponse?>(
+            return Task.FromResult<GetTenantResponse?>(
                 tenantName == "cust-001"
                     ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, CreatedAtUtc, CreatedAtUtc, 0)
                     : null
             );
         };
         List = static (_, _) =>
-            ValueTask.FromResult(
+            Task.FromResult(
                 new ListTenantsResponse(
                     [new ListTenantsItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, CreatedAtUtc, CreatedAtUtc, 0)],
                     null,
@@ -50,36 +50,36 @@ internal sealed class FakeTenants : ITenants
     /// <summary>Applied suspend, resume, and patch calls.</summary>
     public List<(string TenantName, string? ReasonMessage, string? Actor)> SuspendResumeCalls { get; } = [];
 
-    public Func<string, string?, string?, CancellationToken, ValueTask<RegisterTenantResponse>> Register { get; set; }
+    public Func<string, string?, string?, CancellationToken, Task<RegisterTenantResponse>> Register { get; set; }
 
-    public Func<string, CancellationToken, ValueTask<GetTenantResponse?>> Get { get; set; }
+    public Func<string, CancellationToken, Task<GetTenantResponse?>> Get { get; set; }
 
-    public Func<ListTenantsQuery, CancellationToken, ValueTask<ListTenantsResponse>> List { get; set; }
+    public Func<ListTenantsQuery, CancellationToken, Task<ListTenantsResponse>> List { get; set; }
 
-    public Func<string, string?, string?, CancellationToken, ValueTask<SuspendTenantResponse>> Suspend { get; set; }
+    public Func<string, string?, string?, CancellationToken, Task<SuspendTenantResponse>> Suspend { get; set; }
 
-    public Func<string, string?, string?, CancellationToken, ValueTask<ResumeTenantResponse>> Resume { get; set; }
+    public Func<string, string?, string?, CancellationToken, Task<ResumeTenantResponse>> Resume { get; set; }
 
-    public Func<string, long, string?, string?, string?, string?, CancellationToken, ValueTask<UpdateTenantResponse>> Update { get; set; }
+    public Func<string, long, string?, string?, string?, string?, CancellationToken, Task<UpdateTenantResponse>> Update { get; set; }
 
-    ValueTask<RegisterTenantResponse> ITenants.RegisterAsync(
+    Task<RegisterTenantResponse> ITenants.RegisterAsync(
         string tenantName,
         string? displayName,
         string? description,
         CancellationToken ct
     ) => Register(tenantName, displayName, description, ct);
 
-    ValueTask<GetTenantResponse?> ITenants.GetAsync(string tenantName, CancellationToken ct) => Get(tenantName, ct);
+    Task<GetTenantResponse?> ITenants.GetAsync(string tenantName, CancellationToken ct) => Get(tenantName, ct);
 
-    ValueTask<ListTenantsResponse> ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct) => List(query, ct);
+    Task<ListTenantsResponse> ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<SuspendTenantResponse> ITenants.SuspendAsync(string tenantName, string? reasonMessage, string? actor, CancellationToken ct) =>
+    Task<SuspendTenantResponse> ITenants.SuspendAsync(string tenantName, string? reasonMessage, string? actor, CancellationToken ct) =>
         Suspend(tenantName, reasonMessage, actor, ct);
 
-    ValueTask<ResumeTenantResponse> ITenants.ResumeAsync(string tenantName, string? reasonMessage, string? actor, CancellationToken ct) =>
+    Task<ResumeTenantResponse> ITenants.ResumeAsync(string tenantName, string? reasonMessage, string? actor, CancellationToken ct) =>
         Resume(tenantName, reasonMessage, actor, ct);
 
-    ValueTask<UpdateTenantResponse> ITenants.UpdateAsync(
+    Task<UpdateTenantResponse> ITenants.UpdateAsync(
         string tenantName,
         long expectedVersion,
         string? displayName,
@@ -89,7 +89,7 @@ internal sealed class FakeTenants : ITenants
         CancellationToken ct
     ) => Update(tenantName, expectedVersion, displayName, description, reasonMessage, actor, ct);
 
-    private ValueTask<T> Apply<T>(
+    private Task<T> Apply<T>(
         string tenantName,
         string? reasonMessage,
         string? actor,
@@ -100,15 +100,15 @@ internal sealed class FakeTenants : ITenants
         _ = NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (tenantName == "missing")
         {
-            return ValueTask.FromResult(response(ControlAction.NotFound, null));
+            return Task.FromResult(response(ControlAction.NotFound, null));
         }
 
         if (expectedVersion == 999)
         {
-            return ValueTask.FromResult(response(ControlAction.VersionConflict, 5));
+            return Task.FromResult(response(ControlAction.VersionConflict, 5));
         }
 
         SuspendResumeCalls.Add((tenantName, reasonMessage, actor));
-        return ValueTask.FromResult(response(ControlAction.Applied, (expectedVersion ?? 0) + 1));
+        return Task.FromResult(response(ControlAction.Applied, (expectedVersion ?? 0) + 1));
     }
 }

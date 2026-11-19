@@ -509,7 +509,7 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, J
     }
 
     private Task<EnqueueJobResponse> EnqueueAddNumbersAsync(CancellationToken ct) =>
-        Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct).AsTask();
+        Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     private async Task PlantAsync(long jobId, long executionNumber, long version, CancellationToken ct) =>
         Assert.Equal(

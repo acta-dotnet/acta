@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="IJobs.PauseAsync"/>: pauses a claimable job, waking the claim loops when its lane promoted the next member.</summary>
 internal sealed class PauseJobHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, WorkerWakeupPublisher wakeup)
 {
-    public async ValueTask<PauseJobResponse> HandleAsync(PauseJobCommand command, CancellationToken ct)
+    public async Task<PauseJobResponse> HandleAsync(PauseJobCommand command, CancellationToken ct)
     {
         if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {

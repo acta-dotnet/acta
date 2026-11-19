@@ -8,7 +8,7 @@ internal sealed class UpsertTagHandler(GetTagTargetHandler getTagTarget, IDbSess
     // The UpsertTag SQL raises this when a new name would pass the cap.
     private const string CapRaised = "may carry at most 32 tags";
 
-    public async ValueTask<UpsertTagResponse> HandleAsync(UpsertTagCommand command, CancellationToken ct)
+    public async Task<UpsertTagResponse> HandleAsync(UpsertTagCommand command, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command.Target, "target");
         var json = TagJson.Write([TagInput.Normalize(command.Tag, "tag")]);

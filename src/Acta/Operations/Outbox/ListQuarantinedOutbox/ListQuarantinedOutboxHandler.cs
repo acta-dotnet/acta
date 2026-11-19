@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class ListQuarantinedOutboxHandler(OutboxRelayRegistry? registry = null)
 {
-    public async ValueTask<ListQuarantinedOutboxResponse> HandleAsync(ListQuarantinedOutboxQuery query, CancellationToken ct)
+    public async Task<ListQuarantinedOutboxResponse> HandleAsync(ListQuarantinedOutboxQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(query.JobNamespace);

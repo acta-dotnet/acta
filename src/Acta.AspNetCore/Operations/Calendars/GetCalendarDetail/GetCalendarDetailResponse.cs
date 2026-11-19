@@ -14,7 +14,7 @@ internal sealed record GetCalendarDetailResponse(
 )
 {
     /// <summary>The detail of <paramref name="calendar"/> showing <paramref name="version"/>, or null when the family or the version is missing.</summary>
-    public static async ValueTask<GetCalendarDetailResponse?> ComposeAsync(
+    public static async Task<GetCalendarDetailResponse?> ComposeAsync(
         ICalendars calendars,
         CalendarLookup calendar,
         long? version,

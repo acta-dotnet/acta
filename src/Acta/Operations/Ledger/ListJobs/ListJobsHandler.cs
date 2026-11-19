@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="ILedger.ListJobsAsync"/>: resolves the parent filter, then jobs newest first, one keyset page at a time.</summary>
 internal sealed class ListJobsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListJobsResponse> HandleAsync(ListJobsQuery query, CancellationToken ct)
+    public async Task<ListJobsResponse> HandleAsync(ListJobsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

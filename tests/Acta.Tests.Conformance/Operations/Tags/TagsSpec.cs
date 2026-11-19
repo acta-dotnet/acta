@@ -261,8 +261,8 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<Ta
         var jobId = enqueued.JobId;
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
 
-        var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct: ct).AsTask();
-        var purgeTask = Jobs.PurgeAsync(lookup, ct: ct).AsTask();
+        var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct: ct);
+        var purgeTask = Jobs.PurgeAsync(lookup, ct: ct);
         await Task.WhenAll(mutationTask, purgeTask);
 
         Assert.Contains((await mutationTask).Action, new[] { ControlAction.Applied, ControlAction.NotFound });

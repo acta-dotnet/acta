@@ -11,7 +11,7 @@ internal sealed class SaveCalendarDraftHandler(IDbSession session, ISqlDialect d
 {
     private const int MaxReplans = 3;
 
-    public async ValueTask<SaveCalendarDraftResponse> HandleAsync(SaveCalendarDraftCommand command, CancellationToken ct)
+    public async Task<SaveCalendarDraftResponse> HandleAsync(SaveCalendarDraftCommand command, CancellationToken ct)
     {
         var (jobNamespace, calendarName) = CalendarControl.Names(command.Calendar);
         var compiled = CalendarDefinition.Compile(Known(command.Role), command.Definition);

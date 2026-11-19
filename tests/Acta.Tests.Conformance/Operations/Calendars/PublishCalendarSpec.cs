@@ -374,8 +374,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
 
             // Both plans can read the candidate as a draft; the one applied second then finds it published.
             var publications = await CalendarTestOps.RaceAsync(
-                () => Calendars.PublishAsync(Days, candidate, ct: ct).AsTask(),
-                () => Calendars.PublishAsync(Days, candidate, ct: ct).AsTask()
+                () => Calendars.PublishAsync(Days, candidate, ct: ct),
+                () => Calendars.PublishAsync(Days, candidate, ct: ct)
             );
 
             Assert.Equal([ControlAction.Applied, ControlAction.AlreadyInState], publications.Select(p => p.Action).Order());

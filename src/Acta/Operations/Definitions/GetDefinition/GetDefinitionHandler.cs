@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class GetDefinitionHandler(GetDefinitionIdHandler getDefinitionId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<GetDefinitionResponse?> HandleAsync(GetDefinitionQuery query, CancellationToken ct)
+    public async Task<GetDefinitionResponse?> HandleAsync(GetDefinitionQuery query, CancellationToken ct)
     {
         if (
             await getDefinitionId.HandleAsync(new GetDefinitionIdQuery(query.JobNamespace, query.JobName), ct)

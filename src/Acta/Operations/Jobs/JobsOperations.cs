@@ -36,24 +36,24 @@ internal sealed class JobsOperations(
     ResetJobStateHandler resetJobState
 ) : IJobs
 {
-    public ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
+    public Task<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request), ct);
 
-    public ValueTask<JobHandle> EnqueueAsync<TInput>(
+    public Task<JobHandle> EnqueueAsync<TInput>(
         TInput input,
         Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
         where TInput : notnull => HandleAsync(routing.FromInput(input, Options(configure)), ct);
 
-    public ValueTask<JobHandle> EnqueueAsync<TInput>(
+    public Task<JobHandle> EnqueueAsync<TInput>(
         JobCall<TInput> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
         where TInput : notnull => HandleAsync(routing.FromCall(job, Options(configure)), ct);
 
-    public ValueTask<JobHandle<TResult>> EnqueueAsync<TInput, TResult>(
+    public Task<JobHandle<TResult>> EnqueueAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
@@ -61,22 +61,19 @@ internal sealed class JobsOperations(
         where TInput : notnull
         where TResult : notnull => HandleAsync<TResult>(routing.FromCall(job, Options(configure)), ct);
 
-    public ValueTask<JobOutcome> WaitAsync(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default) =>
+    public Task<JobOutcome> WaitAsync(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default) =>
         JobRunAndWait.WaitAsync(this, wakeup, job, timeout, ct);
 
-    public ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
+    public Task<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
         where TResult : notnull => JobRunAndWait.WaitAsync<TResult>(this, wakeup, routing, getJobResult, job, timeout, ct);
 
-    public ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default) =>
+    public Task<EnqueueJobsResponse> EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default) =>
         enqueueJobs.HandleAsync(new EnqueueJobsCommand(requests), ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync(
-        DbTransaction transaction,
-        EnqueueJobRequest request,
-        CancellationToken ct = default
-    ) => enqueueJob.HandleAsync(new EnqueueJobCommand(request, transaction ?? throw new ArgumentNullException(nameof(transaction))), ct);
+    public Task<EnqueueJobResponse> EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct = default) =>
+        enqueueJob.HandleAsync(new EnqueueJobCommand(request, transaction ?? throw new ArgumentNullException(nameof(transaction))), ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
+    public Task<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -84,7 +81,7 @@ internal sealed class JobsOperations(
     )
         where TInput : notnull => EnqueueAsync(transaction, routing.FromInput(input, Options(configure)), ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
+    public Task<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         JobCall<TInput> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -92,7 +89,7 @@ internal sealed class JobsOperations(
     )
         where TInput : notnull => EnqueueAsync(transaction, routing.FromCall(job, Options(configure)), ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
+    public Task<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -101,19 +98,19 @@ internal sealed class JobsOperations(
         where TInput : notnull
         where TResult : notnull => EnqueueAsync(transaction, routing.FromCall(job, Options(configure)), ct);
 
-    public ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(
+    public Task<EnqueueJobsResponse> EnqueueJobsAsync(
         DbTransaction transaction,
         IReadOnlyList<EnqueueJobRequest> requests,
         CancellationToken ct = default
     ) => enqueueJobs.HandleAsync(new EnqueueJobsCommand(requests, transaction ?? throw new ArgumentNullException(nameof(transaction))), ct);
 
-    public ValueTask<JobOutcome> CallAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
+    public Task<JobOutcome> CallAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull => JobRunAndWait.RunAsync(this, wakeup, o => routing.FromInput(input, o), options, ct);
 
-    public ValueTask<JobOutcome> CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options = null, CancellationToken ct = default)
+    public Task<JobOutcome> CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull => JobRunAndWait.RunAsync(this, wakeup, o => routing.FromCall(job, o), options, ct);
 
-    public ValueTask<JobOutcome<TResult>> CallAsync<TInput, TResult>(
+    public Task<JobOutcome<TResult>> CallAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         JobExecutionOptions? options = null,
         CancellationToken ct = default
@@ -122,37 +119,36 @@ internal sealed class JobsOperations(
         where TResult : notnull =>
         JobRunAndWait.RunAsync<TResult>(this, wakeup, routing, getJobResult, o => routing.FromCall(job, o), options, ct);
 
-    public ValueTask<GetJobIdResponse?> GetIdAsync(JobLookup job, CancellationToken ct = default) =>
+    public Task<GetJobIdResponse?> GetIdAsync(JobLookup job, CancellationToken ct = default) =>
         getJobId.HandleAsync(new GetJobIdQuery(job), ct);
 
-    public ValueTask<GetJobResponse?> GetAsync(JobLookup job, CancellationToken ct = default) =>
-        getJob.HandleAsync(new GetJobQuery(job), ct);
+    public Task<GetJobResponse?> GetAsync(JobLookup job, CancellationToken ct = default) => getJob.HandleAsync(new GetJobQuery(job), ct);
 
-    public ValueTask<ExplainJobResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
+    public Task<ExplainJobResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
         explainJob.HandleAsync(new ExplainJobQuery(job), ct);
 
-    public ValueTask<GetJobLineageMapResponse?> GetLineageMapAsync(
+    public Task<GetJobLineageMapResponse?> GetLineageMapAsync(
         JobLookup job,
         GetJobLineageMapOptions? options = null,
         CancellationToken ct = default
     ) => getJobLineageMap.HandleAsync(new GetJobLineageMapQuery(job, options), ct);
 
-    public ValueTask<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
+    public Task<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
         getJobStatus.HandleAsync(new GetJobStatusQuery(job), ct);
 
-    public ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default) =>
+    public Task<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default) =>
         getJobInput.HandleAsync(new GetJobInputQuery(job), ct);
 
-    public async ValueTask<TInput> GetInputAsync<TInput>(JobLookup job, CancellationToken ct = default)
+    public async Task<TInput> GetInputAsync<TInput>(JobLookup job, CancellationToken ct = default)
         where TInput : notnull =>
         await getJobInput.ReadAsync(job, ct) is { } row
             ? routing.DecodeInput<TInput>(row)
             : throw new InvalidOperationException($"No job matches {job}, so there is no input to read.");
 
-    public ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
+    public Task<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
         getJobResult.HandleAsync(new GetJobResultQuery(job), ct);
 
-    public async ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
+    public async Task<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
         routing.TryDecodeResult<TResult>(await getJobResult.ReadAsync(job, ct));
 
     /// <summary>The result <paramref name="executionNumber"/> stored, or the latest execution's when null, read as <typeparamref name="TResult"/>.</summary>
@@ -171,30 +167,30 @@ internal sealed class JobsOperations(
     )
         where TResult : notnull => JobRunAndWait.SuccessAsync<TResult>(this, routing, getJobResult, jobId, jobRef, executionNumber, ct);
 
-    public ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
+    public Task<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
         listJobCheckpoints.HandleAsync(query, ct);
 
-    public ValueTask<GetJobCheckpointValueResponse?> GetCheckpointValueAsync(
+    public Task<GetJobCheckpointValueResponse?> GetCheckpointValueAsync(
         JobLookup job,
         CheckpointKindCode kind,
         string name,
         CancellationToken ct = default
     ) => getJobCheckpointValue.HandleAsync(new GetJobCheckpointValueQuery(job, kind, name), ct);
 
-    public async ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default) =>
+    public async Task<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default) =>
         await getJobVariableOrDefault.HandleAsync(new GetJobVariableOrDefaultQuery(job, name), ct) is { } variable
             ? routing.Decode<T>(variable.Value)
             : default;
 
-    public async ValueTask<TResult?> GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct = default) =>
+    public async Task<TResult?> GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct = default) =>
         await getJobStepResultOrDefault.HandleAsync(new GetJobStepResultOrDefaultQuery(job, name), ct) is { } step
             ? routing.Decode<TResult>(step.Value)
             : default;
 
-    public ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default) =>
+    public Task<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default) =>
         listJobSteps.HandleAsync(query, ct);
 
-    public ValueTask<CancelJobResponse> CancelAsync(
+    public Task<CancelJobResponse> CancelAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -202,7 +198,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => cancelJob.HandleAsync(new CancelJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
-    public ValueTask<PauseJobResponse> PauseAsync(
+    public Task<PauseJobResponse> PauseAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -210,7 +206,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => pauseJob.HandleAsync(new PauseJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
-    public ValueTask<ResumeJobResponse> ResumeAsync(
+    public Task<ResumeJobResponse> ResumeAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -218,7 +214,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => resumeJob.HandleAsync(new ResumeJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
-    public ValueTask<RestartJobResponse> RestartAsync(
+    public Task<RestartJobResponse> RestartAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -226,7 +222,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => restartJob.HandleAsync(new RestartJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
-    public ValueTask<RescheduleJobResponse> RescheduleAsync(
+    public Task<RescheduleJobResponse> RescheduleAsync(
         JobLookup job,
         DateTimeOffset? nextRunAtUtc = null,
         string? reasonMessage = null,
@@ -235,7 +231,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => rescheduleJob.HandleAsync(new RescheduleJobCommand(job, nextRunAtUtc?.UtcDateTime, reasonMessage, actor, expectedVersion), ct);
 
-    public ValueTask<ReprioritizeJobResponse> ReprioritizeAsync(
+    public Task<ReprioritizeJobResponse> ReprioritizeAsync(
         JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage = null,
@@ -244,7 +240,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => reprioritizeJob.HandleAsync(new ReprioritizeJobCommand(job, priority, reasonMessage, actor, expectedVersion), ct);
 
-    public ValueTask<UpdateJobInputResponse> UpdateInputAsync(
+    public Task<UpdateJobInputResponse> UpdateInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
@@ -253,14 +249,14 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => updateJobInput.HandleAsync(new UpdateJobInputCommand(job, input, reasonMessage, actor, expectedVersion), ct);
 
-    public ValueTask<PurgeJobResponse> PurgeAsync(
+    public Task<PurgeJobResponse> PurgeAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) => purgeJob.HandleAsync(new PurgeJobCommand(job, reasonMessage, actor), ct);
 
-    public ValueTask<RaiseJobSignalResponse> RaiseSignalAsync<T>(
+    public Task<RaiseJobSignalResponse> RaiseSignalAsync<T>(
         JobLookup job,
         string name,
         T value,
@@ -268,7 +264,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => RaiseSignalAsync(job, name, routing.Json(value), actor, ct);
 
-    public ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(
+    public Task<RaiseJobSignalResponse> RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,
@@ -276,7 +272,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => raiseJobSignal.HandleAsync(new RaiseJobSignalCommand(job, name, value, actor), ct);
 
-    public ValueTask<ClearJobSignalResponse> ClearSignalAsync(
+    public Task<ClearJobSignalResponse> ClearSignalAsync(
         JobLookup job,
         string name,
         string? actor = null,
@@ -309,7 +305,7 @@ internal sealed class JobsOperations(
     /// Enqueues a child from its parent's running handler, and only while <paramref name="parent"/> holds the parent, so
     /// an attempt that lost the parent starts no child.
     /// </summary>
-    internal ValueTask<EnqueueJobResponse> EnqueueChildAsync<TInput>(
+    internal Task<EnqueueJobResponse> EnqueueChildAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         ExecutionFence parent,
@@ -318,7 +314,7 @@ internal sealed class JobsOperations(
         where TInput : notnull => EnqueueChildAsync(routing.FromInput(input, options), parent, ct);
 
     /// <summary>A child enqueue of a generated call, by the job the call names, under its parent's fence like the typed one.</summary>
-    internal ValueTask<EnqueueJobResponse> EnqueueChildAsync<TInput>(
+    internal Task<EnqueueJobResponse> EnqueueChildAsync<TInput>(
         Type? manifestType,
         string? jobName,
         TInput input,
@@ -330,17 +326,17 @@ internal sealed class JobsOperations(
         where TInput : notnull => EnqueueChildAsync(routing.FromContract(manifestType, jobName, input, options, resultType), parent, ct);
 
     /// <summary>A child enqueue of an explicit route, under its parent's fence like the typed one.</summary>
-    internal ValueTask<EnqueueJobResponse> EnqueueChildAsync(EnqueueJobRequest request, ExecutionFence parent, CancellationToken ct) =>
+    internal Task<EnqueueJobResponse> EnqueueChildAsync(EnqueueJobRequest request, ExecutionFence parent, CancellationToken ct) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request, ParentFence: parent), ct);
 
     // A typed enqueue's handle carries the committed id, so each of its verbs is one round trip.
-    private async ValueTask<JobHandle> HandleAsync(EnqueueJobRequest request, CancellationToken ct)
+    private async Task<JobHandle> HandleAsync(EnqueueJobRequest request, CancellationToken ct)
     {
         var enqueued = await EnqueueAsync(request, ct);
         return new JobHandle(this, enqueued.JobId, enqueued.JobRef, enqueued.Action);
     }
 
-    private async ValueTask<JobHandle<TResult>> HandleAsync<TResult>(EnqueueJobRequest request, CancellationToken ct)
+    private async Task<JobHandle<TResult>> HandleAsync<TResult>(EnqueueJobRequest request, CancellationToken ct)
         where TResult : notnull
     {
         var enqueued = await EnqueueAsync(request, ct);

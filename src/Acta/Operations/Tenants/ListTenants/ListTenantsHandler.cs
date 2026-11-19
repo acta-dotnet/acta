@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary><see cref="ITenants.ListAsync"/>: tenants by name ascending, one keyset page at a time.</summary>
 internal sealed class ListTenantsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListTenantsResponse> HandleAsync(ListTenantsQuery query, CancellationToken ct)
+    public async Task<ListTenantsResponse> HandleAsync(ListTenantsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 

@@ -21,7 +21,7 @@ public interface IJobs
     /// <see cref="EnqueueJobRequest.DeduplicationKey"/>).
     /// </summary>
     [OverloadResolutionPriority(1)]
-    ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default);
+    Task<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Typed enqueue: <c>jobs.EnqueueAsync(input, o =&gt; o.DeduplicationKey("final-key"))</c>. Resolves
@@ -30,11 +30,7 @@ public interface IJobs
     /// implicitly to <see cref="JobLookup"/> for the read and control verbs. Throws when the input type is unregistered or
     /// ambiguous across namespaces (set <c>o.JobNamespace(...)</c>, or enqueue the job's generated call).
     /// </summary>
-    ValueTask<JobHandle> EnqueueAsync<TInput>(
-        TInput input,
-        Action<JobEnqueueOptionsBuilder>? configure = null,
-        CancellationToken ct = default
-    )
+    Task<JobHandle> EnqueueAsync<TInput>(TInput input, Action<JobEnqueueOptionsBuilder>? configure = null, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
@@ -44,7 +40,7 @@ public interface IJobs
     /// <see cref="JobOutcome.ThrowIfFailed"/> for the throwing path). A wait timeout stops the caller
     /// awaiting; the Job keeps running on its worker.
     /// </summary>
-    ValueTask<JobOutcome> CallAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
+    Task<JobOutcome> CallAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
@@ -52,7 +48,7 @@ public interface IJobs
     /// nothing is inferred from the input's type: the namespace and input format come from the manifest's registration.
     /// Throws when the manifest is unregistered, or bound to more than one namespace with no <c>JobNamespace</c> set.
     /// </summary>
-    ValueTask<JobHandle> EnqueueAsync<TInput>(
+    Task<JobHandle> EnqueueAsync<TInput>(
         JobCall<TInput> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
@@ -63,7 +59,7 @@ public interface IJobs
     /// Enqueue a generated call of a job that returns a result. The <see cref="JobHandle{TResult}"/> waits for and reads
     /// the result as <typeparamref name="TResult"/>, which is checked against the job's registered result before the enqueue.
     /// </summary>
-    ValueTask<JobHandle<TResult>> EnqueueAsync<TInput, TResult>(
+    Task<JobHandle<TResult>> EnqueueAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
@@ -77,7 +73,7 @@ public interface IJobs
     /// thrown; a timeout or a cancelled <paramref name="ct"/> stops the wait, never the job. Throws when no job matches,
     /// which includes a job enqueued in a transaction that has not committed.
     /// </summary>
-    ValueTask<JobOutcome> WaitAsync(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default);
+    Task<JobOutcome> WaitAsync(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default);
 
     /// <summary>
     /// <see cref="WaitAsync(JobLookup, TimeSpan?, CancellationToken)"/>, and on success the result stored by the execution the
@@ -85,7 +81,7 @@ public interface IJobs
     /// definition, as this process registers it, produces a result other than <typeparamref name="TResult"/> throws, whatever
     /// its outcome; a job of a definition this process does not register is decoded without that check.
     /// </summary>
-    ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
+    Task<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
         where TResult : notnull;
 
     /// <summary>
@@ -93,7 +89,7 @@ public interface IJobs
     /// enqueued, or null when no job matches. Resolves the id once, so each of the handle's calls is one round trip; its
     /// <see cref="EnqueueJobResponse.Action"/> is <see cref="EnqueueJobAction.Deduplicated"/>, since the job already existed.
     /// </summary>
-    async ValueTask<JobHandle?> GetHandleAsync(JobRef jobRef, CancellationToken ct = default) =>
+    async Task<JobHandle?> GetHandleAsync(JobRef jobRef, CancellationToken ct = default) =>
         await GetIdAsync(jobRef, ct) is { } resolved ? new JobHandle(this, resolved.JobId, jobRef, EnqueueJobAction.Deduplicated) : null;
 
     /// <summary>
@@ -101,7 +97,7 @@ public interface IJobs
     /// result read answer <typeparamref name="TResult"/> without naming it again. The result type is checked when a
     /// read decodes a result, not here.
     /// </summary>
-    async ValueTask<JobHandle<TResult>?> GetHandleAsync<TResult>(JobRef jobRef, CancellationToken ct = default)
+    async Task<JobHandle<TResult>?> GetHandleAsync<TResult>(JobRef jobRef, CancellationToken ct = default)
         where TResult : notnull =>
         await GetIdAsync(jobRef, ct) is { } resolved
             ? new JobHandle<TResult>(this, resolved.JobId, jobRef, EnqueueJobAction.Deduplicated)
@@ -112,13 +108,13 @@ public interface IJobs
     /// <see cref="CallAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>, with the job named rather
     /// than inferred.
     /// </summary>
-    ValueTask<JobOutcome> CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options = null, CancellationToken ct = default)
+    Task<JobOutcome> CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
     /// Enqueue-and-wait for a generated call of a job that returns a result, read as <typeparamref name="TResult"/> on success.
     /// </summary>
-    ValueTask<JobOutcome<TResult>> CallAsync<TInput, TResult>(
+    Task<JobOutcome<TResult>> CallAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         JobExecutionOptions? options = null,
         CancellationToken ct = default
@@ -131,7 +127,7 @@ public interface IJobs
     /// <see cref="EnqueueJobsResponse.Jobs"/>, positionally aligned, so <c>Jobs[i]</c> corresponds to <c>requests[i]</c>.
     /// Each carries the internal <c>JobId</c>, the public <c>JobRef</c>, and the coarse <see cref="EnqueueJobAction"/>.
     /// </summary>
-    ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default);
+    Task<EnqueueJobsResponse> EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default);
 
     /// <summary>
     /// Transactional twin of <see cref="EnqueueAsync(EnqueueJobRequest, CancellationToken)"/>, sharing the caller's open
@@ -142,12 +138,12 @@ public interface IJobs
     /// transactional <c>CallAsync</c>: the job is invisible until commit.
     /// </summary>
     [OverloadResolutionPriority(1)]
-    ValueTask<EnqueueJobResponse> EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct = default);
+    Task<EnqueueJobResponse> EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Transactional twin of <see cref="EnqueueAsync{TInput}(TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>.
     /// </summary>
-    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
+    Task<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -159,7 +155,7 @@ public interface IJobs
     /// Transactional twin of the call enqueue
     /// (<see cref="EnqueueAsync{TInput}(JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>).
     /// </summary>
-    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
+    Task<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         JobCall<TInput> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -172,7 +168,7 @@ public interface IJobs
     /// (<see cref="EnqueueAsync{TInput, TResult}(JobCall{TInput, TResult}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>);
     /// the result type is checked as there.
     /// </summary>
-    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
+    Task<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -185,7 +181,7 @@ public interface IJobs
     /// Transactional twin of <see cref="EnqueueJobsAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>:
     /// the whole batch inserts through <paramref name="transaction"/> atomically and publishes no wakeup.
     /// </summary>
-    ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(
+    Task<EnqueueJobsResponse> EnqueueJobsAsync(
         DbTransaction transaction,
         IReadOnlyList<EnqueueJobRequest> requests,
         CancellationToken ct = default
@@ -198,14 +194,14 @@ public interface IJobs
     /// <c>job_ref</c> index; a <see cref="JobLookupKind.DeduplicationKey"/> lookup matches root jobs only
     /// (<c>parent_job_id IS NULL</c>). Pin the returned id and reuse it across polls and mutations.
     /// </summary>
-    ValueTask<GetJobIdResponse?> GetIdAsync(JobLookup job, CancellationToken ct = default);
+    Task<GetJobIdResponse?> GetIdAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read the full <see cref="GetJobResponse"/> for the job identified by <paramref name="job"/>.
     /// Returns <c>null</c> when no row matches. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<GetJobResponse?> GetAsync(JobLookup job, CancellationToken ct = default);
+    Task<GetJobResponse?> GetAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Explain the durable state of the job identified by <paramref name="job"/> in plain English:
@@ -215,7 +211,7 @@ public interface IJobs
     /// operator could read directly - SQL is the operational interface. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<ExplainJobResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default);
+    Task<ExplainJobResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read a compact lineage map for the job identified by <paramref name="job"/>: its nearest ancestors toward the lineage
@@ -225,7 +221,7 @@ public interface IJobs
     /// reads without locks, so it never waits and can show an uncommitted child.
     /// Resolves <paramref name="job"/> to a <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<GetJobLineageMapResponse?> GetLineageMapAsync(
+    Task<GetJobLineageMapResponse?> GetLineageMapAsync(
         JobLookup job,
         GetJobLineageMapOptions? options = null,
         CancellationToken ct = default
@@ -236,7 +232,7 @@ public interface IJobs
     /// by <paramref name="job"/>, or <c>null</c> when no row matches. Resolves
     /// <paramref name="job"/> to a <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default);
+    Task<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Fetch the stored input payload the job identified by <paramref name="job"/> was enqueued with,
@@ -244,7 +240,7 @@ public interface IJobs
     /// point-in-time read: it does not wait for completion and reflects any <see cref="UpdateInputAsync"/>
     /// update already applied.
     /// </summary>
-    ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default);
+    Task<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// The job's stored input, as enqueued or last updated, read as <typeparamref name="TInput"/> through the serializer
@@ -253,7 +249,7 @@ public interface IJobs
     /// process registers its definition with an input type other than <typeparamref name="TInput"/>; a definition it does
     /// not register is decoded without that check. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<TInput> GetInputAsync<TInput>(JobLookup job, CancellationToken ct = default)
+    Task<TInput> GetInputAsync<TInput>(JobLookup job, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
@@ -263,14 +259,14 @@ public interface IJobs
     /// Non-blocking point-in-time read: it does not wait for completion. To await the answer, use
     /// <see cref="WaitAsync{TResult}"/>.
     /// </summary>
-    ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
+    Task<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// One page of the durable checkpoints (variables, signals, sleep timers, progress, children's
     /// outcomes) recorded for <see cref="ListJobCheckpointsQuery.Job"/>, by kind, then name. A job with no checkpoints, or no
     /// job at all, answers an empty page. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
+    Task<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// The value one checkpoint of the job holds, by the kind and the name <see cref="ListCheckpointsAsync"/> lists it under,
@@ -279,7 +275,7 @@ public interface IJobs
     /// name is the one the list shows, <c>sys.</c> names included, and the scheduler's firing record is not reachable, as
     /// the list leaves it out. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<GetJobCheckpointValueResponse?> GetCheckpointValueAsync(
+    Task<GetJobCheckpointValueResponse?> GetCheckpointValueAsync(
         JobLookup job,
         CheckpointKindCode kind,
         string name,
@@ -293,7 +289,7 @@ public interface IJobs
     /// none. The name is canonicalized as inside the job, and a malformed name or one under <c>sys.</c> throws
     /// <see cref="ArgumentException"/>. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default);
+    Task<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default);
 
     /// <summary>
     /// The result the job's step <paramref name="name"/> recorded, read as <typeparamref name="TResult"/> the way the step's replay
@@ -302,14 +298,14 @@ public interface IJobs
     /// recorded 0 from none. The name is canonicalized as inside the job, and a malformed name or one under <c>sys.</c>
     /// throws <see cref="ArgumentException"/>. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<TResult?> GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct = default);
+    Task<TResult?> GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct = default);
 
     /// <summary>
     /// One page of the steps recorded for <see cref="ListJobStepsQuery.Job"/>, most recently started first (two that
     /// started in the same millisecond come by name, not run order): name, status, and the failure that ended an
     /// at-most-once step. A job with no steps, or no job at all, answers an empty page. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default);
+    Task<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// The job's stored result read as <typeparamref name="TResult"/>, for a caller that expects one. Throws
@@ -317,7 +313,7 @@ public interface IJobs
     /// matches; <see cref="TryGetResultAsync{TResult}"/> reads a result that may not exist, and states the rest.
     /// It reads and does not wait: <see cref="WaitAsync{TResult}"/> follows a job to its result.
     /// </summary>
-    async ValueTask<TResult> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default)
+    async Task<TResult> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default)
         where TResult : notnull
     {
         var (found, value) = await TryGetResultAsync<TResult>(job, ct);
@@ -342,7 +338,7 @@ public interface IJobs
     /// than decoding, when this process registers the job's definition with a result type other than
     /// <typeparamref name="TResult"/>; a definition it does not register is decoded without that check.
     /// </summary>
-    ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
+    Task<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the cancel cascades
@@ -352,7 +348,7 @@ public interface IJobs
     /// null when unknown). A Cancelled job is <see cref="ControlAction.AlreadyInState"/> and left as it is, its descendants walked again;
     /// a Succeeded or Failed job is <see cref="ControlAction.Rejected"/>; a missing job is <see cref="ControlAction.NotFound"/>.
     /// </summary>
-    ValueTask<CancelJobResponse> CancelAsync(
+    Task<CancelJobResponse> CancelAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -368,7 +364,7 @@ public interface IJobs
     /// <see cref="ControlAction.Rejected"/>. <see cref="ResumeAsync"/> is the way out: back to <c>Ready</c> at its kept next run
     /// (now if it was waiting), while <see cref="RescheduleAsync"/> re-arms it at a new instant.
     /// </summary>
-    ValueTask<PauseJobResponse> PauseAsync(
+    Task<PauseJobResponse> PauseAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -384,7 +380,7 @@ public interface IJobs
     /// is the audit event's message and <paramref name="actor"/> is recorded on it as the operator identity (e.g. the authenticated
     /// principal name); null when unknown. A non-paused job is <see cref="ControlAction.Rejected"/>.
     /// </summary>
-    ValueTask<ResumeJobResponse> ResumeAsync(
+    Task<ResumeJobResponse> ResumeAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -400,7 +396,7 @@ public interface IJobs
     /// and <paramref name="actor"/> go on the audit event. A laned job restarts in place under its lane's lock, Blocked
     /// while another member runs or an older one is unfinished, then runs first, since promotion takes the lowest id.
     /// </summary>
-    ValueTask<RestartJobResponse> RestartAsync(
+    Task<RestartJobResponse> RestartAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
@@ -416,7 +412,7 @@ public interface IJobs
     /// trigger admits one, and returns to <c>Idle</c> when it settles; a retired definition's permanent job is rejected. Audited as
     /// job.rescheduled with <paramref name="reasonMessage"/> and <paramref name="actor"/> (the operator; null when unknown).
     /// </summary>
-    ValueTask<RescheduleJobResponse> RescheduleAsync(
+    Task<RescheduleJobResponse> RescheduleAsync(
         JobLookup job,
         DateTimeOffset? nextRunAtUtc = null,
         string? reasonMessage = null,
@@ -433,7 +429,7 @@ public interface IJobs
     /// and <paramref name="actor"/> is recorded on it as the operator
     /// identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<ReprioritizeJobResponse> ReprioritizeAsync(
+    Task<ReprioritizeJobResponse> ReprioritizeAsync(
         JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage = null,
@@ -449,7 +445,7 @@ public interface IJobs
     /// restart replays them, and a recompute is a new job. The event (<c>job.input-updated</c>) carries the previous
     /// payload's format and byte count, never the payload, beside <paramref name="reasonMessage"/> and <paramref name="actor"/>.
     /// </summary>
-    ValueTask<UpdateJobInputResponse> UpdateInputAsync(
+    Task<UpdateJobInputResponse> UpdateInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
@@ -466,12 +462,7 @@ public interface IJobs
     /// replay reads its result), or has a failure, orphan, or recovery event the <c>sys.alerts</c> projector has not read
     /// yet, since the projector reads the job row to raise its alert: purge that one after the projector's next pass.
     /// </summary>
-    ValueTask<PurgeJobResponse> PurgeAsync(
-        JobLookup job,
-        string? reasonMessage = null,
-        string? actor = null,
-        CancellationToken ct = default
-    );
+    Task<PurgeJobResponse> PurgeAsync(JobLookup job, string? reasonMessage = null, string? actor = null, CancellationToken ct = default);
 
     /// <summary>
     /// Typed-payload variant of
@@ -480,7 +471,7 @@ public interface IJobs
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>. <paramref name="actor"/> is recorded on the audit event
     /// as the operator identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync<T>(
+    Task<RaiseJobSignalResponse> RaiseSignalAsync<T>(
         JobLookup job,
         string name,
         T value,
@@ -496,7 +487,7 @@ public interface IJobs
     /// signal endpoint uses it to pass a request body through as JSON without binding the handler's type.
     /// <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown.
     /// </summary>
-    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(
+    Task<RaiseJobSignalResponse> RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,
@@ -509,7 +500,7 @@ public interface IJobs
     /// <paramref name="ct"/> takes the fourth position when no <c>actor</c> is recorded, instead of requiring the named
     /// <c>ct: ct</c> form. Equivalent to <c>actor: null</c>.
     /// </summary>
-    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync<T>(JobLookup job, string name, T value, CancellationToken ct) =>
+    Task<RaiseJobSignalResponse> RaiseSignalAsync<T>(JobLookup job, string name, T value, CancellationToken ct) =>
         RaiseSignalAsync(job, name, value, actor: null, ct);
 
     /// <summary>
@@ -517,7 +508,7 @@ public interface IJobs
     /// <paramref name="ct"/> takes the fourth position when no <c>actor</c> is recorded, instead of requiring the named
     /// <c>ct: ct</c> form. Equivalent to <c>actor: null</c>.
     /// </summary>
-    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(JobLookup job, string name, JobPayload value, CancellationToken ct) =>
+    Task<RaiseJobSignalResponse> RaiseSignalAsync(JobLookup job, string name, JobPayload value, CancellationToken ct) =>
         RaiseSignalAsync(job, name, value, actor: null, ct);
 
     /// <summary>
@@ -526,5 +517,5 @@ public interface IJobs
     /// raise it. A system job keeps its signals: the clear answers Rejected with reason <c>system-job</c>.
     /// <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown.
     /// </summary>
-    ValueTask<ClearJobSignalResponse> ClearSignalAsync(JobLookup job, string name, string? actor = null, CancellationToken ct = default);
+    Task<ClearJobSignalResponse> ClearSignalAsync(JobLookup job, string name, string? actor = null, CancellationToken ct = default);
 }

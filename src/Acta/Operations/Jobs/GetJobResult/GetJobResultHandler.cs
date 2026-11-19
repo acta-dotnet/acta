@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="IJobs.GetResultAsync(JobLookup, CancellationToken)"/>: resolves the lookup, then reads the stored result.</summary>
 internal sealed class GetJobResultHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<GetJobResultResponse?> HandleAsync(GetJobResultQuery query, CancellationToken ct) =>
+    public async Task<GetJobResultResponse?> HandleAsync(GetJobResultQuery query, CancellationToken ct) =>
         await ReadAsync(query.Job, ct) is { } row ? new GetJobResultResponse(row.Payload) : null;
 
     /// <summary>The latest stored result of the job the lookup names, or null when there is no job or no result.</summary>

@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="IOutbox.DiscardAsync"/>: parks the command on the slot's inbox for the next relay pass.</summary>
 internal sealed class DiscardOutboxHandler(ParkOutboxSignalHandler park)
 {
-    public async ValueTask<DiscardOutboxResponse> HandleAsync(DiscardOutboxCommand command, CancellationToken ct)
+    public async Task<DiscardOutboxResponse> HandleAsync(DiscardOutboxCommand command, CancellationToken ct)
     {
         // A discard deletes what it names, so it never falls back to every row; the parked null ids are that scope.
         if (command.All ? command.OutboxIds is not null : command.OutboxIds is not { Count: > 0 })

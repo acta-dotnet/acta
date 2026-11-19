@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class GetJobIdHandler(GetJobIdByRefHandler byRef, GetJobIdByDeduplicationKeyHandler byDeduplicationKey)
 {
-    public async ValueTask<GetJobIdResponse?> HandleAsync(GetJobIdQuery query, CancellationToken ct) =>
+    public async Task<GetJobIdResponse?> HandleAsync(GetJobIdQuery query, CancellationToken ct) =>
         await ResolveAsync(query.Job, ct) is { } jobId ? new GetJobIdResponse(jobId) : null;
 
     private async ValueTask<long?> ResolveAsync(JobLookup job, CancellationToken ct) =>

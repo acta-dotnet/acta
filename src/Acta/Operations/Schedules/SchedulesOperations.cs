@@ -18,10 +18,10 @@ internal sealed class SchedulesOperations(
     AdmitScheduleFiringsHandler admitScheduleFirings
 ) : ISchedules
 {
-    public ValueTask<GetScheduleResponse?> GetAsync(ScheduleLookup schedule, CancellationToken ct = default) =>
+    public Task<GetScheduleResponse?> GetAsync(ScheduleLookup schedule, CancellationToken ct = default) =>
         getSchedule.HandleAsync(new GetScheduleQuery(schedule), ct);
 
-    public ValueTask<PauseScheduleResponse> PauseAsync(
+    public Task<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
         DateTimeOffset? untilUtc = null,
         string? reasonMessage = null,
@@ -29,24 +29,24 @@ internal sealed class SchedulesOperations(
         CancellationToken ct = default
     ) => pauseSchedule.HandleAsync(new PauseScheduleCommand(schedule, untilUtc?.UtcDateTime, reasonMessage, actor), ct);
 
-    public ValueTask<ResumeScheduleResponse> ResumeAsync(
+    public Task<ResumeScheduleResponse> ResumeAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) => resumeSchedule.HandleAsync(new ResumeScheduleCommand(schedule, reasonMessage, actor), ct);
 
-    public ValueTask<TriggerScheduleResponse> TriggerAsync(
+    public Task<TriggerScheduleResponse> TriggerAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) => triggerSchedule.HandleAsync(new TriggerScheduleCommand(schedule, reasonMessage, actor), ct);
 
-    public ValueTask<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default) =>
+    public Task<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default) =>
         listSchedules.HandleAsync(query, ct);
 
-    public ValueTask<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
+    public Task<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
         previewSchedule.HandleAsync(new PreviewScheduleQuery(schedule, count), ct);
 
     /// <summary>The live schedule a path names, as the verbs resolve it; null when the path names nothing.</summary>

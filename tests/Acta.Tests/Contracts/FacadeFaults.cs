@@ -45,10 +45,7 @@ internal sealed class FacadeFaults
                 return faults.Wrap(returns, Forward(method, args)!);
             }
 
-            var asynchronous =
-                typeof(Task).IsAssignableFrom(returns)
-                || returns == typeof(ValueTask)
-                || returns.IsGenericType && returns.GetGenericTypeDefinition() == typeof(ValueTask<>);
+            var asynchronous = typeof(Task).IsAssignableFrom(returns);
             return faults.Fault switch
             {
                 FacadeFault.Server => throw new ServerFaultException(),

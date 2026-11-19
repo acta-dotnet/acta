@@ -213,7 +213,7 @@ public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFi
             Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
         }
 
-        var pending = Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct).AsTask();
+        var pending = Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct);
         await LockWaitProbe.WaitAsync(Db, RescheduleSql, LockWait.ApplicationLock, pending, ct);
         await suspension.CommitAsync(ct);
 
@@ -242,9 +242,9 @@ public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFi
             Assert.NotNull(await cmd.ExecuteScalarAsync(ct));
         }
 
-        var reschedule = Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct).AsTask();
+        var reschedule = Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct);
         await LockWaitProbe.WaitAsync(Db, RescheduleSql, LockWait.Row, reschedule, ct);
-        var suspend = Operations.Namespaces.SuspendAsync(TestNamespace, ct: ct).AsTask();
+        var suspend = Operations.Namespaces.SuspendAsync(TestNamespace, ct: ct);
         await LockWaitProbe.WaitAsync(Db, SuspendSql, LockWait.ApplicationLock, suspend, ct);
         await blocker.RollbackAsync(ct);
 

@@ -107,7 +107,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
 
         // Overlapping insert-or-get calls must all converge on the winner's row; a losing arm
         // returning no row (or a different id) is the failure mode this pins per provider.
-        var ids = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Tenants().RegisterAsync(key, null, null, ct).AsTask()));
+        var ids = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Tenants().RegisterAsync(key, null, null, ct)));
 
         Assert.True(ids[0].TenantId > 0);
         Assert.All(ids, id => Assert.Equal(ids[0], id));

@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class ResolveAlertHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ResolveAlertResponse> HandleAsync(ResolveAlertCommand command, CancellationToken ct)
+    public async Task<ResolveAlertResponse> HandleAsync(ResolveAlertCommand command, CancellationToken ct)
     {
         var row = await session.ExecuteOneAsync(
             new StoreCommand("ResolveAlert"),

@@ -14,21 +14,21 @@ internal sealed class FakeSchedules : ISchedules
 
     public FakeSchedules()
     {
-        Get = static (schedule, _) => ValueTask.FromResult(schedule.ScheduleName == "missing" ? null : Found(schedule));
+        Get = static (schedule, _) => Task.FromResult(schedule.ScheduleName == "missing" ? null : Found(schedule));
         Pause = static (schedule, untilUtc, _, _, _) =>
-            ValueTask.FromResult(
+            Task.FromResult(
                 Staged(schedule, static (action, status) => new PauseScheduleResponse(action, status, null, null, null))
                     ?? new PauseScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Paused, untilUtc, NextOccurrence, 3)
             );
         Resume = static (schedule, _, _, _) =>
-            ValueTask.FromResult(
+            Task.FromResult(
                 Staged(schedule, static (action, status) => new ResumeScheduleResponse(action, status, null, null, null))
                     ?? new ResumeScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, NextOccurrence, 3)
             );
-        Trigger = (schedule, reason, actor, _) => ValueTask.FromResult(Triggered(schedule, reason, actor));
-        List = static (_, _) => ValueTask.FromResult(new ListSchedulesResponse([], null, false, 50, null));
+        Trigger = (schedule, reason, actor, _) => Task.FromResult(Triggered(schedule, reason, actor));
+        List = static (_, _) => Task.FromResult(new ListSchedulesResponse([], null, false, 50, null));
         Preview = static (schedule, _, _) =>
-            ValueTask.FromResult<PreviewScheduleResponse?>(
+            Task.FromResult<PreviewScheduleResponse?>(
                 schedule.ScheduleName == "missing"
                     ? null
                     : new PreviewScheduleResponse("0 9 * * *", "UTC", [new DateTime(2026, 6, 12, 9, 0, 0, DateTimeKind.Utc)])
@@ -38,21 +38,21 @@ internal sealed class FakeSchedules : ISchedules
     /// <summary>Applied triggers; a staged outcome records nothing.</summary>
     public List<(string ScheduleName, string? Note, string? Actor)> TriggerCalls { get; } = [];
 
-    public Func<ScheduleLookup, CancellationToken, ValueTask<GetScheduleResponse?>> Get { get; set; }
+    public Func<ScheduleLookup, CancellationToken, Task<GetScheduleResponse?>> Get { get; set; }
 
-    public Func<ScheduleLookup, DateTime?, string?, string?, CancellationToken, ValueTask<PauseScheduleResponse>> Pause { get; set; }
+    public Func<ScheduleLookup, DateTime?, string?, string?, CancellationToken, Task<PauseScheduleResponse>> Pause { get; set; }
 
-    public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<ResumeScheduleResponse>> Resume { get; set; }
+    public Func<ScheduleLookup, string?, string?, CancellationToken, Task<ResumeScheduleResponse>> Resume { get; set; }
 
-    public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<TriggerScheduleResponse>> Trigger { get; set; }
+    public Func<ScheduleLookup, string?, string?, CancellationToken, Task<TriggerScheduleResponse>> Trigger { get; set; }
 
-    public Func<ListSchedulesQuery, CancellationToken, ValueTask<ListSchedulesResponse>> List { get; set; }
+    public Func<ListSchedulesQuery, CancellationToken, Task<ListSchedulesResponse>> List { get; set; }
 
-    public Func<ScheduleLookup, int, CancellationToken, ValueTask<PreviewScheduleResponse?>> Preview { get; set; }
+    public Func<ScheduleLookup, int, CancellationToken, Task<PreviewScheduleResponse?>> Preview { get; set; }
 
-    ValueTask<GetScheduleResponse?> ISchedules.GetAsync(ScheduleLookup schedule, CancellationToken ct) => Get(schedule, ct);
+    Task<GetScheduleResponse?> ISchedules.GetAsync(ScheduleLookup schedule, CancellationToken ct) => Get(schedule, ct);
 
-    ValueTask<PauseScheduleResponse> ISchedules.PauseAsync(
+    Task<PauseScheduleResponse> ISchedules.PauseAsync(
         ScheduleLookup schedule,
         DateTimeOffset? untilUtc,
         string? reasonMessage,
@@ -60,23 +60,23 @@ internal sealed class FakeSchedules : ISchedules
         CancellationToken ct
     ) => Pause(schedule, untilUtc?.UtcDateTime, reasonMessage, actor, ct);
 
-    ValueTask<ResumeScheduleResponse> ISchedules.ResumeAsync(
+    Task<ResumeScheduleResponse> ISchedules.ResumeAsync(
         ScheduleLookup schedule,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
     ) => Resume(schedule, reasonMessage, actor, ct);
 
-    ValueTask<TriggerScheduleResponse> ISchedules.TriggerAsync(
+    Task<TriggerScheduleResponse> ISchedules.TriggerAsync(
         ScheduleLookup schedule,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
     ) => Trigger(schedule, reasonMessage, actor, ct);
 
-    ValueTask<ListSchedulesResponse> ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct) => List(query, ct);
+    Task<ListSchedulesResponse> ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<PreviewScheduleResponse?> ISchedules.PreviewAsync(ScheduleLookup schedule, int count, CancellationToken ct) =>
+    Task<PreviewScheduleResponse?> ISchedules.PreviewAsync(ScheduleLookup schedule, int count, CancellationToken ct) =>
         Preview(schedule, count, ct);
 
     /// <summary>The schedule a found path names: a daily cron on its definition's permanent slot, job 45.</summary>

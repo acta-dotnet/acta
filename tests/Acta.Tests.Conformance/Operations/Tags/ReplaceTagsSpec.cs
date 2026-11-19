@@ -60,18 +60,17 @@ public sealed class ReplaceTagsSpec : ActaStorageTestBase<ConformanceFixture>
         await Tags.ReplaceAsync(target, [new TagInput("kept", "value")], ct: ct);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Tags.ReplaceAsync(target, [new TagInput("duplicate"), new TagInput("duplicate", "two")], ct: ct).AsTask()
+            Tags.ReplaceAsync(target, [new TagInput("duplicate"), new TagInput("duplicate", "two")], ct: ct)
         );
         await Assert.ThrowsAsync<ArgumentException>(() =>
             Tags.ReplaceAsync(
-                    target,
-                    Enumerable.Range(0, TagLimits.MaxTagsPerTarget + 1).Select(i => new TagInput($"tag-{i}")).ToArray(),
-                    ct: ct
-                )
-                .AsTask()
+                target,
+                Enumerable.Range(0, TagLimits.MaxTagsPerTarget + 1).Select(i => new TagInput($"tag-{i}")).ToArray(),
+                ct: ct
+            )
         );
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct: ct).AsTask()
+            Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct: ct)
         );
 
         var unchanged = await Tags.ListAsync(new ListTagsQuery(target), ct);

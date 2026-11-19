@@ -11,7 +11,7 @@ internal static class JobRunAndWait
 {
     private static readonly JobExecutionOptions Defaults = new();
 
-    public static async ValueTask<JobOutcome> RunAsync(
+    public static async Task<JobOutcome> RunAsync(
         IJobs jobs,
         IWorkerWakeup wakeup,
         Func<JobExecutionOptions, EnqueueJobRequest> request,
@@ -25,7 +25,7 @@ internal static class JobRunAndWait
         return Outcome(wait.Snapshot ?? throw Vanished(enqueued.JobRef), wait.TimedOut);
     }
 
-    public static async ValueTask<JobOutcome<TResult>> RunAsync<TResult>(
+    public static async Task<JobOutcome<TResult>> RunAsync<TResult>(
         IJobs jobs,
         IWorkerWakeup wakeup,
         JobRequestRouting routing,
@@ -59,19 +59,13 @@ internal static class JobRunAndWait
         }
     }
 
-    public static async ValueTask<JobOutcome> WaitAsync(
-        IJobs jobs,
-        IWorkerWakeup wakeup,
-        JobLookup job,
-        TimeSpan? timeout,
-        CancellationToken ct
-    )
+    public static async Task<JobOutcome> WaitAsync(IJobs jobs, IWorkerWakeup wakeup, JobLookup job, TimeSpan? timeout, CancellationToken ct)
     {
         var (snapshot, timedOut) = await AwaitExistingAsync(jobs, wakeup, job, timeout, ct);
         return Outcome(snapshot, timedOut);
     }
 
-    public static async ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(
+    public static async Task<JobOutcome<TResult>> WaitAsync<TResult>(
         IJobs jobs,
         IWorkerWakeup wakeup,
         JobRequestRouting routing,

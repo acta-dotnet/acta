@@ -70,7 +70,7 @@ public sealed class JobCheckpointValueEndpointTests
         fakes.Jobs.GetCheckpointValue = (_, _, _, _) =>
         {
             reads++;
-            return ValueTask.FromResult<GetJobCheckpointValueResponse?>(null);
+            return Task.FromResult<GetJobCheckpointValueResponse?>(null);
         };
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var host = app;
@@ -155,7 +155,7 @@ public sealed class JobCheckpointValueEndpointTests
         fakes.Jobs.GetCheckpointValue = (_, _, _, _) =>
         {
             reads++;
-            return ValueTask.FromResult<GetJobCheckpointValueResponse?>(null);
+            return Task.FromResult<GetJobCheckpointValueResponse?>(null);
         };
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var host = app;

@@ -13,7 +13,7 @@ internal sealed class RescheduleJobHandler(
     IActaClock clock
 )
 {
-    public async ValueTask<RescheduleJobResponse> HandleAsync(RescheduleJobCommand command, CancellationToken ct)
+    public async Task<RescheduleJobResponse> HandleAsync(RescheduleJobCommand command, CancellationToken ct)
     {
         if (command.NextRunAtUtc is { } instant)
         {

@@ -14,7 +14,7 @@ internal sealed class DefinitionsOperations(
     ListDefinitionContractsHandler listDefinitionContracts
 ) : IDefinitions
 {
-    public ValueTask<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
+    public Task<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         long expectedVersion,
@@ -28,7 +28,7 @@ internal sealed class DefinitionsOperations(
             ct
         );
 
-    public ValueTask<RetireDefinitionResponse> RetireAsync(
+    public Task<RetireDefinitionResponse> RetireAsync(
         string jobNamespace,
         string jobName,
         long expectedVersion,
@@ -37,22 +37,22 @@ internal sealed class DefinitionsOperations(
         CancellationToken ct = default
     ) => retireDefinition.HandleAsync(new RetireDefinitionCommand(jobNamespace, jobName, expectedVersion, reasonMessage, actor), ct);
 
-    public ValueTask<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
+    public Task<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
         getDefinition.HandleAsync(new GetDefinitionQuery(jobNamespace, jobName), ct);
 
-    public ValueTask<GetDefinitionPerformanceResponse?> GetPerformanceAsync(
+    public Task<GetDefinitionPerformanceResponse?> GetPerformanceAsync(
         GetDefinitionPerformanceQuery query,
         CancellationToken ct = default
     ) => getDefinitionPerformance.HandleAsync(query, ct);
 
-    public ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
+    public Task<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         listDefinitions.HandleAsync(query, ct);
 
-    public ValueTask<GetDefinitionInputTemplateResponse?> GetInputTemplateAsync(
+    public Task<GetDefinitionInputTemplateResponse?> GetInputTemplateAsync(
         string jobNamespace,
         string jobName,
         CancellationToken ct = default
-    ) => ValueTask.FromResult(getDefinitionInputTemplate.Handle(new GetDefinitionInputTemplateQuery(jobNamespace, jobName)));
+    ) => Task.FromResult(getDefinitionInputTemplate.Handle(new GetDefinitionInputTemplateQuery(jobNamespace, jobName)));
 
     /// <summary>
     /// Registers a namespace's whole definitions set and answers each descriptor's definition id; a steady-state restart

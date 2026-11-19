@@ -32,20 +32,20 @@ internal sealed class FakeJobs : IJobs
 
     public FakeJobs()
     {
-        Get = (job, _) => ValueTask.FromResult(Detail(job));
-        GetId = (job, _) => ValueTask.FromResult<GetJobIdResponse?>(Resolve(job) is { } id ? new GetJobIdResponse(id) : null);
-        GetInput = (job, _) => ValueTask.FromResult<GetJobInputResponse?>(Input(job) is { } input ? new GetJobInputResponse(input) : null);
+        Get = (job, _) => Task.FromResult(Detail(job));
+        GetId = (job, _) => Task.FromResult<GetJobIdResponse?>(Resolve(job) is { } id ? new GetJobIdResponse(id) : null);
+        GetInput = (job, _) => Task.FromResult<GetJobInputResponse?>(Input(job) is { } input ? new GetJobInputResponse(input) : null);
         GetResult = (job, _) =>
-            ValueTask.FromResult<GetJobResultResponse?>(
+            Task.FromResult<GetJobResultResponse?>(
                 Resolve(job) == 42 && StoredResult is { } result ? new GetJobResultResponse(result) : null
             );
         ListCheckpoints = (query, _) =>
         {
             var items = Resolve(query.Job) == 42 ? StoredCheckpoints : [];
-            return ValueTask.FromResult(new ListJobCheckpointsResponse(items, null, false, 50, query.IncludeTotal ? items.Count : null));
+            return Task.FromResult(new ListJobCheckpointsResponse(items, null, false, 50, query.IncludeTotal ? items.Count : null));
         };
         GetCheckpointValue = (job, kind, name, _) =>
-            ValueTask.FromResult<GetJobCheckpointValueResponse?>(
+            Task.FromResult<GetJobCheckpointValueResponse?>(
                 Resolve(job) == 42 && StoredCheckpointValues.TryGetValue((kind, name), out var value)
                     ? new GetJobCheckpointValueResponse(value)
                     : null
@@ -53,11 +53,11 @@ internal sealed class FakeJobs : IJobs
         ListSteps = (query, _) =>
         {
             var items = Resolve(query.Job) == 42 ? StoredSteps : [];
-            return ValueTask.FromResult(new ListJobStepsResponse(items, null, false, 50, query.IncludeTotal ? items.Count : null));
+            return Task.FromResult(new ListJobStepsResponse(items, null, false, 50, query.IncludeTotal ? items.Count : null));
         };
-        Explain = static (job, _) => ValueTask.FromResult<ExplainJobResponse?>(IsFound(job) ? Explanation() : null);
-        GetLineageMap = static (job, _, _) => ValueTask.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage() : null);
-        Enqueue = (request, _) => ValueTask.FromResult(Insert(request));
+        Explain = static (job, _) => Task.FromResult<ExplainJobResponse?>(IsFound(job) ? Explanation() : null);
+        GetLineageMap = static (job, _, _) => Task.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage() : null);
+        Enqueue = (request, _) => Task.FromResult(Insert(request));
         Pause = (job, reason, actor, version, _) =>
             Control("pause", job, reason, actor, version, JobStatusCode.Paused, static (i, a, s, v) => new PauseJobResponse(i, a, s, v));
         Resume = (job, reason, actor, version, _) =>
@@ -72,34 +72,34 @@ internal sealed class FakeJobs : IJobs
         {
             RescheduleCalls.Add((job.JobRef, nextRunAtUtc, reason, actor, version));
             var (jobId, action, status, current) = ResultFor(job, version, JobStatusCode.Ready);
-            return ValueTask.FromResult(new RescheduleJobResponse(jobId, action, status, current));
+            return Task.FromResult(new RescheduleJobResponse(jobId, action, status, current));
         };
         Reprioritize = (job, priority, reason, actor, version, _) =>
         {
             ReprioritizeCalls.Add((job.JobRef, priority, reason, actor, version));
             var (jobId, action, status, current) = ResultFor(job, version, JobStatusCode.Ready);
-            return ValueTask.FromResult(new ReprioritizeJobResponse(jobId, action, status, current));
+            return Task.FromResult(new ReprioritizeJobResponse(jobId, action, status, current));
         };
-        UpdateInput = (job, input, _, _, _) => ValueTask.FromResult(Update(job, input));
+        UpdateInput = (job, input, _, _, _) => Task.FromResult(Update(job, input));
         // A purge leaves no job to report; it, an input update, and a signal carry no version.
         Purge = (job, reason, actor, _) =>
         {
             PurgeCalls.Add((job.JobRef, reason, actor));
             var (jobId, action, status, _) = ResultFor(job, applied: null);
-            return ValueTask.FromResult(new PurgeJobResponse(jobId, action, status));
+            return Task.FromResult(new PurgeJobResponse(jobId, action, status));
         };
         RaiseSignal = (job, name, value, actor, _) =>
         {
             SignalCalls.Add((job.JobRef, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), actor));
             var (jobId, action, status, _) = ResultFor(job, applied: JobStatusCode.Ready);
-            return ValueTask.FromResult(new RaiseJobSignalResponse(jobId, action, status));
+            return Task.FromResult(new RaiseJobSignalResponse(jobId, action, status));
         };
         ClearSignal = (job, name, actor, _) =>
         {
             ClearSignalCalls.Add((job.JobRef, name, actor));
             var (jobId, action, status, _) = ResultFor(job, applied: JobStatusCode.Succeeded);
             // A clear refuses only a live job.
-            return ValueTask.FromResult(
+            return Task.FromResult(
                 action == ControlAction.Rejected
                     ? new ClearJobSignalResponse(jobId, action, JobStatusCode.Ready, "job-not-finished")
                     : new ClearJobSignalResponse(jobId, action, status)
@@ -146,41 +146,41 @@ internal sealed class FakeJobs : IJobs
 
     public List<EnqueueJobRequest> EnqueueRequests { get; } = [];
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetJobResponse?>> Get { get; set; }
+    public Func<JobLookup, CancellationToken, Task<GetJobResponse?>> Get { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetJobIdResponse?>> GetId { get; set; }
+    public Func<JobLookup, CancellationToken, Task<GetJobIdResponse?>> GetId { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetJobInputResponse?>> GetInput { get; set; }
+    public Func<JobLookup, CancellationToken, Task<GetJobInputResponse?>> GetInput { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetJobResultResponse?>> GetResult { get; set; }
+    public Func<JobLookup, CancellationToken, Task<GetJobResultResponse?>> GetResult { get; set; }
 
-    public Func<ListJobCheckpointsQuery, CancellationToken, ValueTask<ListJobCheckpointsResponse>> ListCheckpoints { get; set; }
+    public Func<ListJobCheckpointsQuery, CancellationToken, Task<ListJobCheckpointsResponse>> ListCheckpoints { get; set; }
 
     public Func<
         JobLookup,
         CheckpointKindCode,
         string,
         CancellationToken,
-        ValueTask<GetJobCheckpointValueResponse?>
+        Task<GetJobCheckpointValueResponse?>
     > GetCheckpointValue { get; set; }
 
-    public Func<ListJobStepsQuery, CancellationToken, ValueTask<ListJobStepsResponse>> ListSteps { get; set; }
+    public Func<ListJobStepsQuery, CancellationToken, Task<ListJobStepsResponse>> ListSteps { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<ExplainJobResponse?>> Explain { get; set; }
+    public Func<JobLookup, CancellationToken, Task<ExplainJobResponse?>> Explain { get; set; }
 
-    public Func<JobLookup, GetJobLineageMapOptions?, CancellationToken, ValueTask<GetJobLineageMapResponse?>> GetLineageMap { get; set; }
+    public Func<JobLookup, GetJobLineageMapOptions?, CancellationToken, Task<GetJobLineageMapResponse?>> GetLineageMap { get; set; }
 
-    public Func<EnqueueJobRequest, CancellationToken, ValueTask<EnqueueJobResponse>> Enqueue { get; set; }
+    public Func<EnqueueJobRequest, CancellationToken, Task<EnqueueJobResponse>> Enqueue { get; set; }
 
-    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<PauseJobResponse>> Pause { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, Task<PauseJobResponse>> Pause { get; set; }
 
-    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<ResumeJobResponse>> Resume { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, Task<ResumeJobResponse>> Resume { get; set; }
 
-    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<RestartJobResponse>> Restart { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, Task<RestartJobResponse>> Restart { get; set; }
 
-    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<CancelJobResponse>> Cancel { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, Task<CancelJobResponse>> Cancel { get; set; }
 
-    public Func<JobLookup, DateTime?, string?, string?, long?, CancellationToken, ValueTask<RescheduleJobResponse>> Reschedule { get; set; }
+    public Func<JobLookup, DateTime?, string?, string?, long?, CancellationToken, Task<RescheduleJobResponse>> Reschedule { get; set; }
 
     public Func<
         JobLookup,
@@ -189,45 +189,45 @@ internal sealed class FakeJobs : IJobs
         string?,
         long?,
         CancellationToken,
-        ValueTask<ReprioritizeJobResponse>
+        Task<ReprioritizeJobResponse>
     > Reprioritize { get; set; }
 
-    public Func<JobLookup, JobPayload, string?, string?, CancellationToken, ValueTask<UpdateJobInputResponse>> UpdateInput { get; set; }
+    public Func<JobLookup, JobPayload, string?, string?, CancellationToken, Task<UpdateJobInputResponse>> UpdateInput { get; set; }
 
-    public Func<JobLookup, string?, string?, CancellationToken, ValueTask<PurgeJobResponse>> Purge { get; set; }
+    public Func<JobLookup, string?, string?, CancellationToken, Task<PurgeJobResponse>> Purge { get; set; }
 
-    public Func<JobLookup, string, JobPayload, string?, CancellationToken, ValueTask<RaiseJobSignalResponse>> RaiseSignal { get; set; }
+    public Func<JobLookup, string, JobPayload, string?, CancellationToken, Task<RaiseJobSignalResponse>> RaiseSignal { get; set; }
 
-    public Func<JobLookup, string, string?, CancellationToken, ValueTask<ClearJobSignalResponse>> ClearSignal { get; set; }
+    public Func<JobLookup, string, string?, CancellationToken, Task<ClearJobSignalResponse>> ClearSignal { get; set; }
 
-    ValueTask<GetJobResponse?> IJobs.GetAsync(JobLookup job, CancellationToken ct) => Get(job, ct);
+    Task<GetJobResponse?> IJobs.GetAsync(JobLookup job, CancellationToken ct) => Get(job, ct);
 
-    ValueTask<GetJobIdResponse?> IJobs.GetIdAsync(JobLookup job, CancellationToken ct) => GetId(job, ct);
+    Task<GetJobIdResponse?> IJobs.GetIdAsync(JobLookup job, CancellationToken ct) => GetId(job, ct);
 
-    ValueTask<GetJobInputResponse?> IJobs.GetInputAsync(JobLookup job, CancellationToken ct) => GetInput(job, ct);
+    Task<GetJobInputResponse?> IJobs.GetInputAsync(JobLookup job, CancellationToken ct) => GetInput(job, ct);
 
-    ValueTask<GetJobResultResponse?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
+    Task<GetJobResultResponse?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
 
-    ValueTask<ListJobCheckpointsResponse> IJobs.ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct) =>
+    Task<ListJobCheckpointsResponse> IJobs.ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct) =>
         ListCheckpoints(query, ct);
 
-    ValueTask<GetJobCheckpointValueResponse?> IJobs.GetCheckpointValueAsync(
+    Task<GetJobCheckpointValueResponse?> IJobs.GetCheckpointValueAsync(
         JobLookup job,
         CheckpointKindCode kind,
         string name,
         CancellationToken ct
     ) => GetCheckpointValue(job, kind, name, ct);
 
-    ValueTask<ListJobStepsResponse> IJobs.ListStepsAsync(ListJobStepsQuery query, CancellationToken ct) => ListSteps(query, ct);
+    Task<ListJobStepsResponse> IJobs.ListStepsAsync(ListJobStepsQuery query, CancellationToken ct) => ListSteps(query, ct);
 
-    ValueTask<ExplainJobResponse?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
+    Task<ExplainJobResponse?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
 
-    ValueTask<GetJobLineageMapResponse?> IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options, CancellationToken ct) =>
+    Task<GetJobLineageMapResponse?> IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options, CancellationToken ct) =>
         GetLineageMap(job, options, ct);
 
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(EnqueueJobRequest request, CancellationToken ct) => Enqueue(request, ct);
+    Task<EnqueueJobResponse> IJobs.EnqueueAsync(EnqueueJobRequest request, CancellationToken ct) => Enqueue(request, ct);
 
-    ValueTask<PauseJobResponse> IJobs.PauseAsync(
+    Task<PauseJobResponse> IJobs.PauseAsync(
         JobLookup job,
         string? reasonMessage,
         string? actor,
@@ -235,7 +235,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => Pause(job, reasonMessage, actor, expectedVersion, ct);
 
-    ValueTask<ResumeJobResponse> IJobs.ResumeAsync(
+    Task<ResumeJobResponse> IJobs.ResumeAsync(
         JobLookup job,
         string? reasonMessage,
         string? actor,
@@ -243,7 +243,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => Resume(job, reasonMessage, actor, expectedVersion, ct);
 
-    ValueTask<RestartJobResponse> IJobs.RestartAsync(
+    Task<RestartJobResponse> IJobs.RestartAsync(
         JobLookup job,
         string? reasonMessage,
         string? actor,
@@ -251,7 +251,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => Restart(job, reasonMessage, actor, expectedVersion, ct);
 
-    ValueTask<CancelJobResponse> IJobs.CancelAsync(
+    Task<CancelJobResponse> IJobs.CancelAsync(
         JobLookup job,
         string? reasonMessage,
         string? actor,
@@ -259,7 +259,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => Cancel(job, reasonMessage, actor, expectedVersion, ct);
 
-    ValueTask<RescheduleJobResponse> IJobs.RescheduleAsync(
+    Task<RescheduleJobResponse> IJobs.RescheduleAsync(
         JobLookup job,
         DateTimeOffset? nextRunAtUtc,
         string? reasonMessage,
@@ -268,7 +268,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => Reschedule(job, nextRunAtUtc?.UtcDateTime, reasonMessage, actor, expectedVersion, ct);
 
-    ValueTask<ReprioritizeJobResponse> IJobs.ReprioritizeAsync(
+    Task<ReprioritizeJobResponse> IJobs.ReprioritizeAsync(
         JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage,
@@ -277,7 +277,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => Reprioritize(job, priority, reasonMessage, actor, expectedVersion, ct);
 
-    ValueTask<UpdateJobInputResponse> IJobs.UpdateInputAsync(
+    Task<UpdateJobInputResponse> IJobs.UpdateInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage,
@@ -286,10 +286,10 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => UpdateInput(job, input, reasonMessage, actor, ct);
 
-    ValueTask<PurgeJobResponse> IJobs.PurgeAsync(JobLookup job, string? reasonMessage, string? actor, CancellationToken ct) =>
+    Task<PurgeJobResponse> IJobs.PurgeAsync(JobLookup job, string? reasonMessage, string? actor, CancellationToken ct) =>
         Purge(job, reasonMessage, actor, ct);
 
-    ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync(
+    Task<RaiseJobSignalResponse> IJobs.RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,
@@ -297,86 +297,83 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => RaiseSignal(job, name, value, actor, ct);
 
-    ValueTask<ClearJobSignalResponse> IJobs.ClearSignalAsync(JobLookup job, string name, string? actor, CancellationToken ct) =>
+    Task<ClearJobSignalResponse> IJobs.ClearSignalAsync(JobLookup job, string name, string? actor, CancellationToken ct) =>
         ClearSignal(job, name, actor, ct);
 
-    ValueTask<GetJobStatusResponse?> IJobs.GetStatusAsync(JobLookup job, CancellationToken ct) =>
-        ValueTask.FromResult(Detail(job) is { } found ? new GetJobStatusResponse(found.Status) : null);
+    Task<GetJobStatusResponse?> IJobs.GetStatusAsync(JobLookup job, CancellationToken ct) =>
+        Task.FromResult(Detail(job) is { } found ? new GetJobStatusResponse(found.Status) : null);
 
-    ValueTask<TInput> IJobs.GetInputAsync<TInput>(JobLookup job, CancellationToken ct) => throw new NotSupportedException();
+    Task<TInput> IJobs.GetInputAsync<TInput>(JobLookup job, CancellationToken ct) => throw new NotSupportedException();
 
-    ValueTask<(bool Found, TResult? Value)> IJobs.TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct)
+    Task<(bool Found, TResult? Value)> IJobs.TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct)
         where TResult : default => throw new NotSupportedException();
 
-    ValueTask<T?> IJobs.GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct)
+    Task<T?> IJobs.GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct)
         where T : default => throw new NotSupportedException();
 
-    ValueTask<TResult?> IJobs.GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct)
+    Task<TResult?> IJobs.GetStepResultOrDefaultAsync<TResult>(JobLookup job, string name, CancellationToken ct)
         where TResult : default => throw new NotSupportedException();
 
-    ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
+    Task<RaiseJobSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(TInput input, Action<JobEnqueueOptionsBuilder>? configure, CancellationToken ct) =>
+    Task<JobHandle> IJobs.EnqueueAsync<TInput>(TInput input, Action<JobEnqueueOptionsBuilder>? configure, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(
-        JobCall<TInput> job,
-        Action<JobEnqueueOptionsBuilder>? configure,
-        CancellationToken ct
-    ) => throw new NotSupportedException();
+    Task<JobHandle> IJobs.EnqueueAsync<TInput>(JobCall<TInput> job, Action<JobEnqueueOptionsBuilder>? configure, CancellationToken ct) =>
+        throw new NotSupportedException();
 
-    ValueTask<JobHandle<TResult>> IJobs.EnqueueAsync<TInput, TResult>(
+    Task<JobHandle<TResult>> IJobs.EnqueueAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
+    Task<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         JobCall<TInput> job,
         Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput, TResult>(
+    Task<EnqueueJobResponse> IJobs.EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobOutcome> IJobs.WaitAsync(JobLookup job, TimeSpan? timeout, CancellationToken ct) => throw new NotSupportedException();
+    Task<JobOutcome> IJobs.WaitAsync(JobLookup job, TimeSpan? timeout, CancellationToken ct) => throw new NotSupportedException();
 
-    ValueTask<JobOutcome<TResult>> IJobs.WaitAsync<TResult>(JobLookup job, TimeSpan? timeout, CancellationToken ct) =>
+    Task<JobOutcome<TResult>> IJobs.WaitAsync<TResult>(JobLookup job, TimeSpan? timeout, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobOutcome> IJobs.CallAsync<TInput>(TInput input, JobExecutionOptions? options, CancellationToken ct) =>
+    Task<JobOutcome> IJobs.CallAsync<TInput>(TInput input, JobExecutionOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobOutcome> IJobs.CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options, CancellationToken ct) =>
+    Task<JobOutcome> IJobs.CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobOutcome<TResult>> IJobs.CallAsync<TInput, TResult>(
+    Task<JobOutcome<TResult>> IJobs.CallAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         JobExecutionOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<EnqueueJobsResponse> IJobs.EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct) =>
+    Task<EnqueueJobsResponse> IJobs.EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct) =>
+    Task<EnqueueJobResponse> IJobs.EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
+    Task<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<EnqueueJobsResponse> IJobs.EnqueueJobsAsync(
+    Task<EnqueueJobsResponse> IJobs.EnqueueJobsAsync(
         DbTransaction transaction,
         IReadOnlyList<EnqueueJobRequest> requests,
         CancellationToken ct
@@ -461,7 +458,7 @@ internal sealed class FakeJobs : IJobs
         return new UpdateJobInputResponse(jobId, action, status, version);
     }
 
-    private ValueTask<T> Control<T>(
+    private Task<T> Control<T>(
         string verb,
         JobLookup job,
         string? reason,
@@ -473,7 +470,7 @@ internal sealed class FakeJobs : IJobs
     {
         ControlCalls.Add((verb, job.JobRef, reason, actor, expectedVersion));
         var (jobId, action, status, version) = ResultFor(job, expectedVersion, applied);
-        return ValueTask.FromResult(respond(jobId, action, status, version));
+        return Task.FromResult(respond(jobId, action, status, version));
     }
 
     // An applied verb answers the status it leaves the found job in, and the next version where the verb carries one.

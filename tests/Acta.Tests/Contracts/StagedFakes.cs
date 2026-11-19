@@ -50,21 +50,20 @@ internal static class StagedFakes
             var found = await get(job, ct);
             return found?.JobId == 42 ? Job : found;
         };
-        jobs.Explain = (job, _) => ValueTask.FromResult<ExplainJobResponse?>(IsFound(job) ? Explanation : null);
-        jobs.GetLineageMap = (job, _, _) => ValueTask.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage : null);
+        jobs.Explain = (job, _) => Task.FromResult<ExplainJobResponse?>(IsFound(job) ? Explanation : null);
+        jobs.GetLineageMap = (job, _, _) => Task.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage : null);
 
         fakes.Ledger.ListEvents = (query, _) =>
-            ValueTask.FromResult(new ListEventsResponse([Event], null, false, 50, query.IncludeTotal ? 1L : null));
-        fakes.Alerts.List = (query, _) =>
-            ValueTask.FromResult(new ListAlertsResponse([Alert], null, false, 50, query.IncludeTotal ? 1L : null));
-        fakes.Alerts.Get = (alertRef, _) => ValueTask.FromResult(alertRef == FakeAlerts.KnownAlertRef ? AlertDetail : null);
+            Task.FromResult(new ListEventsResponse([Event], null, false, 50, query.IncludeTotal ? 1L : null));
+        fakes.Alerts.List = (query, _) => Task.FromResult(new ListAlertsResponse([Alert], null, false, 50, query.IncludeTotal ? 1L : null));
+        fakes.Alerts.Get = (alertRef, _) => Task.FromResult(alertRef == FakeAlerts.KnownAlertRef ? AlertDetail : null);
         fakes.Workers.List = (query, _) =>
-            ValueTask.FromResult(new ListWorkersResponse([Worker], null, false, 50, query.IncludeTotal ? 1L : null));
+            Task.FromResult(new ListWorkersResponse([Worker], null, false, 50, query.IncludeTotal ? 1L : null));
         fakes.Schedules.List = (query, _) =>
-            ValueTask.FromResult(new ListSchedulesResponse([Schedule], null, false, 50, query.IncludeTotal ? 1L : null));
-        fakes.Schedules.Get = (schedule, _) => ValueTask.FromResult(schedule.ScheduleName == Schedule.ScheduleName ? ScheduleDetail : null);
+            Task.FromResult(new ListSchedulesResponse([Schedule], null, false, 50, query.IncludeTotal ? 1L : null));
+        fakes.Schedules.Get = (schedule, _) => Task.FromResult(schedule.ScheduleName == Schedule.ScheduleName ? ScheduleDetail : null);
         fakes.Schedules.Preview = (schedule, _, _) =>
-            ValueTask.FromResult<PreviewScheduleResponse?>(
+            Task.FromResult<PreviewScheduleResponse?>(
                 schedule.ScheduleName == Schedule.ScheduleName
                     ? new PreviewScheduleResponse(Schedule.Expression, Schedule.TimeZoneId!, [NextRun, NextRun.AddDays(3)])
                     : null
@@ -108,9 +107,9 @@ internal static class StagedFakes
         };
         var getId = jobs.GetId;
         jobs.GetId = (job, ct) =>
-            job.JobRef == FakeJobs.RejectedJobRef ? ValueTask.FromResult<GetJobIdResponse?>(new(RejectedJobId)) : getId(job, ct);
+            job.JobRef == FakeJobs.RejectedJobRef ? Task.FromResult<GetJobIdResponse?>(new(RejectedJobId)) : getId(job, ct);
         var getInput = jobs.GetInput;
-        jobs.GetInput = (job, ct) => job.JobId == RejectedJobId ? ValueTask.FromResult<GetJobInputResponse?>(null) : getInput(job, ct);
+        jobs.GetInput = (job, ct) => job.JobId == RejectedJobId ? Task.FromResult<GetJobInputResponse?>(null) : getInput(job, ct);
         var enqueue = jobs.Enqueue;
         jobs.Enqueue = (request, ct) =>
             request.JobNamespace == "rejected"
@@ -144,10 +143,10 @@ internal static class StagedFakes
                 : previewCalendar(calendar, version, fromUtc, count, timeZoneId, ct);
         var upsert = fakes.Tags.Upsert;
         fakes.Tags.Upsert = (target, tag, ct) =>
-            IsMissing(target) ? ValueTask.FromResult(new UpsertTagResponse(ControlAction.NotFound)) : upsert(target, tag, ct);
+            IsMissing(target) ? Task.FromResult(new UpsertTagResponse(ControlAction.NotFound)) : upsert(target, tag, ct);
         var remove = fakes.Tags.Remove;
         fakes.Tags.Remove = (target, name, ct) =>
-            IsMissing(target) ? ValueTask.FromResult(new RemoveTagResponse(ControlAction.NotFound)) : remove(target, name, ct);
+            IsMissing(target) ? Task.FromResult(new RemoveTagResponse(ControlAction.NotFound)) : remove(target, name, ct);
         return fakes;
     }
 

@@ -21,7 +21,7 @@ internal sealed class CancelJobHandler(
     /// </summary>
     public static readonly JobControlInput ParentCancelled = new(null, EventReason.ParentCancelled, "Ancestor job cancelled.");
 
-    public async ValueTask<CancelJobResponse> HandleAsync(CancelJobCommand command, CancellationToken ct)
+    public async Task<CancelJobResponse> HandleAsync(CancelJobCommand command, CancellationToken ct)
     {
         if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {

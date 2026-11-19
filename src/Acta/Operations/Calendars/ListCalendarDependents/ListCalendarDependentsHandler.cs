@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="ICalendars.ListDependentsAsync"/>: one keyset page of the schedules naming the family.</summary>
 internal sealed class ListCalendarDependentsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListCalendarDependentsResponse> HandleAsync(ListCalendarDependentsQuery query, CancellationToken ct)
+    public async Task<ListCalendarDependentsResponse> HandleAsync(ListCalendarDependentsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 

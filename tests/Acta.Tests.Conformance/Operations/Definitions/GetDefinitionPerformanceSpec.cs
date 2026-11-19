@@ -182,7 +182,7 @@ public sealed class GetDefinitionPerformanceSpec : ActaStorageTestBase<Conforman
         CancellationToken ct
     ) => Assert.IsType<GetDefinitionPerformanceResponse>(await HandleAsync(JobName, fromUtc, toUtc, intervalSeconds, ct));
 
-    private ValueTask<GetDefinitionPerformanceResponse?> HandleAsync(
+    private Task<GetDefinitionPerformanceResponse?> HandleAsync(
         string jobName,
         DateTime fromUtc,
         DateTime toUtc,

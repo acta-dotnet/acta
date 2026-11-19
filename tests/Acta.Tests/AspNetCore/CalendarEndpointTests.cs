@@ -496,7 +496,7 @@ public sealed class CalendarEndpointTests
         var fakes = new FakeOperations();
         fakes.Calendars.SaveDraft = static (_, role, _, _, _, _, _) =>
             role is CalendarRoleCode.Occurrence or CalendarRoleCode.Availability
-                ? ValueTask.FromResult(new SaveCalendarDraftResponse(ControlAction.Applied, 1, "hash-1", []))
+                ? Task.FromResult(new SaveCalendarDraftResponse(ControlAction.Applied, 1, "hash-1", []))
                 : throw new ArgumentOutOfRangeException(nameof(role), role, "A calendar's role is Occurrence or Availability.");
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;

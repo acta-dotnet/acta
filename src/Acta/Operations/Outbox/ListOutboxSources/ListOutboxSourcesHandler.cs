@@ -15,7 +15,7 @@ internal sealed class ListOutboxSourcesHandler(
     OutboxRelayRegistry? registry = null
 )
 {
-    public async ValueTask<ListOutboxSourcesResponse> HandleAsync(ListOutboxSourcesQuery query, CancellationToken ct)
+    public async Task<ListOutboxSourcesResponse> HandleAsync(ListOutboxSourcesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);

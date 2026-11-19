@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ListSchedulesResponse> HandleAsync(ListSchedulesQuery query, CancellationToken ct)
+    public async Task<ListSchedulesResponse> HandleAsync(ListSchedulesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

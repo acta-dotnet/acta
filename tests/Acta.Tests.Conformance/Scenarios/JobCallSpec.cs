@@ -141,7 +141,7 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
         var ct = TestContext.Current.CancellationToken;
         var bad = new JobCall<int>(new JobContract<int>(typeof(TestJobsManifest), "add-numbers"), 5);
 
-        await Assert.ThrowsAsync<ArgumentException>(() => Jobs.EnqueueAsync(bad, ct: ct).AsTask());
+        await Assert.ThrowsAsync<ArgumentException>(() => Jobs.EnqueueAsync(bad, ct: ct));
     }
 
     [Fact(DisplayName = "A hand-built call with the wrong result type throws before enqueue")]
@@ -150,13 +150,12 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
         var ct = TestContext.Current.CancellationToken;
         var bad = new JobCall<AddNumbers, int>(new JobContract<AddNumbers, int>(typeof(TestJobsManifest), "add-numbers"), new(1, 1));
 
-        await Assert.ThrowsAsync<ArgumentException>(() => Jobs.EnqueueAsync(bad, ct: ct).AsTask());
+        await Assert.ThrowsAsync<ArgumentException>(() => Jobs.EnqueueAsync(bad, ct: ct));
     }
 
     // Run-and-wait polls for the outcome while this test's worker claims only when ticked.
-    private async Task<T> DriveAsync<T>(ValueTask<T> waiting, CancellationToken ct)
+    private async Task<T> DriveAsync<T>(Task<T> wait, CancellationToken ct)
     {
-        var wait = waiting.AsTask();
         while (!wait.IsCompleted)
         {
             await Runtime.RunOnceAsync(TestNamespace, ct);

@@ -11,19 +11,19 @@ internal sealed class FakeTags : ITags
         List = (query, _) =>
         {
             ListCalls.Add(query);
-            return ValueTask.FromResult(
+            return Task.FromResult(
                 new ListTagsResponse([new ListTagsItem("env", "prod"), new ListTagsItem("team")], null, false, query.PageSize ?? 50, null)
             );
         };
         Upsert = (_, tag, _) =>
         {
             UpsertCalls.Add(tag);
-            return ValueTask.FromResult(new UpsertTagResponse(MutationAction));
+            return Task.FromResult(new UpsertTagResponse(MutationAction));
         };
         Remove = (_, name, _) =>
         {
             RemoveCalls.Add(name);
-            return ValueTask.FromResult(new RemoveTagResponse(MutationAction));
+            return Task.FromResult(new RemoveTagResponse(MutationAction));
         };
     }
 
@@ -35,18 +35,18 @@ internal sealed class FakeTags : ITags
 
     public List<ListTagsQuery> ListCalls { get; } = [];
 
-    public Func<ListTagsQuery, CancellationToken, ValueTask<ListTagsResponse>> List { get; set; }
+    public Func<ListTagsQuery, CancellationToken, Task<ListTagsResponse>> List { get; set; }
 
-    public Func<TagTarget, TagInput, CancellationToken, ValueTask<UpsertTagResponse>> Upsert { get; set; }
+    public Func<TagTarget, TagInput, CancellationToken, Task<UpsertTagResponse>> Upsert { get; set; }
 
-    public Func<TagTarget, string, CancellationToken, ValueTask<RemoveTagResponse>> Remove { get; set; }
+    public Func<TagTarget, string, CancellationToken, Task<RemoveTagResponse>> Remove { get; set; }
 
-    ValueTask<ListTagsResponse> ITags.ListAsync(ListTagsQuery query, CancellationToken ct) => List(query, ct);
+    Task<ListTagsResponse> ITags.ListAsync(ListTagsQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<UpsertTagResponse> ITags.UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct) => Upsert(target, tag, ct);
+    Task<UpsertTagResponse> ITags.UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct) => Upsert(target, tag, ct);
 
-    ValueTask<RemoveTagResponse> ITags.RemoveAsync(TagTarget target, string name, CancellationToken ct) => Remove(target, name, ct);
+    Task<RemoveTagResponse> ITags.RemoveAsync(TagTarget target, string name, CancellationToken ct) => Remove(target, name, ct);
 
-    ValueTask<ReplaceTagsResponse> ITags.ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct) =>
+    Task<ReplaceTagsResponse> ITags.ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct) =>
         throw new NotSupportedException();
 }

@@ -27,11 +27,7 @@ internal class UnreachableDatabase : DispatchProxy
             return Create(returns);
         }
 
-        if (
-            typeof(Task).IsAssignableFrom(returns)
-            || returns == typeof(ValueTask)
-            || returns.IsGenericType && returns.GetGenericTypeDefinition() == typeof(ValueTask<>)
-        )
+        if (typeof(Task).IsAssignableFrom(returns))
         {
             throw new TimeoutException("The database did not answer.");
         }

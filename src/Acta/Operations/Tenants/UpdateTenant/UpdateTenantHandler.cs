@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class UpdateTenantHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<UpdateTenantResponse> HandleAsync(UpdateTenantCommand command, CancellationToken ct)
+    public async Task<UpdateTenantResponse> HandleAsync(UpdateTenantCommand command, CancellationToken ct)
     {
         var name = NameSyntax.Canonicalize(command.TenantName, "tenantName", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         CatalogValidation.ValidateTenant(command.DisplayName, command.Description);

@@ -23,7 +23,7 @@ internal static class RouteTable
         string summary,
         JsonTypeInfo<TResponse> json,
         Func<QueryReader, TQuery> bind,
-        Func<ReadCall, TQuery, ValueTask<TResponse>> list,
+        Func<ReadCall, TQuery, Task<TResponse>> list,
         params QueryParameterDoc[] parameters
     )
         where TResponse : IPagedResponse<object> =>
@@ -49,7 +49,7 @@ internal static class RouteTable
         string summary,
         string entity,
         JsonTypeInfo<TDetail> json,
-        Func<HttpContext, ReadCall, ValueTask<TDetail?>> read
+        Func<HttpContext, ReadCall, Task<TDetail?>> read
     )
         where TDetail : class =>
         group
@@ -136,7 +136,7 @@ internal static class RouteTable
         string invalidTitle,
         ControlStatus<TResponse> status,
         Func<HttpContext, TKey> key,
-        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply,
+        Func<ControlCall<TBody>, TKey, Task<TResponse>> apply,
         bool bodyRequired = false
     )
         where TBody : class, IControlRequest
@@ -174,7 +174,7 @@ internal static class RouteTable
         string invalidTitle,
         ControlStatus<TResponse> status,
         Func<HttpContext, TKey> key,
-        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply
+        Func<ControlCall<TBody>, TKey, Task<TResponse>> apply
     )
         where TBody : class, IControlRequest
         where TResponse : notnull =>
@@ -231,7 +231,7 @@ internal static class RouteTable
         string invalidTitle,
         ControlStatus<TResponse> status,
         Func<HttpContext, TKey> key,
-        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply
+        Func<ControlCall<TBody>, TKey, Task<TResponse>> apply
     )
         where TBody : class, IControlRequest
         where TResponse : notnull
@@ -451,7 +451,7 @@ internal static class TagRoutes
         MutateAsync(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct), ActaApiJsonContext.Relaxed.RemoveTagResponse);
 
     // A tag write is a control verb: it answers with its response on 404 exactly as on 200.
-    private static async Task<IResult> MutateAsync<T>(Func<TagTarget> resolve, Func<TagTarget, ValueTask<T>> apply, JsonTypeInfo<T> info)
+    private static async Task<IResult> MutateAsync<T>(Func<TagTarget> resolve, Func<TagTarget, Task<T>> apply, JsonTypeInfo<T> info)
         where T : ITagMutationResponse
     {
         try

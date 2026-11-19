@@ -144,7 +144,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         await using var tx = await conn.BeginTransactionAsync(ct);
         var winner = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
 
-        var waiter = Jobs.EnqueueAsync(Request(key: key), ct).AsTask();
+        var waiter = Jobs.EnqueueAsync(Request(key: key), ct);
         await Task.Delay(500, ct);
         Assert.False(waiter.IsCompleted, "the second enqueue did not wait on the open key");
         await tx.CommitAsync(ct);
@@ -166,7 +166,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         await using var tx = await conn.BeginTransactionAsync(ct);
         await Jobs.EnqueueAsync(tx, Request(key: prefix + "-1"), ct);
 
-        var other = Jobs.EnqueueAsync(Request(key: prefix + "-2"), ct).AsTask();
+        var other = Jobs.EnqueueAsync(Request(key: prefix + "-2"), ct);
         // The transaction stays open until the fact ends, so an enqueue that waited on it would never return.
         var first = await Task.WhenAny(other, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == other, "the enqueue of another key waited on the open transaction");

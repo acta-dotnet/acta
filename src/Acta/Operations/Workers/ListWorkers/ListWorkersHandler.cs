@@ -9,7 +9,7 @@ namespace Acta;
 /// </summary>
 internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect, IOptions<JobsOptions> options)
 {
-    public async ValueTask<ListWorkersResponse> HandleAsync(ListWorkersQuery query, CancellationToken ct)
+    public async Task<ListWorkersResponse> HandleAsync(ListWorkersQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

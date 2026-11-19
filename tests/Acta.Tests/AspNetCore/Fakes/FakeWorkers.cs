@@ -8,17 +8,17 @@ internal sealed class FakeWorkers : IWorkers
 
     public FakeWorkers()
     {
-        Get = static (workerRef, _) => ValueTask.FromResult<GetWorkerResponse?>(workerRef == KnownWorkerRef ? Known : null);
-        List = static (_, _) => ValueTask.FromResult(new ListWorkersResponse([], null, false, 50, null));
+        Get = static (workerRef, _) => Task.FromResult<GetWorkerResponse?>(workerRef == KnownWorkerRef ? Known : null);
+        List = static (_, _) => Task.FromResult(new ListWorkersResponse([], null, false, 50, null));
     }
 
-    public Func<WorkerRef, CancellationToken, ValueTask<GetWorkerResponse?>> Get { get; set; }
+    public Func<WorkerRef, CancellationToken, Task<GetWorkerResponse?>> Get { get; set; }
 
-    public Func<ListWorkersQuery, CancellationToken, ValueTask<ListWorkersResponse>> List { get; set; }
+    public Func<ListWorkersQuery, CancellationToken, Task<ListWorkersResponse>> List { get; set; }
 
-    ValueTask<GetWorkerResponse?> IWorkers.GetAsync(WorkerRef workerRef, CancellationToken ct) => Get(workerRef, ct);
+    Task<GetWorkerResponse?> IWorkers.GetAsync(WorkerRef workerRef, CancellationToken ct) => Get(workerRef, ct);
 
-    ValueTask<ListWorkersResponse> IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct) => List(query, ct);
+    Task<ListWorkersResponse> IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct) => List(query, ct);
 
     private static readonly GetWorkerResponse Known = new(
         KnownWorkerRef,

@@ -435,7 +435,6 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                     Actor,
                     ct
                 )
-                .AsTask()
         );
 
         var after = await ReadAsync(name, ct);

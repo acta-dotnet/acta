@@ -13,7 +13,7 @@ internal sealed class PurgeJobHandler(
     ISqlDialect dialect
 )
 {
-    public async ValueTask<PurgeJobResponse> HandleAsync(PurgeJobCommand command, CancellationToken ct)
+    public async Task<PurgeJobResponse> HandleAsync(PurgeJobCommand command, CancellationToken ct)
     {
         if (
             await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId }

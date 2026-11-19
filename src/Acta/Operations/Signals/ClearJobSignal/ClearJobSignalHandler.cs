@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal sealed class ClearJobSignalHandler(IDbSession session, ISqlDialect dialect, GetJobHandler getJob)
 {
-    public async ValueTask<ClearJobSignalResponse> HandleAsync(ClearJobSignalCommand command, CancellationToken ct)
+    public async Task<ClearJobSignalResponse> HandleAsync(ClearJobSignalCommand command, CancellationToken ct)
     {
         var name = NameSyntax.Canonicalize(command.Name, "name", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (await getJob.HandleAsync(new GetJobQuery(command.Job), ct) is not { JobId: var jobId } job)

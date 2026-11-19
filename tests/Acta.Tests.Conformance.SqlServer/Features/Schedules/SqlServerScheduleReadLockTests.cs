@@ -52,7 +52,7 @@ public sealed class SqlServerScheduleReadLockTests
             ct
         );
 
-        var overview = Services.GetRequiredService<ILedger>().GetOverviewAsync(new GetOverviewQuery(), ct).AsTask();
+        var overview = Services.GetRequiredService<ILedger>().GetOverviewAsync(new GetOverviewQuery(), ct);
         var first = await Task.WhenAny(overview, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == overview, "the overview waited on an uncommitted schedule state");
         await overview;
@@ -100,7 +100,7 @@ public sealed class SqlServerScheduleReadLockTests
         await using var hold = await holder.BeginTransactionAsync(ct);
         await HoldAsync(hold, $"UPDATE {Db.Schema}.schedules SET version = version WHERE schedule_id = @id", ct);
 
-        var list = calendars.ListAsync(new ListCalendarsQuery(NameContains: shared.CalendarName), ct).AsTask();
+        var list = calendars.ListAsync(new ListCalendarsQuery(NameContains: shared.CalendarName), ct);
         var first = await Task.WhenAny(list, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == list, "the calendar list waited on an uncommitted schedule");
         Assert.Equal(0, Assert.Single((await list).Items).DependentCount);
@@ -116,7 +116,7 @@ public sealed class SqlServerScheduleReadLockTests
         await using var hold = await holder.BeginTransactionAsync(ct);
         await HoldAsync(hold, $"UPDATE {Db.Schema}.schedules SET version = version WHERE schedule_id = @id", ct);
 
-        var list = calendars.ListDependentsAsync(new ListCalendarDependentsQuery(shared, IncludeTotal: true), ct).AsTask();
+        var list = calendars.ListDependentsAsync(new ListCalendarDependentsQuery(shared, IncludeTotal: true), ct);
         var first = await Task.WhenAny(list, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == list, "the dependents list waited on an uncommitted schedule");
         Assert.Empty((await list).Items);
@@ -139,8 +139,7 @@ public sealed class SqlServerScheduleReadLockTests
 
         var list = Services
             .GetRequiredService<INamespaces>()
-            .ListAsync(new ListNamespacesQuery(NameContains: TestNamespace, IncludeTotal: true), ct)
-            .AsTask();
+            .ListAsync(new ListNamespacesQuery(NameContains: TestNamespace, IncludeTotal: true), ct);
         var first = await Task.WhenAny(list, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == list, "the namespaces list waited on an uncommitted namespace");
         Assert.Equal(TestNamespace, Assert.Single((await list).Items).JobNamespace);

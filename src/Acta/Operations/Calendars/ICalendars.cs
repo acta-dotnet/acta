@@ -13,23 +13,23 @@ public interface ICalendars
     /// that version's status, and how many live schedules of active definitions name it in its scope. A query naming a namespace lists
     /// that namespace's families and the shared ones in <c>sys</c>; one naming none lists every namespace's.
     /// </summary>
-    ValueTask<ListCalendarsResponse> ListAsync(ListCalendarsQuery query, CancellationToken ct = default);
+    Task<ListCalendarsResponse> ListAsync(ListCalendarsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// Reads one family's head: its role, current and latest versions, and one version's status and definition JSON:
     /// <paramref name="version"/> when given, else the current version, else the latest. Null when the family has no
     /// version, or has no <paramref name="version"/>.
     /// </summary>
-    ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, long? version = null, CancellationToken ct = default);
+    Task<GetCalendarResponse?> GetAsync(CalendarLookup calendar, long? version = null, CancellationToken ct = default);
 
     /// <summary>One page of the family's versions, newest first; an unknown family answers an empty page.</summary>
-    ValueTask<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default);
+    Task<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// One page of the schedules that name the family in its scope, orphaned ones included (their status says so), by
     /// namespace, job, schedule, then binding; an unknown family answers an empty page.
     /// </summary>
-    ValueTask<ListCalendarDependentsResponse> ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default);
+    Task<ListCalendarDependentsResponse> ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// Saves <paramref name="definition"/> as the family's next version, a Draft no schedule follows until it is published, and
@@ -39,7 +39,7 @@ public interface ICalendars
     /// for a new family; another is VersionConflict. Another <paramref name="role"/>, or a name the other scope holds, is Rejected.
     /// A definition that does not compile throws <see cref="CalendarDefinitionException"/>; a role not Occurrence or Availability throws.
     /// </summary>
-    ValueTask<SaveCalendarDraftResponse> SaveDraftAsync(
+    Task<SaveCalendarDraftResponse> SaveDraftAsync(
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
@@ -56,7 +56,7 @@ public interface ICalendars
     /// each holds an overdue occurrence and how many there are of each. Null when the family has no such version. No cursor
     /// is read or written.
     /// </summary>
-    ValueTask<PreviewCalendarResponse?> PreviewAsync(
+    Task<PreviewCalendarResponse?> PreviewAsync(
         CalendarLookup calendar,
         long version,
         DateTimeOffset? fromUtc = null,
@@ -73,7 +73,7 @@ public interface ICalendars
     /// the current version the caller saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided overdue
     /// occurrence is Rejected under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under <see cref="OverdueDecisionCode.Skip"/>.
     /// </summary>
-    ValueTask<PublishCalendarResponse> PublishAsync(
+    Task<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,
         long candidateVersion,
         long? expectedCurrentVersion = null,
@@ -89,7 +89,7 @@ public interface ICalendars
     /// and the current version is another; Rejected while a live schedule of an active definition names the family in its scope,
     /// answering how many do. Applied records <c>calendar.archived</c> with <paramref name="reasonMessage"/> and <paramref name="actor"/>.
     /// </summary>
-    ValueTask<ArchiveCalendarResponse> ArchiveAsync(
+    Task<ArchiveCalendarResponse> ArchiveAsync(
         CalendarLookup calendar,
         long? expectedCurrentVersion = null,
         string? reasonMessage = null,

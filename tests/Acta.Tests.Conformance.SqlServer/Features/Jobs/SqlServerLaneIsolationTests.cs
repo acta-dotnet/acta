@@ -113,7 +113,7 @@ public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerC
         await Jobs.EnqueueAsync(application, Step(lane), ct);
 
         // Across every namespace: with one named, the list reaches lanes by key and never scans the table.
-        var list = Operations.Ledger.ListJobsAsync(new ListJobsQuery(IncludeTotal: true, Lane: lane), ct).AsTask();
+        var list = Operations.Ledger.ListJobsAsync(new ListJobsQuery(IncludeTotal: true, Lane: lane), ct);
         var first = await Task.WhenAny(list, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == list, "the job list waited on an uncommitted lane");
         Assert.Empty((await list).Items);

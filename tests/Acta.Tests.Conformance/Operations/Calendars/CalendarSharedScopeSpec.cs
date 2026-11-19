@@ -133,7 +133,7 @@ public sealed class CalendarSharedScopeSpec : ActaStorageTestBase<ConformanceFix
         }
 
         Task<SaveCalendarDraftResponse> SaveAsync(CalendarLookup calendar) =>
-            Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct).AsTask();
+            Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
     }
 
     /// <summary>

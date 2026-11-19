@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="ITags.ReplaceAsync"/>: normalizes the set, resolves the target, then one replace.</summary>
 internal sealed class ReplaceTagsHandler(GetTagTargetHandler getTagTarget, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<ReplaceTagsResponse> HandleAsync(ReplaceTagsCommand command, CancellationToken ct)
+    public async Task<ReplaceTagsResponse> HandleAsync(ReplaceTagsCommand command, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command.Target, "target");
         ArgumentNullException.ThrowIfNull(command.Tags, "tags");

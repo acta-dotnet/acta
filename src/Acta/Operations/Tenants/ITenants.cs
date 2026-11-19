@@ -13,7 +13,7 @@ public interface ITenants
     /// <see cref="ResumeAsync"/>, field edits through <see cref="UpdateAsync"/>. <paramref name="displayName"/> is the
     /// human label for dashboards; null keeps the column empty and dashboards fall back to the name.
     /// </summary>
-    ValueTask<RegisterTenantResponse> RegisterAsync(
+    Task<RegisterTenantResponse> RegisterAsync(
         string tenantName,
         string? displayName = null,
         string? description = null,
@@ -21,13 +21,13 @@ public interface ITenants
     );
 
     /// <summary>Point-read one registered tenant by name; null when it does not exist.</summary>
-    ValueTask<GetTenantResponse?> GetAsync(string tenantName, CancellationToken ct = default);
+    Task<GetTenantResponse?> GetAsync(string tenantName, CancellationToken ct = default);
 
     /// <summary>List registered tenants ordered by tenant name ascending.</summary>
-    ValueTask<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default);
+    Task<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default);
 
     /// <summary>Suspend a registered tenant by name (status-only, idempotent). Emits tenant.suspended.</summary>
-    ValueTask<SuspendTenantResponse> SuspendAsync(
+    Task<SuspendTenantResponse> SuspendAsync(
         string tenantName,
         string? reasonMessage = null,
         string? actor = null,
@@ -35,7 +35,7 @@ public interface ITenants
     );
 
     /// <summary>Resume a suspended tenant by name (status-only, idempotent). Emits tenant.resumed.</summary>
-    ValueTask<ResumeTenantResponse> ResumeAsync(
+    Task<ResumeTenantResponse> ResumeAsync(
         string tenantName,
         string? reasonMessage = null,
         string? actor = null,
@@ -43,7 +43,7 @@ public interface ITenants
     );
 
     /// <summary>Update a tenant display name / description with a version CAS. Null clears the field. Emits tenant.updated.</summary>
-    ValueTask<UpdateTenantResponse> UpdateAsync(
+    Task<UpdateTenantResponse> UpdateAsync(
         string tenantName,
         long expectedVersion,
         string? displayName,

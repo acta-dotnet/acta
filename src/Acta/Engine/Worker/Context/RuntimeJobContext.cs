@@ -367,14 +367,10 @@ internal sealed partial class RuntimeJobContext(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
-    ) =>
-        RememberChildAsync(
-            FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct).AsTask()),
-            options.DeduplicationKey
-        );
+    ) => RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct)), options.DeduplicationKey);
 
     private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
-        RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct).AsTask()), request.DeduplicationKey);
+        RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct)), request.DeduplicationKey);
 
     private protected override Task<EnqueueJobResponse> EnqueueChildCallCoreAsync<TInput>(
         Type? manifestType,
@@ -385,7 +381,7 @@ internal sealed partial class RuntimeJobContext(
         CancellationToken ct
     ) =>
         RememberChildAsync(
-            FencedAsync(() => _jobOperations.EnqueueChildAsync(manifestType, jobName, input, resultType, options, Fence, ct).AsTask()),
+            FencedAsync(() => _jobOperations.EnqueueChildAsync(manifestType, jobName, input, resultType, options, Fence, ct)),
             options.DeduplicationKey
         );
 

@@ -12,7 +12,7 @@ internal sealed class UpdateJobInputHandler(
 {
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
 
-    public async ValueTask<UpdateJobInputResponse> HandleAsync(UpdateJobInputCommand command, CancellationToken ct)
+    public async Task<UpdateJobInputResponse> HandleAsync(UpdateJobInputCommand command, CancellationToken ct)
     {
         var input = command.Input;
         if (input.Data.Length > _maxInlinePayloadBytes)

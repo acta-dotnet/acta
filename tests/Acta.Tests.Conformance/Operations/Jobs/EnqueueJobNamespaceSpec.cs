@@ -123,13 +123,12 @@ public sealed class EnqueueJobNamespaceSpec : ActaRuntimeTestBase<ConformanceFix
         }
 
         var batch = Jobs.EnqueueJobsAsync(
-                [
-                    new EnqueueJobRequest(TestNamespace, "add-numbers", payload, Lane: lane),
-                    new EnqueueJobRequest(TestNamespace, "add-numbers", payload),
-                ],
-                ct
-            )
-            .AsTask();
+            [
+                new EnqueueJobRequest(TestNamespace, "add-numbers", payload, Lane: lane),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", payload),
+            ],
+            ct
+        );
         await LockWaitProbe.WaitAsync(Db, "enqueue_jobs", LockWait.Row, batch, blocker, ct);
         await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
         await blocker.RollbackAsync(ct);

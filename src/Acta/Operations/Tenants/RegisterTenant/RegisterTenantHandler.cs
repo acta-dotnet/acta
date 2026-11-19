@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="ITenants.RegisterAsync"/>: canonicalizes the name, checks the text fields, then one insert-or-get.</summary>
 internal sealed class RegisterTenantHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<RegisterTenantResponse> HandleAsync(RegisterTenantCommand command, CancellationToken ct)
+    public async Task<RegisterTenantResponse> HandleAsync(RegisterTenantCommand command, CancellationToken ct)
     {
         var name = NameSyntax.Canonicalize(command.TenantName, "tenantName", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         CatalogValidation.ValidateTenant(command.DisplayName, command.Description);

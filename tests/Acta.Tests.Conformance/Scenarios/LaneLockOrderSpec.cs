@@ -48,7 +48,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         await using var youngerConnection = await Db.OpenConnectionAsync(ct);
         await using var younger = await youngerConnection.BeginTransactionAsync(ct);
-        var pending = Jobs.EnqueueAsync(younger, Step("orders", "younger"), ct).AsTask();
+        var pending = Jobs.EnqueueAsync(younger, Step("orders", "younger"), ct);
         await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
         Assert.False(pending.IsCompleted, "the younger enqueue did not wait for the older transaction's lane lock");
 
@@ -85,7 +85,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
             var complete = await StartedAsync(older, ct);
 
             var completion = complete();
-            var enqueue = Jobs.EnqueueAsync(Step(lane, $"younger-{round}") with { ParentJobId = parent.JobId }, ct).AsTask();
+            var enqueue = Jobs.EnqueueAsync(Step(lane, $"younger-{round}") with { ParentJobId = parent.JobId }, ct);
             await Task.WhenAll(completion, enqueue);
 
             Assert.Equal(CompleteExecutionsAction.Completed, (await completion).Action);
@@ -107,7 +107,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
             var complete = await StartedAsync(head, ct);
 
             var completion = complete();
-            var cancel = Jobs.CancelAsync(follower, "racing the head", ct: ct).AsTask();
+            var cancel = Jobs.CancelAsync(follower, "racing the head", ct: ct);
             await Task.WhenAll(completion, cancel);
 
             Assert.Equal(CompleteExecutionsAction.Completed, (await completion).Action);
@@ -132,7 +132,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
             var batches = Enumerable
                 .Range(0, 4)
                 .Select(b => (b % 2 == 0 ? lanes : lanes.Reverse()).Select(l => Step(l, $"batch{b}-{l}")).ToList())
-                .Select(batch => Jobs.EnqueueJobsAsync(batch, ct).AsTask())
+                .Select(batch => Jobs.EnqueueJobsAsync(batch, ct))
                 .ToList();
             var completion = complete();
             await Task.WhenAll([.. batches, completion]);
@@ -169,10 +169,9 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Jobs.EnqueueAsync(gate, Step("", "gate") with { ParentJobId = parent.JobId }, ct);
 
         var batch = Jobs.EnqueueJobsAsync(
-                [.. Enumerable.Range(0, 4).Select(i => Defined($"child-{i}") with { ParentJobId = parent.JobId })],
-                ct
-            )
-            .AsTask();
+            [.. Enumerable.Range(0, 4).Select(i => Defined($"child-{i}") with { ParentJobId = parent.JobId })],
+            ct
+        );
         await LockWaitProbe.WaitAsync(Db, "enqueue_jobs", LockWait.Row, batch, gate, ct);
 
         await Db.ExecuteRawAsync(

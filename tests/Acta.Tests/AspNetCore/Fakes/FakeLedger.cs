@@ -36,31 +36,31 @@ internal sealed class FakeLedger : ILedger
             LastJobsQuery = query;
             return query.Cursor is not null
                 ? throw new InvalidPageCursorException("Cursor operation does not match this query.")
-                : ValueTask.FromResult(new ListJobsResponse([Job], null, false, 50, null));
+                : Task.FromResult(new ListJobsResponse([Job], null, false, 50, null));
         };
         ListEvents = (query, _) =>
         {
             LastEventsQuery = query;
-            return ValueTask.FromResult(new ListEventsResponse([], null, false, 50, query.IncludeTotal ? 0L : null));
+            return Task.FromResult(new ListEventsResponse([], null, false, 50, query.IncludeTotal ? 0L : null));
         };
-        GetOverview = static (query, _) => ValueTask.FromResult(Overview(query));
+        GetOverview = static (query, _) => Task.FromResult(Overview(query));
     }
 
     public ListJobsQuery? LastJobsQuery { get; private set; }
 
     public ListEventsQuery? LastEventsQuery { get; private set; }
 
-    public Func<ListJobsQuery, CancellationToken, ValueTask<ListJobsResponse>> ListJobs { get; set; }
+    public Func<ListJobsQuery, CancellationToken, Task<ListJobsResponse>> ListJobs { get; set; }
 
-    public Func<ListEventsQuery, CancellationToken, ValueTask<ListEventsResponse>> ListEvents { get; set; }
+    public Func<ListEventsQuery, CancellationToken, Task<ListEventsResponse>> ListEvents { get; set; }
 
-    public Func<GetOverviewQuery, CancellationToken, ValueTask<GetOverviewResponse>> GetOverview { get; set; }
+    public Func<GetOverviewQuery, CancellationToken, Task<GetOverviewResponse>> GetOverview { get; set; }
 
-    ValueTask<ListJobsResponse> ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct) => ListJobs(query, ct);
+    Task<ListJobsResponse> ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct) => ListJobs(query, ct);
 
-    ValueTask<ListEventsResponse> ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct) => ListEvents(query, ct);
+    Task<ListEventsResponse> ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct) => ListEvents(query, ct);
 
-    ValueTask<GetOverviewResponse> ILedger.GetOverviewAsync(GetOverviewQuery query, CancellationToken ct) => GetOverview(query, ct);
+    Task<GetOverviewResponse> ILedger.GetOverviewAsync(GetOverviewQuery query, CancellationToken ct) => GetOverview(query, ct);
 
     private static GetOverviewResponse Overview(GetOverviewQuery query) =>
         query.JobNamespace is not null && query.JobNamespace.Any(ch => !char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')

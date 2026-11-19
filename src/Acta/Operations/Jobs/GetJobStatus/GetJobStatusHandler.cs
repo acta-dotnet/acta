@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary><see cref="IJobs.GetStatusAsync"/>: resolves the lookup, then reads the status alone.</summary>
 internal sealed class GetJobStatusHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<GetJobStatusResponse?> HandleAsync(GetJobStatusQuery query, CancellationToken ct) =>
+    public async Task<GetJobStatusResponse?> HandleAsync(GetJobStatusQuery query, CancellationToken ct) =>
         await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is { JobId: var jobId } && await ReadAsync(jobId, ct) is { } status
             ? new GetJobStatusResponse(status)
             : null;

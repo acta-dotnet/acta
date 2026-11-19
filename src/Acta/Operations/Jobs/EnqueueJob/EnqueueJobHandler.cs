@@ -17,7 +17,7 @@ internal sealed class EnqueueJobHandler(
 {
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
 
-    public async ValueTask<EnqueueJobResponse> HandleAsync(EnqueueJobCommand command, CancellationToken ct)
+    public async Task<EnqueueJobResponse> HandleAsync(EnqueueJobCommand command, CancellationToken ct)
     {
         var request = command.Request;
         (request, var row) = JobEnqueue.Prepare(request, nameof(request), 0, _maxInlinePayloadBytes);

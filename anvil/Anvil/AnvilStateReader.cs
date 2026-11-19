@@ -37,8 +37,8 @@ public sealed class AnvilStateReader(
     private async ValueTask<AnvilState> ReadFromDbAsync(CancellationToken ct)
     {
         var runCountsTask = runCounts.ReadAsync();
-        var workerRowsTask = operations.Workers.ListAsync(new ListWorkersQuery(_namespaceName, PageSize: 50), ct).AsTask();
-        var eventsTask = operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct).AsTask();
+        var workerRowsTask = operations.Workers.ListAsync(new ListWorkersQuery(_namespaceName, PageSize: 50), ct);
+        var eventsTask = operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct);
         await Task.WhenAll(runCountsTask, workerRowsTask, eventsTask);
 
         var run = await runCountsTask;

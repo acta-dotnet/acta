@@ -208,7 +208,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         // policy-probe stores no result; asking for one is a caller contract mismatch, not a default(TResult). The generated
         // call cannot ask, since a result-less job's call carries no result type, so the wait by lookup is the path left.
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Jobs.WaitAsync<AddNumbersResult>(job, TimeSpan.FromSeconds(60), ct).AsTask()
+            Jobs.WaitAsync<AddNumbersResult>(job, TimeSpan.FromSeconds(60), ct)
         );
         Assert.Contains("no result", ex.Message);
     }
@@ -228,16 +228,15 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         // The deduplication key lands the wait on the restarted job, whose second execution fails for good: the
         // wait answers that failure and never the first execution's "old".
         var waiting = Jobs.CallAsync(
-                TestJobsManifest.OldThenFailingProbe(input),
-                new JobExecutionOptions
-                {
-                    DeduplicationKey = key,
-                    WaitTimeout = TimeSpan.FromSeconds(60),
-                    PollInterval = TimeSpan.FromMilliseconds(100),
-                },
-                ct
-            )
-            .AsTask();
+            TestJobsManifest.OldThenFailingProbe(input),
+            new JobExecutionOptions
+            {
+                DeduplicationKey = key,
+                WaitTimeout = TimeSpan.FromSeconds(60),
+                PollInterval = TimeSpan.FromMilliseconds(100),
+            },
+            ct
+        );
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(first, ct));
 
         var outcome = await waiting;
@@ -321,13 +320,13 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         {
             if (
                 targetMethod!.Name == nameof(IJobs.GetAsync)
-                && targetMethod.ReturnType == typeof(ValueTask<GetJobResponse?>)
+                && targetMethod.ReturnType == typeof(Task<GetJobResponse?>)
                 && _stale is { } stale
                 && _reads++ % 2 == 0
             )
             {
                 _stale = _alternate ? stale : null;
-                return new ValueTask<GetJobResponse?>(stale);
+                return Task.FromResult<GetJobResponse?>(stale);
             }
 
             return targetMethod.Invoke(_inner, args);
@@ -394,16 +393,14 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             Jobs.CallAsync(TestJobsManifest.AddNumbers(new AddNumbers(1, 1)), new JobExecutionOptions { WaitTimeout = TimeSpan.Zero }, ct)
-                .AsTask()
         );
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             Jobs.CallAsync(
-                    TestJobsManifest.AddNumbers(new AddNumbers(1, 1)),
-                    new JobExecutionOptions { PollInterval = TimeSpan.FromMilliseconds(-1) },
-                    ct
-                )
-                .AsTask()
+                TestJobsManifest.AddNumbers(new AddNumbers(1, 1)),
+                new JobExecutionOptions { PollInterval = TimeSpan.FromMilliseconds(-1) },
+                ct
+            )
         );
     }
 }

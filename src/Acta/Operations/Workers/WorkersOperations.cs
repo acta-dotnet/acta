@@ -11,10 +11,10 @@ internal sealed class WorkersOperations(
     ReleaseGoneWorkersHandler releaseGoneWorkers
 ) : IWorkers
 {
-    public ValueTask<GetWorkerResponse?> GetAsync(WorkerRef workerRef, CancellationToken ct = default) =>
+    public Task<GetWorkerResponse?> GetAsync(WorkerRef workerRef, CancellationToken ct = default) =>
         getWorker.HandleAsync(new GetWorkerQuery(workerRef), ct);
 
-    public ValueTask<ListWorkersResponse> ListAsync(ListWorkersQuery query, CancellationToken ct = default) =>
+    public Task<ListWorkersResponse> ListAsync(ListWorkersQuery query, CancellationToken ct = default) =>
         listWorkers.HandleAsync(query, ct);
 
     /// <summary>

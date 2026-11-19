@@ -17,7 +17,7 @@ internal sealed class RaiseJobSignalHandler(
 {
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
 
-    public async ValueTask<RaiseJobSignalResponse> HandleAsync(RaiseJobSignalCommand command, CancellationToken ct)
+    public async Task<RaiseJobSignalResponse> HandleAsync(RaiseJobSignalCommand command, CancellationToken ct)
     {
         var name = NameSyntax.Canonicalize(command.Name, "name", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var value = command.Value;

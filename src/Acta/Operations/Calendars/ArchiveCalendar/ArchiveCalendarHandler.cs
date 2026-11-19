@@ -9,7 +9,7 @@ internal sealed class ArchiveCalendarHandler(IDbSession session, ISqlDialect dia
 {
     private const int MaxReplans = 3;
 
-    public async ValueTask<ArchiveCalendarResponse> HandleAsync(ArchiveCalendarCommand command, CancellationToken ct)
+    public async Task<ArchiveCalendarResponse> HandleAsync(ArchiveCalendarCommand command, CancellationToken ct)
     {
         var (jobNamespace, calendarName) = CalendarControl.Names(command.Calendar);
 

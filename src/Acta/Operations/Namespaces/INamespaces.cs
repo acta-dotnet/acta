@@ -7,13 +7,13 @@ namespace Acta;
 public interface INamespaces
 {
     /// <summary>Point-read one registered namespace by name; null when it does not exist.</summary>
-    ValueTask<GetNamespaceResponse?> GetAsync(string jobNamespace, CancellationToken ct = default);
+    Task<GetNamespaceResponse?> GetAsync(string jobNamespace, CancellationToken ct = default);
 
     /// <summary>List registered namespaces alphabetically with their status, owner team, description, and version for the admin page.</summary>
-    ValueTask<ListNamespacesResponse> ListAsync(ListNamespacesQuery query, CancellationToken ct = default);
+    Task<ListNamespacesResponse> ListAsync(ListNamespacesQuery query, CancellationToken ct = default);
 
     /// <summary>Suspend a namespace by name (status-only, idempotent). Emits namespace.suspended.</summary>
-    ValueTask<SuspendNamespaceResponse> SuspendAsync(
+    Task<SuspendNamespaceResponse> SuspendAsync(
         string jobNamespace,
         string? reasonMessage = null,
         string? actor = null,
@@ -21,7 +21,7 @@ public interface INamespaces
     );
 
     /// <summary>Resume a suspended namespace by name (status-only, idempotent). Emits namespace.resumed.</summary>
-    ValueTask<ResumeNamespaceResponse> ResumeAsync(
+    Task<ResumeNamespaceResponse> ResumeAsync(
         string jobNamespace,
         string? reasonMessage = null,
         string? actor = null,
@@ -33,7 +33,7 @@ public interface INamespaces
     /// A value the build declares on its worker is the build's, and the next deploy rewrites it; one the build does not
     /// declare is the operator's and survives every deploy.
     /// </summary>
-    ValueTask<UpdateNamespaceResponse> UpdateAsync(
+    Task<UpdateNamespaceResponse> UpdateAsync(
         string jobNamespace,
         long expectedVersion,
         string? ownerTeam,

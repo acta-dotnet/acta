@@ -15,7 +15,7 @@ internal sealed class RetireDefinitionHandler(
     SignalsOperations signals
 )
 {
-    public async ValueTask<RetireDefinitionResponse> HandleAsync(RetireDefinitionCommand command, CancellationToken ct)
+    public async Task<RetireDefinitionResponse> HandleAsync(RetireDefinitionCommand command, CancellationToken ct)
     {
         if (
             await getDefinitionId.HandleAsync(new GetDefinitionIdQuery(command.JobNamespace, command.JobName), ct)
