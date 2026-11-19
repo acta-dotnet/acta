@@ -1670,13 +1670,16 @@
 
 ## Payloads
 
-### Every write past the cap fails, a handler's result included
-- **Contract:** Caller writes past the cap throw PayloadTooLargeException, and a handler result past it fails the job for good instead of being dropped.
+### Caller writes past the cap fail, and results past it are stored
+- **Contract:** Caller writes past the cap throw PayloadTooLargeException, and a handler's or a step's result past it is stored whole with a warning.
 - **Guarantees:**
   - Oversize enqueue input throws PayloadTooLargeException
   - Oversize signal value throws PayloadTooLargeException
   - Oversize handler variable write throws PayloadTooLargeException
-  - An oversize handler result fails the job for good
+  - A handler result past the cap is stored whole, the job succeeds on its first attempt, and a warning names it
+  - A step result past the cap is stored whole, the step and its job succeed, and a warning names the step
+  - A step result past the cap is replayed whole on the next execution, its body not run again
+  - A result past the completion batch's byte bound lands whole through the run loop
 
 ## Provider
 
@@ -2688,7 +2691,7 @@
 ### A result that cannot be recorded never runs its body again
 - **Contract:** A finished body whose result cannot be recorded fails its job for good instead of running again, and an at-most-once step stays unrun through a restart.
 - **Guarantees:**
-  - A step whose result is null, unserializable, or over the cap fails the job for good and is not run again
+  - A step whose result is null or unserializable fails the job for good and is not run again
   - A handler can catch the failure of a step whose result was not recorded and compensate
   - An at-most-once step whose result cannot be recorded never runs again, a restart of its job included
   - A handler whose result cannot be serialized fails the job for good on that attempt

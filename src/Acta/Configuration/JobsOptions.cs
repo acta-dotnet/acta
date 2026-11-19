@@ -154,14 +154,21 @@ public sealed class JobsOptions
     public bool RunSystemJobs { get; set; } = true;
 
     /// <summary>
-    /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>jobs.input</c>, <c>jobs_state.result</c>,
-    /// <c>checkpoints.value</c>, <c>steps.result</c>) and the largest HTTP request body, so a body the ledger would refuse is
-    /// refused at the edge with the same number. Caller-controlled writes (enqueue, variables, progress, signals) throw
-    /// <c>PayloadTooLargeException</c> past it, and a handler's or a step's result past it fails the job for good. An HTTP
-    /// body is a JSON envelope around its payload,
-    /// so on purpose a payload of this size does not fit a request, and one sent as base64 fits up to about three quarters of it.
+    /// The cap on what a caller sends, 1 MiB by default and at most 256 MB: the largest job input, variable, progress, signal
+    /// value or note detail, past which the write throws <c>PayloadTooLargeException</c> and stores nothing, and the largest
+    /// HTTP request body, so a body the ledger would refuse is refused at the edge with the same number. A handler's or a
+    /// step's result past it is still stored, with a warning, up to 16 MiB or this cap where it is set higher. An HTTP body
+    /// is a JSON envelope around its payload, so on purpose a payload of this size does not fit a request, and one sent as
+    /// base64 fits up to about three quarters of it.
     /// </summary>
     public int MaxInlinePayloadBytes { get; set; } = 1024 * 1024;
+
+    /// <summary>
+    /// The largest result a handler or a step stores under a given cap: 16 MiB, or the cap where a host set it higher. A
+    /// result comes from a body that has already run, so the cap only warns about it; past this ceiling the job or the step
+    /// fails for good.
+    /// </summary>
+    internal static int ResultCeilingBytes(int maxInlinePayloadBytes) => Math.Max(maxInlinePayloadBytes, 16 * 1024 * 1024);
 
     /// <summary>
     /// How often an alert that is still unresolved re-notifies its channel. An incident notifies once when it opens;

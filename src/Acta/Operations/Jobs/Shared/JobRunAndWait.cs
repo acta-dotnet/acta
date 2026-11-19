@@ -155,9 +155,8 @@ internal static class JobRunAndWait
                 }
 
                 throw new InvalidOperationException(
-                    $"Job {snapshot.JobRef} ('{snapshot.JobName}') succeeded but stored no result. Either it is "
-                        + "result-less, in which case wait without a result type, or its result exceeded "
-                        + "MaxInlinePayloadBytes and was dropped; the job's events say which."
+                    $"Job {snapshot.JobRef} ('{snapshot.JobName}') succeeded but stored no result: it is result-less, so wait "
+                        + "on it without a result type."
                 );
             default:
                 return JobOutcome<TResult>.Landed(snapshot.JobId, snapshot.JobRef, snapshot.Status);

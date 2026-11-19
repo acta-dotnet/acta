@@ -107,6 +107,12 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
+        Message = "A result of job ({ActaJobName}) ({ActaJobRef}) is past MaxInlinePayloadBytes ({ActaDetail}). The cap does not refuse a result, since its body already ran; results are outgrowing it."
+    )]
+    public static partial void ResultOverCap(ILogger log, string actaJobName, string actaJobRef, string actaDetail);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
         Message = "Child wait timeout cancel skipped: the awaited job ({ActaDetail}) is not a child of this one, so its wait could only ever expire."
     )]
     public static partial void ChildWaitCancelSkipped(ILogger log, string actaDetail);

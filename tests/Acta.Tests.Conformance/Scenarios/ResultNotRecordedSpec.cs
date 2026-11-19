@@ -1,6 +1,5 @@
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
@@ -20,22 +19,14 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-step-null-result",
     "job-step-null-result-at-most-once",
     "job-step-null-result-compensated",
-    "job-step-oversize-result",
     "job-step-unserializable-result",
     "unserializable-result"
 )]
 public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ResultNotRecordedSpec>>
 {
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 1024);
-    }
-
-    [Theory(DisplayName = "A step whose result is null, unserializable, or over the cap fails the job for good and is not run again")]
+    [Theory(DisplayName = "A step whose result is null or unserializable fails the job for good and is not run again")]
     [InlineData("job-step-null-result", "returned null")]
     [InlineData("job-step-unserializable-result", "could not be serialized")]
-    [InlineData("job-step-oversize-result", "MaxInlinePayloadBytes")]
     public async Task Unrecorded_step_result_fails_the_job_without_a_rerun(string jobName, string why)
     {
         var ct = TestContext.Current.CancellationToken;

@@ -12,7 +12,7 @@ A step can return a value. Each result is recorded once, so the next step takes 
 
 ## 1. Return a value from a step
 
-Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs. A body that returns null, or a result over `MaxInlinePayloadBytes`, fails the job for good, since a retry would run the finished body again.
+Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs. A body that returns null fails the job for good, since a retry would run the finished body again. A result over `MaxInlinePayloadBytes` is stored with a warning, up to 16 MiB.
 
 `step-chain.cs` (excerpt):
 

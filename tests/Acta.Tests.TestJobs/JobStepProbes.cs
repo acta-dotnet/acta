@@ -132,8 +132,8 @@ public static class JobStepProbes
         );
     }
 
-    // A body that finishes and returns what cannot be recorded: null, or a string past the cap a spec sets. The default
-    // budget has attempts left, so the body running once proves the failure is not retried.
+    // A body that finishes and returns what cannot be recorded: null, or what cannot be serialized. The default budget has
+    // attempts left, so the body running once proves the failure is not retried.
     [Job("job-step-null-result")]
     public static Task<string> StepNullResult(JobContext ctx, CancellationToken ct) =>
         ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), ct);
@@ -142,9 +142,28 @@ public static class JobStepProbes
     public static Task<string> StepNullResultAtMostOnce(JobContext ctx, CancellationToken ct) =>
         ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), options => options.AtMostOnce(), ct);
 
+    /// <summary>The length of the text the oversize step probes return: past the small cap a spec sets.</summary>
+    public const int OversizeStepResultLength = 4096;
+
+    // A step whose result is past the cap a spec sets, which the job returns as its own.
     [Job("job-step-oversize-result")]
     public static Task<string> StepOversizeResult(JobContext ctx, CancellationToken ct) =>
-        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, new string('x', 4096)), ct);
+        ctx.RunStepAsync("oversize", _ => OversizeAsync(ctx), ct);
+
+    // The same step, then a wait on a signal: the execution after the raise replays the step from its stored result.
+    [Job("job-step-oversize-result-replay")]
+    public static async Task<string> StepOversizeResultReplay(JobContext ctx, CancellationToken ct)
+    {
+        var value = await ctx.RunStepAsync("oversize", _ => OversizeAsync(ctx), ct);
+        await ctx.WaitSignalAsync("proceed", ct);
+        return value;
+    }
+
+    private static Task<string> OversizeAsync(JobContext ctx)
+    {
+        RecordInvocation(ctx.JobId);
+        return Task.FromResult(PayloadProbes.Text(OversizeStepResultLength));
+    }
 
     [Job("job-step-unserializable-result")]
     public static async Task<long> StepUnserializableResult(JobContext ctx, CancellationToken ct) =>

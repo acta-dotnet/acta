@@ -466,9 +466,8 @@ internal sealed partial class RuntimeJobContext(
         && (await _alerts.ResolveAsync(open, reasonMessage, JobRef.ToString(), ct)).Action == ControlAction.Applied;
 
     /// <summary>
-    /// Caller-controlled handler writes (variables, progress) HARD-THROW past the inline cap; the
-    /// write never reaches storage. Handler results take a separate warn-and-drop path in
-    /// HandlerInvocation.
+    /// A write the handler sends (a variable, progress, a note's detail) throws past the inline cap and never reaches
+    /// storage.
     /// </summary>
     private void EnsureInlineSize(string entryPoint, JobPayload payload)
     {

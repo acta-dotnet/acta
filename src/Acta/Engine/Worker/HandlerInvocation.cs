@@ -49,7 +49,7 @@ internal sealed class HandlerInvocation(
             {
                 throw new SwallowedControlException(swallowed);
             }
-            completion = Succeeded(descriptor, output, jobContext.CancellationToken);
+            completion = Succeeded(descriptor, output, jobContext);
         }
         catch (Exception) when (jobContext.Fenced)
         {
@@ -163,7 +163,7 @@ internal sealed class HandlerInvocation(
 
     /// <summary>The attempt's success, with its result recorded; a result that cannot be recorded throws to InvokeAsync.</summary>
     [DebuggerDisableUserUnhandledExceptions]
-    private ExecutionCompletion Succeeded(JobDescriptor descriptor, JobHandlerOutput invocation, CancellationToken attempt)
+    private ExecutionCompletion Succeeded(JobDescriptor descriptor, JobHandlerOutput invocation, RuntimeJobContext jobContext)
     {
         var succeeded = new ExecutionCompletion(CompletionKind.Succeeded);
         if (!invocation.HasResult)
@@ -193,21 +193,38 @@ internal sealed class HandlerInvocation(
             payload = serializeResult(serializers.Resolve(resultFormat.Id), invocation.Result);
         }
         catch (Exception ex)
-            when (ex is not JobControlException && (ex is not OperationCanceledException || !attempt.IsCancellationRequested))
+            when (ex is not JobControlException
+                && (ex is not OperationCanceledException || !jobContext.CancellationToken.IsCancellationRequested)
+            )
         {
             throw new ResultNotRecordedException($"The handler's result could not be serialized: {ex.Message}", ex);
         }
 
-        return payload.Data.Length <= maxInlinePayloadBytes
-            ? succeeded with
-            {
-                ResultFormatId = payload.Format.Id,
-                Result = payload.Data,
-            }
-            : throw new ResultNotRecordedException(
-                $"The handler's result is {payload.Data.Length} bytes, over the MaxInlinePayloadBytes cap of "
-                    + $"{maxInlinePayloadBytes} bytes: store a large result yourself and return a reference to it."
+        var size = payload.Data.Length;
+        var ceiling = JobsOptions.ResultCeilingBytes(maxInlinePayloadBytes);
+        if (size > ceiling)
+        {
+            throw new ResultNotRecordedException(
+                $"The handler's result is {size} bytes, over the {ceiling}-byte ceiling on a stored result: "
+                    + "store a large result yourself and return a reference to it."
             );
+        }
+
+        if (size > maxInlinePayloadBytes && log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.ResultOverCap(
+                log,
+                descriptor.JobName,
+                jobContext.JobRef.ToString(),
+                $"the handler's result: {size} bytes, cap {maxInlinePayloadBytes} bytes"
+            );
+        }
+
+        return succeeded with
+        {
+            ResultFormatId = payload.Format.Id,
+            Result = payload.Data,
+        };
     }
 
     /// <summary>

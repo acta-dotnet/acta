@@ -179,9 +179,9 @@ A step retries through its job: a body that throws fails the attempt, the job's 
 `Backoff` retry it (by default 15 attempts, backing off from a minute to a day, about 4.4 days in all), and
 the retry replays the steps that succeeded and runs this one again. A wait
 inside a step body works: the resume runs the body up to the wait, which returns what it has, and
-charges nothing. A step with a result returns a value: a body that returns null, or a result past
-`MaxInlinePayloadBytes`, fails the job for good, since a retry would run the body again; a step with
-nothing to return takes a body that returns no value.
+charges nothing. A step with a result returns a value: a body that returns null fails the job for
+good, since a retry would run the body again, and a result past `MaxInlinePayloadBytes` is stored
+with a warning, up to 16 MiB; a step with nothing to return takes a body that returns no value.
 
 Every exception Acta has no reason to call final is retried, an `ArgumentException` or a validation
 error included. Declare the types that can never succeed once, in `UseActa`:
@@ -465,10 +465,11 @@ again.
 
 ## Payloads
 
-Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlinePayloadBytes`).
-Caller-supplied oversized writes throw `PayloadTooLargeException`, and an oversized handler or step
-RESULT fails the job for good, since a retry would run the finished body again. Big artifacts
-belong in blob storage with the job carrying a reference: URI, checksum, size.
+What a caller sends inline (inputs, variables, signal values) is capped at 1 MiB (`MaxInlinePayloadBytes`).
+Caller-supplied oversized writes throw `PayloadTooLargeException`. A handler or step RESULT past the
+cap is stored, since its body already ran, and the worker logs a warning; past 16 MiB, or past the cap
+where a host set it higher, it fails the job for good. Big artifacts belong in blob storage with the
+job carrying a reference: URI, checksum, size.
 
 By default an input with no data uses the `none` format, `byte[]`/`ReadOnlyMemory<byte>` use `bytes`, and every
 other input, scalars included, is JSON (`"hello"`, `42`); an explicit or custom format overrides that. A raw or

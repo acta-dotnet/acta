@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Return a value from a step</h2>
-<p>Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs. A body that returns null, or a result over <code>MaxInlinePayloadBytes</code>, fails the job for good, since a retry would run the finished body again.</p>
+<p>Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs. A body that returns null fails the job for good, since a retry would run the finished body again. A result over <code>MaxInlinePayloadBytes</code> is stored with a warning, up to 16 MiB.</p>
 <figure class="listing"><figcaption><span class="file">step-chain.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> fetched = <span class="k">await</span> context.RunStepAsync(</span>
 <span class="hl">    <span class="s">&quot;fetch&quot;</span>,</span>
 <span class="hl">    <span class="k">async</span> inner =&gt;</span>
@@ -154,8 +154,8 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
         {
             <span class="c">// learn: 1. Return a value from a step</span>
             <span class="c">// Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs</span>
-            <span class="c">// and no step re-runs. A body that returns null, or a result over `MaxInlinePayloadBytes`, fails the job</span>
-            <span class="c">// for good, since a retry would run the finished body again.</span>
+            <span class="c">// and no step re-runs. A body that returns null fails the job for good, since a retry would run the</span>
+            <span class="c">// finished body again. A result over `MaxInlinePayloadBytes` is stored with a warning, up to 16 MiB.</span>
 <span class="hl">            <span class="k">var</span> fetched = <span class="k">await</span> context.RunStepAsync(</span>
 <span class="hl">                <span class="s">&quot;fetch&quot;</span>,</span>
 <span class="hl">                <span class="k">async</span> inner =&gt;</span>

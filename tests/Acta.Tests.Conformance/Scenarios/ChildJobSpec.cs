@@ -30,7 +30,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-parent-of-restarted-child",
     "job-parent-one",
     "job-wait-signal",
-    "old-then-oversize-result-probe"
+    "old-then-failing-probe"
 )]
 public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ChildJobSpec>>
 {
@@ -421,8 +421,8 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
 
-        // The parent is held while an operator restarts the succeeded child, whose second execution fails on a result past
-        // the cap after the first execution answered "old".
+        // The parent is held while an operator restarts the succeeded child, whose second execution fails for good
+        // after the first execution answered "old".
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(parent, ct: ct)).Action);
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(child.JobRef), ct: ct)).Action);
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(child.Id, ct));

@@ -132,7 +132,7 @@ internal static class ApiFilters
     {
         var request = context.HttpContext.Request;
 
-        // The one payload ceiling, read from the runtime options. A body the ledger would
+        // The one payload cap, read from the runtime options. A body the ledger would
         // refuse is refused here, with the same number rather than a second one.
         var cap = context.HttpContext.RequestServices.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
 

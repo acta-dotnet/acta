@@ -722,12 +722,16 @@ needs inflating to accommodate them.
 
 Inline payloads are for durable instructions and small results, not file storage. The default
 `MaxInlinePayloadBytes` is 1 MiB. It is the hard cap for caller-controlled inline writes such as
-enqueue inputs, variables, progress, and signal values. Handler results are measured
-against the same cap after the handler has run, so one past it fails the job for good with
-`non-retryable-exception`, since a retry would run the handler again. A step
-result past it fails the step: uncaught, the job fails for good with `non-retryable-exception`, since its
-body has run too and a retry would run it again. A restart runs an ordinary step again and finds an
-at-most-once one interrupted.
+enqueue inputs, variables, progress, and signal values.
+
+A handler's or a step's result is measured after its body has run, so one past the cap is stored,
+and the worker logs a warning that names the job, and the step where there is one:
+`A result of job (...) is past MaxInlinePayloadBytes`. Treat that line as the signal to move the
+body out of the job. The result ceiling is 16 MiB, or the cap where you set it higher. A handler
+result past the ceiling fails the job for good with `non-retryable-exception`, since a retry would
+run the handler again. A step result past it fails the step: uncaught, the job fails for good with
+`non-retryable-exception`, since its body has run too and a retry would run it again. A restart runs
+an ordinary step again and finds an at-most-once one interrupted.
 
 For large files, exports, media, archives, reports, ML inputs, or sensitive data, store the body in
 file/blob/object storage and enqueue a small reference that includes enough information to verify

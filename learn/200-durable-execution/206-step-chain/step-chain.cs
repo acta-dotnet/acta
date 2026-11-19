@@ -42,8 +42,8 @@ namespace Acta.Learn.StepChain
         {
             // learn: 1. Return a value from a step
             // Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs
-            // and no step re-runs. A body that returns null, or a result over `MaxInlinePayloadBytes`, fails the job
-            // for good, since a retry would run the finished body again.
+            // and no step re-runs. A body that returns null fails the job for good, since a retry would run the
+            // finished body again. A result over `MaxInlinePayloadBytes` is stored with a warning, up to 16 MiB.
             var fetched = await context.RunStepAsync(
                 "fetch",
                 async inner =>

@@ -3,14 +3,23 @@ using Acta;
 namespace TestJobs;
 
 /// <summary>
-/// Handlers exercising <c>MaxInlinePayloadBytes</c> enforcement inside a running handler: an oversize
-/// variable write must throw <c>PayloadTooLargeException</c> (caller-controlled), while an oversize
-/// handler result fails the job for good, since a retry would run the finished handler again.
+/// Handlers exercising <c>MaxInlinePayloadBytes</c> inside a running handler: an oversize variable write must throw
+/// <c>PayloadTooLargeException</c>, since the handler sends it, while a result past the cap is stored, since its body has
+/// already run.
 /// </summary>
 public static class PayloadProbes
 {
     // Comfortably larger than the small cap the spec configures.
     private static string BigValue() => new('x', 8 * 1024);
+
+    /// <summary>A text of <paramref name="length"/> letters in a repeating run, so a read that lost or reordered bytes differs.</summary>
+    public static string Text(int length) => string.Create(length, 0, static (chars, _) =>
+        {
+            for (var i = 0; i < chars.Length; i++)
+            {
+                chars[i] = (char)('a' + (i % 26));
+            }
+        });
 
     /// <summary>Returns "caught" when an oversize variable write was rejected with the expected exception.</summary>
     [Job("oversize-variable-probe")]
@@ -27,17 +36,20 @@ public static class PayloadProbes
         }
     }
 
-    /// <summary>Returns an oversize result, which fails the job for good.</summary>
+    /// <summary>Returns <see cref="Text"/> of the length its input names, which a spec sets past the cap.</summary>
     [Job("oversize-result-probe")]
-    public static Task<string> ReturnOversizeResult(JobContext ctx, CancellationToken ct) => Task.FromResult(BigValue());
+    public static Task<string> ReturnOversizeResult(OversizeResultInput input, JobContext ctx, CancellationToken ct) =>
+        Task.FromResult(Text(input.Length));
 
     /// <summary>
-    /// Returns "old" from its first execution and, from any later one, a string past the default cap, which fails that
-    /// execution: a restarted job fails, and no read answers the first execution's "old" for it.
+    /// Returns "old" from its first execution and throws a never-retried exception from any later one: a restarted job
+    /// fails for good, and no read answers the first execution's "old" for it.
     /// </summary>
-    [Job("old-then-oversize-result-probe")]
-    public static Task<string> ReturnOldThenOversizeResult(OldThenOversizeInput input, JobContext ctx, CancellationToken ct) =>
-        Task.FromResult(ctx.ExecutionNumber == 1 ? "old" : new string('x', new JobsOptions().MaxInlinePayloadBytes + 1));
+    [Job("old-then-failing-probe")]
+    public static Task<string> ReturnOldThenFail(OldThenFailingInput input, JobContext ctx, CancellationToken ct) =>
+        ctx.ExecutionNumber == 1 ? Task.FromResult("old") : throw new NotSupportedException("The second execution fails.");
 }
 
-public sealed record OldThenOversizeInput(int Ignored);
+public sealed record OversizeResultInput(int Length);
+
+public sealed record OldThenFailingInput(int Ignored);

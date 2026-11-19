@@ -244,7 +244,7 @@ internal sealed class WorkerExecutorHarness(
         }
 
         // One options instance feeds the attempt context and the invocation, so a configured cap moves the
-        // handler-write limit and the result-drop limit together, as it does in a host.
+        // handler-write limit and the result warning together, as it does in a host.
         var options = new JobsOptions();
         if (maxInlinePayloadBytes is { } configuredCap)
         {

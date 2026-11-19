@@ -315,7 +315,7 @@ public abstract partial class JobContext
     /// <param name="message">The note line; truncated to the event message column width.</param>
     /// <param name="detail">
     /// Structured context, stored as JSON. Bounded by <c>JobsOptions.MaxInlinePayloadBytes</c>, the
-    /// same ceiling as every other caller-controlled write, and a payload past it throws
+    /// same cap as every other caller-controlled write, and a payload past it throws
     /// <see cref="PayloadTooLargeException"/> rather than truncating or surfacing a driver error.
     /// </param>
     /// <param name="ct">Cancellation token, linked to the job's own.</param>

@@ -4,6 +4,10 @@
 
 Not yet released.
 
+### What a consumer must change
+
+**Watch the log where a handler or a step returns a result over `MaxInlinePayloadBytes`**: rc.14 failed that job for good, and rc.15 stores the result. The body has already run, so the cap now only warns: the worker logs `A result of job (...) is past MaxInlinePayloadBytes`, naming the job, the step where there is one, the size and the cap. The result ceiling is 16 MiB, or the cap where a host set it higher; a result past it fails the job for good as before, with a message that names the ceiling. Everything a caller sends (an input, a variable, progress, a signal value, an HTTP body) is refused past the cap as before. A step that caught `StepFailedException` for a result between the cap and the ceiling no longer sees one.
+
 ### Additions
 
 - `j.DoNotRetry<TException>()` in `UseActa` declares an exception type that ends a job at once. A handler that throws it, or a type derived from it, fails at once with no retry, no failure charged and reason `non-retryable-exception`, as `NotSupportedException` always has; a permanent job fails that firing and returns to `Idle`. `ctx.EndsJob(ex)` answers true for it, so a compensating catch runs. Only the thrown exception is matched, never one it wraps, and Acta's own `sys.` jobs keep the built-in list. Nothing new is built in: an `ArgumentException` is still retried until the application declares it. A declared type thrown by an attempt that was already cancelled is left to the retry budget.

@@ -21,7 +21,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and CallAsync waits."
 )]
-[Deploys("add-numbers", "null-result", "old-then-oversize-result-probe", "policy-probe", "scalar-double-echo", "scalar-int-echo")]
+[Deploys("add-numbers", "null-result", "old-then-failing-probe", "policy-probe", "scalar-double-echo", "scalar-int-echo")]
 public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<TypedEnqueueSpec>>
 {
     protected override bool RunAsWorker => true;
@@ -218,7 +218,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
     public async Task ExecuteAndWaitAsync_on_a_restarted_dedup_hit_reads_only_the_succeeding_execution_result()
     {
         var ct = TestContext.Current.CancellationToken;
-        var input = new OldThenOversizeInput(1);
+        var input = new OldThenFailingInput(1);
         const string key = "typed-restarted-1";
 
         var first = await Jobs.EnqueueAsync(input, o => o.DeduplicationKey(key), ct);
@@ -226,10 +226,10 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal("old", await Jobs.GetResultAsync<string>(first, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(first, ct: ct)).Action);
 
-        // The deduplication key lands the wait on the restarted job, whose second execution fails on a result past the
-        // cap: the wait answers that failure and never the first execution's "old".
+        // The deduplication key lands the wait on the restarted job, whose second execution fails for good: the
+        // wait answers that failure and never the first execution's "old".
         var waiting = Jobs.CallAsync(
-                TestJobsManifest.OldThenOversizeResultProbe(input),
+                TestJobsManifest.OldThenFailingProbe(input),
                 new JobExecutionOptions
                 {
                     DeduplicationKey = key,

@@ -113,11 +113,7 @@ internal sealed partial class RuntimeJobContext
             payload =
                 !storeResult ? JobPayload.None
                 : value is null ? throw Unrecorded("it returned null for a non-null result type", cause: null)
-                : SerializeStepResult(value);
-        }
-        catch (PayloadTooLargeException ex)
-        {
-            throw Unrecorded(ex.Message.TrimEnd('.'), ex);
+                : JsonSerializer().Serialize(value);
         }
         catch (Exception ex)
             when (ex is not (JobControlException or StepFailedException)
@@ -125,6 +121,18 @@ internal sealed partial class RuntimeJobContext
             )
         {
             throw Unrecorded($"it could not be serialized: {ex.Message.TrimEnd('.')}", ex);
+        }
+
+        var size = payload.Data.Length;
+        var ceiling = JobsOptions.ResultCeilingBytes(_maxInlinePayloadBytes);
+        if (size > ceiling)
+        {
+            throw Unrecorded($"it is {size} bytes, over the {ceiling}-byte ceiling on a stored result", cause: null);
+        }
+
+        if (size > _maxInlinePayloadBytes && _log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.ResultOverCap(_log, JobName, JobRef.ToString(), $"step '{name}': {size} bytes, cap {_maxInlinePayloadBytes} bytes");
         }
 
         var success = await CompleteJobStepAsync(
@@ -178,13 +186,6 @@ internal sealed partial class RuntimeJobContext
             ActaLog.StepFailed(_log, JobName, JobRef.ToString(), $"step '{name}': {message}");
         }
         return new StepFailedException(name, message, cause);
-    }
-
-    private JobPayload SerializeStepResult<TResult>(TResult value)
-    {
-        var payload = JsonSerializer().Serialize(value);
-        EnsureInlineSize("step result", payload);
-        return payload;
     }
 
     /// <summary>A replayed step's stored result; a serializer that cannot read it throws to the attempt as a contract mismatch.</summary>
