@@ -3977,7 +3977,7 @@ BEGIN
             0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     ELSE
         -- An ordinary step with no success recorded runs again, its row unchanged.
-        RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
+        RETURN QUERY SELECT 2 /* StartJobStepOutcomeCode.InvokeAgain */::SMALLINT, v_version,
             0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     END IF;
 END;
@@ -4526,5 +4526,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120002222_init')
+VALUES ('M20261120124658_init')
 ON CONFLICT (name) DO NOTHING;

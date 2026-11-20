@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     "start-job-step.decision",
     "Starting a step invokes, replays, or refuses from the step's state",
     Area = "Execution",
-    Contract = "A step start invokes a new or unfinished ordinary step, replays a success, interrupts a re-entered at-most-once step, and refuses a terminal failure."
+    Contract = "A start invokes a new step and an unfinished ordinary one again, replays a success, interrupts a re-entered at-most-once step, and refuses a terminal failure."
 )]
 [Deploys("add-numbers", "charge")]
 public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<StartJobStepSpec>>
@@ -45,7 +45,7 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, J
 
         var again = await Execution.StartJobStepAsync(job, StepName, atMostOnce: false, ct);
 
-        Assert.Equal(StartJobStepOutcomeCode.Invoke, again.Outcome);
+        Assert.Equal(StartJobStepOutcomeCode.InvokeAgain, again.Outcome);
         Assert.Equal(before.Version, again.Version);
         var after = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Pending, after.Status);

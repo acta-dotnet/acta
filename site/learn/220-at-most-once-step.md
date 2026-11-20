@@ -106,7 +106,7 @@ Proven by other suites. The release check does not run this program. Needs two p
 
 ## Next
 
-- [How to build a checkout that waits for a review and a timer](/learn/201-durable-checkout.md)
+- [How to ask the provider before repeating a step after a crash](/learn/224-check-step.md)
 
 ## More
 

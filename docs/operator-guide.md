@@ -540,7 +540,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261120002222_init to schema acta
+applied M20261120124658_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -808,7 +808,7 @@ seconds for the two lags that can run to hours, `acta.alerts.lag` and `acta.sche
 | `acta.executions` | execution | Completed job executions, tagged by outcome: succeeded, failed, rescheduled, slept, suspended, cancelled, or paused. |
 | `acta.executions.duration` | ms | Handler execution duration. |
 | `acta.claims` | claim | Claim attempts, tagged by result: claimed (counted per job) or nothing-claimed, which an idle poll records too. |
-| `acta.steps` | step | Durable step outcomes, tagged by outcome: succeeded (the body ran), reused (answered from its record), failed, or interrupted. Measured on the handler's own flow. |
+| `acta.steps` | step | Durable step outcomes, tagged by outcome: succeeded (the body ran), reused (answered from its record), found (answered by its check; the body did not run), failed, or interrupted. Measured on the handler's own flow. |
 | `acta.jobs.inflight` | job | Jobs this process holds, tagged by state: claimed, executing, or finalizing. |
 | `acta.completions.batch` | completion | Completions the finalizer wrote in one call. |
 | `acta.completions.unsettled` | completion | Completion writes still repeating after a failure. |
@@ -922,8 +922,8 @@ The lease expires and recovery makes the job runnable again within budget, on th
 code may run again. Succeeded durable steps return their stored results; an in-progress step whose
 outcome was not recorded follows its configured semantics.
 
-External systems are not rolled back. Use deduplication keys, reconciliation, or carefully selected
-`AtMostOnce()` steps when duplicate execution is worse than an ambiguous outcome.
+External systems are not rolled back. Use deduplication keys, a step with a check, reconciliation, or
+carefully selected `AtMostOnce()` steps when duplicate execution is worse than an ambiguous outcome.
 
 ### …the external call succeeds but Acta cannot record completion?
 
@@ -1475,7 +1475,8 @@ SELECT job_id, job_ref, namespace_name, definition_name, step_name, step_status,
 ```
 
 A succeeded step replays from stored result. A step whose body throws fails the job's attempt and
-stays `pending`, so the job's retry, under its own budget, runs it again; only an at-most-once step
+stays `pending`, so the job's retry, under its own budget, runs it again, or asks its check first when it has
+one; only an at-most-once step
 ends `failed` or `interrupted`, with the failure on its row.
 
 ### Recurring Schedules

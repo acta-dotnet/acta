@@ -95,6 +95,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 - Only work inside a step is skipped. Every bare line between steps runs again each time the handler is entered.
 - A step is recorded when it finishes. A crash after the outside call but before the record runs the body again, so give the outside system a stable key taken from the job, never from the attempt.
+- When the outside system can be asked whether it saw the effect, give the step a check: [Ask the provider before repeating a step after a crash](/learn/224-check-step.md).
 - When one more attempt would be worse than not knowing, such as capturing a payment, use an at-most-once step: [Refuse to repeat a side effect after a crash](/learn/220-at-most-once-step.md).
 - `"start-freeze-cycle"` is the key to the step's stored result. Rename it and the step runs again for every box that already ran it.
 - The name in `[Job("freeze-box")]` and the namespace in `Run<DurableStepJobs>("durable-step")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.

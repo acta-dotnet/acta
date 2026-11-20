@@ -11,6 +11,7 @@ internal sealed partial class RuntimeJobContext
         string name,
         Func<CancellationToken, Task> body,
         StepOptions options,
+        Func<CancellationToken, Task<bool>>? check,
         CancellationToken ct
     ) =>
         RunStepImplAsync<bool>(
@@ -23,6 +24,7 @@ internal sealed partial class RuntimeJobContext
             },
             storeResult: false,
             options,
+            check is null ? null : async token => (await check(token), false),
             ct
         );
 
@@ -30,14 +32,15 @@ internal sealed partial class RuntimeJobContext
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
+        Func<CancellationToken, Task<(bool Found, TResult Value)>>? check,
         CancellationToken ct
-    ) => RunStepImplAsync(name, body, storeResult: true, options, ct);
+    ) => RunStepImplAsync(name, body, storeResult: true, options, check, ct);
 
     /// <summary>
-    /// Durable step orchestration: start (invoke, replay, failed, or interrupted), run the body, record the success.
-    /// An ordinary body's failure propagates and fails the attempt, so the job's retry runs it again; an at-most-once
-    /// body's failure is recorded terminal first, unless its outcome is unknown. A debugger stops on the failure once,
-    /// where the attempt ends.
+    /// Durable step orchestration: start (invoke, replay, failed, or interrupted), ask the check of a step started before,
+    /// run the body unless the check found its effect, record the success. An ordinary body's failure, or a check's,
+    /// propagates and fails the attempt, so the job's retry runs it again; an at-most-once body's failure is recorded
+    /// terminal first, unless its outcome is unknown. A debugger stops on the failure once, where the attempt ends.
     /// </summary>
     [DebuggerDisableUserUnhandledExceptions]
     private async Task<TResult> RunStepImplAsync<TResult>(
@@ -45,6 +48,7 @@ internal sealed partial class RuntimeJobContext
         Func<CancellationToken, Task<TResult>> body,
         bool storeResult,
         StepOptions options,
+        Func<CancellationToken, Task<(bool Found, TResult Value)>>? check,
         CancellationToken ct
     )
     {
@@ -63,15 +67,23 @@ internal sealed partial class RuntimeJobContext
                 RecordStep(name, "interrupted");
                 throw new StepInterruptedException(name);
             case StartJobStepOutcomeCode.Invoke:
+            case StartJobStepOutcomeCode.InvokeAgain:
                 break;
             default:
                 throw new InvalidOperationException($"start_job_step returned an unknown outcome for job {JobId}, step '{name}'.");
         }
 
         TResult value;
+        (bool Found, TResult Value) found = default;
         try
         {
-            value = await body(ct);
+            // Only a step started before can have had its effect without a record, so only then is the outside world asked.
+            if (check is not null && start.Outcome == StartJobStepOutcomeCode.InvokeAgain)
+            {
+                found = await check(ct);
+            }
+
+            value = found.Found ? found.Value : await body(ct);
         }
         catch (JobControlException control) when (options.AtMostOnce && control is not (HandlerFailException or HandlerCancelException))
         {
@@ -79,6 +91,13 @@ internal sealed partial class RuntimeJobContext
             // find the step started and interrupt it, so it is refused here. Fail and cancel end the job and pass
             // through.
             throw await RecordFailureAsync(name, start.Version, AtMostOnceSuspensionRefused($"A {control.GetType().Name}", name), ct);
+        }
+        catch (JobControlException control) when (check is not null && control is not (HandlerFailException or HandlerCancelException))
+        {
+            // The same carried wait in a check step: its resume would ask the check, which can find the body's effect and
+            // skip the rest of the body. The refusal fails the job at once, the step left as it is.
+            RecordStep(name, "failed");
+            throw CheckStepSuspensionRefused($"A {control.GetType().Name}", name);
         }
         catch (Exception ex)
             when (ex is not (JobControlException or ExecutionFencedException)
@@ -105,9 +124,9 @@ internal sealed partial class RuntimeJobContext
             throw await RecordFailureAsync(name, start.Version, ex, ct);
         }
 
-        // The body has run, and a null result, or one whose JSON is null, stores none. A result that cannot be recorded fails
-        // the step for good rather than the attempt, whose retry would run the body again. The step is left started, so an
-        // at-most-once body is not run by a restart either.
+        // The body has run, or the check found its effect, and a null result, or one whose JSON is null, stores none. A result
+        // that cannot be recorded fails the step for good rather than the attempt, whose retry would run the body again. The
+        // step is left started, so an at-most-once body is not run by a restart either.
         JobPayload payload;
         try
         {
@@ -156,13 +175,19 @@ internal sealed partial class RuntimeJobContext
             throw new StepOwnershipLostException(name);
         }
 
-        RecordStep(name, "succeeded");
+        RecordStep(name, found.Found ? "found" : "succeeded");
         return value;
 
         StepFailedException Unrecorded(string why, Exception? cause)
         {
             RecordStep(name, "failed");
-            return new StepFailedException(name, $"its body ran, and its result was not recorded: {why}", cause);
+            return new StepFailedException(
+                name,
+                found.Found
+                    ? $"its check found its effect, and the value found was not recorded: {why}"
+                    : $"its body ran, and its result was not recorded: {why}",
+                cause
+            );
         }
     }
 

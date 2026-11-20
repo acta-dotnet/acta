@@ -112,7 +112,7 @@ BEGIN
         ELSE
             BEGIN
                 -- An ordinary step with no success recorded runs again, its row unchanged.
-                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
+                SET @outcome = 2 /* StartJobStepOutcomeCode.InvokeAgain */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rmsg = NULL;

@@ -14,8 +14,8 @@ public enum StepStatusCode : byte
     Unspecified = 0,
 
     /// <summary>Started, with no success recorded. <c>Result</c> is NULL. An ordinary step whose body threw stays here,
-    /// and the job's retry runs it again.</summary>
-    [Code("pending", "Started, with no success recorded; a retry of the job runs it again.")]
+    /// and the job's retry runs it again, or asks its check first when the step has one.</summary>
+    [Code("pending", "Started, with no success recorded; a retry of the job runs it again, or asks its check first when the step has one.")]
     Pending = 10,
 
     /// <summary>Terminal success. <c>Result</c> carries the encoded payload (or <c>ResultFormatId = 0</c>

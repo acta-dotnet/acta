@@ -391,7 +391,7 @@ Treat the arrangement as a reading aid. Only `JobPriorityCode`, `AlertSeverityCo
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Step status not recognized by this build; the row was written by a newer Acta. | Active |
-| `Pending` | 10 | `pending` | Started, with no success recorded; a retry of the job runs it again. | Active |
+| `Pending` | 10 | `pending` | Started, with no success recorded; a retry of the job runs it again, or asks its check first when the step has one. | Active |
 | `Succeeded` | 100 | `succeeded` | Completed; its result, when it has one, is stored. | Active |
 | `Failed` | 200 | `failed` | An at-most-once step's body threw, so it does not run again; the job's handler receives the failure. | Active |
 | `Interrupted` | 230 | `interrupted` | A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption. | Active |

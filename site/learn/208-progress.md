@@ -2,7 +2,7 @@
 
 `SetProgressAsync` stores how far the job has come as the checkpoint `sys.progress`, which the dashboard lists while the job runs.
 
-- Section: Make work survive a crash, step 7
+- Section: Make work survive a crash, step 8
 - Program: `learn/200-durable-execution/208-progress` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.

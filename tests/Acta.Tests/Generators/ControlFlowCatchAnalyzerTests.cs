@@ -85,6 +85,7 @@ public sealed class ControlFlowCatchAnalyzerTests
             "NoteAsync",
             "ResolveAlertAsync",
             "ResetStateAsync",
+            "RunStepWithCheckAsync",
             "SetProgressAsync",
             "SetVariableAsync",
             "EnqueueChildAsync",

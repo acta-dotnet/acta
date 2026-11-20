@@ -5,8 +5,11 @@ namespace Acta;
 /// </summary>
 internal enum StartJobStepOutcomeCode : byte
 {
-    /// <summary>Run the body: a first start, or an ordinary step a replay found started with no success recorded.</summary>
+    /// <summary>Run the body: a first start, whose call inserted the step.</summary>
     Invoke = 1,
+
+    /// <summary>Run the body again: an ordinary step started before with no success recorded. A check step asks its check first.</summary>
+    InvokeAgain = 2,
 
     /// <summary>Already succeeded; return the stored result without running the body.</summary>
     ReplaySuccess = 3,

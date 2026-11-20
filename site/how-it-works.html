@@ -240,8 +240,8 @@
         <div class="vs-row" id="at-least-once">
           <div class="who"><b>Where does at-least-once end?</b><span>at your side effects</span></div>
           <div class="why">
-            <p>A step's recorded outcome is repeat-safe, but your writes and Acta's record of them commit separately, so a handler can run again for work that already landed. An idempotency key, an upsert, or a watermark written after the work makes that harmless. <code>AtMostOnce()</code> trades a possible repeat for an explicitly ambiguous outcome.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#at-most-once-steps">At-most-once steps</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/220-at-most-once-step">220-at-most-once-step</a></div>
+            <p>A step's recorded outcome is repeat-safe, but your writes and Acta's record of them commit separately, so a handler can run again for work that already landed. An idempotency key, an upsert, or a watermark written after the work makes that harmless. A step with a check asks the provider before it repeats, and <code>AtMostOnce()</code> trades a possible repeat for an explicitly ambiguous outcome.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#at-most-once-steps">At-most-once steps</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/224-check-step">224-check-step</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/220-at-most-once-step">220-at-most-once-step</a></div>
           </div>
         </div>
         <div class="vs-row" id="no-workflow-engine">

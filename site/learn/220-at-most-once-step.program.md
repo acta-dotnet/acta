@@ -215,6 +215,7 @@ dies in that gap, retrying may duplicate the charge; refusing retry leaves an un
 
 - Accept at-least-once execution and make the side effect idempotent.
 - Send an external deduplication key and query the external result.
+- Ask the external system before repeating, with a step that has a check ([Ask the provider before repeating a step after a crash](/learn/224-check-step.md)).
 - Refuse a second invocation with an at-most-once step.
 - Reconcile an ambiguous outcome and compensate or continue.
 

@@ -4600,7 +4600,7 @@ BEGIN
         ELSE
             BEGIN
                 -- An ordinary step with no success recorded runs again, its row unchanged.
-                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
+                SET @outcome = 2 /* StartJobStepOutcomeCode.InvokeAgain */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rmsg = NULL;
@@ -5201,7 +5201,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261120002222_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261120124658_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120002222_init');
+VALUES ('M20261120124658_init');
 GO

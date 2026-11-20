@@ -80,6 +80,7 @@
         "216-variable-lifecycle",
         "210-step-retry",
         "220-at-most-once-step",
+        "224-check-step",
         "201-durable-checkout",
         "208-progress"
       ]
@@ -222,6 +223,7 @@
       "ask": "Work must not happen twice",
       "pick": [
         { "howTo": "202-durable-step", "when": "work that finished must not repeat on a retry" },
+        { "howTo": "224-check-step", "when": "a side effect the provider can look up, so the run after a crash asks before repeating it" },
         { "howTo": "220-at-most-once-step", "when": "a side effect where a second attempt is worse than not knowing, such as capturing a payment" },
         { "howTo": "010-deduplication-key", "when": "a repeated request must not create a second job" }
       ]
@@ -282,6 +284,7 @@
     "216-variable-lifecycle": "variable exists delete remove default fallback raw payload",
     "217-absolute-time-controls": "at a time datetime run at absolute instant date",
     "220-at-most-once-step": "exactly once at most once payment charge card twice double side effect duplicate",
+    "224-check-step": "check reconcile idempotent duplicate charge twice crash side effect lookup provider exactly once",
     "301-fail-job": "fail permanent no retry reject",
     "304-execution-timeout": "timeout too slow hang stuck",
     "306-reschedule": "poll reschedule not ready yet check again service",

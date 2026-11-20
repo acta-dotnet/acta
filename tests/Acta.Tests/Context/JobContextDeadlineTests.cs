@@ -84,6 +84,7 @@ public class JobContextDeadlineTests
             string name,
             Func<CancellationToken, Task> body,
             StepOptions options,
+            Func<CancellationToken, Task<bool>>? check,
             CancellationToken ct
         ) => throw new NotSupportedException();
 
@@ -91,6 +92,7 @@ public class JobContextDeadlineTests
             string name,
             Func<CancellationToken, Task<TResult>> body,
             StepOptions options,
+            Func<CancellationToken, Task<(bool Found, TResult Value)>>? check,
             CancellationToken ct
         ) => throw new NotSupportedException();
 

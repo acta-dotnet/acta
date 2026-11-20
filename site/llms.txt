@@ -23,7 +23,7 @@ variables, timers, and signal waits return their recorded results instead of rep
 their work; every bare line between them runs again on every entry. The model is checkpoints, not
 deterministic replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
 Where these docs say a re-entry replays a step, the step answers from its record and its body does not run (the
-`acta.steps` meter counts such a step under the outcome `reused`).
+`acta.steps` meter counts such a step under the outcome `reused`, and a step its check answered under `found`).
 A crash counts against the retry budget: the attempt a dead worker held is reclaimed as a failed one, so
 `MaxAttempts` crashes since the job last succeeded fail a job that never threw (a wait or a sleep is not a success,
 so the count carries across them), and a reclaimed job is due again at once, without the backoff: it waits behind
@@ -172,7 +172,11 @@ returns its recorded result instead of running the body. That promise has two co
 
 - The outcome is durable only after it is recorded. A crash after the side effect ran but before
   the outcome landed re-runs the body on replay, so the body must be idempotent, usually via a
-  stable key derived from the job, never from the attempt.
+  stable key derived from the job, never from the attempt. Where the provider can be asked, give the step a check:
+  `ctx.RunStepWithCheckAsync(name, body, check)` asks it only when the step was started and never recorded, records
+  a value it finds as the result without running the body, and runs the body on `null` (`false` for a step with no
+  result). One outside effect per step, no wait inside the body (it fails the job at once), a lookup keyed to this
+  job's own effect. It is not exactly-once.
 - Only step-wrapped work is skipped. Bare handler code between steps re-runs on every entry.
 
 A step retries through its job: a body that throws fails the attempt, the job's `MaxAttempts` and
@@ -214,7 +218,8 @@ go on, and an operator restart runs the step again. A body that cannot know the 
 the request left, throws `OutcomeUnknownException` instead: the step ends as a crash ends it, the call throws
 `StepInterruptedException`, and no retry or restart runs the body again
 (`catch (TimeoutException ex) { throw new OutcomeUnknownException("capture timed out", ex); }`). A wait inside an
-at-most-once body throws at the call, because its resume would run the body again.
+at-most-once body throws at the call, because its resume would run the body again; inside the body of a step
+with a check it throws too, because the resume would ask the check and skip the rest of the body.
 
 ## An external side effect, done right
 
@@ -467,7 +472,7 @@ again.
 
 What a caller sends inline (inputs, variables, signal values) is capped at 1 MiB (`MaxInlinePayloadBytes`).
 Caller-supplied oversized writes throw `PayloadTooLargeException`. A handler or step RESULT past the
-cap is stored, since its body already ran, and the worker logs a warning; past 16 MiB, or past the cap
+cap is stored, since the work behind it is already done, and the worker logs a warning; past 16 MiB, or past the cap
 where a host set it higher, it fails the job for good. Big artifacts belong in blob storage with the
 job carrying a reference: URI, checksum, size.
 

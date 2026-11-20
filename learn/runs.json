@@ -156,6 +156,10 @@
     "invoice 7: Failed. the customer's address bounced"
   ],
   "223-lane-per-customer": ["customer a applied: 1, 2, 3", "customer b applied: 1, 2, 3", "customers side by side: yes"],
+  "224-check-step": [
+    "dotnet run --project learn/200-durable-execution/224-check-step -- crash",
+    "dotnet run --project learn/200-durable-execution/224-check-step -- recover"
+  ],
   "301-fail-job": ["status=Failed, failureCount=0"],
   "302-cancel-job": ["status=Cancelled"],
   "303-pause-job": ["status=Paused", "[v042] migration applied", "status=Succeeded"],

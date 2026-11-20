@@ -30,8 +30,8 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 - a generic workflow-graph table or generic checkpoint-JSON blob. The substrate is typed tables (`checkpoints` discriminated by kind with typed columns, plus `steps`), not an untyped graph.
 - guaranteed exactly-once effects against arbitrary external systems. No durable executor can make
   a card network, email provider, webhook receiver, and SQL database share one exactly-once commit.
-  Acta gives you at-least-once jobs, checkpointed durable steps, deduplication keys, and
-  `AtMostOnce()` step semantics; applications still own external side-effect safety.
+  Acta gives you at-least-once jobs, checkpointed durable steps, deduplication keys, a check before a
+  step repeats, and `AtMostOnce()` step semantics; applications still own external side-effect safety.
 
 ## The four claims
 

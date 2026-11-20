@@ -28,8 +28,8 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
     /// <summary>Raw child enqueue requests in start order.</summary>
     public List<EnqueueJobRequest> RawStarted { get; } = [];
 
-    /// <summary>Steps invoked, in order: name and the resolved <see cref="StepOptions"/> each call forwarded.</summary>
-    public List<(string Name, StepOptions Options)> Steps { get; } = [];
+    /// <summary>Steps invoked, in order: name, the resolved <see cref="StepOptions"/> each call forwarded, and whether it carried a check.</summary>
+    public List<(string Name, StepOptions Options, bool Checked)> Steps { get; } = [];
 
     /// <summary>Seeded value <see cref="ReadChildResultCoreAsync{TResult}"/> returns, when it matches <c>TResult</c>.</summary>
     public object? SeededChildResult { get; set; }
@@ -177,10 +177,11 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
         string name,
         Func<CancellationToken, Task> body,
         StepOptions options,
+        Func<CancellationToken, Task<bool>>? check,
         CancellationToken ct
     )
     {
-        Steps.Add((name, options));
+        Steps.Add((name, options, check is not null));
         await body(ct);
     }
 
@@ -188,10 +189,11 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
+        Func<CancellationToken, Task<(bool Found, TResult Value)>>? check,
         CancellationToken ct
     )
     {
-        Steps.Add((name, options));
+        Steps.Add((name, options, check is not null));
         return await body(ct);
     }
 

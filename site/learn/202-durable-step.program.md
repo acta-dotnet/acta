@@ -143,6 +143,7 @@ twice, or corrupt an external state machine.
 | Bare handler code | Minimal ceremony | Repeats on replay |
 | Normal durable step | Replays a recorded success | A crash before recording success can repeat the body |
 | External deduplication key | Usually the strongest answer | The external system must implement it |
+| Step with a check | Asks the external system before repeating a started step | The external system must be able to answer, and can answer late |
 | At-most-once step | Acta will not invoke an interrupted body again | The outcome can remain ambiguous |
 | Reconciliation | Resolves ambiguity from external evidence | Requires a readable external state/API |
 

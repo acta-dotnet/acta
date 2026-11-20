@@ -32,6 +32,7 @@ Read /llms.txt first. It is the contract: the rules every handler follows. This 
   - an exact instant instead of a delay: [How to schedule, sleep, and reschedule to an exact instant](/learn/217-absolute-time-controls.md)
 - Work must not happen twice:
   - work that finished must not repeat on a retry: [How to keep finished work from repeating on a retry](/learn/202-durable-step.md)
+  - a side effect the provider can look up, so the run after a crash asks before repeating it: [How to ask the provider before repeating a step after a crash](/learn/224-check-step.md)
   - a side effect where a second attempt is worse than not knowing, such as capturing a payment: [How to refuse to repeat a side effect after a crash](/learn/220-at-most-once-step.md)
   - a repeated request must not create a second job: [How to keep a repeated request from creating a second job](/learn/010-deduplication-key.md)
 - A job has to wait:
@@ -120,6 +121,7 @@ Steps and variables record what a handler finished, so a retry or a restart carr
 - [How to check, delete, and default a job's variables](/learn/216-variable-lifecycle.md): Beyond `GetOrSetVariableAsync`, shown across a retry in 203, a handler can check for a variable, delete it, read it with a default, and store a raw `JobPayload`
 - [How to compensate when the last attempt fails](/learn/210-step-retry.md): A failing step retries through its job, and a `catch` on `EndsJob` compensates before the failure ends the job
 - [How to refuse to repeat a side effect after a crash](/learn/220-at-most-once-step.md): An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is unknown, and reconciles
+- [How to ask the provider before repeating a step after a crash](/learn/224-check-step.md): A step with a check asks the outside world whether its effect already happened before it runs its body again. The first run dies right after the bank charges the card, before Acta records the step; the next run asks the bank, finds the charge, and does not charge again
 - [How to build a checkout that waits for a review and a timer](/learn/201-durable-checkout.md): One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart
 - [How to report how far along a job is](/learn/208-progress.md): `SetProgressAsync` stores how far the job has come as the checkpoint `sys.progress`, which the dashboard lists while the job runs
 

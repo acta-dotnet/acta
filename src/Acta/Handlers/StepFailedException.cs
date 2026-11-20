@@ -1,12 +1,12 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown from <c>ctx.RunStepAsync</c> when a step fails for good: an <c>AtMostOnce</c> body threw, so its row is terminal
-/// <c>Failed</c> and the body is not invoked again, or any step's body finished and its result could not be recorded
-/// (not serializable, too large to store), which leaves the step started. An ordinary exception, not a control
-/// signal: left uncaught it fails the job at once (<c>non-retryable-exception</c>), since a retry would throw again or
-/// run a finished body twice, or a handler catches it to run compensation and continue. A replay of a failed step
-/// re-throws at once, until an operator restart clears it. Carries the step name and the failure.
+/// Thrown from <c>ctx.RunStepAsync</c> and <c>ctx.RunStepWithCheckAsync</c> when a step fails for good: an <c>AtMostOnce</c>
+/// body threw, so its row is terminal <c>Failed</c> and the body is not invoked again; a step's result, from its body or
+/// found by its check, could not be recorded (not serializable, too large to store); or a check step's body called a wait,
+/// sleep, reschedule, pause or child wait. The last two leave the step started. An ordinary exception, not a control signal:
+/// left uncaught it fails the job at once (<c>non-retryable-exception</c>), since a retry would throw again or run a finished
+/// body twice, or a handler catches it to compensate and continue. A replay of a failed step re-throws until a restart clears it.
 /// </summary>
 public sealed class StepFailedException : ActaException
 {

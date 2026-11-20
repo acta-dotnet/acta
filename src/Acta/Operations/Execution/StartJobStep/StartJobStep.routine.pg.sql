@@ -125,7 +125,7 @@ BEGIN
             0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     ELSE
         -- An ordinary step with no success recorded runs again, its row unchanged.
-        RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
+        RETURN QUERY SELECT 2 /* StartJobStepOutcomeCode.InvokeAgain */::SMALLINT, v_version,
             0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     END IF;
 END;

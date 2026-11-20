@@ -18,6 +18,7 @@ twice, or corrupt an external state machine.
 | Bare handler code | Minimal ceremony | Repeats on replay |
 | Normal durable step | Replays a recorded success | A crash before recording success can repeat the body |
 | External deduplication key | Usually the strongest answer | The external system must implement it |
+| Step with a check | Asks the external system before repeating a started step | The external system must be able to answer, and can answer late |
 | At-most-once step | Acta will not invoke an interrupted body again | The outcome can remain ambiguous |
 | Reconciliation | Resolves ambiguity from external evidence | Requires a readable external state/API |
 
@@ -73,6 +74,7 @@ determinism makes the stored result worthwhile.
 
 - Only work inside a step is skipped. Every bare line between steps runs again each time the handler is entered.
 - A step is recorded when it finishes. A crash after the outside call but before the record runs the body again, so give the outside system a stable key taken from the job, never from the attempt.
+- When the outside system can be asked whether it saw the effect, give the step a check: [Ask the provider before repeating a step after a crash](../224-check-step/).
 - When one more attempt would be worse than not knowing, such as capturing a payment, use an at-most-once step: [Refuse to repeat a side effect after a crash](../220-at-most-once-step/).
 - `"start-freeze-cycle"` is the key to the step's stored result. Rename it and the step runs again for every box that already ran it.
 - The name in `[Job("freeze-box")]` and the namespace in `Run<DurableStepJobs>("durable-step")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.

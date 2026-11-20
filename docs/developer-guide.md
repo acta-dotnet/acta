@@ -160,7 +160,7 @@ The generator emits descriptors from the declared signature. The runtime uses th
 
 ### Execution semantics
 
-Execution is at-least-once: a crash, a lease expiry, a failed completion write, or a shutdown re-runs the attempt, and an operator restart or a database restore can re-run work whose external effects already happened, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use deduplication keys, durable steps, `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
+Execution is at-least-once: a crash, a lease expiry, a failed completion write, or a shutdown re-runs the attempt, and an operator restart or a database restore can re-run work whose external effects already happened, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use deduplication keys, durable steps, a check before a step repeats (`RunStepWithCheckAsync`), `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
 
 Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new one (see [renaming a step, variable, signal or timer](#renaming-a-step-variable-signal-or-timer)). Durable state belongs to the job, not to one fire, so a permanent job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 
@@ -181,7 +181,7 @@ public async Task ImportFiles(JobContext ctx, CancellationToken ct)
 }
 ```
 
-A step retries through its job. A body that throws fails the attempt, which spends one of the job's `MaxAttempts` and waits out its `Backoff`; the retry replays the steps that already succeeded and runs this one again. A wait, sleep, or child wait inside an ordinary step body works: the resume runs the body again up to the wait, which returns what it already has, and nothing is charged.
+A step retries through its job. A body that throws fails the attempt, which spends one of the job's `MaxAttempts` and waits out its `Backoff`; the retry replays the steps that already succeeded and runs this one again. A wait, sleep, or child wait inside an ordinary step body works: the resume runs the body again up to the wait, which returns what it already has, and nothing is charged. The body of a step with a check, like an at-most-once body, refuses a wait.
 
 #### Compensating on the last attempt
 
@@ -200,9 +200,43 @@ catch (Exception ex) when (ctx.EndsJob(ex))
 }
 ```
 
-`ctx.EndsJob(ex)` answers what the worker will do with the exception: true for `ctx.FailAsync` and `CancelAsync`, an expired wait, an interrupted step, a non-retryable exception (`StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, `NotSupportedException`, `NotImplementedException`, a waited job's failure, timeout or missing result rethrown by `ThrowIfFailed`, `ThrowIfAnyFailed` or `ValueOrThrow`, and a type the application declared with `DoNotRetry`), and any other error when `IsLastAttempt` is true; false for a wait, sleep, reschedule or pause, which end only the attempt, and for the exception of a cancelled attempt.
+`ctx.EndsJob(ex)` answers what the worker will do with the exception: true for `ctx.FailAsync` and `CancelAsync`, an expired wait, an interrupted step, a non-retryable exception (`StepFailedException`, which an at-most-once body that threw, a wait inside the body of a step with a check, and any step whose result could not be recorded raise, `NotSupportedException`, `NotImplementedException`, a waited job's failure, timeout or missing result rethrown by `ThrowIfFailed`, `ThrowIfAnyFailed` or `ValueOrThrow`, and a type the application declared with `DoNotRetry`), and any other error when `IsLastAttempt` is true; false for a wait, sleep, reschedule or pause, which end only the attempt, and for the exception of a cancelled attempt.
 
 Compensation in a catch is best effort. A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running, so the compensation is an idempotent step of its own. Work whose compensation must happen runs the risky part as a child job, and the parent compensates when the child lands `Failed`: `WaitChildAsync` survives crashes.
+
+#### Guarding a side effect against a repeat
+
+A crash between an outside effect and the step's record runs the body again. Three guards cover that window, and each fits a different provider:
+
+| Guard | Use it when | After a crash in the window |
+| --- | --- | --- |
+| An idempotency key | The provider deduplicates by a key you send. | The body runs again and the provider recognises the repeat. The strongest guard, because the provider decides. |
+| A check, `RunStepWithCheckAsync` | The provider can be asked whether it saw the effect. | The check is asked; a found effect is recorded as the step's result, and the body does not run. |
+| An at-most-once step, `AtMostOnce()` | The effect can be neither asked about nor repeated. | The body never runs again: the step is interrupted, and a person or the handler reconciles. |
+
+A check usually prevents the repeat and can still let one through. An at-most-once step never repeats and can leave the effect undone, and it records that the outcome is unknown, which a check cannot say. Neither is exactly-once.
+
+#### Steps with a check
+
+```csharp
+var chargeId = await ctx.RunStepWithCheckAsync(
+    "charge-card",
+    ct => bank.ChargeAsync(order.Key, order.Amount, ct),   // the body
+    ct => bank.FindChargeAsync(order.Key, ct),             // the check
+    ct);
+```
+
+The check is asked only when the step was started and has no recorded result, in the same attempt or a later one. A value it finds is recorded as the step's result, and the body does not run; `null` (`false` for a step with no result) means the provider never saw the effect, and the body runs. The check is not asked on a first start, nor after `ctx.ResetStateAsync`, which removes the step.
+
+Write the two lambdas so that "the effect exists" means "the body finished":
+
+- **One outside effect per step.** A body that charges and then books lets a found charge stand for a booking that never happened. Give each effect a step of its own.
+- **No wait inside the body.** A sleep, a signal wait or a child wait inside a check step's body throws `StepFailedException` at the call, which left uncaught fails the job at once: a retry would ask the check, find the effect, and skip the rest of the body. Put the wait between steps. A wait inside an ordinary step keeps working.
+- **Look the effect up by a key taken from the job's input,** and answer only for this step's own effect. A wrong "found" skips the body and stores that value for good; a miss only runs the body again.
+- **The check changes nothing.** It can be asked more than once.
+- **A step that returns `bool` takes a check that returns `bool?`.** With a check that returns `bool`, the call is the form for a step with no result, and the body's value is not stored.
+
+What a check does not cover: an attempt whose lease expired can still be mid-call when the next attempt asks, and a provider that answers late can miss an effect it has. After a refused wait, fix the handler before restarting the job: a restart asks the check, and with the handler unchanged it finds the effect and completes the job without the rest of the body. The step metric counts a step its check answered under the outcome `found`. Runnable version: [`learn/200-durable-execution/224-check-step`](../learn/200-durable-execution/224-check-step/).
 
 #### At-most-once steps
 

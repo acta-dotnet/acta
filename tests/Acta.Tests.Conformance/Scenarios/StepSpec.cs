@@ -196,7 +196,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<St
         var first = await store.StartJobStepAsync(job, "compute", atMostOnce: false, ct);
         var second = await store.StartJobStepAsync(job, "compute", atMostOnce: false, ct);
         Assert.Equal(StartJobStepOutcomeCode.Invoke, first.Outcome);
-        Assert.Equal(StartJobStepOutcomeCode.Invoke, second.Outcome);
+        Assert.Equal(StartJobStepOutcomeCode.InvokeAgain, second.Outcome);
         Assert.Equal(first.Version, second.Version);
         Assert.Equal(CompleteJobStepOutcomeCode.Succeeded, (await store.CompleteJobStepAsync(Success(job, first.Version), ct)).Outcome);
 

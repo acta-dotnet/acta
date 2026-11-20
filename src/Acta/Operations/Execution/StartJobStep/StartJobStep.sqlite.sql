@@ -40,12 +40,13 @@ WHERE NOT EXISTS (
     WHERE a.job_id = @p_job_id AND a.step_name = @p_step_name
 );
 
+-- changes() counts the rows of the INSERT just above, the last write statement: 1 when this call opened the step.
 SELECT
     CASE
         WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */ THEN 3 /* StartJobStepOutcomeCode.ReplaySuccess */
         WHEN a.step_status_code = 200 /* StepStatusCode.Failed */ THEN 4 /* StartJobStepOutcomeCode.Failed */
         WHEN a.step_status_code = 230 /* StepStatusCode.Interrupted */ THEN 5 /* StartJobStepOutcomeCode.Interrupted */
-        ELSE 1 /* StartJobStepOutcomeCode.Invoke */
+        ELSE CASE WHEN changes() = 1 THEN 1 /* StartJobStepOutcomeCode.Invoke */ ELSE 2 /* StartJobStepOutcomeCode.InvokeAgain */ END
     END AS outcome_code,
     a.version AS version,
     CASE

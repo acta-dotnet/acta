@@ -218,9 +218,9 @@ internal sealed class ActaMetrics : IDisposable
         Add(_wakeupWaits, 1, new TagList { { "namespace", @namespace }, { "result", result } });
 
     /// <summary>
-    /// outcome is one of { reused, interrupted, succeeded, failed } - the ones
-    /// RuntimeJobContext actually emits, pinned as a set in ActaMetricsTests. step_name is
-    /// deliberately excluded: user-defined, would blow up cardinality; it stays on the log scope.
+    /// outcome is one of { reused, interrupted, succeeded, found, failed } - the ones RuntimeJobContext
+    /// actually emits, pinned as a set in ActaMetricsTests; found is a step its check answered, its body not run.
+    /// step_name is deliberately excluded: user-defined, would blow up cardinality; it stays on the log scope.
     /// </summary>
     public void RecordStep(string @namespace, string jobName, string outcome) =>
         Add(

@@ -4,8 +4,8 @@ namespace Acta;
 
 public abstract partial class JobContext
 {
-    /// <summary>The at-most-once step whose body this async flow is running, if any.</summary>
-    private readonly AsyncLocal<string?> _atMostOnceStep = new();
+    /// <summary>The at-most-once or check step whose body this async flow is running, if any.</summary>
+    private readonly AsyncLocal<(string Name, bool AtMostOnce)?> _markedStep = new();
 
     /// <summary>
     /// Runs <paramref name="body"/> as a durable, replay-safe step named <paramref name="name"/> (kebab-case, unique
@@ -28,7 +28,7 @@ public abstract partial class JobContext
         var options = BuildStepOptions(name, configure);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        await RunStepCoreAsync(name, body, options, linked.Token);
+        await RunStepCoreAsync(name, body, options, check: null, linked.Token);
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ public abstract partial class JobContext
         var options = BuildStepOptions(name, configure);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return await RunStepCoreAsync(name, body, options, linked.Token);
+        return await RunStepCoreAsync(name, body, options, check: null, linked.Token);
     }
 
     /// <summary>
@@ -73,6 +73,79 @@ public abstract partial class JobContext
     /// </summary>
     public Task<TResult> RunStepAsync<TResult>(string name, Func<CancellationToken, Task<TResult>> body, CancellationToken ct) =>
         RunStepAsync(name, body, configure: null, ct: ct);
+
+    /// <summary>
+    /// Runs <paramref name="body"/> as a durable step whose <paramref name="check"/> asks the outside world whether the body's
+    /// effect already happened. The check is asked only when the step was started and has no recorded result, in the same
+    /// attempt or a later one: never on a first start, and never after <c>ResetStateAsync</c>. A value it answers is recorded
+    /// as the step's result and the body does not run; null runs the body. The check must change nothing and answer only for
+    /// this step's own effect. A wait, sleep, reschedule, pause or child wait in the body fails the job at once.
+    /// </summary>
+    public Task<TResult> RunStepWithCheckAsync<TResult>(
+        string name,
+        Func<CancellationToken, Task<TResult>> body,
+        Func<CancellationToken, Task<TResult?>> check,
+        CancellationToken ct = default
+    )
+        where TResult : class?
+    {
+        ArgumentNullException.ThrowIfNull(check);
+        return RunCheckStepAsync(name, body, async token => await check(token) is { } found ? (true, found) : (false, default!), ct);
+    }
+
+    /// <inheritdoc cref="RunStepWithCheckAsync{TResult}(string, Func{CancellationToken, Task{TResult}}, Func{CancellationToken, Task{TResult}}, CancellationToken)"/>
+    public Task<TResult> RunStepWithCheckAsync<TResult>(
+        string name,
+        Func<CancellationToken, Task<TResult>> body,
+        Func<CancellationToken, Task<TResult?>> check,
+        CancellationToken ct = default
+    )
+        where TResult : struct
+    {
+        ArgumentNullException.ThrowIfNull(check);
+        return RunCheckStepAsync(name, body, async token => await check(token) is { } found ? (true, found) : (false, default), ct);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="body"/>, which has no result, as a durable step whose <paramref name="check"/> asks the outside
+    /// world whether its effect already happened. The check is asked only when the step was started and has no recorded
+    /// result, in the same attempt or a later one: never on a first start, and never after <c>ResetStateAsync</c>. True records
+    /// the step as succeeded and the body does not run; false runs the body. The check must change nothing and answer only
+    /// for this step's own effect. A wait, sleep, reschedule, pause or child wait in the body fails the job at once.
+    /// </summary>
+    [DebuggerDisableUserUnhandledExceptions]
+    public async Task RunStepWithCheckAsync(
+        string name,
+        Func<CancellationToken, Task> body,
+        Func<CancellationToken, Task<bool>> check,
+        CancellationToken ct = default
+    )
+    {
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(check);
+        _markedStep.Value = (name, AtMostOnce: false);
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        await RunStepCoreAsync(name, body, StepOptions.Inherit, check, linked.Token);
+    }
+
+    /// <summary>A check step with a result. It marks the calling async flow, as an at-most-once step does.</summary>
+    [DebuggerDisableUserUnhandledExceptions]
+    private async Task<TResult> RunCheckStepAsync<TResult>(
+        string name,
+        Func<CancellationToken, Task<TResult>> body,
+        Func<CancellationToken, Task<(bool Found, TResult Value)>> check,
+        CancellationToken ct
+    )
+    {
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
+        ArgumentNullException.ThrowIfNull(body);
+        _markedStep.Value = (name, AtMostOnce: false);
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        return await RunStepCoreAsync(name, body, StepOptions.Inherit, check, linked.Token);
+    }
 
     /// <summary>
     /// The step's options; an at-most-once step marks the calling async flow, so a suspension anywhere in its body,
@@ -90,20 +163,21 @@ public abstract partial class JobContext
         var options = builder.Build();
         if (options.AtMostOnce)
         {
-            _atMostOnceStep.Value = name;
+            _markedStep.Value = (name, AtMostOnce: true);
         }
         return options;
     }
 
     /// <summary>
-    /// Refuses a call that can suspend the job when it runs inside an at-most-once step body, before the call writes
-    /// anything: the resume would replay the job from the top, and the body never runs twice.
+    /// Refuses a call that can suspend the job when it runs inside an at-most-once or check step body, before the call
+    /// writes anything: the resume would replay the job from the top, where an at-most-once body never runs twice and a
+    /// check step's check can find the body's effect and skip the rest of the body.
     /// </summary>
     private void ThrowIfInAtMostOnceStep(string call)
     {
-        if (_atMostOnceStep.Value is { } step)
+        if (_markedStep.Value is { } step)
         {
-            throw AtMostOnceSuspensionRefused(call, step);
+            throw step.AtMostOnce ? AtMostOnceSuspensionRefused(call, step.Name) : (Exception)CheckStepSuspensionRefused(call, step.Name);
         }
     }
 
@@ -115,25 +189,39 @@ public abstract partial class JobContext
         );
 
     /// <summary>
-    /// Subclass sink: runs the void step orchestration (start, body, record). Returns normally on success; a body
-    /// failure propagates, or for an at-most-once step becomes <see cref="StepFailedException"/>.
+    /// The refusal of a suspension inside the check step <paramref name="step"/>, at the call or in the body. It fails the job
+    /// at once and leaves the step as it is, since a retry would ask the check, find the body's effect, and skip the rest.
+    /// </summary>
+    private protected static StepFailedException CheckStepSuspensionRefused(string call, string step) =>
+        new(
+            step,
+            $"{call} inside a check step's body is refused: a resume would ask the check, which can find the body's effect and "
+                + "skip the rest of the body. Move the wait between steps"
+        );
+
+    /// <summary>
+    /// Subclass sink: runs the void step orchestration (start, check, body, record). Returns normally on success; a body
+    /// failure propagates, or for an at-most-once step becomes <see cref="StepFailedException"/>. A
+    /// <paramref name="check"/> is asked only when the step was started before and has no recorded result.
     /// </summary>
     private protected abstract Task RunStepCoreAsync(
         string name,
         Func<CancellationToken, Task> body,
         StepOptions options,
+        Func<CancellationToken, Task<bool>>? check,
         CancellationToken ct
     );
 
     /// <summary>
-    /// Subclass sink: result-returning step orchestration. Returns the (possibly replayed) result;
+    /// Subclass sink: result-returning step orchestration. Returns the (possibly replayed or found) result;
     /// throws as described on
-    /// <see cref="RunStepCoreAsync(string, Func{CancellationToken, Task}, StepOptions, CancellationToken)"/>.
+    /// <see cref="RunStepCoreAsync(string, Func{CancellationToken, Task}, StepOptions, Func{CancellationToken, Task{bool}}, CancellationToken)"/>.
     /// </summary>
     private protected abstract Task<TResult> RunStepCoreAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
+        Func<CancellationToken, Task<(bool Found, TResult Value)>>? check,
         CancellationToken ct
     );
 }

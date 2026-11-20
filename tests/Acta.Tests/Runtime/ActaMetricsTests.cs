@@ -93,6 +93,7 @@ public sealed class ActaMetricsTests
     // steps assert behavior, not metric tags.
     [Theory]
     [InlineData("succeeded")]
+    [InlineData("found")]
     [InlineData("reused")]
     [InlineData("interrupted")]
     [InlineData("failed")]

@@ -2,7 +2,7 @@
 
 One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart.
 
-- Section: Make work survive a crash, step 6
+- Section: Make work survive a crash, step 7
 - Program: `learn/200-durable-execution/201-durable-checkout` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.

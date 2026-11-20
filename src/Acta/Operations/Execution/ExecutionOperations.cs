@@ -67,7 +67,7 @@ internal sealed class ExecutionOperations(
 
     /// <summary>
     /// Reads or inserts the <c>(job_id, name)</c> step under the attempt's fence and decides
-    /// invoke / replay / failed / interrupted. Never mutates job status.
+    /// invoke / invoke again / replay / failed / interrupted. Never mutates job status.
     /// </summary>
     public Task<StartJobStepResponse> StartJobStepAsync(ExecutionFence fence, string name, bool atMostOnce, CancellationToken ct) =>
         startJobStep.HandleAsync(new StartJobStepCommand(fence, name, atMostOnce), ct);

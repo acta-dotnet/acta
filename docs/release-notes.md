@@ -6,7 +6,7 @@ Not yet released.
 
 ### What a consumer must change
 
-**Drop and reprovision every database an earlier candidate provisioned**: the baseline is re-cut. No table, column, index or constraint changes in it so far; the retention routine's rule for children does (below). A database stamped by rc.14 is refused at startup with the drop-and-provision message.
+**Drop and reprovision every database an earlier candidate provisioned**: the baseline is re-cut. No table, column, index or constraint changes in it so far; the retention routine's rule for children and the step-start routine's answer do (below). A database stamped by rc.14 is refused at startup with the drop-and-provision message.
 
 **Watch the log where a handler or a step returns a result over `MaxInlinePayloadBytes`**: rc.14 failed that job for good, and rc.15 stores the result. The body has already run, so the cap now only warns: the worker logs `A result of job (...) is past MaxInlinePayloadBytes`, naming the job, the step where there is one, the size and the cap. The result ceiling is 16 MiB, or the cap where a host set it higher; a result past it fails the job for good as before, with a message that names the ceiling. Everything a caller sends (an input, a variable, progress, a signal value, an HTTP body) is refused past the cap as before. A step that caught `StepFailedException` for a result between the cap and the ceiling no longer sees one.
 
@@ -20,6 +20,7 @@ Not yet released.
 
 ### Additions
 
+- A step can ask before it repeats. `ctx.RunStepWithCheckAsync(name, body, check)` asks the check when the step was started and never recorded, the window a crash leaves between an outside effect and its record; a value the check finds is recorded as the step's result, and the body does not run. It is one of three guards, with an idempotency key at the provider and an at-most-once step, and it is not exactly-once: the developer guide says what it does not cover. A wait inside its body fails the job at once. The step metric `acta.steps` gains the outcome `found`.
 - Under Native AOT a host refuses to start when a job's JSON input or result type has no metadata in the context, and names every one, where the first enqueue of each used to throw. A handler with several input parameters is a build error, ACTA0107, in a project where the AOT analyzer runs (`PublishAot` or `IsAotCompatible`): its input record is generated, and no context can describe a generated type.
 - PostgreSQL 17 is supported. Nothing in Acta's SQL needed 18; the conformance suite now runs on 17 and 18 in CI, and it passes on PostgreSQL 19 RC2 as well. The release validation and the benchmark stay on 18.
 - A result that may be absent is declared on the handler, `Task<Customer?>` or `Task<int?>`, and read with `TryGetResultAsync` or `TryGetValue`. `Task<int?>` used to declare a nullable result type and warn at build; it now declares an `int` result, as `Task<Customer?>` declares a `Customer`. A job already declared `Task<int?>` reads as changed on its next deploy, since its stored result type name moves to `int`.

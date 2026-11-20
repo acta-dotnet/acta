@@ -67,6 +67,7 @@
     <Project Path="200-durable-execution/221-pending-signup/221-pending-signup.csproj" />
     <Project Path="200-durable-execution/222-find-child-job/222-find-child-job.csproj" />
     <Project Path="200-durable-execution/223-lane-per-customer/223-lane-per-customer.csproj" />
+    <Project Path="200-durable-execution/224-check-step/224-check-step.csproj" />
   </Folder>
   <Folder Name="/300-failure-and-recovery/">
     <Project Path="300-failure-and-recovery/301-fail-job/301-fail-job.csproj" />

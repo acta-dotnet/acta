@@ -1266,13 +1266,18 @@
   - Every enqueued job executes exactly once and the whole backlog drains to completion
 
 ### Starting a step invokes, replays, or refuses from the step's state
-- **Contract:** A step start invokes a new or unfinished ordinary step, replays a success, interrupts a re-entered at-most-once step, and refuses a terminal failure.
+- **Contract:** A start invokes a new step and an unfinished ordinary one again, replays a success, interrupts a re-entered at-most-once step, and refuses a terminal failure.
 - **Guarantees:**
   - A first start opens a Pending step and invokes it
   - A Pending ordinary step re-entered is invoked again and its row is left unchanged
   - An at-most-once step re-entered before completion is terminalized Interrupted and never invoked again
   - A succeeded step replays its stored result without a write
   - A failed step is refused with its final reason, on every later entry
+
+### A first start that waited for another to open the step invokes it again
+- **Contract:** Of two first starts of one step, only the one whose call opened it is told to invoke, and the other is told to invoke again.
+- **Guarantees:**
+  - A first start that waited for a concurrent one to open the step is invoked again
 
 ### A timeout within budget re-arms to Ready; exhausted budget lands Failed
 - **Contract:** A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted.
@@ -2763,6 +2768,25 @@
   - Caught StepInterruptedException lets the parent proceed to Succeeded
   - A wait inside an at-most-once body is refused at the call and arms nothing
   - A wait begun outside an at-most-once body and ended in it is refused and fails the step
+
+### A check step asks its check before running a started body again
+- **Contract:** A started step with no recorded result asks its check: a found value is recorded in place of the body, nothing found runs it, and a fresh start never asks.
+- **Guarantees:**
+  - A first run runs the body once and never asks the check, and the replay asks neither
+  - A started step whose check finds the effect returns and records the found value, and a replay reads it as recorded
+  - A found value is recorded at the version the started step holds
+  - An attempt lost between the check's answer and its record leaves the step started, and the next attempt asks again
+  - A started step whose check finds nothing runs the body
+  - A body that throws after its effect is answered by the check on the next attempt
+  - A handler that catches the body's throw and runs the step again in the same attempt has the check asked
+  - A value-type check step returns and records the value its check found, and runs its body when the check finds none
+  - A no-result check step whose check answers true succeeds without its body, and false runs the body
+  - A check that throws ends the attempt as a body's throw does, and the next attempt asks again
+  - A wait inside a check step's body fails the job at once in every form, and a restart asks the check
+  - A handler that resets its state on every attempt never has the check asked
+  - A restart keeps a check step that was started and never recorded, and its next start asks the check
+  - A found value that cannot be recorded fails the step with a message of its own
+  - An at-most-once step re-entered before its record is still interrupted, its body not run
 
 ### A failed step re-throws on re-entry until a restart clears it
 - **Contract:** Re-entering a failed at-most-once step throws StepFailedException without running the body, and a restart runs it afresh.

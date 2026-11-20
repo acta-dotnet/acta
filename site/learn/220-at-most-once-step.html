@@ -132,7 +132,7 @@
 <h3>The problem</h3>
 <p>No local transaction can atomically commit both a remote charge and Acta's step outcome. If the process dies in that gap, retrying may duplicate the charge; refusing retry leaves an unknown outcome.</p>
 <h3>Common approaches</h3>
-<ul class="plain"><li>Accept at-least-once execution and make the side effect idempotent.</li><li>Send an external deduplication key and query the external result.</li><li>Refuse a second invocation with an at-most-once step.</li><li>Reconcile an ambiguous outcome and compensate or continue.</li></ul>
+<ul class="plain"><li>Accept at-least-once execution and make the side effect idempotent.</li><li>Send an external deduplication key and query the external result.</li><li>Ask the external system before repeating, with a step that has a check (<a href="/learn/224-check-step">Ask the provider before repeating a step after a crash</a>).</li><li>Refuse a second invocation with an at-most-once step.</li><li>Reconcile an ambiguous outcome and compensate or continue.</li></ul>
 <h3>Why this design</h3>
 <p><code>AtMostOnce()</code> durably marks the step start before invoking the body. Re-entering a still-pending step terminalizes it as <code>interrupted</code> and throws <code>StepInterruptedException</code>; Acta never calls that body a second time. The handler then owns reconciliation policy. A body that learns of the same ambiguity without dying, a timeout after the request left, throws <code>OutcomeUnknownException</code> and ends the step the same way.</p>
 <h3>Trade-offs</h3>
@@ -347,7 +347,7 @@ Console.WriteLine(<span class="s">$&quot;External side-effect records: {sideEffe
     }
 }</code></pre></figure>
 </details></div>
-<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/201-durable-checkout">How to build a checkout that waits for a review and a timer</a><span>Make work survive a crash</span></li></ul></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/224-check-step">How to ask the provider before repeating a step after a crash</a><span>Make work survive a crash</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
         <figure class="listing agent"><figcaption><span class="file">/learn/220-at-most-once-step.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/220-at-most-once-step.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
@@ -361,11 +361,12 @@ Console.WriteLine(<span class="s">$&quot;External side-effect records: {sideEffe
             <li><a href="/learn/216-variable-lifecycle" data-id="216"><span class="rail-n">3</span>Check, delete, and default a job's variables</a></li>
             <li><a href="/learn/210-step-retry" data-id="210"><span class="rail-n">4</span>Compensate when the last attempt fails</a></li>
             <li aria-current="page"><a href="/learn/220-at-most-once-step" data-id="220"><span class="rail-n">5</span>Refuse to repeat a side effect after a crash</a></li>
-            <li><a href="/learn/201-durable-checkout" data-id="201"><span class="rail-n">6</span>Build a checkout that waits for a review and a timer</a></li>
-            <li><a href="/learn/208-progress" data-id="208"><span class="rail-n">7</span>Report how far along a job is</a></li>
+            <li><a href="/learn/224-check-step" data-id="224"><span class="rail-n">6</span>Ask the provider before repeating a step after a crash</a></li>
+            <li><a href="/learn/201-durable-checkout" data-id="201"><span class="rail-n">7</span>Build a checkout that waits for a review and a timer</a></li>
+            <li><a href="/learn/208-progress" data-id="208"><span class="rail-n">8</span>Report how far along a job is</a></li>
         </ol>
         <button class="button done-toggle" type="button" data-done-toggle="220" aria-pressed="false">Mark as done</button>
-        <p class="rail-turn"><a href="/learn/210-step-retry" rel="prev">Previous</a><a href="/learn/201-durable-checkout" rel="next">Next</a></p>
+        <p class="rail-turn"><a href="/learn/210-step-retry" rel="prev">Previous</a><a href="/learn/224-check-step" rel="next">Next</a></p>
       </aside>
     </div>
     <section class="wrap newcomer" aria-labelledby="newcomer-title">

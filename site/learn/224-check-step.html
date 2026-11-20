@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to ask the provider before repeating a step after a crash · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to ask the provider before repeating a step after a crash with Acta, durable execution for .NET. A step with a check asks the outside world whether its effect already happened before it runs its body again. The first run dies right after the bank charges the card, before Acta records the step; the next run asks the bank, finds the charge, and does not charge again." />
+  <link rel="canonical" href="https://useacta.net/learn/224-check-step" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to ask the provider before repeating a step after a crash · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to ask the provider before repeating a step after a crash with Acta, durable execution for .NET. A step with a check asks the outside world whether its effect already happened before it runs its body again. The first run dies right after the bank charges the card, before Acta records the step; the next run asks the bank, finds the charge, and does not charge again." />
+  <meta property="og:url" content="https://useacta.net/learn/224-check-step" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to ask the provider before repeating a step after a crash","description":"How to ask the provider before repeating a step after a crash with Acta, durable execution for .NET. A step with a check asks the outside world whether its effect already happened before it runs its body again. The first run dies right after the bank charges the card, before Acta records the step; the next run asks the bank, finds the charge, and does not charge again.","url":"https://useacta.net/learn/224-check-step","inLanguage":"en","articleSection":"Make work survive a crash","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Make work survive a crash","item":"https://useacta.net/learn#s-survive"},{"@type":"ListItem","position":3,"name":"How to ask the provider before repeating a step after a crash","item":"https://useacta.net/learn/224-check-step"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/224-check-step.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-survive">make work survive a crash</a></p>
+      <h1>How to ask the provider before repeating a step after a crash</h1>
+      <p class="lede">A step with a check asks the outside world whether its effect already happened before it runs its body again. The first run dies right after the bank charges the card, before Acta records the step; the next run asks the bank, finds the charge, and does not charge again.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/224-check-step"><code>learn/200-durable-execution/224-check-step</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/224-check-step.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Give the step a check</h2>
+<p>After a crash between the charge and its record, the check finds the charge by the order's key and the body does not run.</p>
+<figure class="listing"><figcaption><span class="file">check-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
+{
+    <span class="a">[Job(<span class="s">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
+    {
+<span class="hl">        <span class="k">var</span> chargeId = <span class="k">await</span> context.RunStepWithCheckAsync(</span>
+<span class="hl">            <span class="s">&quot;charge-card&quot;</span>,</span>
+<span class="hl">            ct =&gt; bank.ChargeAsync(order.Key, order.Amount, ct),</span>
+<span class="hl">            ct =&gt; bank.FindChargeAsync(order.Key, ct),</span>
+<span class="hl">            ct</span>
+<span class="hl">        );</span>
+
+        <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;packed&quot;</span>, ct);
+
+        <span class="k">await</span> context.RunStepAsync(<span class="s">&quot;book-carrier&quot;</span>, ct =&gt; carrier.BookAsync(order, ct), ct);
+
+        <span class="k">return</span> chargeId;
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Keep the wait between steps</h2>
+<p>A wait inside a check step's body is refused: after it the check would find the charge and skip the rest of the body.</p>
+<figure class="listing"><figcaption><span class="file">check-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
+{
+    <span class="a">[Job(<span class="s">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
+    {
+        <span class="k">var</span> chargeId = <span class="k">await</span> context.RunStepWithCheckAsync(
+            <span class="s">&quot;charge-card&quot;</span>,
+            ct =&gt; bank.ChargeAsync(order.Key, order.Amount, ct),
+            ct =&gt; bank.FindChargeAsync(order.Key, ct),
+            ct
+        );
+
+<span class="hl">        <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;packed&quot;</span>, ct);</span>
+
+        <span class="k">await</span> context.RunStepAsync(<span class="s">&quot;book-carrier&quot;</span>, ct =&gt; carrier.BookAsync(order, ct), ct);
+
+        <span class="k">return</span> chargeId;
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Give each outside effect a step of its own</h2>
+<figure class="listing"><figcaption><span class="file">check-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
+{
+    <span class="a">[Job(<span class="s">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
+    {
+        <span class="k">var</span> chargeId = <span class="k">await</span> context.RunStepWithCheckAsync(
+            <span class="s">&quot;charge-card&quot;</span>,
+            ct =&gt; bank.ChargeAsync(order.Key, order.Amount, ct),
+            ct =&gt; bank.FindChargeAsync(order.Key, ct),
+            ct
+        );
+
+        <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;packed&quot;</span>, ct);
+
+<span class="hl">        <span class="k">await</span> context.RunStepAsync(<span class="s">&quot;book-carrier&quot;</span>, ct =&gt; carrier.BookAsync(order, ct), ct);</span>
+
+        <span class="k">return</span> chargeId;
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/200-durable-execution/224-check-step</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/200-durable-execution/224-check-step -- crash
+dotnet run --project learn/200-durable-execution/224-check-step -- recover</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+</div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The check is asked only when the step was started and never recorded, in the same attempt or a later one. On a first run it is not asked.</li><li>Look the effect up by a key taken from this job's input, and answer only for this step's own effect. A wrong &quot;found&quot; skips the body and stores that value for good; a miss only runs the body again.</li><li>One outside effect per step, and no wait inside its body: a wait there fails the job at once. Put the wait between steps.</li><li>The check must change nothing: it can be asked more than once.</li><li>This narrows the window in which a step repeats. It is not exactly-once: an attempt whose lease expired can still be mid-call when the next one asks, and a provider can answer late. An idempotency key at the provider is the stronger guard, and an at-most-once step is the one for an effect that can be neither asked about nor repeated: <a href="/learn/220-at-most-once-step">Refuse to repeat a side effect after a crash</a>.</li><li><code>&quot;charge-card&quot;</code> and <code>&quot;book-carrier&quot;</code> are the keys to each step's stored result, and <code>&quot;packed&quot;</code> names the signal the job waits on. Rename <code>&quot;charge-card&quot;</code> and the step is a new one: its check is not asked and the card is charged again.</li><li>The name in <code>[Job(&quot;ship-order&quot;)]</code> and the namespace in <code>Run&lt;CheckStepJobs&gt;(&quot;check-step&quot;)</code> are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>ShipOrder</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>ship-order-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
+<div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">The first run charges the card and dies before Acta records the step. What does the next run do?</p><ol class="check-options"><li><button type="button">It charges the card again, since the step has no recorded result</button></li><li><button type="button">It asks the bank for the order's charge, records the charge it finds, and does not charge again</button></li><li><button type="button">It fails the job, since the outcome is unknown</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>It asks the bank for the order's charge, records the charge it finds, and does not charge again.</b> The step was started and never recorded, so the check is asked before the body; a value it answers becomes the step's result.</p></details></div><div class="check" data-answer="0"><p class="check-q">Why does the wait for <code>&quot;packed&quot;</code> sit between the two steps instead of at the end of the charge step's body?</p><ol class="check-options"><li><button type="button">A wait inside a check step's body fails the job at once: after the wait the check would find the charge and skip the rest of the body</button></li><li><button type="button">A wait inside any step's body is refused</button></li><li><button type="button">A wait inside a step's body would charge the card again</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>A wait inside a check step's body fails the job at once: after the wait the check would find the charge and skip the rest of the body.</b> A wait inside an ordinary step's body works, since its resume runs the body again up to the wait.</p></details></div></div>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/224-check-step"><code>learn/200-durable-execution/224-check-step</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">check-step.cs</span><span class="file-size">183 lines</span></summary><figure class="listing"><figcaption><span class="file">check-step.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to ask the provider before repeating a step after a crash</span>
+<span class="c">// A step with a check asks the outside world whether its effect already happened before it runs its body again. The</span>
+<span class="c">// first run dies right after the bank charges the card, before Acta records the step; the next run asks the bank, finds</span>
+<span class="c">// the charge, and does not charge again.</span>
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Labs;
+<span class="k">using</span> Acta.Learn.CheckStep;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+
+<span class="k">const</span> <span class="k">string</span> jobNamespace = <span class="s">&quot;check-step&quot;</span>;
+<span class="k">var</span> currentOrderFile = Path.Combine(Path.GetTempPath(), <span class="s">&quot;acta-check-step-current-order.txt&quot;</span>);
+
+<span class="k">var</span> mode = args.FirstOrDefault(a =&gt; !a.StartsWith(<span class="s">&quot;--&quot;</span>, StringComparison.Ordinal))?.ToLowerInvariant();
+<span class="k">if</span> (mode <span class="k">is</span> <span class="k">not</span> (<span class="s">&quot;crash&quot;</span> or <span class="s">&quot;recover&quot;</span>))
+{
+    Console.WriteLine(<span class="s">&quot;Run this two-process experiment in order:&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  dotnet run --project learn/200-durable-execution/224-check-step -- crash&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  dotnet run --project learn/200-durable-execution/224-check-step -- recover&quot;</span>);
+    <span class="k">return</span>;
+}
+
+<span class="c">// Keep provider/configuration switches, but do not pass the bare mode to .NET's configuration parser.</span>
+<span class="k">var</span> hostArgs = args.Where(a =&gt;
+        !<span class="k">string</span>.Equals(a, mode, StringComparison.OrdinalIgnoreCase) &amp;&amp; a <span class="k">is</span> <span class="k">not</span> <span class="s">&quot;--brief&quot;</span> and <span class="k">not</span> <span class="s">&quot;--pause&quot;</span> and <span class="k">not</span> <span class="s">&quot;--all-columns&quot;</span>
+    )
+    .ToArray();
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(hostArgs);
+<span class="k">var</span> lab = <span class="k">new</span> LearnLab(builder.Configuration, args);
+
+<span class="c">// The crash run's bank stops the process right after it charges, before Acta can record the step.</span>
+builder.Services.AddSingleton(<span class="k">new</span> Bank(crashAfterCharge: mode == <span class="s">&quot;crash&quot;</span>));
+builder.Services.AddSingleton&lt;Carrier&gt;();
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;CheckStepJobs&gt;(jobNamespace);
+    j.ConfigureOptions(o =&gt;
+    {
+        <span class="c">// Lab-only timing: production should keep the documented, generous heartbeat margin. The</span>
+        <span class="c">// heartbeat is the only knob, and the lease (4s) and dead-worker window (7s) follow from it,</span>
+        <span class="c">// so a demo cannot land on a combination that reclaims a live worker's own jobs.</span>
+        o.HeartbeatInterval = TimeSpan.FromSeconds(1);
+    });
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+
+<span class="k">if</span> (mode == <span class="s">&quot;crash&quot;</span>)
+{
+    <span class="c">// A fresh order key per run, so the experiment can be repeated against the same database and the same bank.</span>
+    <span class="k">var</span> order = <span class="k">new</span> ShipOrder(<span class="s">$&quot;order-{Guid.NewGuid().ToString(&quot;N&quot;)[..8]}&quot;</span>, 125_00);
+    <span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(order, o =&gt; o.Delayed(TimeSpan.FromSeconds(2)));
+    File.WriteAllLines(currentOrderFile, [enqueued.JobRef.ToString(), order.Key]);
+    Console.WriteLine(<span class="s">&quot;Enqueued the order. The process will stop right after the bank charges the card.&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;A non-zero exit is expected. Then run the recover command against the same database.&quot;</span>);
+    <span class="k">await</span> host.WaitForShutdownAsync();
+    <span class="k">return</span>;
+}
+
+<span class="k">var</span> marker = File.Exists(currentOrderFile) ? File.ReadAllLines(currentOrderFile) : [];
+<span class="k">if</span> (marker.Length != 2 || !JobRef.TryParse(marker[0], <span class="k">out</span> <span class="k">var</span> jobRef))
+{
+    Console.WriteLine(<span class="s">&quot;No crashed order is recorded. Run the crash command first.&quot;</span>);
+    <span class="k">await</span> host.StopAsync();
+    <span class="k">return</span>;
+}
+<span class="k">var</span> orderKey = marker[1];
+<span class="k">var</span> crashed = <span class="k">await</span> jobs.GetAsync(jobRef);
+<span class="k">if</span> (crashed <span class="k">is</span> <span class="k">null</span>)
+{
+    Console.WriteLine(<span class="s">$&quot;The marker names {jobRef}, but that job is not in this database. Run crash and recover with the same provider.&quot;</span>);
+    <span class="k">await</span> host.StopAsync();
+    <span class="k">return</span>;
+}
+
+<span class="k">var</span> bank = host.Services.GetRequiredService&lt;Bank&gt;();
+Console.WriteLine(<span class="s">$&quot;charges at the bank before recovery: {bank.Charges(orderKey)}&quot;</span>);
+Console.WriteLine(
+    <span class="s">&quot;Waiting for recovery: on SQLite this host's start releases the crashed process's job at once; on a server database the heartbeat takes the pass once the short lab lease lapses...&quot;</span>
+);
+<span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+<span class="k">var</span> status = (<span class="k">await</span> jobs.GetAsync(jobRef, timeout.Token))?.Status;
+<span class="k">while</span> (status != JobStatusCode.Suspended &amp;&amp; status?.IsFinished != <span class="k">true</span>)
+{
+    <span class="k">await</span> Task.Delay(100, timeout.Token);
+    status = (<span class="k">await</span> jobs.GetAsync(jobRef, timeout.Token))?.Status;
+}
+
+<span class="c">// A repeated recover finds the order already shipped.</span>
+<span class="k">if</span> (status == JobStatusCode.Suspended)
+{
+    <span class="k">await</span> jobs.RaiseSignalAsync(jobRef, <span class="s">&quot;packed&quot;</span>, JobPayload.None, ct: timeout.Token);
+}
+<span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(jobRef, timeout.Token))?.Status.IsFinished != <span class="k">true</span>)
+{
+    <span class="k">await</span> Task.Delay(100, timeout.Token);
+}
+
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;After recovery: the check answered the charge step, and the carrier step ran&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT step_name, step_status</span>
+<span class="s">    FROM steps_view</span>
+<span class="s">    WHERE job_id = @jobId</span>
+<span class="s">    ORDER BY step_name</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { jobId = crashed.JobId }
+);
+
+Console.WriteLine(<span class="s">$&quot;charges at the bank after recovery: {bank.Charges(orderKey)}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;status={(await jobs.GetAsync(jobRef))?.Status}&quot;</span>);
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">namespace</span> Acta.Learn.CheckStep
+{
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ShipOrder(<span class="k">string</span> Key, <span class="k">int</span> Amount);
+
+    <span class="c">// A stand-in for the card provider. Its charges outlive the process in a file per order key, as a real provider's</span>
+    <span class="c">// do, so the run after the crash can look them up.</span>
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> Bank(<span class="k">bool</span> crashAfterCharge)
+    {
+        <span class="k">private</span> <span class="k">static</span> <span class="k">string</span> Ledger(<span class="k">string</span> key) =&gt; Path.Combine(Path.GetTempPath(), <span class="s">$&quot;acta-check-step-bank-{key}.log&quot;</span>);
+
+        <span class="k">public</span> Task&lt;<span class="k">string</span>&gt; ChargeAsync(<span class="k">string</span> key, <span class="k">int</span> amount, CancellationToken ct)
+        {
+            <span class="k">var</span> chargeId = <span class="s">$&quot;ch-{key}&quot;</span>;
+            File.AppendAllText(Ledger(key), <span class="s">$&quot;{chargeId}:{amount}{Environment.NewLine}&quot;</span>);
+            <span class="k">if</span> (crashAfterCharge)
+            {
+                Console.WriteLine(<span class="s">&quot;CARD CHARGED. Stopping before Acta can record the step...&quot;</span>);
+                Console.Out.Flush();
+                Environment.FailFast(<span class="s">&quot;Intentional check-step lab crash after the charge.&quot;</span>);
+            }
+            <span class="k">return</span> Task.FromResult(chargeId);
+        }
+
+        <span class="k">public</span> Task&lt;<span class="k">string</span>?&gt; FindChargeAsync(<span class="k">string</span> key, CancellationToken ct) =&gt;
+            Task.FromResult(File.Exists(Ledger(key)) ? File.ReadLines(Ledger(key)).First().Split(<span class="s">':'</span>)[0] : <span class="k">null</span>);
+
+        <span class="k">public</span> <span class="k">int</span> Charges(<span class="k">string</span> key) =&gt; File.Exists(Ledger(key)) ? File.ReadLines(Ledger(key)).Count() : 0;
+    }
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> Carrier
+    {
+        <span class="k">public</span> Task BookAsync(ShipOrder order, CancellationToken ct)
+        {
+            Console.WriteLine(<span class="s">&quot;carrier booked&quot;</span>);
+            <span class="k">return</span> Task.CompletedTask;
+        }
+    }
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
+    {
+        <span class="a">[Job(<span class="s">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
+        {
+            <span class="c">// learn: 1. Give the step a check</span>
+            <span class="c">// After a crash between the charge and its record, the check finds the charge by the order's key and the body does</span>
+            <span class="c">// not run.</span>
+<span class="hl">            <span class="k">var</span> chargeId = <span class="k">await</span> context.RunStepWithCheckAsync(</span>
+<span class="hl">                <span class="s">&quot;charge-card&quot;</span>,</span>
+<span class="hl">                ct =&gt; bank.ChargeAsync(order.Key, order.Amount, ct),</span>
+<span class="hl">                ct =&gt; bank.FindChargeAsync(order.Key, ct),</span>
+<span class="hl">                ct</span>
+<span class="hl">            );</span>
+            <span class="c">// learn: end</span>
+
+            <span class="c">// learn: 2. Keep the wait between steps</span>
+            <span class="c">// A wait inside a check step's body is refused: after it the check would find the charge and skip the rest of the body.</span>
+<span class="hl">            <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;packed&quot;</span>, ct);</span>
+            <span class="c">// learn: end</span>
+
+            <span class="c">// learn: 3. Give each outside effect a step of its own</span>
+<span class="hl">            <span class="k">await</span> context.RunStepAsync(<span class="s">&quot;book-carrier&quot;</span>, ct =&gt; carrier.BookAsync(order, ct), ct);</span>
+            <span class="c">// learn: end</span>
+
+            <span class="k">return</span> chargeId;
+        }
+    }
+}</code></pre></figure>
+</details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/201-durable-checkout">How to build a checkout that waits for a review and a timer</a><span>Make work survive a crash</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/224-check-step.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/224-check-step.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-survive">Make work survive a crash</a></p>
+        <ol>
+            <li><a href="/learn/202-durable-step" data-id="202"><span class="rail-n">1</span>Keep finished work from repeating on a retry</a></li>
+            <li><a href="/learn/206-step-chain" data-id="206"><span class="rail-n">2</span>Feed one step's result into the next</a></li>
+            <li><a href="/learn/216-variable-lifecycle" data-id="216"><span class="rail-n">3</span>Check, delete, and default a job's variables</a></li>
+            <li><a href="/learn/210-step-retry" data-id="210"><span class="rail-n">4</span>Compensate when the last attempt fails</a></li>
+            <li><a href="/learn/220-at-most-once-step" data-id="220"><span class="rail-n">5</span>Refuse to repeat a side effect after a crash</a></li>
+            <li aria-current="page"><a href="/learn/224-check-step" data-id="224"><span class="rail-n">6</span>Ask the provider before repeating a step after a crash</a></li>
+            <li><a href="/learn/201-durable-checkout" data-id="201"><span class="rail-n">7</span>Build a checkout that waits for a review and a timer</a></li>
+            <li><a href="/learn/208-progress" data-id="208"><span class="rail-n">8</span>Report how far along a job is</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="224" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/220-at-most-once-step" rel="prev">Previous</a><a href="/learn/201-durable-checkout" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.14 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

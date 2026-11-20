@@ -107,7 +107,7 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "A result of job ({ActaJobName}) ({ActaJobRef}) is past MaxInlinePayloadBytes ({ActaDetail}). The cap does not refuse a result, since its body already ran; results are outgrowing it."
+        Message = "A result of job ({ActaJobName}) ({ActaJobRef}) is past MaxInlinePayloadBytes ({ActaDetail}). The cap does not refuse a result, since the work behind it is already done; results are outgrowing it."
     )]
     public static partial void ResultOverCap(ILogger log, string actaJobName, string actaJobRef, string actaDetail);
 

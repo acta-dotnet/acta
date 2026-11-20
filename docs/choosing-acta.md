@@ -78,7 +78,7 @@ Ask these in order and stop at the first yes.
 | Timers and in-memory schedules lose or repeat runs after restarts | Jobs, schedules, cursors, leases, attempts, and events are persisted in SQL |
 | Nobody knows what happened last night | Job status, event timelines, alerts, dashboard/API, CLI, and SQL inspection |
 | A worker died mid-job | Worker leases lapse and recovery reclaims eligible jobs for retry |
-| A job must not repeat blindly | Deduplication keys, durable steps, locks, concurrency keys, and at-most-once step policy |
+| A job must not repeat blindly | Deduplication keys, durable steps, a check before a step repeats, locks, concurrency keys, and at-most-once steps |
 | Operators need control | Pause, resume, cancel, restart, signal, debug, explain, and schedule pause/resume |
 | Teams do not want more infrastructure | The worker is the app process; durable state is the app database |
 
@@ -318,7 +318,7 @@ control actions.
 - Keep platform clocks only when the organization already standardizes on them.
 - Add deduplication keys to platform-triggered jobs and user-triggered duplicate-prone jobs.
 - Use `JobContext.JobRef` or `JobContext.JobId` in logger scopes for correlation.
-- Wrap side effects in durable steps so a retry skips the ones that completed; a crash before a step records its outcome can still repeat it, so the side effect needs an idempotency key or `AtMostOnce()`.
+- Wrap side effects in durable steps so a retry skips the ones that completed; a crash before a step records its outcome can still repeat it, so the side effect needs an idempotency key, a check (`RunStepWithCheckAsync`), or `AtMostOnce()`.
 - Teach operators to start with `jobs_view`, `events_view`, the dashboard, and `jobs explain`.
 
 ## Rule of thumb

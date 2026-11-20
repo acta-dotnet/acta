@@ -108,6 +108,57 @@ public sealed class ResultCeilingTests
         }
     }
 
+    // The check of a step started before finds a value of the given size; its body must not run.
+    [Theory]
+    [InlineData(SmallCap, Ceiling)]
+    [InlineData(SmallCap, Ceiling + 1)]
+    public async Task A_found_value_is_stored_up_to_the_ceiling_and_fails_the_step_naming_its_check_past_it(int cap, int bytes)
+    {
+        var session = new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "StartJobStep" => new StartJobStepResponse(
+                    StartJobStepOutcomeCode.InvokeAgain,
+                    Version: 1,
+                    ResultFormatId: 0,
+                    Result: null,
+                    FailureMessage: null
+                ),
+                "CompleteJobStep" => new CompleteJobStepResponse(CompleteJobStepOutcomeCode.Succeeded),
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
+        var log = new RecordingLogger();
+        var ctx = Context(Job(), session, log, cap);
+        var value = JsonOf(bytes);
+        Task<string> Step() =>
+            ctx.RunStepWithCheckAsync(
+                "sized",
+                _ => throw new InvalidOperationException("The body ran."),
+                _ => Task.FromResult<string?>(value),
+                CancellationToken.None
+            );
+
+        if (bytes <= Ceiling)
+        {
+            Assert.Equal(value, await Step());
+            Assert.Contains(session.Calls, call => call.Stem == "CompleteJobStep");
+            AssertWarnsOnlyPastTheCap(log, cap, bytes, $"step 'sized': {bytes} bytes, cap {cap} bytes");
+            Assert.DoesNotContain("body", Assert.Single(log.Warnings), StringComparison.Ordinal);
+        }
+        else
+        {
+            var failed = await Assert.ThrowsAsync<StepFailedException>(Step);
+            Assert.Contains(
+                $"its check found its effect, and the value found was not recorded: it is {bytes} bytes",
+                failed.Message,
+                StringComparison.Ordinal
+            );
+            Assert.DoesNotContain("its body ran", failed.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(session.Calls, call => call.Stem == "CompleteJobStep");
+        }
+    }
+
     private static void AssertWarnsOnlyPastTheCap(RecordingLogger log, int cap, int bytes, string detail)
     {
         if (bytes <= cap)
