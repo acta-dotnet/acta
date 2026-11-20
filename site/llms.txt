@@ -506,7 +506,7 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
 - Retention deletes finished work only. A job that landed `Succeeded`, `Failed`, or `Cancelled` is
   deleted with its steps and checkpoints once its definition's `JobRetention` has passed, 90 days by
   default (`[Job("release-payment", JobRetention = "365d")]`). A job that waits is never deleted,
-  however long it waits, and a finished child stays while its parent is unfinished. Events go by age
+  however long it waits, and a finished child stays until its parent has finished and the parent's own retention is due. Events go by age
   alone, a year by default (`JobsOptions.JobEventsRetention`): a job still waiting after that keeps
   everything it needs to resume and loses the oldest lines of its timeline. A record the business
   must keep for good belongs in the application's own table, written in a step.
@@ -532,7 +532,7 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
   good never reaches its reset and leaves its steps to the next one, so name a fire's steps by the fire:
   `$"plan.f{ctx.FiringId:N}"`, since a GUID's hex can start with a digit and a name segment cannot.
 - Children a permanent job starts are never purged while its schedule lives, since retention keeps a
-  child as long as its parent is unfinished. For per-occurrence fan-out, declare the definition
+  child as long as its parent. For per-occurrence fan-out, declare the definition
   `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`: each occurrence is then a root job of its
   own, and the children it starts drain with it.
 

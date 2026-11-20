@@ -2816,13 +2816,14 @@ BEGIN
                 -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
                 -- delete; a fully-expired subtree drains bottom-up across iterations.
                 AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_job_id = j.job_id)
-                -- A completed child of a live parent is kept: the parent's replay dedupes onto its row and
-                -- reads its result, so purging it would run the child again. The tree drains once the
-                -- parent is terminal.
+                -- A finished child is kept until its parent has finished and the parent's own retention is due, because the
+                -- parent's replay reads the child's result from the child's row. Trees still drain from the leaves up.
                 AND NOT EXISTS (
                     SELECT 1 FROM {{schema}}.jobs_state p
                     WHERE p.job_id = j.parent_job_id
-                      AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                      AND (p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                           OR p.retention_until_utc IS NULL
+                           OR p.retention_until_utc > p_cutoff_utc))
                 -- A stopped recurring job stays while its definition is live: the next deploy would register
                 -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
                 -- it drain.
@@ -4525,5 +4526,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117211008_init')
+VALUES ('M20261120002222_init')
 ON CONFLICT (name) DO NOTHING;

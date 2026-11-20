@@ -96,9 +96,9 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Reads a child's stored result, deserialized to <typeparamref name="TResult"/>, and whether it has one:
-    /// <c>Found</c> is false when the child stored none or was already purged by retention, which keeps a completed
-    /// child while this job is not terminal. Point-in-time and non-blocking; wait for the child first when ordering
-    /// matters.
+    /// <c>Found</c> is false when the child stored none or was already purged by retention, which keeps a finished
+    /// child until this job has finished and its own retention is due. Point-in-time and non-blocking; wait for the child
+    /// first when ordering matters.
     /// </summary>
     public async Task<(bool Found, TResult? Value)> TryGetChildResultAsync<TResult>(long childJobId, CancellationToken ct = default)
     {

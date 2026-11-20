@@ -556,11 +556,17 @@
   - A restart rejected because an unfinished ancestor sits in the child's lane leaves the parent's latch on the child as it was
   - On PostgreSQL a restart waits for a transaction that holds its parent's latch on it, then puts the latch that transaction set back to pending
 
-### A completed child outlives its retention deadline while its parent is live
-- **Contract:** Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is.
+### A finished child is kept until its parent's own retention is due
+- **Contract:** Retention keeps a finished child until its parent has finished and the parent's own retention is due, manual purge while the parent is live.
 - **Guarantees:**
   - A completed child past its deadline survives the sweep and the purge under a live parent, and the replay reads it
   - Manual purge refuses a child under a live parent and a parent with children, and takes the tree leaves first once it is terminal
+  - A finished child past its retention is kept while its finished parent's own retention is not yet due, and a restarted parent reads it
+  - Once its parent is due too, one sweep call takes the child and a later one the parent, and nothing of either remains
+  - A finished child past its retention is kept while its finished parent has no retention date
+  - A job with no parent goes on its own retention date
+  - A three-level tree drains leaves first, one level a sweep call
+  - In a three-level tree whose root is not yet due, the sweep takes the due leaf and keeps the due middle job and the root
 
 ### Child jobs start deduped, join on completion latches, and cancel cascades
 - **Contract:** EnqueueChildAsync dedupes by name per parent and a terminal child's durable latch releases a waiting parent while cancel cascades to the live subtree.

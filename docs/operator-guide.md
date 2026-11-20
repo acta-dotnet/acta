@@ -461,7 +461,7 @@ A job is kept past its retention while one of its alerts is undelivered, since t
 | --- | --- | --- |
 | Trigger | `sys.retention` finds terminal jobs past `retention_until_utc` | `IJobs.PurgeAsync`, `POST /jobs/{jobRef}/purge`, or the dashboard |
 | Eligible job | Terminal and past its deadline, unless it is a stopped permanent job whose definition is live | Terminal now; a permanent job only when nothing pins it |
-| Child jobs | Keeps a completed child while its parent is live; a finished tree drains leaves first | Refuses a parent with children and a child whose parent is live |
+| Child jobs | Keeps a finished child until its parent has finished and the parent's own retention is due; a tree drains leaves first | Refuses a parent with children and a child whose parent is live |
 | Job event | None | `job.purged`, carrying the job's ref and name |
 | The job's events and alerts | Events age out on their own window; alerts go with the job, which waits for an undelivered one | Deleted at once |
 
@@ -540,7 +540,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261117211008_init to schema acta
+applied M20261120002222_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1576,8 +1576,8 @@ SELECT namespace_name, job_status, COUNT(*) AS jobs_to_purge, MIN(retention_unti
 
 `sys.retention` deletes expired terminal jobs and cascading substrate rows. Three kinds stay and still
 count here: a stopped permanent job whose definition is live (until the definition is retired), a job
-that still has children (the tree drains from the leaves), and a completed child whose parent is not
-terminal. Event and alert
+that still has children (the tree drains from the leaves), and a finished child whose parent is unfinished or not
+yet due itself. The sweep reads the direct parent only, so in a deeper tree a leaf can go while its parent is still held by a grandparent that is not yet due. Event and alert
 retention have their own windows in `JobsOptions`.
 
 ### Tags

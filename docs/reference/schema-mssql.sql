@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117211008_init has no upgrade path: provision a new one.
+-- init migration other than M20261120002222_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117211008_init')
+    WHERE name NOT IN ('M20261120002222_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117211008_init =====
+-- ===== BEGIN M20261120002222_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -3327,13 +3327,16 @@ BEGIN
                         SELECT 1 FROM acta.jobs c WITH (FORCESEEK (ix_jobs_parent (parent_job_id)))
                         WHERE c.parent_job_id = j.job_id AND c.parent_job_id IS NOT NULL
                     )
-                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
-                    -- and reads its result, so purging it would run the child again. The tree drains once
-                    -- the parent is terminal.
+                    -- A finished child is kept until its parent has finished and the parent's own retention is due, because the
+                    -- parent's replay reads the child's result from the child's row. Trees still drain from the leaves up.
                     AND NOT EXISTS (
                         SELECT 1 FROM acta.jobs_state p WITH (FORCESEEK)
                         WHERE p.job_id = j.parent_job_id
-                            AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                            AND (
+                                p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                                OR p.retention_until_utc IS NULL
+                                OR p.retention_until_utc > @p_cutoff_utc
+                            )
                     )
                     -- A stopped recurring job stays while its definition is live: the next deploy would register
                     -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
@@ -5266,11 +5269,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117211008_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261120002222_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117211008_init');
+VALUES ('M20261120002222_init');
 GO
--- ===== END M20261117211008_init =====
+-- ===== END M20261120002222_init =====
 GO
 COMMIT TRANSACTION;
 GO
