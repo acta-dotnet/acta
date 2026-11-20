@@ -92,6 +92,8 @@ BEGIN TRY
         failure_count,
         job_ref,
         tenant_id,
+        /* The claim instant, where the wait the execution records ends. */
+        @now AS db_now,
         lane_id,
         parent_job_id,
         schedule_id

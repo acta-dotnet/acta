@@ -174,6 +174,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 handler_job_status_code  TINYINT        NULL,
                 final_job_status_code    TINYINT        NULL,
                 job_next_run_at_utc      DATETIME2(3)   NULL,
+                wait_ms                  INT            NULL,
                 PRIMARY KEY (job_id, execution_number)
             );');
             GO

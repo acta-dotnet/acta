@@ -30,7 +30,7 @@ namespace Acta;
 [DbIndex(
     Name = "ix_events_duration",
     Columns = ["namespace_id", "definition_id", "created_at_utc"],
-    Include = ["event_code", "duration_ms"],
+    Include = ["event_code", "duration_ms", "wait_ms"],
     Filter = "event_code IN (9, 11, 13) AND duration_ms IS NOT NULL",
     Usage = "dashboard"
 )]
@@ -115,6 +115,15 @@ internal sealed class EventEntity : IEntity<long>
     /// </summary>
     [DbColumn("duration_ms", DbKind.Int32)]
     public int? DurationMs { get; init; }
+
+    /// <summary>
+    /// How long the attempt waited to be claimed, in milliseconds: the claim instant minus the instant the attempt came
+    /// due, both on the database clock. The attempt's completion writes it beside <see cref="DurationMs"/>, never
+    /// negative and capped at this int column's range; null otherwise, and on an orphaned attempt, since no row keeps
+    /// the instant its claim read.
+    /// </summary>
+    [DbColumn("wait_ms", DbKind.Int32)]
+    public int? WaitMs { get; init; }
 
     /// <summary>Human text only, never a classification channel: a failure's message, an operator's note.</summary>
     [DbColumn("event_message", DbKind.UnicodeString, Size = 512)]

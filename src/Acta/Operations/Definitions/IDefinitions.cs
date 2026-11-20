@@ -38,8 +38,8 @@ public interface IDefinitions
     Task<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
 
     /// <summary>
-    /// Read how long a definition's executions took over a range and how many failed, per interval and as a duration
-    /// histogram, or null when no definition matches. It counts the events the ledger still holds, so a range whose
+    /// Read how long a definition's executions took and waited to be claimed over a range and how many failed, per
+    /// interval and as duration and wait histograms, or null when no definition matches. It counts the events the ledger still holds, so a range whose
     /// events retention has removed reads empty, and a definition that records failures only shows few successes. A
     /// range outside the query's bounds throws <see cref="InvalidQueryException"/>.
     /// </summary>

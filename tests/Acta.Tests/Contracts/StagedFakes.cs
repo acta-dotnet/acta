@@ -311,6 +311,7 @@ internal static class StagedFakes
         WorkerRef: FakeWorkers.KnownWorkerRef,
         ExecutionNumber: 2,
         DurationMs: 1520,
+        WaitMs: 40,
         Message: "Invoice provider timed out.",
         Actor: null,
         DetailsText: """{"to":"ready","reason":"unhandled-exception"}"""

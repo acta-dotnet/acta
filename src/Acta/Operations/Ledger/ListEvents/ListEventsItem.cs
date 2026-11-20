@@ -25,6 +25,7 @@ namespace Acta;
 /// <param name="WorkerRef">The ref of the worker the event is about, when there is one: for <c>job.execution-orphaned</c> the dead worker whose attempt was reclaimed, not the worker whose recovery pass wrote it.</param>
 /// <param name="ExecutionNumber">The job's execution number when the event was written: the attempt it belongs to, and for <c>schedule.admitted</c> the number before the firing it opens.</param>
 /// <param name="DurationMs">How long the recorded work took, in milliseconds, when the event measures it.</param>
+/// <param name="WaitMs">How long the execution sat due before a worker claimed it, in milliseconds, when the event measures it.</param>
 /// <param name="Message">The event's message, when it has one.</param>
 /// <param name="Actor">Who performed the action: the operator an operator verb was given, as text, or the job's own id on a state reset its
 /// handler asked for; null on an event the engine or a worker wrote, and when the operator was unknown.</param>
@@ -47,6 +48,7 @@ public sealed record ListEventsItem(
     WorkerRef? WorkerRef,
     long? ExecutionNumber,
     int? DurationMs,
+    int? WaitMs,
     string? Message,
     string? Actor,
     string? DetailsText

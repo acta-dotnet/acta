@@ -806,11 +806,14 @@ sealed record Acta.GetDefinitionPerformanceBin
     System.Int64 FromMs { get;init; }
     System.Int64 ToMs { get;init; }
 sealed record Acta.GetDefinitionPerformanceExecutions
-    .ctor(System.Int64 ExecutionCount, System.Nullable<System.Int32> P50Ms, System.Nullable<System.Int32> P95Ms, System.Nullable<System.Int32> P99Ms)
+    .ctor(System.Int64 ExecutionCount, System.Nullable<System.Int32> P50Ms, System.Nullable<System.Int32> P95Ms, System.Nullable<System.Int32> P99Ms, System.Nullable<System.Int32> WaitP50Ms, System.Nullable<System.Int32> WaitP95Ms, System.Nullable<System.Int32> WaitP99Ms)
     System.Int64 ExecutionCount { get;init; }
     System.Nullable<System.Int32> P50Ms { get;init; }
     System.Nullable<System.Int32> P95Ms { get;init; }
     System.Nullable<System.Int32> P99Ms { get;init; }
+    System.Nullable<System.Int32> WaitP50Ms { get;init; }
+    System.Nullable<System.Int32> WaitP95Ms { get;init; }
+    System.Nullable<System.Int32> WaitP99Ms { get;init; }
 sealed record Acta.GetDefinitionPerformanceInterval
     .ctor(System.DateTime StartAtUtc, Acta.GetDefinitionPerformanceExecutions Succeeded, Acta.GetDefinitionPerformanceExecutions Failed)
     Acta.GetDefinitionPerformanceExecutions Failed { get;init; }
@@ -824,12 +827,14 @@ sealed record Acta.GetDefinitionPerformanceQuery
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
 sealed record Acta.GetDefinitionPerformanceResponse
-    .ctor(System.DateTime FromUtc, System.DateTime ToUtc, System.Int32 IntervalSeconds, System.Boolean ExecutionsHasMore, System.Nullable<System.DateTime> OldestAtUtc, Acta.GetDefinitionPerformanceExecutions Succeeded, Acta.GetDefinitionPerformanceExecutions Failed, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> SucceededBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> FailedBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceInterval> Intervals)
+    .ctor(System.DateTime FromUtc, System.DateTime ToUtc, System.Int32 IntervalSeconds, System.Boolean ExecutionsHasMore, System.Nullable<System.DateTime> OldestAtUtc, Acta.GetDefinitionPerformanceExecutions Succeeded, Acta.GetDefinitionPerformanceExecutions Failed, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> SucceededBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> FailedBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> SucceededWaitBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> FailedWaitBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceInterval> Intervals)
     Acta.GetDefinitionPerformanceExecutions Failed { get;init; }
     Acta.GetDefinitionPerformanceExecutions Succeeded { get;init; }
     System.Boolean ExecutionsHasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> FailedBins { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> FailedWaitBins { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> SucceededBins { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> SucceededWaitBins { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceInterval> Intervals { get;init; }
     System.DateTime FromUtc { get;init; }
     System.DateTime ToUtc { get;init; }
@@ -1852,7 +1857,7 @@ sealed record Acta.ListDefinitionsResponse : Acta.IPagedResponse<Acta.ListDefini
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
 sealed record Acta.ListEventsItem
-    .ctor(System.Int64 EventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, Acta.EntityCode Entity, System.Int64 EntityId, System.String? JobName, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.Nullable<System.Int32> WorkerId, System.Nullable<Acta.WorkerRef> WorkerRef, System.Nullable<System.Int64> ExecutionNumber, System.Nullable<System.Int32> DurationMs, System.String? Message, System.String? Actor, System.String? DetailsText)
+    .ctor(System.Int64 EventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, Acta.EntityCode Entity, System.Int64 EntityId, System.String? JobName, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.Nullable<System.Int32> WorkerId, System.Nullable<Acta.WorkerRef> WorkerRef, System.Nullable<System.Int64> ExecutionNumber, System.Nullable<System.Int32> DurationMs, System.Nullable<System.Int32> WaitMs, System.String? Message, System.String? Actor, System.String? DetailsText)
     Acta.EntityCode Entity { get;init; }
     Acta.EventCode EventCode { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
@@ -1864,6 +1869,7 @@ sealed record Acta.ListEventsItem
     System.Nullable<System.Int32> DefinitionId { get;init; }
     System.Nullable<System.Int32> DurationMs { get;init; }
     System.Nullable<System.Int32> TenantId { get;init; }
+    System.Nullable<System.Int32> WaitMs { get;init; }
     System.Nullable<System.Int32> WorkerId { get;init; }
     System.Nullable<System.Int64> ExecutionNumber { get;init; }
     System.Nullable<System.Int64> LineageRootJobId { get;init; }

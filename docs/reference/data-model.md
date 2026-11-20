@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **17 entities**, **247 columns**, **40 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **248 columns**, **40 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -298,6 +298,7 @@ The append-only ledger: what happened to an entity, named by `EventCode` and the
 | `lineage_root_job_id`<a id="column-acta-events--lineage-root-job-id"></a> | `Int64` | · | yes | · | · | Root of the job's lineage tree on job-subject events, the job itself for a root; powers whole-lineage timelines via `ix_events_lineage_timeline`. |
 | `execution_number`<a id="column-acta-events--execution-number"></a> | `Int64` | · | yes | · | · | The attempt an attempt fact or note belongs to, copied from `jobs_state.execution_number`. |
 | `duration_ms`<a id="column-acta-events--duration-ms"></a> | `Int32` | · | yes | · | · | Wall-clock duration of a succeeded, failed, or yielded attempt in milliseconds, measured in code from start to finish; null otherwise, and on an orphaned attempt, which has no measured end. Registration caps the execution timeout and the worker clamps the measurement, so a duration always fits this int column. |
+| `wait_ms`<a id="column-acta-events--wait-ms"></a> | `Int32` | · | yes | · | · | How long the attempt waited to be claimed, in milliseconds: the claim instant minus the instant the attempt came due, both on the database clock. The attempt's completion writes it beside `DurationMs`, never negative and capped at this int column's range; null otherwise, and on an orphaned attempt, since no row keeps the instant its claim read. |
 | `event_message`<a id="column-acta-events--event-message"></a> | `UnicodeString` | 512 | yes | · | · | Human text only, never a classification channel: a failure's message, an operator's note. |
 | `actor`<a id="column-acta-events--actor"></a> | `UnicodeString` | 128 | yes | · | · | Who performed the action: the operator principal an operator verb was given, as display text, or the job's ref on what its own handler did, a state reset or an alert it resolved; null on an event the engine or a worker writes, and when the operator is unknown. |
 | `details_format_id`<a id="column-acta-events--details-format-id"></a> | `Byte` | · | no | `0` | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format id of `Details`; `0` means no payload. `ck_events_details_pair` enforces `(details_format_id = 0) = (details IS NULL)`; operator views decode format 1 (json) as UTF-8 text, while other formats stay opaque. |
@@ -311,7 +312,7 @@ The append-only ledger: what happened to an entity, named by `EventCode` and the
 | `ix_events_namespace_timeline` | `namespace_id`, `event_code`, `created_at_utc`, `event_id` | not unique | none | `read_api` |
 | `ix_events_entity_timeline` | `entity_code`, `entity_id`, `created_at_utc`, `event_id` | not unique | none | `read_api` |
 | `ix_events_namespace_created` | `namespace_id`, `created_at_utc` DESC, `event_id` DESC | not unique | none | `dashboard_grid` |
-| `ix_events_duration` | `namespace_id`, `definition_id`, `created_at_utc` INCLUDE (`event_code`, `duration_ms`) | not unique | `event_code IN (9, 11, 13) AND duration_ms IS NOT NULL` | `dashboard` |
+| `ix_events_duration` | `namespace_id`, `definition_id`, `created_at_utc` INCLUDE (`event_code`, `duration_ms`, `wait_ms`) | not unique | `event_code IN (9, 11, 13) AND duration_ms IS NOT NULL` | `dashboard` |
 
 **Check constraints**
 

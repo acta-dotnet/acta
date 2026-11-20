@@ -19,7 +19,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_executions(
     p_final_job_status_codes SMALLINT[],
     p_job_next_run_at_utc TIMESTAMPTZ[],
     p_has_schedule BOOLEAN[],
-    p_plain BOOLEAN
+    p_plain BOOLEAN,
+    p_wait_ms INT[] DEFAULT NULL
 )
 RETURNS TABLE (
     job_id BIGINT,
@@ -50,10 +51,10 @@ BEGIN
             SELECT *
             FROM unnest(
                 p_job_ids, p_execution_numbers, p_succeeded, p_result_format_ids, p_results,
-                p_event_codes, p_reasons, p_event_messages, p_duration_ms, p_failure_counts, p_retention_seconds
+                p_event_codes, p_reasons, p_event_messages, p_duration_ms, p_failure_counts, p_retention_seconds, p_wait_ms
             ) AS c (
                 job_id, execution_number, succeeded, result_format_id, result,
-                event_code, reason, event_message, duration_ms, failure_count, retention_seconds
+                event_code, reason, event_message, duration_ms, failure_count, retention_seconds, wait_ms
             )
         ),
         eligible AS (
@@ -87,8 +88,8 @@ BEGIN
             WHERE r.job_id = e.job_id
             RETURNING
                 r.job_id, r.execution_number, r.job_status_code, e.prior_failure_count,
-                c.event_code, c.reason, c.event_message, c.duration_ms, j.namespace_id, j.lineage_root_job_id, j.definition_id,
-                j.tenant_id, j.event_recording_code
+                c.event_code, c.reason, c.event_message, c.duration_ms, c.wait_ms, j.namespace_id, j.lineage_root_job_id,
+                j.definition_id, j.tenant_id, j.event_recording_code
         ),
         -- The attempt's own event under the recording gates and the alert overlay, as in the full path below; a plain
         -- landing is never a recurring fire, so the overlay's success test is the attempt number alone.
@@ -97,14 +98,14 @@ BEGIN
                 event_code, created_at_utc, namespace_id,
                 entity_code, entity_id,
                 definition_id, tenant_id, lineage_root_job_id,
-                worker_id, execution_number, duration_ms,
+                worker_id, execution_number, duration_ms, wait_ms,
                 event_message, details_format_id, details
             )
             SELECT
                 d.event_code, now(), d.namespace_id,
                 4 /* EntityCode.Job */, d.job_id,
                 d.definition_id, d.tenant_id, COALESCE(d.lineage_root_job_id, d.job_id),
-                p_leased_by_worker_id, d.execution_number, d.duration_ms,
+                p_leased_by_worker_id, d.execution_number, d.duration_ms, d.wait_ms,
                 d.event_message,
                 CASE WHEN d.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
                 convert_to('{"reason":"' || d.reason || '"}', 'UTF8')
@@ -398,23 +399,23 @@ BEGIN
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,
         definition_id, tenant_id, lineage_root_job_id,
-        worker_id, execution_number, duration_ms,
+        worker_id, execution_number, duration_ms, wait_ms,
         event_message, details_format_id, details
     )
     SELECT
         c.event_code, now(), j.namespace_id,
         4 /* EntityCode.Job */, r.job_id,
         j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, r.job_id),
-        p_leased_by_worker_id, r.execution_number, c.duration_ms,
+        p_leased_by_worker_id, r.execution_number, c.duration_ms, c.wait_ms,
         c.event_message,
         CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
         convert_to(x.details, 'UTF8')
     FROM unnest(
         p_job_ids, p_execution_numbers, p_event_codes, p_reasons, p_event_messages, p_duration_ms,
-        p_reschedule_event_codes, p_handler_job_status_codes, p_final_job_status_codes
+        p_reschedule_event_codes, p_handler_job_status_codes, p_final_job_status_codes, p_wait_ms
     ) AS c (
         job_id, execution_number, event_code, reason, event_message, duration_ms,
-        reschedule_event_code, handler_job_status_code, final_job_status_code
+        reschedule_event_code, handler_job_status_code, final_job_status_code, wait_ms
     )
     INNER JOIN {{schema}}.jobs_state r ON r.job_id = c.job_id AND r.execution_number = c.execution_number
     INNER JOIN {{schema}}.jobs j ON j.job_id = c.job_id

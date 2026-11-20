@@ -1,11 +1,12 @@
 -- A definition's finished executions in a range, the newest first up to the limit, counted per interval, outcome event
--- and duration. A duration is truncated to two significant figures, which keeps order, so a percentile taken over the
--- counts is the exact percentile truncated the same way.
+-- and duration, and again per interval, outcome event and wait. A duration or a wait is truncated to two significant
+-- figures, which keeps order, so a percentile taken over the counts is the exact percentile truncated the same way.
 SELECT
     -- An interval is numbered once per group: EXTRACT answers numeric, which a row pays for and date_bin does not.
     (EXTRACT(EPOCH FROM a.interval_start_utc - @p_created_from_utc) / @p_interval_seconds)::integer AS interval_number,
     a.event_code,
     a.duration_group_ms,
+    a.wait_group_ms,
     COUNT(*) AS execution_count,
     MIN(a.created_at_utc) AS oldest_at_utc
 FROM (
@@ -23,7 +24,18 @@ FROM (
             WHEN e.duration_ms < 100000000 THEN e.duration_ms / 1000000 * 1000000
             WHEN e.duration_ms < 1000000000 THEN e.duration_ms / 10000000 * 10000000
             ELSE e.duration_ms / 100000000 * 100000000
-        END AS duration_group_ms
+        END AS duration_group_ms,
+        CASE
+            WHEN e.wait_ms < 100 THEN e.wait_ms
+            WHEN e.wait_ms < 1000 THEN e.wait_ms / 10 * 10
+            WHEN e.wait_ms < 10000 THEN e.wait_ms / 100 * 100
+            WHEN e.wait_ms < 100000 THEN e.wait_ms / 1000 * 1000
+            WHEN e.wait_ms < 1000000 THEN e.wait_ms / 10000 * 10000
+            WHEN e.wait_ms < 10000000 THEN e.wait_ms / 100000 * 100000
+            WHEN e.wait_ms < 100000000 THEN e.wait_ms / 1000000 * 1000000
+            WHEN e.wait_ms < 1000000000 THEN e.wait_ms / 10000000 * 10000000
+            ELSE e.wait_ms / 100000000 * 100000000
+        END AS wait_group_ms
     FROM {{schema}}.events e
     WHERE
         e.namespace_id = (SELECT jd.namespace_id FROM {{schema}}.definitions jd WHERE jd.definition_id = @p_definition_id)
@@ -36,4 +48,8 @@ FROM (
     ORDER BY e.created_at_utc DESC
     LIMIT @p_execution_limit
 ) a
-GROUP BY a.interval_start_utc, a.event_code, a.duration_group_ms;
+-- One read counted twice: a duration row leaves wait_group_ms NULL, and a wait row leaves duration_group_ms NULL.
+GROUP BY GROUPING SETS (
+    (a.interval_start_utc, a.event_code, a.duration_group_ms),
+    (a.interval_start_utc, a.event_code, a.wait_group_ms)
+);

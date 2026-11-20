@@ -18,6 +18,7 @@ SELECT
     wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
+    e.wait_ms,
     e.event_message,
     e.actor,
     CASE e.details_format_id

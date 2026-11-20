@@ -1096,6 +1096,14 @@
   - At the failures level a failed attempt is recorded, and a success only when it recovers from counted failures
   - A wait that lands with no checkpoint to wait on lands Ready, and one with a pending checkpoint Suspended
 
+### An execution's event records how long it waited to be claimed
+- **Contract:** Each execution's own event records the claim instant minus the instant that execution came due, on the database clock, and every other event records no wait.
+- **Guarantees:**
+  - A job claimed ten minutes after it came due records that wait through the claim scan, and one claimed as it came due records a small one, both in the view and the event list
+  - A failed execution records its wait, and the retry records its own from the instant the retry came due
+  - An execution that yields on a sleep records its wait, the execution its wake resumes records its own from the wake instant, and the sleep's own event records none
+  - An operator's pause and resume of a job that never ran record no wait
+
 ### A handler write from an attempt that no longer holds its job changes nothing
 - **Contract:** A write from a superseded attempt, on any worker, changes nothing, while the current attempt's writes and completion land and the stale one stops uncharged.
 - **Guarantees:**
@@ -1777,10 +1785,11 @@
   - An unknown job or a namespace this host did not register reads null
   - A definition stored by another host but absent from this manifest reads null
 
-### GetDefinitionPerformance counts executions by interval, outcome and duration
-- **Contract:** GetDefinitionPerformance counts a range's succeeded and failed executions with a duration, by interval and two-figure duration, newest first up to its limit.
+### GetDefinitionPerformance counts by interval, outcome, duration and wait
+- **Contract:** GetDefinitionPerformance counts succeeded and failed executions with a duration, by interval and two-figure duration and wait, newest first up to its limit.
 - **Guarantees:**
   - Succeeded and failed executions are counted with their percentiles: a terminal failure is a failed one, and a yielded, an orphaned and an untimed one are not counted
+  - Waits are counted beside the durations with the same percentiles and bins, from the executions that recorded one
   - The range takes an execution that finished at fromUtc and leaves one that finished at toUtc
   - Every interval of the range is answered, an empty one and a last one the range cuts short included, from a start truncated to the millisecond
   - A read that fills its limit counted the newest executions only, and a range that holds exactly the limit reads as filled too

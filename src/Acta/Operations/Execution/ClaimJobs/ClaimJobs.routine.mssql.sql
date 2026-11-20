@@ -166,7 +166,8 @@ BEGIN
                     failure_count,
                     job_ref,
                     tenant_id,
-                    CAST(NULL AS DATETIME2(7)) AS db_now,
+                    /* The claim instant, where the wait the execution records ends. */
+                    @now AS db_now,
                     CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
                     lane_id,
                     parent_job_id,

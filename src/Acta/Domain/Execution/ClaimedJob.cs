@@ -6,7 +6,7 @@ namespace Acta;
 /// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion; a completion
 /// matches on worker and <c>ExecutionNumber</c>, which only a claim moves. <c>LaneId</c>, <c>ParentJobId</c>, and
 /// <c>ScheduleId</c> (the schedule that admitted a per-occurrence root) never change after insert, so the completion
-/// trusts them as the claim read them.
+/// trusts them as the claim read them. <c>WaitMs</c> is how long the job sat due before this claim, which its completion records.
 /// </summary>
 internal sealed record ClaimedJob(
     long JobId,
@@ -24,7 +24,8 @@ internal sealed record ClaimedJob(
     long? LaneId = null,
     long? ParentJobId = null,
     JobKindCode Kind = JobKindCode.Ordinary,
-    int? ScheduleId = null
+    int? ScheduleId = null,
+    int? WaitMs = null
 )
 {
     /// <summary>Reads a job row of either claim routine; the horizon sentinel row is the claim scan's own.</summary>
@@ -45,8 +46,21 @@ internal sealed record ClaimedJob(
             LaneId: row.LaneId,
             ParentJobId: row.ParentJobId,
             Kind: Required(row.JobKindCode, "job_kind_code"),
-            ScheduleId: row.ScheduleId
+            ScheduleId: row.ScheduleId,
+            WaitMs: row.NextRunAtUtc is { } dueAtUtc && row.DbNowUtc is { } claimedAtUtc ? WaitMsBetween(dueAtUtc, claimedAtUtc) : null
         );
+
+    /// <summary>
+    /// The whole milliseconds from the due instant to the claim: 0 when clock rounding puts the claim first, and
+    /// <see cref="int.MaxValue"/> past the range of the int column that stores it.
+    /// </summary>
+    internal static int WaitMsBetween(DateTime dueAtUtc, DateTime claimedAtUtc)
+    {
+        var waited = (claimedAtUtc - dueAtUtc).TotalMilliseconds;
+        return waited <= 0 ? 0
+            : waited >= int.MaxValue ? int.MaxValue
+            : (int)waited;
+    }
 
     private static T Required<T>(T? value, string column)
         where T : struct => value ?? throw new InvalidOperationException($"claim returned a job row with NULL {column}.");

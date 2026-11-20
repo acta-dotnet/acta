@@ -370,14 +370,14 @@ BEGIN
             event_code, created_at_utc, namespace_id,
             entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id,
-            worker_id, execution_number, duration_ms,
+            worker_id, execution_number, duration_ms, wait_ms,
             event_message, details_format_id, details
         )
         SELECT
             c.event_code, @now, j.namespace_id,
             4 /* EntityCode.Job */, d.job_id,
             j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-            @p_leased_by_worker_id, d.execution_number, c.duration_ms,
+            @p_leased_by_worker_id, d.execution_number, c.duration_ms, c.wait_ms,
             c.event_message,
             CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
             CAST(x.details AS VARBINARY(MAX))

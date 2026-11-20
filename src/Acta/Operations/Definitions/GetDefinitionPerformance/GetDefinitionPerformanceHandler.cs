@@ -2,14 +2,15 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="IDefinitions.GetPerformanceAsync"/>: resolves the natural key, has the database count the range's outcome
-/// events per interval, outcome and duration, and takes the percentiles and the histogram bins from those counts.
+/// events per interval, outcome and duration, and again per wait, and takes the percentiles and the histogram bins from
+/// those counts.
 /// </summary>
 internal sealed class GetDefinitionPerformanceHandler(GetDefinitionIdHandler getDefinitionId, IDbSession session, ISqlDialect dialect)
 {
     /// <summary>The most intervals a range may hold.</summary>
     internal const int IntervalLimit = 60;
 
-    /// <summary>The bins the duration scale has up to the longest duration a worker records.</summary>
+    /// <summary>The bins the scale has up to the longest duration or wait an event records.</summary>
     internal const int BinLimit = 94;
 
     /// <summary>The newest executions a read counts.</summary>
@@ -96,15 +97,21 @@ internal sealed class GetDefinitionPerformanceHandler(GetDefinitionIdHandler get
         // job.failed is a failed execution too: the one that ended its job, written in place of job.execution-failed.
         static bool Succeeded(GetDefinitionPerformanceRow row) => row.EventCode == EventCode.JobExecutionSucceeded;
 
-        var byOutcome = rows.ToLookup(Succeeded);
-        var byInterval = rows.ToLookup(static row => (row.IntervalNumber, Succeeded(row)));
+        // A row counts durations or waits, never both: the duration rows count every execution read, the wait rows the
+        // executions that recorded a wait.
+        GetDefinitionPerformanceRow[] durations = [.. rows.Where(static row => row.DurationGroupMs is not null)];
+        GetDefinitionPerformanceRow[] waits = [.. rows.Where(static row => row.WaitGroupMs is not null)];
+        var durationsByOutcome = durations.ToLookup(Succeeded);
+        var waitsByOutcome = waits.ToLookup(Succeeded);
+        var durationsByInterval = durations.ToLookup(static row => (row.IntervalNumber, Succeeded(row)));
+        var waitsByInterval = waits.ToLookup(static row => (row.IntervalNumber, Succeeded(row)));
         var intervals = new GetDefinitionPerformanceInterval[IntervalCount(query)];
         for (var i = 0; i < intervals.Length; i++)
         {
             intervals[i] = new GetDefinitionPerformanceInterval(
                 query.FromUtc.AddTicks(i * (query.IntervalSeconds * TimeSpan.TicksPerSecond)),
-                Summarize(byInterval[(i, true)]),
-                Summarize(byInterval[(i, false)])
+                Summarize(durationsByInterval[(i, true)], waitsByInterval[(i, true)]),
+                Summarize(durationsByInterval[(i, false)], waitsByInterval[(i, false)])
             );
         }
 
@@ -112,15 +119,21 @@ internal sealed class GetDefinitionPerformanceHandler(GetDefinitionIdHandler get
             query.FromUtc,
             query.ToUtc,
             query.IntervalSeconds,
-            rows.Sum(static row => row.ExecutionCount) >= executionLimit,
-            rows.Min(static row => (DateTime?)row.OldestAtUtc),
-            Summarize(byOutcome[true]),
-            Summarize(byOutcome[false]),
-            Bins(byOutcome[true]),
-            Bins(byOutcome[false]),
+            durations.Sum(static row => row.ExecutionCount) >= executionLimit,
+            durations.Min(static row => (DateTime?)row.OldestAtUtc),
+            Summarize(durationsByOutcome[true], waitsByOutcome[true]),
+            Summarize(durationsByOutcome[false], waitsByOutcome[false]),
+            Bins(durationsByOutcome[true], DurationGroupMs),
+            Bins(durationsByOutcome[false], DurationGroupMs),
+            Bins(waitsByOutcome[true], WaitGroupMs),
+            Bins(waitsByOutcome[false], WaitGroupMs),
             intervals
         );
     }
+
+    private static int DurationGroupMs(GetDefinitionPerformanceRow row) => row.DurationGroupMs!.Value;
+
+    private static int WaitGroupMs(GetDefinitionPerformanceRow row) => row.WaitGroupMs!.Value;
 
     private static DateTime TruncateToMillisecond(DateTime value)
     {
@@ -134,13 +147,27 @@ internal sealed class GetDefinitionPerformanceHandler(GetDefinitionIdHandler get
         return ((query.ToUtc - query.FromUtc).Ticks + intervalTicks - 1) / intervalTicks;
     }
 
+    /// <summary>The count of the executions <paramref name="durations"/> count, with their duration and wait percentiles.</summary>
+    private static GetDefinitionPerformanceExecutions Summarize(
+        IEnumerable<GetDefinitionPerformanceRow> durations,
+        IEnumerable<GetDefinitionPerformanceRow> waits
+    )
+    {
+        var (count, p50, p95, p99) = Percentiles(durations, DurationGroupMs);
+        var (_, waitP50, waitP95, waitP99) = Percentiles(waits, WaitGroupMs);
+        return new GetDefinitionPerformanceExecutions(count, p50, p95, p99, waitP50, waitP95, waitP99);
+    }
+
     /// <summary>
     /// The count and nearest-rank percentiles of the executions <paramref name="rows"/> count. A rank is taken in whole
     /// numbers, so no rounding of a fraction decides which execution a percentile names.
     /// </summary>
-    private static GetDefinitionPerformanceExecutions Summarize(IEnumerable<GetDefinitionPerformanceRow> rows)
+    private static (long Count, int? P50, int? P95, int? P99) Percentiles(
+        IEnumerable<GetDefinitionPerformanceRow> rows,
+        Func<GetDefinitionPerformanceRow, int> groupMs
+    )
     {
-        GetDefinitionPerformanceRow[] shortestFirst = [.. rows.OrderBy(static row => row.DurationGroupMs)];
+        GetDefinitionPerformanceRow[] shortestFirst = [.. rows.OrderBy(groupMs)];
         var count = shortestFirst.Sum(static row => row.ExecutionCount);
         var (rank50, rank95, rank99) = ((50 * count + 99) / 100, (95 * count + 99) / 100, (99 * count + 99) / 100);
         int? p50 = null;
@@ -150,22 +177,25 @@ internal sealed class GetDefinitionPerformanceHandler(GetDefinitionIdHandler get
         foreach (var row in shortestFirst)
         {
             reached += row.ExecutionCount;
-            p50 ??= reached >= rank50 ? row.DurationGroupMs : (int?)null;
-            p95 ??= reached >= rank95 ? row.DurationGroupMs : (int?)null;
-            p99 ??= reached >= rank99 ? row.DurationGroupMs : (int?)null;
+            p50 ??= reached >= rank50 ? groupMs(row) : (int?)null;
+            p95 ??= reached >= rank95 ? groupMs(row) : (int?)null;
+            p99 ??= reached >= rank99 ? groupMs(row) : (int?)null;
         }
 
-        return new GetDefinitionPerformanceExecutions(count, p50, p95, p99);
+        return (count, p50, p95, p99);
     }
 
     /// <summary>The histogram of the executions <paramref name="rows"/> count, from the first bin that holds one to the last.</summary>
-    private static GetDefinitionPerformanceBin[] Bins(IEnumerable<GetDefinitionPerformanceRow> rows)
+    private static GetDefinitionPerformanceBin[] Bins(
+        IEnumerable<GetDefinitionPerformanceRow> rows,
+        Func<GetDefinitionPerformanceRow, int> groupMs
+    )
     {
         var counts = new long[BinLimit];
         foreach (var row in rows)
         {
-            // A duration that is no edge falls in the bin the edge below it starts.
-            var index = Array.BinarySearch(BinEdges, (long)row.DurationGroupMs);
+            // A group that is no edge falls in the bin the edge below it starts.
+            var index = Array.BinarySearch(BinEdges, (long)groupMs(row));
             counts[index >= 0 ? index : ~index - 1] += row.ExecutionCount;
         }
 

@@ -18,7 +18,7 @@
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261120201836_init has no upgrade path: provision a new one.
+-- init migration other than M20261120220409_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -70,11 +70,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.acta_migrations
-    WHERE name NOT IN ('M20261120201836_init')
+    WHERE name NOT IN ('M20261120220409_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261120201836_init =====
+-- ===== BEGIN M20261120220409_init =====
 CREATE TABLE IF NOT EXISTS main.acta_alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS main.acta_events (
     lineage_root_job_id integer NULL,
     execution_number integer NULL,
     duration_ms integer NULL,
+    wait_ms integer NULL,
     event_message text NULL,
     actor text NULL,
     details_format_id integer DEFAULT 0 NOT NULL,
@@ -666,6 +667,7 @@ SELECT
     wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
+    e.wait_ms,
     e.event_message,
     e.actor,
     CASE e.details_format_id
@@ -845,10 +847,10 @@ JOIN main.acta_namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.acta_migrations (name)
-VALUES ('M20261120201836_init')
+VALUES ('M20261120220409_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261120201836_init =====
+-- ===== END M20261120220409_init =====
 
 COMMIT;
 

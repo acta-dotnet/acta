@@ -97,14 +97,19 @@ internal sealed class FakeDefinitions : IDefinitions
     private static GetDefinitionResponse? Detail(string jobNamespace, string jobName) =>
         IsSendInvoice(jobNamespace, jobName) ? SendInvoice : null;
 
-    /// <summary>Three successes and the failure that ended a job, all in the range's first interval, mapped as the handler maps them.</summary>
+    /// <summary>
+    /// Three successes and the failure that ended a job, with their waits, all in the range's first interval, mapped as the
+    /// handler maps them.
+    /// </summary>
     private static GetDefinitionPerformanceResponse? Performance(GetDefinitionPerformanceQuery query) =>
         IsSendInvoice(query.JobNamespace, query.JobName)
             ? GetDefinitionPerformanceHandler.Map(
                 query,
                 [
-                    new GetDefinitionPerformanceRow(0, EventCode.JobExecutionSucceeded, 240, 3, query.FromUtc),
-                    new GetDefinitionPerformanceRow(0, EventCode.JobFailed, 1800, 1, query.FromUtc),
+                    new GetDefinitionPerformanceRow(0, EventCode.JobExecutionSucceeded, 240, null, 3, query.FromUtc),
+                    new GetDefinitionPerformanceRow(0, EventCode.JobExecutionSucceeded, null, 12, 3, query.FromUtc),
+                    new GetDefinitionPerformanceRow(0, EventCode.JobFailed, 1800, null, 1, query.FromUtc),
+                    new GetDefinitionPerformanceRow(0, EventCode.JobFailed, null, 3000, 1, query.FromUtc),
                 ],
                 GetDefinitionPerformanceHandler.ExecutionLimit
             )

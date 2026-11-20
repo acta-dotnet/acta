@@ -12791,7 +12791,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Read how long the definition's executions took and how many failed",
+        "summary": "Read how long the definition's executions took and waited, and how many failed",
         "description": "Needs the acta.read permission.",
         "operationId": "getDefinitionPerformance",
         "parameters": [
@@ -12869,13 +12869,19 @@
                         "executionCount": 3,
                         "p50Ms": 240,
                         "p95Ms": 240,
-                        "p99Ms": 240
+                        "p99Ms": 240,
+                        "waitP50Ms": 12,
+                        "waitP95Ms": 12,
+                        "waitP99Ms": 12
                       },
                       "failed": {
                         "executionCount": 1,
                         "p50Ms": 1800,
                         "p95Ms": 1800,
-                        "p99Ms": 1800
+                        "p99Ms": 1800,
+                        "waitP50Ms": 3000,
+                        "waitP95Ms": 3000,
+                        "waitP99Ms": 3000
                       },
                       "succeededBins": [
                         {
@@ -12891,6 +12897,20 @@
                           "executionCount": 1
                         }
                       ],
+                      "succeededWaitBins": [
+                        {
+                          "fromMs": 10,
+                          "toMs": 13,
+                          "executionCount": 3
+                        }
+                      ],
+                      "failedWaitBins": [
+                        {
+                          "fromMs": 2500,
+                          "toMs": 3200,
+                          "executionCount": 1
+                        }
+                      ],
                       "intervals": [
                         {
                           "startAtUtc": "2026-06-12T00:00:00Z",
@@ -12898,13 +12918,19 @@
                             "executionCount": 3,
                             "p50Ms": 240,
                             "p95Ms": 240,
-                            "p99Ms": 240
+                            "p99Ms": 240,
+                            "waitP50Ms": 12,
+                            "waitP95Ms": 12,
+                            "waitP99Ms": 12
                           },
                           "failed": {
                             "executionCount": 1,
                             "p50Ms": 1800,
                             "p95Ms": 1800,
-                            "p99Ms": 1800
+                            "p99Ms": 1800,
+                            "waitP50Ms": 3000,
+                            "waitP95Ms": 3000,
+                            "waitP99Ms": 3000
                           }
                         },
                         {
@@ -12913,13 +12939,19 @@
                             "executionCount": 0,
                             "p50Ms": null,
                             "p95Ms": null,
-                            "p99Ms": null
+                            "p99Ms": null,
+                            "waitP50Ms": null,
+                            "waitP95Ms": null,
+                            "waitP99Ms": null
                           },
                           "failed": {
                             "executionCount": 0,
                             "p50Ms": null,
                             "p95Ms": null,
-                            "p99Ms": null
+                            "p99Ms": null,
+                            "waitP50Ms": null,
+                            "waitP95Ms": null,
+                            "waitP99Ms": null
                           }
                         }
                       ]
@@ -15250,6 +15282,7 @@
                           "workerRef": "wrk_019826f00000700080000000000002a0",
                           "executionNumber": 2,
                           "durationMs": 1520,
+                          "waitMs": 40,
                           "message": "Invoice provider timed out.",
                           "actor": null,
                           "detailsText": "{\"to\":\"ready\",\"reason\":\"unhandled-exception\"}"
@@ -15453,6 +15486,7 @@
                           "workerRef": "wrk_019826f00000700080000000000002a0",
                           "executionNumber": 2,
                           "durationMs": 1520,
+                          "waitMs": 40,
                           "message": "Invoice provider timed out.",
                           "actor": null,
                           "detailsText": "{\"to\":\"ready\",\"reason\":\"unhandled-exception\"}"
@@ -15659,6 +15693,7 @@
                           "workerRef": "wrk_019826f00000700080000000000002a0",
                           "executionNumber": 2,
                           "durationMs": 1520,
+                          "waitMs": 40,
                           "message": "Invoice provider timed out.",
                           "actor": null,
                           "detailsText": "{\"to\":\"ready\",\"reason\":\"unhandled-exception\"}"
@@ -17738,12 +17773,12 @@
         "properties": {
           "fromMs": {
             "type": "integer",
-            "description": "The shortest duration the bin holds, in milliseconds.",
+            "description": "The shortest duration or wait the bin holds, in milliseconds.",
             "format": "int64"
           },
           "toMs": {
             "type": "integer",
-            "description": "The duration the bin ends before, in milliseconds, which is the next bin's fromMs.",
+            "description": "The duration or wait the bin ends before, in milliseconds, which is the next bin's fromMs.",
             "format": "int64"
           },
           "executionCount": {
@@ -17752,14 +17787,17 @@
             "format": "int64"
           }
         },
-        "description": "One bin of a duration histogram. Bins are one millisecond wide below 10 ms and ten to a decade above it, from 10, 13, 16, 20, 25, 32, 40, 50, 63 and 80 ms."
+        "description": "One bin of a duration or wait histogram. Bins are one millisecond wide below 10 ms and ten to a decade above it, from 10, 13, 16, 20, 25, 32, 40, 50, 63 and 80 ms."
       },
       "GetDefinitionPerformanceExecutions": {
         "required": [
           "executionCount",
           "p50Ms",
           "p95Ms",
-          "p99Ms"
+          "p99Ms",
+          "waitP50Ms",
+          "waitP95Ms",
+          "waitP99Ms"
         ],
         "type": "object",
         "properties": {
@@ -17791,9 +17829,33 @@
             ],
             "description": "The duration 99 in 100 executions finished within, in milliseconds; with fewer than 100 it is the slowest one. Null when none was counted.",
             "format": "int32"
+          },
+          "waitP50Ms": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The wait half of the executions that recorded one were claimed within, in milliseconds; null when none recorded a wait.",
+            "format": "int32"
+          },
+          "waitP95Ms": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The wait 95 in 100 executions that recorded one were claimed within, in milliseconds; null when none recorded a wait.",
+            "format": "int32"
+          },
+          "waitP99Ms": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The wait 99 in 100 executions that recorded one were claimed within, in milliseconds; with fewer than 100 it is the longest one. Null when none recorded a wait.",
+            "format": "int32"
           }
         },
-        "description": "The executions of one outcome in a range or an interval: how many, and their duration percentiles. A percentile is truncated to two significant figures, so 2099 ms reads 2000."
+        "description": "The executions of one outcome in a range or an interval: how many, their duration percentiles, and the percentiles of how long they waited to be claimed. A percentile is truncated to two significant figures, so 2099 ms reads 2000."
       },
       "GetDefinitionPerformanceInterval": {
         "required": [
@@ -17830,6 +17892,8 @@
           "failed",
           "succeededBins",
           "failedBins",
+          "succeededWaitBins",
+          "failedWaitBins",
           "intervals"
         ],
         "type": "object",
@@ -17883,6 +17947,20 @@
             },
             "description": "The failed executions by duration, from the first bin that holds one to the last, empty bins between them included; at most 94."
           },
+          "succeededWaitBins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetDefinitionPerformanceBin"
+            },
+            "description": "The succeeded executions that recorded a wait, by wait, from the first bin that holds one to the last, empty bins between them included; at most 94."
+          },
+          "failedWaitBins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetDefinitionPerformanceBin"
+            },
+            "description": "The failed executions that recorded a wait, by wait, from the first bin that holds one to the last, empty bins between them included; at most 94."
+          },
           "intervals": {
             "type": "array",
             "items": {
@@ -17891,7 +17969,7 @@
             "description": "Every interval of the range, oldest first, at most 60."
           }
         },
-        "description": "How long a definition's executions took over a range and how many failed, from the events the ledger still holds. It counts an execution that ended in success or failure and was recorded; a yielded or orphaned one is not counted. A duration is one handler invocation as its worker timed it, truncated to two significant figures."
+        "description": "How long a definition's executions took and waited to be claimed over a range, and how many failed, from the events the ledger still holds. It counts an execution that ended in success or failure and was recorded; a yielded or orphaned one is not counted. A duration is one handler invocation as its worker timed it and a wait the time it sat due, each truncated to two significant figures."
       },
       "GetDefinitionResponse": {
         "required": [
@@ -19871,6 +19949,7 @@
           "workerRef",
           "executionNumber",
           "durationMs",
+          "waitMs",
           "message",
           "actor",
           "detailsText"
@@ -19965,6 +20044,14 @@
               "integer"
             ],
             "description": "How long the recorded work took, in milliseconds, when the event measures it.",
+            "format": "int32"
+          },
+          "waitMs": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "How long the execution sat due before a worker claimed it, in milliseconds, when the event measures it.",
             "format": "int32"
           },
           "message": {

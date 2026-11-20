@@ -1,12 +1,13 @@
 DECLARE @ns_id INT = (SELECT jd.namespace_id FROM {{schema}}.definitions jd WHERE jd.definition_id = @p_definition_id);
 
 -- A definition's finished executions in a range, the newest first up to the limit, counted per interval, outcome event
--- and duration. A duration is truncated to two significant figures, which keeps order, so a percentile taken over the
--- counts is the exact percentile truncated the same way.
+-- and duration, and again per interval, outcome event and wait. A duration or a wait is truncated to two significant
+-- figures, which keeps order, so a percentile taken over the counts is the exact percentile truncated the same way.
 SELECT
     a.interval_number,
     a.event_code,
     a.duration_group_ms,
+    a.wait_group_ms,
     COUNT_BIG(*) AS execution_count,
     MIN(a.created_at_utc) AS oldest_at_utc
 FROM (
@@ -24,7 +25,18 @@ FROM (
             WHEN e.duration_ms < 100000000 THEN e.duration_ms / 1000000 * 1000000
             WHEN e.duration_ms < 1000000000 THEN e.duration_ms / 10000000 * 10000000
             ELSE e.duration_ms / 100000000 * 100000000
-        END AS duration_group_ms
+        END AS duration_group_ms,
+        CASE
+            WHEN e.wait_ms < 100 THEN e.wait_ms
+            WHEN e.wait_ms < 1000 THEN e.wait_ms / 10 * 10
+            WHEN e.wait_ms < 10000 THEN e.wait_ms / 100 * 100
+            WHEN e.wait_ms < 100000 THEN e.wait_ms / 1000 * 1000
+            WHEN e.wait_ms < 1000000 THEN e.wait_ms / 10000 * 10000
+            WHEN e.wait_ms < 10000000 THEN e.wait_ms / 100000 * 100000
+            WHEN e.wait_ms < 100000000 THEN e.wait_ms / 1000000 * 1000000
+            WHEN e.wait_ms < 1000000000 THEN e.wait_ms / 10000000 * 10000000
+            ELSE e.wait_ms / 100000000 * 100000000
+        END AS wait_group_ms
     -- A dirty read: it never waits on a completion, and it may count an execution whose transaction has not
     -- committed yet.
     FROM {{schema}}.events e WITH (NOLOCK, FORCESEEK (ix_events_duration (namespace_id, definition_id, created_at_utc)))
@@ -38,4 +50,8 @@ FROM (
         AND e.duration_ms IS NOT NULL
     ORDER BY e.created_at_utc DESC
 ) a
-GROUP BY a.interval_number, a.event_code, a.duration_group_ms;
+-- One read counted twice: a duration row leaves wait_group_ms NULL, and a wait row leaves duration_group_ms NULL.
+GROUP BY GROUPING SETS (
+    (a.interval_number, a.event_code, a.duration_group_ms),
+    (a.interval_number, a.event_code, a.wait_group_ms)
+);

@@ -127,7 +127,8 @@ AS $$
         u.failure_count,
         u.job_ref,
         u.tenant_id,
-        NULL::timestamptz AS db_now,
+        /* The claim instant, where the wait the execution records ends. */
+        now() AS db_now,
         NULL::timestamptz AS next_ready_at_utc,
         u.lane_id,
         u.parent_job_id,

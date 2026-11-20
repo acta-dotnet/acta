@@ -179,6 +179,7 @@ CREATE TABLE {{schema}}.events (
     lineage_root_job_id bigint NULL,
     execution_number bigint NULL,
     duration_ms int NULL,
+    wait_ms int NULL,
     event_message nvarchar(512) NULL,
     actor nvarchar(128) NULL,
     details_format_id tinyint DEFAULT 0 NOT NULL,
@@ -190,7 +191,7 @@ CREATE INDEX ix_events_lineage_timeline ON {{schema}}.events (lineage_root_job_i
 CREATE INDEX ix_events_namespace_timeline ON {{schema}}.events (namespace_id, event_code, created_at_utc, event_id);
 CREATE INDEX ix_events_entity_timeline ON {{schema}}.events (entity_code, entity_id, created_at_utc, event_id);
 CREATE INDEX ix_events_namespace_created ON {{schema}}.events (namespace_id, created_at_utc DESC, event_id DESC);
-CREATE INDEX ix_events_duration ON {{schema}}.events (namespace_id, definition_id, created_at_utc) INCLUDE (event_code, duration_ms) WHERE event_code IN (9, 11, 13) AND duration_ms IS NOT NULL;
+CREATE INDEX ix_events_duration ON {{schema}}.events (namespace_id, definition_id, created_at_utc) INCLUDE (event_code, duration_ms, wait_ms) WHERE event_code IN (9, 11, 13) AND duration_ms IS NOT NULL;
 END
 GO
 
@@ -555,6 +556,7 @@ EXEC(N'CREATE TYPE {{schema}}.complete_executions AS TABLE (
     handler_job_status_code  TINYINT        NULL,
     final_job_status_code    TINYINT        NULL,
     job_next_run_at_utc      DATETIME2(3)   NULL,
+    wait_ms                  INT            NULL,
     PRIMARY KEY (job_id, execution_number)
 );');
 GO
@@ -1121,7 +1123,8 @@ BEGIN
                     failure_count,
                     job_ref,
                     tenant_id,
-                    CAST(NULL AS DATETIME2(7)) AS db_now,
+                    /* The claim instant, where the wait the execution records ends. */
+                    @now AS db_now,
                     CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
                     lane_id,
                     parent_job_id,
@@ -1563,14 +1566,14 @@ BEGIN
             event_code, created_at_utc, namespace_id,
             entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id,
-            worker_id, execution_number, duration_ms,
+            worker_id, execution_number, duration_ms, wait_ms,
             event_message, details_format_id, details
         )
         SELECT
             c.event_code, @now, j.namespace_id,
             4 /* EntityCode.Job */, d.job_id,
             j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-            @p_leased_by_worker_id, d.execution_number, c.duration_ms,
+            @p_leased_by_worker_id, d.execution_number, c.duration_ms, c.wait_ms,
             c.event_message,
             CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
             CAST(x.details AS VARBINARY(MAX))
@@ -5006,6 +5009,7 @@ SELECT
     wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
+    e.wait_ms,
     e.event_message,
     e.actor,
     CASE e.details_format_id
@@ -5201,7 +5205,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261120201836_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261120220409_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120201836_init');
+VALUES ('M20261120220409_init');
 GO

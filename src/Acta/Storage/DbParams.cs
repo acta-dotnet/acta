@@ -180,6 +180,7 @@ internal static class DbParams
             Field(text, "handler_job_status_code", c.HandlerStatusCode);
             Field(text, "final_job_status_code", (byte?)c.FinalStatus);
             Field(text, "job_next_run_at_utc", UnixMs(c.JobNextRunAtUtc));
+            Field(text, "wait_ms", c.WaitMs);
             text.Append('}');
         }
         return (text.Append(']').ToString(), results);

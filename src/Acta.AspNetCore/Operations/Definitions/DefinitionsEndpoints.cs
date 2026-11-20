@@ -62,7 +62,7 @@ internal static class DefinitionsEndpoints
             .MapDetail(
                 "/definitions/{jobNamespace}/{jobName}/performance",
                 new("getDefinitionPerformance", ActaPermissions.Read),
-                "Read how long the definition's executions took and how many failed",
+                "Read how long the definition's executions took and waited, and how many failed",
                 "Definition",
                 ActaApiJsonContext.Relaxed.GetDefinitionPerformanceResponse,
                 static (http, call) =>

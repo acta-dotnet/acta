@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     lineage_root_job_id integer NULL,
     execution_number integer NULL,
     duration_ms integer NULL,
+    wait_ms integer NULL,
     event_message text NULL,
     actor text NULL,
     details_format_id integer DEFAULT 0 NOT NULL,
@@ -592,6 +593,7 @@ SELECT
     wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
+    e.wait_ms,
     e.event_message,
     e.actor,
     CASE e.details_format_id
@@ -771,5 +773,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120201836_init')
+VALUES ('M20261120220409_init')
 ON CONFLICT (name) DO NOTHING;

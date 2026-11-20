@@ -32,6 +32,7 @@ public sealed class CompletionCommandTests
         {
             LaneId = 7,
             ParentJobId = 8,
+            WaitMs = 11,
         };
         var completion = new ExecutionCompletion(CompletionKind.Succeeded)
         {
@@ -44,6 +45,7 @@ public sealed class CompletionCommandTests
         Assert.Equal(completion.ResultFormatId, expected.ResultFormatId);
         Assert.Equal(123, expected.RetentionSeconds);
         Assert.Equal(9, expected.DurationMs);
+        Assert.Equal(11, expected.WaitMs);
         Assert.True(expected.HasLane);
         Assert.True(expected.HasParent);
         Assert.Null(expected.HandlerStatusCode);
@@ -72,6 +74,7 @@ public sealed class CompletionCommandTests
         );
         Assert.Equal(EventCode.JobRescheduled, rescheduled.RescheduleEventCode);
         Assert.True(rescheduled.Result.IsEmpty);
+        Assert.Equal<(int?, int?)>((11, 11), (cancelled.WaitMs, rescheduled.WaitMs));
 
         var oneRecord = Allocations(() => expected with { });
         var actual = Allocations(() => WorkerFinalizer.BuildCommand(descriptor, job, completion, default));

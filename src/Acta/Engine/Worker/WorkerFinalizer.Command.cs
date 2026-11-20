@@ -80,6 +80,7 @@ internal sealed partial class WorkerFinalizer
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
             HasSchedule = job.ScheduleId is not null,
+            WaitMs = job.WaitMs,
         };
 
     // The handler-status shape, so the job's lane hands on and its parent's latch is raised; a slot lands through its
@@ -105,6 +106,7 @@ internal sealed partial class WorkerFinalizer
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
             HasSchedule = job.ScheduleId is not null,
+            WaitMs = job.WaitMs,
         };
         return job.Kind == JobKindCode.Permanent
             ? command with
@@ -149,6 +151,7 @@ internal sealed partial class WorkerFinalizer
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
             HasSchedule = job.ScheduleId is not null,
+            WaitMs = job.WaitMs,
         };
 
         if (oneShotSuccess)

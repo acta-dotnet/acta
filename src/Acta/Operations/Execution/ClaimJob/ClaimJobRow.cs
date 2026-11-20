@@ -17,6 +17,7 @@ internal sealed record ClaimJobRow(
     int? FailureCount,
     Guid? JobRef,
     int? TenantId,
+    DateTime? DbNowUtc,
     long? LaneId,
     long? ParentJobId,
     int? ScheduleId

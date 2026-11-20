@@ -41,6 +41,8 @@ SELECT
     r.failure_count,
     j.job_ref,
     j.tenant_id,
+    /* The claim instant, where the wait the execution records ends. */
+    {{now}} AS db_now,
     r.lane_id,
     j.parent_job_id,
     j.schedule_id

@@ -26,6 +26,7 @@ SELECT
     json_extract(c.value, '$.reason') AS reason,
     json_extract(c.value, '$.event_message') AS event_message,
     json_extract(c.value, '$.duration_ms') AS duration_ms,
+    json_extract(c.value, '$.wait_ms') AS wait_ms,
     json_extract(c.value, '$.failure_count') AS failure_count,
     json_extract(c.value, '$.retention_seconds') AS retention_seconds,
     json_extract(c.value, '$.reschedule_event_code') AS reschedule_event_code,
@@ -258,11 +259,12 @@ FROM temp._ces_policy_paused p;
    fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
-    definition_id, tenant_id, lineage_root_job_id, worker_id, execution_number, duration_ms,
+    definition_id, tenant_id, lineage_root_job_id, worker_id, execution_number, duration_ms, wait_ms,
     event_message, details_format_id, details)
 SELECT
     x.event_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), x.namespace_id, 4 /* EntityCode.Job */, x.job_id,
-    x.definition_id, x.tenant_id, COALESCE(x.lineage_root_job_id, x.job_id), @p_leased_by_worker_id, x.execution_number, x.duration_ms,
+    x.definition_id, x.tenant_id, COALESCE(x.lineage_root_job_id, x.job_id), @p_leased_by_worker_id, x.execution_number,
+    x.duration_ms, x.wait_ms,
     x.event_message,
     CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
     CAST(x.details AS BLOB)

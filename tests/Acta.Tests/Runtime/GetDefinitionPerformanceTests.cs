@@ -4,13 +4,14 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// The performance read's map from counts to an answer: nearest-rank percentiles in whole numbers, the outcome each event
-/// code counts as, every interval of the range, and duration bins that each hold a duration group whole.
+/// code counts as, every interval of the range, duration bins that each hold a duration group whole, and waits counted
+/// beside the durations.
 /// </summary>
 public sealed class GetDefinitionPerformanceTests
 {
     private static readonly DateTime T0 = new(2026, 6, 12, 0, 0, 0, DateTimeKind.Utc);
 
-    private static readonly GetDefinitionPerformanceExecutions None = new(0, null, null, null);
+    private static readonly GetDefinitionPerformanceExecutions None = new(0, null, null, null, null, null, null);
 
     [Fact]
     public void Percentiles_take_the_nearest_rank_in_whole_numbers()
@@ -20,10 +21,10 @@ public sealed class GetDefinitionPerformanceTests
         var one = Map(Succeeded(70));
         var tail = Map(Succeeded(9000), Succeeded(10, count: 98), Succeeded(500));
 
-        Assert.Equal(new GetDefinitionPerformanceExecutions(4, 20, 40, 40), four.Succeeded);
+        Assert.Equal(new GetDefinitionPerformanceExecutions(4, 20, 40, 40, null, null, null), four.Succeeded);
         Assert.Equal(Once(70), one.Succeeded);
         // Rank 95 of 100 is still among the 98 at 10 ms, and rank 99 is the 500 ms one.
-        Assert.Equal(new GetDefinitionPerformanceExecutions(100, 10, 10, 500), tail.Succeeded);
+        Assert.Equal(new GetDefinitionPerformanceExecutions(100, 10, 10, 500, null, null, null), tail.Succeeded);
     }
 
     [Fact]
@@ -36,11 +37,40 @@ public sealed class GetDefinitionPerformanceTests
         );
 
         Assert.Equal(Once(10), performance.Succeeded);
-        Assert.Equal(new GetDefinitionPerformanceExecutions(2, 20, 30, 30), performance.Failed);
+        Assert.Equal(new GetDefinitionPerformanceExecutions(2, 20, 30, 30, null, null, null), performance.Failed);
         var interval = Assert.Single(performance.Intervals);
         Assert.Equal((performance.Succeeded, performance.Failed), (interval.Succeeded, interval.Failed));
         Assert.Equal([new GetDefinitionPerformanceBin(10, 13, 1)], performance.SucceededBins);
         Assert.Equal([new GetDefinitionPerformanceBin(20, 25, 1), new GetDefinitionPerformanceBin(25, 32, 1)], performance.FailedBins);
+    }
+
+    [Fact]
+    public void Wait_rows_answer_the_wait_percentiles_and_bins_and_count_no_execution_twice()
+    {
+        GetDefinitionPerformanceRow[] rows =
+        [
+            Row(EventCode.JobExecutionSucceeded, 10, count: 3),
+            Wait(EventCode.JobExecutionSucceeded, 40, count: 2),
+            // An execution that recorded no wait: counted by its duration, left out of the wait percentiles.
+            Wait(EventCode.JobExecutionSucceeded, null),
+            Row(EventCode.JobFailed, 20),
+            Wait(EventCode.JobFailed, 2_100_000_000),
+        ];
+
+        var performance = GetDefinitionPerformanceHandler.Map(Query(T0.AddMinutes(1), 60), rows, executionLimit: 5);
+
+        Assert.Equal(new GetDefinitionPerformanceExecutions(3, 10, 10, 10, 40, 40, 40), performance.Succeeded);
+        Assert.Equal(
+            new GetDefinitionPerformanceExecutions(1, 20, 20, 20, 2_100_000_000, 2_100_000_000, 2_100_000_000),
+            performance.Failed
+        );
+        Assert.Equal([new GetDefinitionPerformanceBin(10, 13, 3)], performance.SucceededBins);
+        Assert.Equal([new GetDefinitionPerformanceBin(40, 50, 2)], performance.SucceededWaitBins);
+        Assert.Equal([new GetDefinitionPerformanceBin(2_000_000_000, 2_500_000_000, 1)], performance.FailedWaitBins);
+        var interval = Assert.Single(performance.Intervals);
+        Assert.Equal((performance.Succeeded, performance.Failed), (interval.Succeeded, interval.Failed));
+        // Four executions under a limit of five: the wait rows count the same executions again.
+        Assert.False(performance.ExecutionsHasMore);
     }
 
     [Fact]
@@ -212,7 +242,11 @@ public sealed class GetDefinitionPerformanceTests
         long count = 1,
         int intervalNumber = 0,
         DateTime? oldestAtUtc = null
-    ) => new(intervalNumber, code, durationGroupMs, count, oldestAtUtc ?? T0);
+    ) => new(intervalNumber, code, durationGroupMs, null, count, oldestAtUtc ?? T0);
 
-    private static GetDefinitionPerformanceExecutions Once(int durationMs) => new(1, durationMs, durationMs, durationMs);
+    /// <summary>A wait row, as the read's second grouping set answers it: no duration group.</summary>
+    private static GetDefinitionPerformanceRow Wait(EventCode code, int? waitGroupMs, long count = 1, DateTime? oldestAtUtc = null) =>
+        new(0, code, null, waitGroupMs, count, oldestAtUtc ?? T0);
+
+    private static GetDefinitionPerformanceExecutions Once(int durationMs) => new(1, durationMs, durationMs, durationMs, null, null, null);
 }

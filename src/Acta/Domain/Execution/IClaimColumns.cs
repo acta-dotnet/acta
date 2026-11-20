@@ -34,6 +34,8 @@ internal interface IClaimColumns
 
     int? TenantId { get; }
 
+    DateTime? DbNowUtc { get; }
+
     long? LaneId { get; }
 
     long? ParentJobId { get; }

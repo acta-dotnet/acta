@@ -35,6 +35,9 @@ internal sealed record CompleteExecutionsValues(
 
     public DateTime? JobNextRunAtUtc { get; init; }
 
+    /// <summary>How long the attempt waited to be claimed, as its claim measured it; the event stores it beside the duration.</summary>
+    public int? WaitMs { get; init; }
+
     /// <summary>The job is in a lane, as its claim read it; lane_id never changes.</summary>
     public bool HasLane { get; init; }
 

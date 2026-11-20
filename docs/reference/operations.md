@@ -81,7 +81,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ArmOrConsumeJobSleepTimer` | · | · | · | routine | `checkpoints`, `jobs_state` | `ArmOrConsumeJobSleepTimerSpec` |
 | `ClaimJob` | · | · | · | inline | `jobs_state` | `ClaimJobSpec` |
 | `ClaimJobs` | · | · | · | routine | `jobs_state` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
-| `CompleteExecutions` | · | · | · | routine | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state` | `CompleteExecutionsKindMatrixSpec`, `CompleteExecutionsSpec` |
+| `CompleteExecutions` | · | · | · | routine | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state` | `CompleteExecutionsKindMatrixSpec`, `CompleteExecutionsSpec`, `CompleteExecutionsWaitSpec` |
 | `CompleteJobStep` | · | · | · | routine | `steps` | `CompleteJobStepSpec` |
 | `GetScheduleFiring` | · | · | · | inline | · | `GetScheduleFiringSpec` |
 | `ListChildJobIds` | · | · | · | inline | · | `ListChildJobIdsSpec` |

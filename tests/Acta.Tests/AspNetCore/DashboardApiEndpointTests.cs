@@ -320,13 +320,22 @@ public sealed class DashboardApiEndpointTests
         Assert.Contains("\"intervalSeconds\":60", body);
         Assert.Contains("\"executionsHasMore\":false", body);
         Assert.Contains("\"oldestAtUtc\":\"2026-06-12T00:00:00Z\"", body);
-        Assert.Contains("\"succeeded\":{\"executionCount\":3,\"p50Ms\":240,\"p95Ms\":240,\"p99Ms\":240}", body);
-        Assert.Contains("\"failed\":{\"executionCount\":1,\"p50Ms\":1800,\"p95Ms\":1800,\"p99Ms\":1800}", body);
+        Assert.Contains(
+            "\"succeeded\":{\"executionCount\":3,\"p50Ms\":240,\"p95Ms\":240,\"p99Ms\":240,\"waitP50Ms\":12,\"waitP95Ms\":12,\"waitP99Ms\":12}",
+            body
+        );
+        Assert.Contains(
+            "\"failed\":{\"executionCount\":1,\"p50Ms\":1800,\"p95Ms\":1800,\"p99Ms\":1800,\"waitP50Ms\":3000,\"waitP95Ms\":3000,\"waitP99Ms\":3000}",
+            body
+        );
         Assert.Contains("\"succeededBins\":[{\"fromMs\":200,\"toMs\":250,\"executionCount\":3}]", body);
         Assert.Contains("\"failedBins\":[{\"fromMs\":1600,\"toMs\":2000,\"executionCount\":1}]", body);
+        Assert.Contains("\"succeededWaitBins\":[{\"fromMs\":10,\"toMs\":13,\"executionCount\":3}]", body);
+        Assert.Contains("\"failedWaitBins\":[{\"fromMs\":2500,\"toMs\":3200,\"executionCount\":1}]", body);
         Assert.Contains("\"intervals\":[{\"startAtUtc\":\"2026-06-12T00:00:00Z\"", body);
         Assert.Contains(
-            "{\"startAtUtc\":\"2026-06-12T00:01:00Z\",\"succeeded\":{\"executionCount\":0,\"p50Ms\":null,\"p95Ms\":null,\"p99Ms\":null}",
+            "{\"startAtUtc\":\"2026-06-12T00:01:00Z\",\"succeeded\":{\"executionCount\":0,\"p50Ms\":null,\"p95Ms\":null,\"p99Ms\":null,"
+                + "\"waitP50Ms\":null,\"waitP95Ms\":null,\"waitP99Ms\":null}",
             body
         );
         Assert.DoesNotContain("definitionId", body, StringComparison.OrdinalIgnoreCase);

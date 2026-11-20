@@ -254,6 +254,7 @@ public class CliOutputTests
             WorkerRef: WorkerRef.New(),
             ExecutionNumber: 1,
             DurationMs: null,
+            WaitMs: null,
             Message: message,
             Actor: actor,
             DetailsText: details
@@ -936,6 +937,7 @@ public class CliOutputTests
                     WorkerRef: SentinelWorkerRef,
                     ExecutionNumber: 2,
                     DurationMs: 12,
+                    WaitMs: 3,
                     Message: "boom",
                     Actor: null,
                     DetailsText: """{"reason":"unhandled-exception"}"""

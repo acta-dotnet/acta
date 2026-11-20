@@ -49,7 +49,7 @@ public sealed class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFixture, J
         ["events_view"] =
             "event_id created_at_utc namespace_name namespace_id entity entity_code entity_id event event_code definition_id "
             + "definition_name tenant_id tenant_name lineage_root_job_id lineage_root_job_ref worker_id worker_ref execution_number "
-            + "duration_ms event_message actor details_format details_text",
+            + "duration_ms wait_ms event_message actor details_format details_text",
         ["jobs_view"] =
             "job_id job_ref namespace_name definition_name job_kind job_kind_code job_status job_status_code deduplication_key "
             + "correlation_key concurrency_key lane_name parent_job_id lineage_root_job_id schedule_id lineage_root_job_ref tenant_id tenant_name "

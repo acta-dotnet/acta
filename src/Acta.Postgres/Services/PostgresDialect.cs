@@ -512,6 +512,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_has_schedule", NpgsqlDbType.Boolean, completions.Select(c => c.HasSchedule).ToArray());
 
         AddScalar(postgres, "@p_plain", NpgsqlDbType.Boolean, completions.All(c => c.IsPlain));
+        AddArray(postgres, "@p_wait_ms", NpgsqlDbType.Integer, completions.Select(c => c.WaitMs).ToArray());
     }
 
     /// <summary>Npgsql parameter primitives the dialect's own binders use to shape command parameters.</summary>

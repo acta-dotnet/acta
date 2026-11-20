@@ -126,6 +126,7 @@ internal static class SqlServerTableParameters
         new("handler_job_status_code", SqlDbType.TinyInt),
         new("final_job_status_code", SqlDbType.TinyInt),
         new("job_next_run_at_utc", SqlDbType.DateTime2),
+        new("wait_ms", SqlDbType.Int),
     ];
 
     internal static IEnumerable<SqlDataRecord> BuildCompleteExecutionsRecords(IReadOnlyList<CompleteExecutionsValues> completions)
@@ -153,6 +154,7 @@ internal static class SqlServerTableParameters
             SetNullableByte(record, 15, completion.HandlerStatusCode);
             SetNullableByte(record, 16, (byte?)completion.FinalStatus);
             SetNullableDateTime(record, 17, completion.JobNextRunAtUtc);
+            SetNullableInt32(record, 18, completion.WaitMs);
             yield return record;
         }
     }

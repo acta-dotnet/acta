@@ -24,6 +24,7 @@ internal static class CompletionTestOps
             HasLane = claimed.LaneId is not null,
             HasParent = claimed.ParentJobId is not null,
             HasSchedule = claimed.ScheduleId is not null,
+            WaitMs = claimed.WaitMs,
         };
 
     /// <summary>Writes <paramref name="row"/> alone as <paramref name="workerId"/> and answers its row.</summary>

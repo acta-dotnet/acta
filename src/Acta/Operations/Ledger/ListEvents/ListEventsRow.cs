@@ -26,6 +26,7 @@ internal sealed record ListEventsRow(
     Guid? WorkerRef,
     long? ExecutionNumber,
     int? DurationMs,
+    int? WaitMs,
     string? EventMessage,
     string? Actor,
     byte DetailsFormatId,
@@ -51,6 +52,7 @@ internal sealed record ListEventsRow(
             WorkerRef is { } workerRef ? new Acta.WorkerRef(workerRef) : null,
             ExecutionNumber,
             DurationMs,
+            WaitMs,
             EventMessage,
             Actor,
             Details is not null && DetailsFormatId == JobPayloadFormat.Json.Id ? Encoding.UTF8.GetString(Details) : null

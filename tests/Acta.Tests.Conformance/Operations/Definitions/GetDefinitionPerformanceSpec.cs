@@ -6,21 +6,21 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Definitions;
 
 /// <summary>
-/// Conformance for <c>GetDefinitionPerformance</c>: which events the read counts, the interval and the duration group
-/// it places each in, and what its limit leaves out.
+/// Conformance for <c>GetDefinitionPerformance</c>: which events the read counts, the interval, the duration group and
+/// the wait group it places each in, and what its limit leaves out.
 /// </summary>
 [ConformanceSpec(
     "get-definition-performance.counts-and-limit",
-    "GetDefinitionPerformance counts executions by interval, outcome and duration",
+    "GetDefinitionPerformance counts by interval, outcome, duration and wait",
     Area = "Reads",
-    Contract = "GetDefinitionPerformance counts a range's succeeded and failed executions with a duration, by interval and two-figure duration, newest first up to its limit."
+    Contract = "GetDefinitionPerformance counts succeeded and failed executions with a duration, by interval and two-figure duration and wait, newest first up to its limit."
 )]
 public sealed class GetDefinitionPerformanceSpec : ActaStorageTestBase<ConformanceFixture>
 {
     /// <summary>The instant every stamp is staged from, so a range and its intervals are exact inputs rather than clock reads.</summary>
     private static readonly DateTime T0 = new(2021, 6, 1, 12, 0, 0, DateTimeKind.Utc);
 
-    private static readonly GetDefinitionPerformanceExecutions None = new(0, null, null, null);
+    private static readonly GetDefinitionPerformanceExecutions None = new(0, null, null, null, null, null, null);
 
     private string JobName = null!;
     private int DefId;
@@ -57,13 +57,44 @@ public sealed class GetDefinitionPerformanceSpec : ActaStorageTestBase<Conforman
 
         var performance = await GetAsync(T0, T0.AddMinutes(1), 60, ct);
 
-        // Nearest rank over 12, 120, 1200 and 2,100,000,000: the second is the median and the fourth is both tails.
-        Assert.Equal(new GetDefinitionPerformanceExecutions(4, 120, 2_100_000_000, 2_100_000_000), performance.Succeeded);
-        Assert.Equal(new GetDefinitionPerformanceExecutions(2, 300, 7600, 7600), performance.Failed);
+        // Nearest rank over 12, 120, 1200 and 2,100,000,000: the second is the median and the fourth is both tails. No
+        // event recorded a wait, so every wait percentile is null and no wait bin holds one.
+        Assert.Equal(new GetDefinitionPerformanceExecutions(4, 120, 2_100_000_000, 2_100_000_000, null, null, null), performance.Succeeded);
+        Assert.Equal(new GetDefinitionPerformanceExecutions(2, 300, 7600, 7600, null, null, null), performance.Failed);
+        Assert.Empty(performance.SucceededWaitBins);
+        Assert.Empty(performance.FailedWaitBins);
         var interval = Assert.Single(performance.Intervals);
         Assert.Equal(performance.Succeeded, interval.Succeeded);
         Assert.Equal(performance.Failed, interval.Failed);
         Assert.False(performance.ExecutionsHasMore);
+    }
+
+    [Fact(DisplayName = "Waits are counted beside the durations with the same percentiles and bins, from the executions that recorded one")]
+    public async Task Waits_are_counted_beside_the_durations()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await StageAsync(EventCode.JobExecutionSucceeded, 10, T0, ct, waitMs: 3);
+        await StageAsync(EventCode.JobExecutionSucceeded, 20, T0, ct, waitMs: 250);
+        await StageAsync(EventCode.JobExecutionSucceeded, 30, T0, ct, waitMs: 1234);
+        await StageAsync(EventCode.JobExecutionSucceeded, 40, T0, ct);
+        await StageAsync(EventCode.JobExecutionFailed, 50, T0, ct, waitMs: int.MaxValue);
+        await StageAsync(EventCode.JobExecutionYielded, 60, T0, ct, waitMs: 7);
+
+        var performance = await GetAsync(T0, T0.AddMinutes(1), 60, ct);
+
+        // Four succeeded executions by duration, three of them by wait: nearest rank over 3, 250 and 1200.
+        Assert.Equal(new GetDefinitionPerformanceExecutions(4, 20, 40, 40, 250, 1200, 1200), performance.Succeeded);
+        Assert.Equal(
+            new GetDefinitionPerformanceExecutions(1, 50, 50, 50, 2_100_000_000, 2_100_000_000, 2_100_000_000),
+            performance.Failed
+        );
+        Assert.Equal(3L, performance.SucceededWaitBins.Sum(static b => b.ExecutionCount));
+        Assert.Equal((3L, 1000L), (performance.SucceededWaitBins[0].FromMs, performance.SucceededWaitBins[^1].FromMs));
+        Assert.Equal([new GetDefinitionPerformanceBin(2_000_000_000, 2_500_000_000, 1)], performance.FailedWaitBins);
+        var interval = Assert.Single(performance.Intervals);
+        Assert.Equal((performance.Succeeded, performance.Failed), (interval.Succeeded, interval.Failed));
+        Assert.False(performance.ExecutionsHasMore);
+        Assert.Equal(T0, performance.OldestAtUtc);
     }
 
     [Fact(DisplayName = "The range takes an execution that finished at fromUtc and leaves one that finished at toUtc")]
@@ -102,7 +133,7 @@ public sealed class GetDefinitionPerformanceSpec : ActaStorageTestBase<Conforman
         Assert.Equal([1L, 1L, 0L, 1L], performance.Intervals.Select(static i => i.Succeeded.ExecutionCount));
         Assert.Equal([1L, 0L, 0L, 0L], performance.Intervals.Select(static i => i.Failed.ExecutionCount));
         Assert.Equal(None, performance.Intervals[2].Succeeded);
-        Assert.Equal(new GetDefinitionPerformanceExecutions(1, 40, 40, 40), performance.Intervals[3].Succeeded);
+        Assert.Equal(new GetDefinitionPerformanceExecutions(1, 40, 40, 40, null, null, null), performance.Intervals[3].Succeeded);
     }
 
     [Fact(
@@ -201,8 +232,18 @@ public sealed class GetDefinitionPerformanceSpec : ActaStorageTestBase<Conforman
         return GetDefinitionPerformanceHandler.Map(query, rows, executionLimit);
     }
 
-    /// <summary>One event of the definition's job stamped <paramref name="stampUtc"/>; a null <paramref name="durationMs"/> is an execution no worker timed.</summary>
-    private Task<long> StageAsync(EventCode code, int? durationMs, DateTime stampUtc, CancellationToken ct, int? definitionId = null) =>
+    /// <summary>
+    /// One event of the definition's job stamped <paramref name="stampUtc"/>; a null <paramref name="durationMs"/> is an
+    /// execution no worker timed, and a null <paramref name="waitMs"/> one that recorded no wait.
+    /// </summary>
+    private Task<long> StageAsync(
+        EventCode code,
+        int? durationMs,
+        DateTime stampUtc,
+        CancellationToken ct,
+        int? definitionId = null,
+        int? waitMs = null
+    ) =>
         StagedEvents.InsertAsync(
             Db,
             new EventEntity
@@ -214,6 +255,7 @@ public sealed class GetDefinitionPerformanceSpec : ActaStorageTestBase<Conforman
                 DefinitionId = definitionId ?? DefId,
                 ExecutionNumber = 1,
                 DurationMs = durationMs,
+                WaitMs = waitMs,
                 EventMessage = "staged",
             },
             null,

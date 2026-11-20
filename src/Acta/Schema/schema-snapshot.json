@@ -659,6 +659,10 @@
           "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
+          "Name": "wait_ms",
+          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
           "Name": "event_message",
           "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
@@ -678,7 +682,7 @@
       "Indexes": [
         {
           "Name": "ix_events_duration",
-          "Signature": "I|cols=namespace_id,definition_id,created_at_utc|inc=event_code,duration_ms|desc=|filter=event_code IN (9, 11, 13) AND duration_ms IS NOT NULL|seq=False"
+          "Signature": "I|cols=namespace_id,definition_id,created_at_utc|inc=event_code,duration_ms,wait_ms|desc=|filter=event_code IN (9, 11, 13) AND duration_ms IS NOT NULL|seq=False"
         },
         {
           "Name": "ix_events_entity_timeline",
@@ -1497,14 +1501,14 @@
       "arm_or_consume_job_sleep_timer": "910b72851bc13ce3d3f0bde939de0d3c7f5bc372ed89b3b590b3104a9983ea23",
       "calendars_view": "a1f62b56585559bf5582ff1f1770ecad2b7187d652c72d7aa43e1139502ed662",
       "checkpoints_view": "2a979ab2c20ab412f1f1a24c701316153558156781f046bd91317b70bbb0c707",
-      "claim_jobs": "98089ec015e73be014ec29cc1fd8eefb28d7d770618abfc979f502dd3f2d8ed5",
-      "complete_executions": "f209754f038f631db03e9d6cff500a281cb2b63f4fa5499d7e59f7b07948eabd",
+      "claim_jobs": "e6fd9172810bde3052bdfd962f54b6c63bb0ef803cd1396f71487a73bd61bb5e",
+      "complete_executions": "034da6556f4baf90f1b18d9d845985c4fad05c28edb8adb37f36dd0923ad0b81",
       "complete_job_step": "f905ea17b0050a7eff2ffe5781fb19e2cf11752a15ee86035b053028a4a691ce",
       "definitions_view": "37ce034c0038104a58ab838ee49d6371b3e9c87f275d7eed8973533a71ed1a50",
       "deployments_view": "96fc0284fb1f47ce344419e633b8f89ade24ded7c4a118d0a514015548affa63",
       "enqueue_job": "3ac97b054ab7545c8b134e52d00397a50fb8c4ea62b2f366084a7925537c58b7",
       "enqueue_jobs": "3ff0ee76993a6865ca24515de6ad87f4d4cddc3a65a52cbc84180cb71c41f389",
-      "events_view": "a151b91e6fe898a8219acad13f88bb9b303e8be90ca00cbcf5850a91a81bedfa",
+      "events_view": "1f5b84928ba7717f591b8cc68897d9b501ad310fdefeb09c2b08f49c1cb00044",
       "extend_worker_leases": "88a34cc95086b2f28397610d1191d6eebe4fb4139c2f90cfe43628a7dd0f215d",
       "jobs_view": "0c7edaf1212e6bbff27613a5ad144e83ae9b8909ef74822164625da59f746258",
       "purge_expired_data": "16134dd1d5f892c843c71e763361c22a33220aea1b1f2afde10d5758c93576dd",
@@ -1524,14 +1528,14 @@
       "arm_or_consume_job_sleep_timer": "b64c441b925b8d06f268d8a954b5d09b1b418e9ab14cc036996b13813f51b00d",
       "calendars_view": "eae2e12ba7e89f4c7ba5a09bf557615df477081f93a215a53860fb0fb1428073",
       "checkpoints_view": "9cf7f2f4dfc8201e48ec9d32c07e4e393e56d7f320b403b7086adc5d003d1019",
-      "claim_jobs": "3af69f033704f6441f92c90efe59fe09c20b09a83382a4a504c229638819c91f",
-      "complete_executions": "44883ac96cc317a7f085caffcee7e461a12035aaaa03c4bbb97b9808ae63cc42",
+      "claim_jobs": "8b8c2a69ac4e8c3585e33b655190d7e69be3d8037aa15422b3e049ac593777d2",
+      "complete_executions": "b89582a0ad1bb936f18caac3e39891e649f43988dacbaa06515d38d2e5653f22",
       "complete_job_step": "716b781b8e21cd35945f3e83c19314d805a400afd22551936ef05120c25ced92",
       "definitions_view": "73079312449e4115ccd6444faacc19310477e981bc9788927c3022b841142803",
       "deployments_view": "6c8ab23e15969f1ec2d9116019d27f88d713c0b218d13ddd68390e04d74c513a",
       "enqueue_job": "0503335af7e7350ac6c9e9db4196e9d7cce718a535b91392da0feec5108fc010",
       "enqueue_jobs": "857ce9d476d6dd8edcdf229274b320681898bf9cc5d7b45f8c4146aee700bebc",
-      "events_view": "32cbbafb31e1a066644c0a9963f434f165ad28969262aab19f45329da34ed9eb",
+      "events_view": "87e415fa0938799b8c47cae100af41523af8b9e42290e419c14a3afd9c91e0bd",
       "extend_worker_leases": "36922f4a5ac3fe136ad83837a95cdbb407e959a5fc37dcb111915e9564521e54",
       "jobs_view": "1139bc58c758a9d74ab7e4d0474f7fb815e9988cd364a91246fb87eaad15f8a2",
       "purge_expired_data": "6698458f4dffccf5dda94ff0582b1ec9f83c5b4e9881f9c38c07f067a426a219",
@@ -1551,7 +1555,7 @@
       "checkpoints_view": "d14c43574114ecbce1fe85343ee5115a553f9d54eb3d53607d87c3a615451103",
       "definitions_view": "ca33d43f378a97d00a672b5c8a6d2450bf99df510e008d3801c423ae4ec5c0b0",
       "deployments_view": "0dedc9b2b0447dacab93f35b0cd4ab2341d51288d237257af8ba54b03b682ec1",
-      "events_view": "3be4b4ef1c8913db9f92434754145d551a187ada4fc4d5800a1fcc609dbba5e7",
+      "events_view": "b16b66e05a6a4f3a201841afd1c8042cdd8d671e9a9f0a0058f6558140d7faa6",
       "jobs_view": "f524df01fa2d217092cb640c3db4d4b672ddf8728d51fb8bb13629ef5ec08b7e",
       "schedules_view": "156ce16cbd3fe2ba06011263454b9e51ea7aea52420cf9c2f990f2fe1afa06ed",
       "steps_view": "5ee33fab24514ed1eb3606c11d549caa22e00df8dab94224948b9907cb58b4bc",

@@ -227,6 +227,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         {
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
+            WaitMs = job.WaitMs,
         };
 
     private async Task<Dictionary<long, CompleteExecutionsRow>> CompleteAsync(
@@ -270,7 +271,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
             ),
         ];
 
-    // What a completion lands, compared between the two ways: the instants differ, so retention compares as set.
+    // What a completion lands, compared between the two ways: the instants differ, so retention and the wait compare as set.
     private async Task<object> LandedAsync(long jobId, CancellationToken ct)
     {
         var job = await ReadJobAsync(jobId, ct);
@@ -285,7 +286,12 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
             runtime.ResultFormatId,
             runtime.Result is null ? null : Convert.ToBase64String(runtime.Result),
             (finished.EventCode, finished.WorkerId, finished.ExecutionNumber),
-            (finished.DurationMs, finished.EventMessage, finished.Details is null ? null : Convert.ToBase64String(finished.Details))
+            (
+                finished.DurationMs,
+                finished.WaitMs is not null,
+                finished.EventMessage,
+                finished.Details is null ? null : Convert.ToBase64String(finished.Details)
+            )
         );
     }
 }

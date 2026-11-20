@@ -1,11 +1,22 @@
 namespace Acta;
 
 /// <summary>
-/// The executions of one outcome in a range or an interval: how many, and their duration percentiles. A percentile is
-/// truncated to two significant figures, so 2099 ms reads 2000.
+/// The executions of one outcome in a range or an interval: how many, their duration percentiles, and the percentiles of
+/// how long they waited to be claimed. A percentile is truncated to two significant figures, so 2099 ms reads 2000.
 /// </summary>
 /// <param name="ExecutionCount">How many executions were counted.</param>
 /// <param name="P50Ms">The duration half of the executions finished within, in milliseconds; null when none was counted.</param>
 /// <param name="P95Ms">The duration 95 in 100 executions finished within, in milliseconds; null when none was counted.</param>
 /// <param name="P99Ms">The duration 99 in 100 executions finished within, in milliseconds; with fewer than 100 it is the slowest one. Null when none was counted.</param>
-public sealed record GetDefinitionPerformanceExecutions(long ExecutionCount, int? P50Ms, int? P95Ms, int? P99Ms);
+/// <param name="WaitP50Ms">The wait half of the executions that recorded one were claimed within, in milliseconds; null when none recorded a wait.</param>
+/// <param name="WaitP95Ms">The wait 95 in 100 executions that recorded one were claimed within, in milliseconds; null when none recorded a wait.</param>
+/// <param name="WaitP99Ms">The wait 99 in 100 executions that recorded one were claimed within, in milliseconds; with fewer than 100 it is the longest one. Null when none recorded a wait.</param>
+public sealed record GetDefinitionPerformanceExecutions(
+    long ExecutionCount,
+    int? P50Ms,
+    int? P95Ms,
+    int? P99Ms,
+    int? WaitP50Ms,
+    int? WaitP95Ms,
+    int? WaitP99Ms
+);

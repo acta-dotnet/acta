@@ -143,7 +143,7 @@ SELECT job_id, job_status, leased_by_worker_id, leased_by_worker_host_name, leas
  WHERE job_status = 'executing';
 
 -- The whole timeline for a job tree (parents + children share lineage_root_job_id).
-SELECT created_at_utc, entity_id, event, execution_number, duration_ms, event_message, actor, details_text
+SELECT created_at_utc, entity_id, event, execution_number, duration_ms, wait_ms, event_message, actor, details_text
   FROM acta.events_view
  WHERE lineage_root_job_id = :root_job_id
  ORDER BY created_at_utc, event_id;
@@ -405,7 +405,7 @@ app.MapActa("/acta", options =>
 - **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-deduplication-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
 - **A query parameter a route does not declare is refused.** It answers 400 naming the parameter, so a mistyped filter never answers an unfiltered list; the OpenAPI document lists each route's parameters.
 - **Lists page by cursor.** Pass a page's `nextCursor` back as `cursor` until `hasMore` is false; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `includeTotal=true` adds `totalCount`; on `GET /events` it needs `jobRef`, or `entity` with `entityId`, and a definition's events and the outbox sources take none.
-- **A definition's performance is read from its events.** The definition page's Performance panel, and `GET /definitions/{jobNamespace}/{jobName}/performance?fromUtc=&toUtc=&intervalSeconds=` behind it, count the executions in the range that ended in success or in failure and give the p50, p95 and p99 of their durations, for each outcome, over the range and in each interval. A duration is one handler invocation as its worker timed it, so a job that waited and resumed counts only the execution that finished it, and a yielded or orphaned execution is not counted. The numbers are computed from retained events on each read, so event retention bounds how far back a window reads. A read takes the newest executions of its range up to a limit and says when it stopped there (`executionsHasMore`, `oldestAtUtc`). A definition that records failures only records a success when it follows a failure or closes an alert, so its succeeded durations are a partial set and the panel gives no failure rate. A window that spans a change of the definition's recording level mixes two recordings, which the panel cannot tell: its failure rate is comparable again once the window has passed the change. The trend marks each change of the namespace's deployment version in the window.
+- **A definition's performance is read from its events.** The definition page's Performance panel, and `GET /definitions/{jobNamespace}/{jobName}/performance?fromUtc=&toUtc=&intervalSeconds=` behind it, count the executions in the range that ended in success or in failure and give the p50, p95 and p99 of their durations, for each outcome, over the range and in each interval. The route also answers the same percentiles and histograms of how long those executions waited to be claimed (`waitP50Ms`, `waitP95Ms`, `waitP99Ms`, `succeededWaitBins`, `failedWaitBins`), counted over the executions that recorded a wait. A duration is one handler invocation as its worker timed it, so a job that waited and resumed counts only the execution that finished it, and a yielded or orphaned execution is not counted. The numbers are computed from retained events on each read, so event retention bounds how far back a window reads. A read takes the newest executions of its range up to a limit and says when it stopped there (`executionsHasMore`, `oldestAtUtc`). A definition that records failures only records a success when it follows a failure or closes an alert, so its succeeded durations are a partial set and the panel gives no failure rate. A window that spans a change of the definition's recording level mixes two recordings, which the panel cannot tell: its failure rate is comparable again once the window has passed the change. The trend marks each change of the namespace's deployment version in the window.
 - `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
 
 The [OpenAPI document](./reference/openapi.json) is a file in the repository, not a route the app serves: a client is generated from it with standard OpenAPI tools and pointed at your mount's API root. It lists every route below its server, `/acta/api`, the default mount's API root (`/v1/jobs/{jobRef}`), each with its operation's name in camelCase as its id (`getJob`, `pauseJob`, `listJobTags`); its introduction states the confirmation rule with the mount's header name. Every code is an open string whose `x-acta-known-values` names the values this version writes, so a client keeps a value it does not know. The `kind` of a move a job explanation suggests is a plain string whose description lists its values, and a client keeps an unknown one the same way. Under `/v1` the contract changes by addition: a later 1.x adds routes, optional request members, response members, and code values, and never removes or renames one or adds a required member to a request, so the definition overrides update keeps requiring exactly the members it requires at 1.0.
@@ -540,7 +540,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261120201836_init to schema acta
+applied M20261120220409_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1405,7 +1405,7 @@ within one more lease.
 ### Event Timeline
 
 ```sql
-SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.actor, e.details_format, e.details_text
+SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.wait_ms, e.event_message, e.actor, e.details_format, e.details_text
   FROM acta.events_view e
   JOIN acta.jobs_view j ON j.job_id = e.entity_id
  WHERE e.entity = 'job' AND j.job_ref = :job_ref
@@ -1418,7 +1418,7 @@ remaining events by its internal id, which its event rows (`entity_id`) and its 
 (`ActaJobId`) carry.
 
 ```sql
-SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.actor, e.details_format, e.details_text
+SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.wait_ms, e.event_message, e.actor, e.details_format, e.details_text
   FROM acta.events_view e
  WHERE e.entity = 'job' AND e.entity_id = :job_id
  ORDER BY e.created_at_utc, e.event_id;
@@ -1426,7 +1426,9 @@ SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms,
 
 `events_view` is a readable ledger, not a rollup. The `jobs_view` row tells you where work is now;
 events tell you why it moved. `actor` names who performed an operator action, and is null on what the
-engine or a worker did. `details_text` decodes `json` event details, the machine-readable facts; binary
+engine or a worker did. On the event a worker writes when an execution ends, `duration_ms` is how long its
+handler ran and `wait_ms` how long it sat due before the worker claimed it, from the instant that execution
+came due to its claim on the database clock; an orphaned execution's event carries neither. `details_text` decodes `json` event details, the machine-readable facts; binary
 and custom details payloads stay opaque.
 
 ### Recent Terminal Failures
