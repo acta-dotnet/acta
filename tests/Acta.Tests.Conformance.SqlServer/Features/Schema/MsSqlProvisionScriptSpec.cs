@@ -49,7 +49,7 @@ public sealed partial class MsSqlProvisionScriptSpec
         Assert.True(await reader.ReadAsync(ct));
         Assert.Equal(migrations, reader.GetInt32(0));
         Assert.Equal(0, reader.GetInt32(1));
-        Assert.Equal(14, reader.GetInt32(2));
+        Assert.Equal(13, reader.GetInt32(2));
     }
 
     [Fact(DisplayName = "A mssql schema provisioned by the script runs with migrations disabled and keeps its data across a re-run")]

@@ -267,10 +267,10 @@ internal static class StorageCases
                 ),
                 ct
             );
-            await maintenance.PurgeExpiredDataAsync(new(ns, RetentionSection.Jobs, DateTime.UtcNow, 1000), ct);
+            await maintenance.PurgeExpiredJobsAsync(new(ns, DateTime.UtcNow, 1000), ct);
         }
         await Task.Delay(1000, ct);
-        await maintenance.PurgeExpiredDataAsync(new(ns, RetentionSection.Jobs, DateTime.UtcNow, 1000), ct);
+        await maintenance.PurgeExpiredJobsAsync(new(ns, DateTime.UtcNow, 1000), ct);
         var reader = new DurableReader(state);
         await plan.DrainAsync(
             async () =>
@@ -320,7 +320,7 @@ internal static class StorageCases
         await FaultCaseRunner.WaitAsync(
             async () =>
             {
-                await maintenance.PurgeExpiredDataAsync(new(ns, RetentionSection.Jobs, DateTime.UtcNow, 1000), ct);
+                await maintenance.PurgeExpiredJobsAsync(new(ns, DateTime.UtcNow, 1000), ct);
                 return await jobs.GetAsync(root, ct) is null;
             },
             plan.Deadline(1, 0, state.DrainRate),

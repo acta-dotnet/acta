@@ -51,7 +51,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
     }
 
     [Fact(DisplayName = "A deploy makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule")]
-    public async Task Initialize_auto_registers_the_purge_expired_data_system_job()
+    public async Task Initialize_auto_registers_the_retention_system_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];

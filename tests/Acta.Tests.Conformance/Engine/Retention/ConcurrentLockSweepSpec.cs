@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Engine.Retention;
 /// being absorbed by a retry.
 /// </summary>
 [ConformanceSpec(
-    "purge-expired-data.concurrent-lock-sweeps",
+    "purge-expired-locks.concurrent-sweeps",
     "Concurrent retention sweeps reap a shared lock backlog without a deadlock",
     Area = "Retention",
     Contract = "Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock."

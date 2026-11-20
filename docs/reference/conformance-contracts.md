@@ -101,11 +101,12 @@
   - A lease reclaim at recording Failures writes the orphaned event, and the projector raises a FirstFailure on it
   - A restarted one-shot's success at recording Failures with the alert profile off writes no event
 
-### Retention keeps owed alert events and their jobs until projected
-- **Contract:** Retention deletes no alert-required event, nor its job, past the projector's floor, and both age out normally once projected.
+### Retention waits for the alert projector before deleting jobs and events
+- **Contract:** Retention deletes no job or event the namespace's alert projector has not passed, and both age out normally once it passes them.
 - **Guarantees:**
   - A failure the projector has not consumed survives a sweep past its window, then ages out once projected
-  - A job whose definition alerts on nothing is swept on schedule while the projector is behind
+  - A job whose definition alerts on nothing waits for the projector to pass its retention, then is swept
+  - A projector whose position lies in the past holds back the jobs and events it has not passed, and nothing else
 
 ### Alert channel registry is built from worker startup configuration
 - **Contract:** The registry provides a default channel per namespace, applies builder declarations as last-write-wins, and isolates namespaces.
@@ -1421,6 +1422,11 @@
 - **Guarantees:**
   - Each lane drains in order with one member in flight while lanes run in parallel
 
+### Purge deletes a namespace's unreferenced lanes a batch at a time
+- **Contract:** A batch deletes at most its size of one namespace's unreferenced lanes, and never another namespace's.
+- **Guarantees:**
+  - Batches take a namespace's unreferenced lanes up to their size until none is left, and leave another namespace's
+
 ## Locks
 
 ### A slot acquire takes the lowest free slot of a counted key, or none
@@ -2116,10 +2122,32 @@
 - **Guarantees:**
   - After a retention purge the timeline reads by job id without the ref, and the ref resolves to null
 
-### Concurrent retention sweeps reap a shared lock backlog without a deadlock
-- **Contract:** Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock.
+### Purge deletes aged alerts delivered or not and counts the undelivered
+- **Contract:** Purge deletes alerts past the retention window whether or not delivery settled, and answers and warns how many of them were undelivered.
 - **Guarantees:**
-  - Eight retention sweeps racing over a thousand expired lock rows reap them all without a deadlock
+  - Alerts past the window are purged settled or not, counted apart, and none inside the window is
+  - A pass that deletes undelivered alerts warns how many, and one that deletes none stays silent
+  - A resolve-suppressed alert past the window is counted once, as settled
+  - An open incident past the window is purged and the next failure opens a fresh one
+  - An open incident whose delivery settled is purged as settled and frees its key
+
+### Purge deletes expired events a batch at a time, reading each entry once
+- **Contract:** Purge deletes events past the retention window, the sys namespace's included, and each batch of a pass reads on from where the one before it stopped.
+- **Guarantees:**
+  - Expired events are deleted and recent events are kept
+  - The automatic sweep also deletes the sys namespace's expired tenant events and keeps its recent ones
+  - A pass over more events than several batches deletes them all, each batch reading on from the last
+
+### Purge deletes expired jobs with what they own, within batches
+- **Contract:** Purge deletes terminal jobs past their retention with what they own, keeps the jobs its guards hold, and stays within its batch bounds.
+- **Guarantees:**
+  - Job retention deletes the job's tags with the job
+  - Retention keeps a job while an alert of it is undelivered, and takes its settled alerts with it
+  - A future-retention job stamped with the default window survives the purge
+  - An expired terminal parent survives the sweep while a live child still references it
+  - A fully expired subtree drains child-first and then releases the parent
+  - Batching caps a single call at max iterations and a full run clears the rest
+  - A stopped recurring job outlives its retention while its definition is live, and drains once retired
 
 ### Purge walks its namespace's jobs from the retention bound to the oldest
 - **Contract:** The jobs walk reads only its namespace's jobs, from the newest old enough to have expired to the oldest, and deletes the expired ones a batch at a time.
@@ -2132,25 +2160,21 @@
   - A cycle starts at the shortest retention any definition has, a retired one included, and a younger job waits
   - The framework's own definitions do not set where a cycle starts
 
-### Purge reaps expired jobs events alerts and terminal workers within batches
-- **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
+### Concurrent retention sweeps reap a shared lock backlog without a deadlock
+- **Contract:** Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock.
 - **Guarantees:**
-  - Job retention deletes the job's tags with the job
-  - Retention keeps a job while an alert of it is undelivered, and takes its settled alerts with it
-  - A future-retention job stamped with the default window survives the purge
-  - Expired events are deleted and recent events are kept
-  - The automatic sweep also deletes the sys namespace's expired tenant events and keeps its recent ones
-  - Stopped and Dead workers are both reaped while an Active worker is kept
-  - Alerts past the window are purged settled or not, counted apart, and none inside the window is
-  - A resolve-suppressed alert past the window is counted once, by the settled sweep
-  - An open incident past the window is purged and the next failure opens a fresh one
-  - An open incident whose delivery settled is purged by the settled sweep and frees its key
+  - Eight retention sweeps racing over a thousand expired lock rows reap them all without a deadlock
+
+### Purge deletes expired lock rows within batches
+- **Contract:** Purge deletes lock rows past their expiry, keeps live ones, and deletes no more per call than its batch bounds allow.
+- **Guarantees:**
   - An expired lock row is reaped and a live lock is kept
-  - An expired terminal parent survives the sweep while a live child still references it
-  - A fully expired subtree drains child-first and then releases the parent
-  - The lock sweep is bounded by batch size and iterations like every other section
-  - Batching caps a single call at max iterations and a full run clears the rest
-  - A stopped recurring job outlives its retention while its definition is live, and drains once retired
+  - The lock sweep is bounded by batch size and iterations like every other delete
+
+### Purge deletes stopped and dead workers past the window
+- **Contract:** Purge deletes Stopped and Dead workers past the retention window and never an Active one.
+- **Guarantees:**
+  - Stopped and Dead workers are both reaped while an Active worker is kept
 
 ### A worker's events keep resolving its ref through retention
 - **Contract:** Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves.
@@ -3163,8 +3187,13 @@
 | `PauseSchedule` | yes | yes | yes |
 | `PlanOutboxSignal` | yes | yes | yes |
 | `PublishCalendar` | yes | yes | yes |
-| `PurgeExpiredData` | yes | yes | yes |
+| `PurgeExpiredAlerts` | yes | yes | yes |
+| `PurgeExpiredEvents` | yes | yes | yes |
+| `PurgeExpiredJobs` | yes | yes | yes |
+| `PurgeExpiredLocks` | yes | yes | yes |
+| `PurgeExpiredWorkers` | yes | yes | yes |
 | `PurgeJob` | yes | yes | yes |
+| `PurgeUnusedLanes` | yes | yes | yes |
 | `QuarantineOutbox` | yes | yes | yes |
 | `RaiseAlert` | yes | yes | yes |
 | `RaiseJobSignal` | yes | yes | yes |

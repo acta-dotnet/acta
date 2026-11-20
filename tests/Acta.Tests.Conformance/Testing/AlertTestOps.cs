@@ -178,6 +178,23 @@ internal static class AlertTestOps
         BuildAlertsContext(services, jobNamespace, namespaceId, new ExecutionFence(cursorOwnerJobId, 0, 0))
             .GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, new AlertsCursor(0L, 0L), ct);
 
+    /// <summary>Puts the projector's cursor at <paramref name="cursor"/> through the same variable write the projector uses.</summary>
+    public static Task SetAlertsCursorAsync(
+        IServiceProvider services,
+        string jobNamespace,
+        int namespaceId,
+        long cursorOwnerJobId,
+        AlertsCursor cursor,
+        CancellationToken ct
+    ) =>
+        AsExecutionAsync(
+            services,
+            cursorOwnerJobId,
+            fence =>
+                BuildAlertsContext(services, jobNamespace, namespaceId, fence).SetVariableAsync(AlertsJob.CursorVariableName, cursor, ct),
+            ct
+        );
+
     /// <summary>
     /// Rewinds the projector's cursor to <paramref name="cursorEventId"/> through the same variable
     /// write the projector uses, which is how a spec stages a crash that lost one batch's checkpoint

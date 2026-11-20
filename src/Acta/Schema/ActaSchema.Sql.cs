@@ -196,13 +196,10 @@ internal static partial class ActaSchema
         /// <summary>The length of the intervals a definition's performance read cuts its range into.</summary>
         public static readonly DbValueSpec<int> IntervalSeconds = new("p_interval_seconds", DbKind.Int32);
 
-        /// <summary>
-        /// purge_expired_data batch parameters.
-        /// </summary>
-        public static readonly DbValueSpec<int> PurgeSection = new("p_section", DbKind.Int32);
-
+        /// <summary>The instant a retention delete judges its rows against.</summary>
         public static readonly DbValueSpec<DateTime> PurgeCutoffUtc = new("p_cutoff_utc", DbKind.UtcInstant);
 
+        /// <summary>The most rows one batch of a retention delete takes.</summary>
         public static readonly DbValueSpec<int> PurgeBatchSize = new("p_batch_size", DbKind.Int32);
 
         /// <summary>The instant half of the jobs walk's cursor (<see cref="RetentionCursor"/>); null starts a cycle.</summary>
@@ -210,6 +207,12 @@ internal static partial class ActaSchema
 
         /// <summary>The job id half of the jobs walk's cursor; see <see cref="PurgeBeforeCreatedUtc"/>.</summary>
         public static readonly DbValueSpec<long> PurgeBeforeJobId = new("p_before_job_id", DbKind.Int64);
+
+        /// <summary>The instant half of the event position a batch of an events pass reads on from.</summary>
+        public static readonly DbValueSpec<DateTime> PurgeAfterCreatedUtc = new("p_after_created_utc", DbKind.UtcInstant);
+
+        /// <summary>The event id half of the event position; see <see cref="PurgeAfterCreatedUtc"/>.</summary>
+        public static readonly DbValueSpec<long> PurgeAfterEventId = new("p_after_event_id", DbKind.Int64);
 
         /// <summary>
         /// List-read paging: rows requested per page plus one row to detect HasMore.

@@ -6,8 +6,8 @@ inside a transaction the session owns.
 
 This is the execution policy referenced by [the architecture decisions](./architecture-decisions.md). The server providers
 each install routines for the hot ledger mutations: enqueue, claim, complete (one batch call for every completion shape), the step
-writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention. Every other
-operation, registration, alerts, locks and lock slots, the outbox inbox, and control verbs included, is embedded SQL
+writes, checkpoints, leases, meters, job signals and sleep timers, and recovery. Every other
+operation, retention, registration, alerts, locks and lock slots, the outbox inbox, and control verbs included, is embedded SQL
 on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
 because an installed routine is a compatibility obligation and every edit to one is a migration.
@@ -89,13 +89,15 @@ transaction block that takes the outbox lock first ("Outbox lock"); SQLite uses 
 transaction. Source reads use the query path. Schema bootstrap and object installation have their
 separate migration transaction and lock.
 
-`PurgeExpiredData` remains one routine identity, but each invocation purges one selected section's
-bounded batch. The events and jobs sections honor the alert floor: an alert-required event above
-the alerts projector's consumed cursor, and the job that owns it, are excluded until projected.
-`RetentionJob` reads database time once, calculates fixed sweep cutoffs, and
-visits jobs, events, settled alerts, undelivered alerts, poison-skip checkpoints, workers, expired locks,
-and unreferenced lanes in that order. A section deletes in bounded batches, and an empty batch ends it.
-The jobs section is the exception: no index finds expired jobs, so each call walks its own namespace's
+Retention is six inline operations, each of which deletes one bounded batch: `PurgeExpiredJobs`, `PurgeExpiredEvents`,
+`PurgeExpiredAlerts`, `PurgeExpiredWorkers`, `PurgeExpiredLocks`, and `PurgeUnusedLanes`. `RetentionJob` reads
+database time once, calculates fixed sweep cutoffs, and runs them in that order. Jobs and events wait for the alerts
+projector: each is judged at the earlier of its cutoff and the instant the namespace's projector has read to, the time
+of the alert floor, so a job goes once its `retention_until_utc` is before that instant and an event once it was created
+before it. A namespace with no projector is judged at the cutoff alone. A delete runs in bounded batches, and an empty
+batch ends it. An events pass reads each batch on from the last `(created_at_utc, event_id)` the batch before it
+examined, so no batch reads again the index entries an earlier one deleted.
+The job delete is the exception: no index finds expired jobs, so each call walks its own namespace's
 jobs from newer to older through `ix_jobs_namespace_created`, from the cursor the previous pass stored
 on the slot (`p_before_created_utc` and `p_before_job_id`, the `retention-cursor` job variable), reads
 ten batches' worth of them, deletes a batch of the expired ones among them, and answers where it stopped:
@@ -105,7 +107,10 @@ it holds, and it answers at its last job. A cycle starts at the newest
 job old enough to have expired, which is the cutoff less the shortest retention any definition of the
 namespace has, the framework's own `sys.` definitions aside, and ends at the namespace's oldest job. A
 pass walks until the cycle ends, a delete budget's worth of jobs is gone, or its time is spent, and
-stores its place then, before the later sections run.
+stores its place then, before the later deletes run.
+On PostgreSQL the job delete and the lane delete lock their batch in a statement of their own and delete in later
+statements of the same transaction, so each delete reads what committed before the lock was taken ("A read after a
+lock"); the other four lock and delete in one statement.
 Each batch is atomic; failure or cancellation later in the sweep preserves completed batches.
 `RetentionJob` never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
@@ -172,8 +177,8 @@ child table, but it locks only the batch's own keys.
 - Both `jobs_state` inserts in `enqueue_jobs` carry `OPTION (LOOP JOIN)`, so `fk_jobs_state_lanes` seeks
   each lane by key and locks only rows the batch inserted or already holds.
 - The same rule covers set-based deletes and locking reads driven by a table variable.
-  `purge_expired_data` names every permanent table it deletes from or reads under `UPDLOCK` through
-  `@del` or `@lock_del` with `WITH (FORCESEEK)`, so the table is always the inner side, sought by key.
+  The retention deletes name every permanent table they delete from or read under `UPDLOCK` through
+  their table variables with `WITH (FORCESEEK)`, so the table is always the inner side, sought by key.
   `OPTION (LOOP JOIN)` alone is not enough there. Compiled at one row, it keeps nested loops but makes
   a small permanent table the outer input and scans all of it under update locks.
 - The expired-lock sweep is global, so every namespace's retention pass meets the others there.
@@ -223,8 +228,8 @@ filter so the hint always compiles:
   namespace's row and deadlocked with deploys writing theirs.
 - A map's replay reads its children as `enqueue_jobs` probes, a join's inner side under the list it passes:
   `ListChildJobsByName` names both columns of `ux_jobs_deduplication_key_child`.
-- The retention purge's staging read seeks `ix_jobs_namespace_created` from its cursor and then `jobs_state`
-  and `jobs` by key, and its event read seeks `ix_events_namespace_created`.
+- The job delete's staging read seeks `ix_jobs_namespace_created` from its cursor and then `jobs_state`
+  and `jobs` by key, and the event delete's read seeks `ix_events_namespace_created` from its pass's position.
 - The outbox claim, its lease recovery and lane check, the relay's finalizes, the backlog count, and the
   operator's quarantine reads, requeue, and discard seek without naming an index, because the producer owns that
   table's DDL. A scan of the producer's table would also wait on every row a producer transaction still holds
@@ -481,8 +486,8 @@ so no alert outlives its job.
   refusal raises 51205. Under `HOLDLOCK` the seek range-locked the identity's next key, so raises of
   neighbouring identities waited on each other, and a read left unpinned held an `ix_alerts_delivery_due`
   key while it waited for a row a purge had deleted. `PurgeJob` and
-  every retention section that deletes alerts lock identity rows through the same index before deleting them.
-  The alert sections stage their batch without locks and lock with `READPAST`, so they skip a row a raise
+  every retention delete that deletes alerts lock identity rows through the same index before deleting them.
+  The alert delete stages its batch without locks and locks with `READPAST`, so it skips a row a raise
   holds; `PurgeJob` and the job sweep wait for it, since the job is going and its alerts with it.
   A delete that took the row first and the index key second deadlocked against a raise, whichever job
   that raise was for.
@@ -625,8 +630,9 @@ the routine-body parameter gate reads the file's first parenthesis as the parame
 routine layer therefore reinstalls onto a database from the previous release. Reprovisioning is
 required only where a table definition moved, which last happened before 1.0 for the SQL Server
 Unicode actor and cannot happen again under the frozen baseline.
-From 1.0 onward, an installed routine remains a routine. An inline operation may be promoted
-deliberately; routine-to-inline demotion is outside the 1.x policy.
+From 1.0 onward, an inline operation may be promoted to a routine deliberately. A routine may become inline SQL in a
+1.x release if the old routine stays installed for one more release, so workers of the previous version keep running
+during a rolling deploy, and it is dropped in the release after.
 
 During a rolling deployment all workers share the installed routine body. N+1 provisioning changes
 the implementation that N workers invoke, and a rollback never reinstalls N's bodies over N+1's: N

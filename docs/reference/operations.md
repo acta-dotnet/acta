@@ -151,7 +151,12 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | SQL | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- |
-| `PurgeExpiredData` | · | · | · | routine | `alerts`, `checkpoints`, `events`, `jobs`, `jobs_state`, `lanes`, `locks`, `schedules`, `schedules_state`, `steps`, `tags`, `workers` | `PurgeExpiredDataJobsWalkSpec`, `PurgeExpiredDataSpec` |
+| `PurgeExpiredAlerts` | · | · | · | inline | `alerts` | `PurgeExpiredAlertsSpec` |
+| `PurgeExpiredEvents` | · | · | · | inline | `events` | `PurgeExpiredEventsSpec` |
+| `PurgeExpiredJobs` | · | · | · | inline | `alerts`, `checkpoints`, `jobs`, `jobs_state`, `schedules`, `schedules_state`, `steps`, `tags` | `PurgeExpiredJobsSpec`, `PurgeExpiredJobsWalkSpec` |
+| `PurgeExpiredLocks` | · | · | · | inline | `locks` | `PurgeExpiredLocksSpec` |
+| `PurgeExpiredWorkers` | · | · | · | inline | `workers` | `PurgeExpiredWorkersSpec` |
+| `PurgeUnusedLanes` | · | · | · | inline | `lanes` | `PurgeUnusedLanesSpec` |
 
 ## Namespaces
 

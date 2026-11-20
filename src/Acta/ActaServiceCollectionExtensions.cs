@@ -276,7 +276,12 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ReserveRateHandler>();
         services.TryAddSingleton<LocksOperations>();
 
-        services.TryAddSingleton<PurgeExpiredDataHandler>();
+        services.TryAddSingleton<PurgeExpiredJobsHandler>();
+        services.TryAddSingleton<PurgeExpiredEventsHandler>();
+        services.TryAddSingleton<PurgeExpiredAlertsHandler>();
+        services.TryAddSingleton<PurgeExpiredWorkersHandler>();
+        services.TryAddSingleton<PurgeExpiredLocksHandler>();
+        services.TryAddSingleton<PurgeUnusedLanesHandler>();
         services.TryAddSingleton<MaintenanceOperations>();
 
         services.TryAddSingleton<RaiseJobSignalHandler>();

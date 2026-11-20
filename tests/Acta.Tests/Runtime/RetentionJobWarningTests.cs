@@ -43,7 +43,7 @@ public sealed class RetentionJobWarningTests
     {
         var logger = new RecordingLogger();
         var batches = new Queue<int>([2, 3, 0]);
-        var store = Purges(section => section == RetentionSection.UndeliveredAlerts ? batches.Dequeue() : 0);
+        var store = Purges(stem => stem == RetentionJobTests.Alerts ? batches.Dequeue() : 0);
 
         await CreateJob(store, logger).Handle(new RecordingJobContext(), TestContext.Current.CancellationToken);
 
@@ -53,22 +53,22 @@ public sealed class RetentionJobWarningTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Failed_sweep_warns_about_committed_alert_batches_and_preserves_the_error(bool failInSameSection)
+    public async Task Failed_sweep_warns_about_committed_alert_batches_and_preserves_the_error(bool failInSameDelete)
     {
         var logger = new RecordingLogger();
         var batches = new Queue<int>([2, 3, 0]);
         var failure = new InvalidOperationException("failed retention batch");
-        var store = Purges(section =>
+        var store = Purges(stem =>
         {
-            if (section == RetentionSection.UndeliveredAlerts)
+            if (stem == RetentionJobTests.Alerts)
             {
-                if (failInSameSection && batches.Count == 1)
+                if (failInSameDelete && batches.Count == 1)
                 {
                     throw failure;
                 }
                 return batches.Dequeue();
             }
-            return section == RetentionSection.Workers ? throw failure : 0;
+            return stem == RetentionJobTests.Workers ? throw failure : 0;
         });
 
         var caught = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -82,23 +82,23 @@ public sealed class RetentionJobWarningTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Cancelled_sweep_warns_about_committed_alert_batches_and_preserves_cancellation(bool cancelInSameSection)
+    public async Task Cancelled_sweep_warns_about_committed_alert_batches_and_preserves_cancellation(bool cancelInSameDelete)
     {
         var logger = new RecordingLogger();
         var batches = new Queue<int>([2, 3, 0]);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        var store = Purges(section =>
+        var store = Purges(stem =>
         {
-            if (section == RetentionSection.UndeliveredAlerts)
+            if (stem == RetentionJobTests.Alerts)
             {
                 var deleted = batches.Dequeue();
-                if (cancelInSameSection && batches.Count == 1)
+                if (cancelInSameDelete && batches.Count == 1)
                 {
                     cancellation.Cancel();
                 }
                 return deleted;
             }
-            if (section == RetentionSection.Workers)
+            if (stem == RetentionJobTests.Workers)
             {
                 cancellation.Cancel();
             }
@@ -137,20 +137,24 @@ public sealed class RetentionJobWarningTests
     private static RetentionJob CreateJob(MaintenanceOperations maintenance, ILogger<RetentionJob> logger) =>
         new(maintenance, new StubClock(), Options.Create(new JobsOptions()), logger);
 
-    private static MaintenanceOperations Purges(Func<RetentionSection, int> execute) =>
-        new RetentionJobTests.Store(command => execute(command.Section)).Handler;
+    // Every alert these deletes take is undelivered.
+    private static MaintenanceOperations Purges(Func<string, int> execute) =>
+        new RetentionJobTests.Store(call => execute(call.Stem), undelivered: static deleted => deleted).Handler;
 
-    // Each section deletes once and then reports empty: three rows anywhere but the undelivered alerts.
+    // Each delete takes three rows once and then reports empty; the alerts delete takes three settled alerts beside the
+    // undelivered ones.
     private static MaintenanceOperations Stub(int undelivered)
     {
-        var visited = new HashSet<RetentionSection>();
-        return Purges(section =>
-            visited.Add(section)
-                ? section == RetentionSection.UndeliveredAlerts
-                    ? undelivered
-                    : 3
-                : 0
-        );
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        return new RetentionJobTests.Store(
+            call =>
+                visited.Add(call.Stem)
+                    ? call.Stem == RetentionJobTests.Alerts
+                        ? undelivered + 3
+                        : 3
+                    : 0,
+            undelivered: deleted => deleted > 0 ? undelivered : 0
+        ).Handler;
     }
 
     private sealed class StubClock : IClockOperations

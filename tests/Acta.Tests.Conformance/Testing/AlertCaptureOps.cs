@@ -26,16 +26,28 @@ internal static class AlertCaptureOps
         return job;
     }
 
-    /// <summary>Puts the job's events far outside the window and its own retention in the past.</summary>
-    public static async Task AgeAsync(IDbSession db, long jobId, CancellationToken ct)
+    /// <summary>Puts the job's events far outside the window, and its creation and its own retention in the past.</summary>
+    public static Task AgeAsync(IDbSession db, long jobId, CancellationToken ct) =>
+        AgeAsync(db, jobId, DateTime.UtcNow.AddDays(-10 * RetentionDays), ct);
+
+    /// <summary>
+    /// Puts the job's events, its creation, and its own retention at <paramref name="agedUtc"/>. A job is created before
+    /// it expires, and the jobs walk reads only the jobs created before the instant it judges by.
+    /// </summary>
+    public static async Task AgeAsync(IDbSession db, long jobId, DateTime agedUtc, CancellationToken ct)
     {
-        var aged = DateTime.UtcNow.AddDays(-10 * RetentionDays);
         await db.From<EventEntity>()
             .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId)
-            .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
+            .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = agedUtc }, ct);
+        await db.ExecuteRawAsync(
+            "UPDATE {schema}.jobs SET created_at_utc = @p_created WHERE job_id = @p_id",
+            ct,
+            ("@p_created", agedUtc),
+            ("@p_id", jobId)
+        );
         await db.From<JobStateEntity>()
             .Where(r => r.Id == jobId)
-            .UpdateOnlyAsync(() => new JobStateEntity { RetentionUntilUtc = aged }, ct);
+            .UpdateOnlyAsync(() => new JobStateEntity { RetentionUntilUtc = agedUtc }, ct);
     }
 
     /// <summary>One bounded retention sweep with the window above.</summary>

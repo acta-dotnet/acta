@@ -44,7 +44,7 @@ public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.All(before, row => Assert.Equal<JobRef?>(jobRef, row.JobRef));
 
         // Purge the job row but keep its events (wide event window), sweeping until the row is actually
-        // gone. One sweep is not enough on the shared parallel schema: purge_expired_data stages its batch
+        // gone. One sweep is not enough on the shared parallel schema: the job delete stages its batch
         // WITH (UPDLOCK, READPAST) / FOR UPDATE SKIP LOCKED, so a row another transaction holds is skipped
         // this pass. Every conformance spec inserts into the same jobs/jobs_state tables, so this spec's own
         // zero-retention row can sit under an unrelated transaction's lock at the instant a one-shot purge

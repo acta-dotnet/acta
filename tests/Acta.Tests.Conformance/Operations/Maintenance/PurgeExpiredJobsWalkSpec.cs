@@ -7,20 +7,20 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Maintenance;
 
 /// <summary>
-/// Conformance for the jobs walk of <c>purge_expired_data</c>: with no retention index, the jobs section reads its own
+/// Conformance for the jobs walk of <c>PurgeExpiredJobs</c>: with no retention index, the job delete reads its own
 /// namespace's jobs from newer to older, ten batches a slice, and deletes the expired ones in it. A cycle starts at the
 /// newest job old enough to have expired under the namespace's shortest retention and ends at its oldest job. Each fact
 /// seeds a namespace of its own, with finished jobs created and expiring at chosen instants, so the walk's bound and
 /// order are the facts' own; the cutoff sits a minute past the database clock.
 /// </summary>
 [ConformanceSpec(
-    "purge-expired-data.jobs-walk",
+    "purge-expired-jobs.walk",
     "Purge walks its namespace's jobs from the retention bound to the oldest",
     Area = "Retention",
     Contract = "The jobs walk reads only its namespace's jobs, from the newest old enough to have expired to the oldest, and deletes the expired ones a batch at a time."
 )]
 [Deploys("add-numbers")]
-public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PurgeExpiredDataJobsWalkSpec>>
+public sealed class PurgeExpiredJobsWalkSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PurgeExpiredJobsWalkSpec>>
 {
     private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
 
@@ -198,13 +198,10 @@ public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<Conforman
     private async Task<IEnumerable<long>> JobsOfAsync(int ns, CancellationToken ct) =>
         (await Db.From<JobEntity>().Where(j => j.NamespaceId == ns).ToListAsync(ct)).Select(j => j.Id);
 
-    private async Task<PurgeExpiredDataResponse> WalkAsync(int ns, int batchSize, RetentionCursor? before, CancellationToken ct) =>
+    private async Task<PurgeExpiredJobsResponse> WalkAsync(int ns, int batchSize, RetentionCursor? before, CancellationToken ct) =>
         await Services
             .GetRequiredService<MaintenanceOperations>()
-            .PurgeExpiredDataAsync(
-                new PurgeExpiredDataCommand(ns, RetentionSection.Jobs, (await NowAsync(ct)).AddMinutes(1), batchSize, before),
-                ct
-            );
+            .PurgeExpiredJobsAsync(new PurgeExpiredJobsCommand(ns, (await NowAsync(ct)).AddMinutes(1), batchSize, before), ct);
 
     private async Task<(int NamespaceId, int DefinitionId)> SeedNamespaceAsync(TimeSpan retention, CancellationToken ct)
     {

@@ -99,7 +99,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         }
 
         var sweep = SweepJobsAsync(ns, () => Task.FromResult(true), ct);
-        await LockWaitProbe.WaitAsync(Db, "purge_expired_data", LockWait.Row, sweep, move, ct);
+        await LockWaitProbe.WaitAsync(Db, Db.Provider == DbProvider.SqlServer ? "@job_del" : "_purge_jobs", LockWait.Row, sweep, move, ct);
         await move.CommitAsync(ct);
         await sweep;
 

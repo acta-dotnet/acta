@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class RetentionTestOps
 {
-    public static Task<RetentionSweepCounts> PurgeAsync(
+    public static async Task<RetentionSweepCounts> PurgeAsync(
         IServiceProvider services,
         int namespaceId,
         int retentionDays,
@@ -18,12 +18,18 @@ internal static class RetentionTestOps
         CancellationToken ct,
         RetentionCursor? jobsCursor = null,
         bool sweepSystemEvents = false
-    ) =>
-        ActivatorUtilities
+    )
+    {
+        // The sweep's one warning names the namespace, as the job's own context would.
+        var jobNamespace = (
+            await services.GetRequiredService<IDbSession>().From<NamespaceEntity>().Where(n => n.Id == namespaceId).SingleOrDefaultAsync(ct)
+        )!.NamespaceName;
+        return await ActivatorUtilities
             .CreateInstance<RetentionJob>(services)
-            .PurgeExpiredDataAsync(
+            .SweepAsync(
                 new RetentionSweep(
                     namespaceId,
+                    jobNamespace,
                     retentionDays,
                     batchSize,
                     maxIterations,
@@ -31,9 +37,9 @@ internal static class RetentionTestOps
                     jobsCursor,
                     SweepSystemEvents: sweepSystemEvents
                 ),
-                null,
                 ct
             );
+    }
 
     /// <summary>
     /// Repeat the bounded purge sweep until <paramref name="settled"/> reports the target rows gone (or
@@ -41,12 +47,12 @@ internal static class RetentionTestOps
     /// and return the counts summed over every sweep it ran.
     /// </summary>
     /// <remarks>
-    /// The test-side model of the production <c>sys.retention</c> job, which runs <c>purge_expired_data</c>
-    /// on a timer, repeatedly. A single sweep can miss an otherwise-eligible row for two reasons, neither
-    /// of which the routine promises not to have:
+    /// The test-side model of the production <c>sys.retention</c> job, which runs its deletes on a timer, repeatedly.
+    /// A single sweep can miss an otherwise-eligible row for two reasons, neither of which the deletes promise not to
+    /// have:
     /// <list type="bullet">
     /// <item>
-    /// It stages its batch <c>WITH (UPDLOCK, READPAST)</c> / <c>FOR UPDATE SKIP LOCKED</c>, so a row
+    /// They stage a batch <c>WITH (UPDLOCK, READPAST)</c> / <c>FOR UPDATE SKIP LOCKED</c>, so a row
     /// another transaction holds is skipped this pass and caught the next. Conformance specs run in
     /// parallel against the shared <c>acta_test</c> tables, so a spec's own row can sit under an
     /// unrelated transaction's lock at the instant a one-shot purge runs.
@@ -56,7 +62,7 @@ internal static class RetentionTestOps
     /// <c>datetime2(3)</c> and completion stamps it from <c>SYSUTCDATETIME()</c>, whose extra digits round
     /// - up, most of the time - into the stored millisecond. A zero-retention job is therefore stamped up
     /// to half a millisecond past its own completion, and a sweep that lands inside that window reads
-    /// <c>retention_until_utc &gt; @now</c> and takes nothing.
+    /// <c>retention_until_utc &gt;= @now</c> and takes nothing.
     /// </item>
     /// </list>
     /// Both settle on the next pass, which is what production does, so specs assert the settled retention
