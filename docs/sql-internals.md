@@ -143,9 +143,10 @@ newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
 Statements that lock both `checkpoints` and `jobs_state` take the checkpoint first. `raise_job_signal` does,
 and `complete_executions` takes the checkpoints its rows await before their `jobs_state` rows; a child that
-lands then takes its parent's latch before the parent's `jobs_state` row, both after its own. A batch
+lands then takes its parent's latch before the parent's `jobs_state` row, both after its own. A restart of a
+child takes the same two in the same order: its own `jobs_state` row, then its parent's latch for it. A batch
 holding a parent and one of its grandchildren can therefore deadlock with a batch landing the child
-between them; the victim's write repeats. `ResetJobState` takes the `jobs_state` row and then deletes the
+between them, or with a restart of that child; the victim's write repeats. `ResetJobState` takes the `jobs_state` row and then deletes the
 job's checkpoints, and `PurgeJob` deletes them before the job row; both run on a
 job no worker is advancing on another checkpoint at that moment. `arm_or_consume_job_sleep_timer` is the other
 exception, taking the
@@ -331,6 +332,7 @@ reads it under `UPDLOCK`; a refusal raises 51205:
 - `start_job_step` locks `<schema>.step:<job id>:<name>`.
 - `access_job_checkpoint` (Set and GetOrSet), `wait_job_signal`, `raise_job_signal`, and `ParkOutboxSignal` lock
   `<schema>.checkpoint:<job id>:<kind>:<name>`.
+- `RestartJob` locks the same name for the parent's latch of the job it restarts, before the job's row.
 - `complete_executions` locks the same name for each awaited checkpoint, under both wait kinds, and for each parent latch a child in the batch may raise. It takes them all in one name-ordered pass, after the lanes and before any checkpoint or `jobs_state` row, so no path holds a checkpoint row while it waits for a checkpoint lock.
 - `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
@@ -348,6 +350,10 @@ passed keeps what that transaction writes, as if the raise had come after the re
 waiting for that checkpoint row rather than passing it. On PostgreSQL a clear of that signal holds its checkpoint
 row while it waits for the job's row, as a raise of it does, so a clear or a raise and a restart of the same job
 at once can deadlock; the database aborts one with `40P01`, and the aborted owned call is retried.
+
+A restart of a child then puts its parent's latch for it back to pending, and leaves the latch's deadline as it
+was. It waits for the latch row whatever its state, so a raise in flight lands first and the restart resets what
+it wrote.
 
 ### Outbox lock
 

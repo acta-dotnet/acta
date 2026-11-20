@@ -224,6 +224,26 @@ WHERE
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0;
 
+-- The restart takes back the outcome the parent's latch on this job holds, so the latch goes back to pending: the
+-- parent's next replay waits for this job to land again instead of reading a result the restart cleared.
+UPDATE {{schema}}.checkpoints
+SET
+    checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+    value_format_id = 0 /* JobPayloadFormat.None */,
+    value = NULL,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = (SELECT j.parent_job_id FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id)
+    AND checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
+    AND checkpoint_name = 'sys.child.' || @p_job_id
+    AND checkpoint_status_code = 110 /* CheckpointStatusCode.Set */
+    AND EXISTS (
+        SELECT 1
+        FROM temp._restart_job s
+        WHERE s.rejected = 0 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    );
+
 -- A re-charged root's settled envelope is outstanding again, and takes its schedule's capacity once: the charge is
 -- the envelope rows the update moved, which changes() counts.
 UPDATE {{schema}}.checkpoints

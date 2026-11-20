@@ -411,9 +411,9 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
     }
 
     [Fact(
-        DisplayName = "The typed child wait reads the outcome of the execution whose landing set the latch, so a restarted child that failed fails its parent rather than answering an earlier result"
+        DisplayName = "A typed child call whose child was restarted waits again without a charged failure, and reads the outcome of the child's next landing"
     )]
-    public async Task Typed_child_wait_reads_the_latched_execution_result()
+    public async Task Typed_child_call_waits_again_after_a_restart_and_reads_the_next_landing()
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-of-restarted-child", JobPayload.None), ct);
@@ -421,15 +421,24 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
 
-        // The parent is held while an operator restarts the succeeded child, whose second execution fails for good
-        // after the first execution answered "old".
+        // The parent is held while an operator restarts the child that answered "old", which takes that answer back.
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(parent, ct: ct)).Action);
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(child.JobRef), ct: ct)).Action);
-        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(CheckpointStatusCode.Pending, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);
         Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(parent, ct: ct)).Action);
 
+        // One attempt is all the parent has, and its replay spends none of it: it waits for the child again.
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var waiting = await ReadJobAsync(parent.JobId, ct);
+        Assert.Equal(JobStatusCode.Suspended, waiting.Status);
+        Assert.Equal(0, waiting.FailureCount);
+
+        // The child's second execution fails for good; that landing releases the parent, which fails on what it reads.
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(parent, ct));
         Assert.False((await Jobs.TryGetResultAsync<string>(parent, ct)).Found);
+        Assert.Contains("The second execution fails", await ExecutionFailureMessageAsync(parent.JobId, ct), StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "A map of generated calls gives every child its configure and answers each child's typed result")]

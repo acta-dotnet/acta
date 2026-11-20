@@ -177,9 +177,9 @@ public sealed class NullResultSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     }
 
     [Fact(
-        DisplayName = "A child restarted after its success retries the parent, whose retry reads the value the child's next execution stored"
+        DisplayName = "A child restarted after its success puts its parent back to waiting, uncharged, and the parent reads the value the child's next execution stored"
     )]
-    public async Task A_child_restarted_after_its_success_retries_the_parent()
+    public async Task A_child_restarted_after_its_success_puts_the_parent_back_to_waiting()
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(
@@ -191,13 +191,14 @@ public sealed class NullResultSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(child.JobRef), ct: ct)).Action);
 
-        // The latch names a success the child no longer holds, so the parent is retried rather than answered no value.
+        // The restart took back the success with no value, so the parent neither answers it nor is retried: it waits.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var retried = await ReadJobAsync(parent.JobId, ct);
-        Assert.Equal(JobStatusCode.Ready, retried.Status);
-        Assert.Equal(1, retried.FailureCount);
+        var waiting = await ReadJobAsync(parent.JobId, ct);
+        Assert.Equal(JobStatusCode.Suspended, waiting.Status);
+        Assert.Equal(0, waiting.FailureCount);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(new ChildValueSeen(true, true, 5, null), await Jobs.GetResultAsync<ChildValueSeen>(parent, ct));
     }

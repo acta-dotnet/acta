@@ -93,6 +93,14 @@ public static class NullResultHandler
     public static async Task<ChildValueSeen> ParentOfNullThenValueChild(JobContext ctx, CancellationToken ct) =>
         ChildValueSeen.Of(await ctx.CallChildAsync("lookup", TestJobsManifest.NullThenValue(new NullThenValueInput(5)), ct));
 
+    /// <summary>
+    /// The same call with one attempt, so a single charged failure would end this job, and reports what the outcome
+    /// answers.
+    /// </summary>
+    [Job("job-parent-once-of-null-then-value-child", MaxAttempts = 1)]
+    public static async Task<ChildValueSeen> ParentOnceOfNullThenValueChild(JobContext ctx, CancellationToken ct) =>
+        ChildValueSeen.Of(await ctx.CallChildAsync("lookup", TestJobsManifest.NullThenValue(new NullThenValueInput(5)), ct));
+
     /// <summary>Calls a child that returns null and requires its result, which ends this job at once.</summary>
     [Job("job-parent-requires-null-child")]
     public static async Task<NullResultOutput> ParentRequiresNullChild(JobContext ctx, CancellationToken ct) =>

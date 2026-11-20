@@ -24,6 +24,23 @@ BEGIN TRY
         FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
         WHERE l.lane_id = @lane_id;
 
+    /* The parent's latch on this job takes its checkpoint lock before the job's row, the order a raise of the latch takes
+       (docs/sql-internals.md, "Step, checkpoint and rate locks"); a raise reads this job's row while it holds the latch.
+       parent_job_id never changes, so the unlocked read is safe. */
+    SELECT @parent_job_id = j.parent_job_id
+    FROM {{schema}}.jobs j
+    WHERE j.job_id = @p_job_id;
+
+    IF @parent_job_id IS NOT NULL
+        BEGIN
+            DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'{{schema}}.checkpoint:', @parent_job_id, N':50:sys.child.', @p_job_id);
+            DECLARE @checkpoint_lock_result INT;
+            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+            EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
+            IF @checkpoint_lock_result < 0
+                THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
+        END;
+
     SELECT
         @from_status = r.job_status_code,
         @namespace_id = j.namespace_id,
@@ -303,6 +320,23 @@ BEGIN TRY
         version = version + 1
     WHERE job_id = @p_job_id;
     SET @version = @version + 1;
+
+    -- The restart takes back the outcome the parent's latch on this job holds, so the latch goes back to pending: the
+    -- parent's next replay waits for this job to land again instead of reading a result the restart cleared.
+    IF @parent_job_id IS NOT NULL
+        UPDATE c
+        SET
+            checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+            value_format_id = 0 /* JobPayloadFormat.None */,
+            value = NULL,
+            modified_at_utc = @now,
+            version = c.version + 1
+        FROM {{schema}}.checkpoints c WITH (FORCESEEK)
+        WHERE
+            c.job_id = @parent_job_id
+            AND c.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
+            AND c.checkpoint_name = 'sys.child.' + CAST(@p_job_id AS VARCHAR(20))
+            AND c.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */;
 
     -- The members parked on the slot evaluate again now that it is Idle.
     IF @to_status = 40 /* JobStatusCode.Idle */

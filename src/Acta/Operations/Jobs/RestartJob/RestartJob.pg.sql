@@ -1,9 +1,11 @@
--- One batch, one implicit transaction; only the final SELECT returns rows. Lock order: the lane, then the
--- job's rows (docs/sql-internals.md, "Lane lock order"); lane_id never changes, so the
--- unlocked read that finds it is safe.
+-- One batch, one implicit transaction; only the final SELECT returns rows. Lock order: the lane, then the job's rows, then
+-- its parent's latch (docs/sql-internals.md, "Lane lock order"), the order a landing child takes; lane_id never changes,
+-- so the unlocked read that finds it is safe.
 DROP TABLE IF EXISTS pg_temp._restart_job_lane;
+DROP TABLE IF EXISTS pg_temp._restart_job_latch;
 DROP TABLE IF EXISTS pg_temp._restart_job;
 CREATE TEMP TABLE _restart_job_lane (lane_id BIGINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _restart_job_latch (job_id BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _restart_job (
     from_status SMALLINT NOT NULL,
     from_version BIGINT NOT NULL,
@@ -224,6 +226,35 @@ SET
     version = r.version + 1
 FROM _restart_job s
 WHERE r.job_id = @p_job_id AND s.action = 1 /* ControlAction.Applied */;
+
+-- The parent's latch on this job, locked by key whatever its status: an update skips a latch its snapshot reads as pending,
+-- which would pass a raise that holds it and is writing an outcome the restart takes back. Locked, the update below sees it.
+INSERT INTO _restart_job_latch (job_id)
+SELECT c.job_id
+FROM {{schema}}.checkpoints c
+INNER JOIN _restart_job s ON c.job_id = s.parent_job_id
+WHERE
+    s.action = 1 /* ControlAction.Applied */
+    AND c.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
+    AND c.checkpoint_name = 'sys.child.' || @p_job_id::text
+FOR UPDATE OF c;
+
+-- The restart takes back the outcome the parent's latch on this job holds, so the latch goes back to pending: the
+-- parent's next replay waits for this job to land again instead of reading a result the restart cleared.
+UPDATE {{schema}}.checkpoints c
+SET
+    checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+    value_format_id = 0 /* JobPayloadFormat.None */,
+    value = NULL,
+    modified_at_utc = now(),
+    version = c.version + 1
+FROM _restart_job s
+WHERE
+    s.action = 1 /* ControlAction.Applied */
+    AND c.job_id = s.parent_job_id
+    AND c.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
+    AND c.checkpoint_name = 'sys.child.' || @p_job_id::text
+    AND c.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */;
 
 -- The members parked on the slot evaluate again now that it is Idle.
 UPDATE {{schema}}.schedules_state st

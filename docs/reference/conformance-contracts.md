@@ -540,6 +540,22 @@
   - A child cancelled while its parent is finished records the cancel on a parent that never waited for it
   - A child cancelled by an ancestor's cancel records the cancel on its finished parent
 
+### A restarted child puts its parent's wait for it back to pending
+- **Contract:** Restarting a child puts its parent's set latch on it back to pending, so the parent waits for the child's next landing without a charged retry.
+- **Guarantees:**
+  - A parent with one attempt survives a restart of its child, charged nothing, and succeeds with the child's second result
+  - A restart of a child leaves its parent's latch on it pending with no value, its deadline kept and its version one higher, and the parent's row as it was
+  - A restart of a child leaves an expired latch on its parent expired, and the child's next landing revives nothing
+  - A restart of a child under a finished parent puts the latch back to pending, the child's landing sets it again, and a restarted parent reads that landing
+  - An untyped child call whose child was restarted waits again under the deadline it first armed and resumes on the child's next landing
+  - A parent paused on a bounded child wait, whose child lands and is restarted, runs at once when resumed, waits again uncharged, and is released by the child's next landing
+  - A child restarted after its parent's deadline for it has passed times out on the parent's next replay and is cancelled
+  - A member of a bounded group restarted after the group's deadline has passed times out on the parent's next replay and is cancelled
+  - A restarted child that an operator cancels before it lands releases its waiting parent, which reads the cancel
+  - A restart rejected for a stale version leaves the parent's latch on the child as it was
+  - A restart rejected because an unfinished ancestor sits in the child's lane leaves the parent's latch on the child as it was
+  - On PostgreSQL a restart waits for a transaction that holds its parent's latch on it, then puts the latch that transaction set back to pending
+
 ### A completed child outlives its retention deadline while its parent is live
 - **Contract:** Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is.
 - **Guarantees:**
@@ -563,7 +579,7 @@
   - Reclaim exhausting a child's budget reports the pair whose latch raise releases the waiting parent
   - The maintenance sweep re-raises a stale latch lost to a crash and releases the parent
   - Concurrent cancel and child completions converge with the whole tree terminal and no error
-  - The typed child wait reads the outcome of the execution whose landing set the latch, so a restarted child that failed fails its parent rather than answering an earlier result
+  - A typed child call whose child was restarted waits again without a charged failure, and reads the outcome of the child's next landing
   - A map of generated calls gives every child its configure and answers each child's typed result
 
 ### A bounded child wait expires, cancels its subtree, and leaves the parent running
@@ -2039,7 +2055,7 @@
   - A typed wait on a job of a result-less definition this process does not register answers Succeeded with no value
   - A typed child call on a child that returned null answers Succeeded with no value
   - ValueOrThrow on a child's success with no value fails the parent for good, its budget untouched
-  - A child restarted after its success retries the parent, whose retry reads the value the child's next execution stored
+  - A child restarted after its success puts its parent back to waiting, uncharged, and the parent reads the value the child's next execution stored
   - A latch that names no execution answers what the child holds now: its value after a rerun, or no value
   - A success with no value of a child of another definition is refused as a stored result of another type is
   - A typed map answers a child that returned null as a success with no value and keeps its siblings' results
