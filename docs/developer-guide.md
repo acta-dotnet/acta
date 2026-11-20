@@ -487,7 +487,7 @@ JobHandle<Receipt> job = await jobs.EnqueueAsync(BillingJobs.SendInvoice(invoice
 ```
 
 - The record is the job's `TIn`, stored as JSON: `{"invoiceId":"…","recipient":"billing@example.com"}`. The parameter names are its contract fields, so renaming one is a contract change; see [contract evolution](#contract-evolution).
-- Under Native AOT, declare the input record yourself and give the handler that one parameter. System.Text.Json's source generator never sees a type another generator emits, so it writes no metadata for the generated record (warning SYSLIB1030), and its first enqueue throws.
+- Under Native AOT, declare the input record yourself and give the handler that one parameter. System.Text.Json's source generator never sees a type another generator emits, so it writes no metadata for the generated record (warning SYSLIB1030). The build stops on it with ACTA0107 where the AOT analyzer runs (`PublishAot` or `IsAotCompatible`), and a host that runs without reflection refuses to start and names the record.
 - An interface parameter other than a collection such as `IReadOnlyList<T>` is rejected (ACTA0103): it reads as a dependency, and dependencies come from the constructor.
 - Such a handler cannot carry `[Schedule]` (ACTA0123), since a scheduled job, permanent or per-occurrence, seeds its input from a parameterless constructor the record lacks.
 
@@ -501,7 +501,7 @@ Default input serializer is selected from the CLR shape of `TIn`.
 | `byte[]`, `ReadOnlyMemory<byte>`   | `bytes`        |
 | everything else, scalars included  | `json`         |
 
-A scalar travels as its JSON value: `"hello"`, `42`, `true`. JSON has no NaN or Infinity, so serializing either throws at enqueue. Under reflection-free Native AOT, Acta supplies the metadata for the standard scalars; every other input or result type, an enum included, goes in the context passed to `UseJsonPayloads`, enums with `UseStringEnumConverter = true`.
+A scalar travels as its JSON value: `"hello"`, `42`, `true`. JSON has no NaN or Infinity, so serializing either throws at enqueue. Under reflection-free Native AOT, Acta supplies the metadata for the standard scalars; every other input or result type, an enum included, goes in the context passed to `UseJsonPayloads`, enums with `UseStringEnumConverter = true`. A host that starts without reflection checks every job's JSON input and result type and refuses to start, naming each one the context lacks; step, variable and signal types are checked when first used.
 
 Explicit knobs override inference: `[Job(Format = "...")]` sets input and result formats together; `[Job(InputFormat = "...")]` and `[Job(ResultFormat = "...")]` set one side. `Format` is mutually exclusive with the per-side knobs; `ResultFormat` on a no-result handler is rejected (`ACTA0132`).
 

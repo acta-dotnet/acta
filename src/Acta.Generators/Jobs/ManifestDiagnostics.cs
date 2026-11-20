@@ -93,6 +93,16 @@ internal static class ManifestDiagnostics
         helpLinkUri: HelpBase + "acta0106"
     );
 
+    internal static readonly DiagnosticDescriptor GeneratedInputAot = new(
+        id: "ACTA0107",
+        title: "A multi-parameter handler needs a declared input under Native AOT",
+        messageFormat: "{0}",
+        category: "Acta",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0107"
+    );
+
     internal static readonly DiagnosticDescriptor InvalidSchedule = new(
         id: "ACTA0121",
         title: "Job schedule declarations must be valid",
@@ -232,6 +242,7 @@ internal static class ManifestDiagnostics
             "ACTA0104" => DuplicateInput,
             "ACTA0105" => InvalidPolicy,
             "ACTA0106" => ContractCollision,
+            "ACTA0107" => GeneratedInputAot,
             "ACTA0121" => InvalidSchedule,
             "ACTA0122" => InvalidScheduleExpr,
             "ACTA0123" => ScheduledInputCtor,
@@ -399,6 +410,16 @@ internal static class ManifestDiagnostics
         new(
             "ACTA0106",
             $"`[Job(\"{job.JobName}\")]` produces generated member `{memberName}`, which collides with another job's in this manifest, or with `Descriptors`, the manifest type name, or an `object` member, once separators are removed and case is ignored (e.g. `send-mail` and `sendmail`, or `descriptors`). Rename the job for a call factory; the colliding members are omitted (`Descriptors` and the typed/raw enqueue paths are unaffected).",
+            job.Location
+        );
+
+    /// <summary>
+    /// ACTA0107: a JSON argument record in a project the AOT analyzer runs on (error; the job stays in the manifest).
+    /// </summary>
+    public static DiagnosticRecord GeneratedInputUnderAot(DiscoveredJob job) =>
+        new(
+            "ACTA0107",
+            $"Job '{job.JobName}' takes several input parameters, so its input record is generated, and System.Text.Json writes no metadata for a generated type: under Native AOT the first enqueue would throw. Declare the input record and give the handler that one parameter.",
             job.Location
         );
 

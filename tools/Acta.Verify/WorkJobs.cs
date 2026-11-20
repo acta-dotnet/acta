@@ -191,5 +191,6 @@ public sealed class LateWorkHandler(EffectClient effects)
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(FixtureValueV1))]
 [JsonSerializable(typeof(FixtureValueV2))]
+[JsonSerializable(typeof(IncompatibleFixtureInput))]
 [JsonSerializable(typeof(ListEventsItem[]))]
 public partial class WorkJson : JsonSerializerContext;

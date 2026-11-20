@@ -33,6 +33,9 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
 
     private readonly JsonSerializerOptions _options = options ?? throw new ArgumentNullException(nameof(options));
 
+    /// <summary>The options every payload's metadata resolves from, which a reflection-off start asks for each job type.</summary>
+    internal JsonSerializerOptions Options => _options;
+
     public JsonJobPayloadSerializer()
         : this(DefaultJsonOptions) { }
 

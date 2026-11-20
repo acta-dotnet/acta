@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Acta.Testing;
 
@@ -53,6 +54,10 @@ public static class ActaTestHost
         var provider = services.BuildServiceProvider(validateScopes: true);
         try
         {
+            // The options checks a generic host runs before its services start, so a host with no worker refuses what a
+            // worker host refuses.
+            provider.GetService<IStartupValidator>()?.Validate();
+
             var runtimes = provider.GetServices<WorkerRuntime>().ToArray();
             // A test host deploys its jobs as a development start does, whatever MigrateOnStartup says: a schema another
             // step provisioned still has none of this host's definitions, and a test has no deploy step of its own. A

@@ -16,8 +16,16 @@ public class ManifestGeneratorDiagnosticTests
     internal static GeneratorDriverRunResult RunGenerator(string source, string? rootNamespace = null) =>
         RunGenerator(source, rootNamespace, out _);
 
-    /// <summary>Runs the generator and hands back the compilation with the generated source added.</summary>
-    internal static GeneratorDriverRunResult RunGenerator(string source, string? rootNamespace, out Compilation output)
+    /// <summary>
+    /// Runs the generator and hands back the compilation with the generated source added. <paramref name="enableAotAnalyzer"/>
+    /// is the <c>EnableAotAnalyzer</c> build property as the SDK hands it to analyzers, absent when null.
+    /// </summary>
+    internal static GeneratorDriverRunResult RunGenerator(
+        string source,
+        string? rootNamespace,
+        out Compilation output,
+        string? enableAotAnalyzer = null
+    )
     {
         var referencePaths = new HashSet<string>(
             ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator),
@@ -40,7 +48,7 @@ public class ManifestGeneratorDiagnosticTests
 
         var driver = CSharpGeneratorDriver.Create(
             generators: [new ActaManifestGenerator().AsSourceGenerator()],
-            optionsProvider: new TestConfigOptionsProvider(rootNamespace)
+            optionsProvider: new TestConfigOptionsProvider(rootNamespace, enableAotAnalyzer)
         );
 
         return driver.RunGeneratorsAndUpdateCompilation(compilation, out output, out _).GetRunResult();
@@ -625,6 +633,69 @@ public class ManifestGeneratorDiagnosticTests
 
         Assert.Empty(Of(result, "ACTA0104"));
     }
+
+    // ACTA0107: a generated JSON input record where the AOT analyzer runs
+
+    [Fact]
+    public void Several_input_parameters_under_the_aot_analyzer_error_ACTA0107_and_keep_the_job_in_the_manifest()
+    {
+        var result = RunGenerator(AotSource(TwoParameters), null, out _, "true");
+
+        var error = Assert.Single(Of(result, "ACTA0107"));
+        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+        Assert.Equal(
+            "Job 'add-two' takes several input parameters, so its input record is generated, and System.Text.Json writes no "
+                + "metadata for a generated type: under Native AOT the first enqueue would throw. Declare the input record and "
+                + "give the handler that one parameter.",
+            error.GetMessage()
+        );
+        var manifest = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("JobName: \"add-two\"", manifest);
+        Assert.Contains("AddTwo(int left, int right)", manifest);
+    }
+
+    [Theory]
+    [InlineData("false")]
+    [InlineData(null)]
+    public void Several_input_parameters_without_the_aot_analyzer_are_silent(string? enableAotAnalyzer)
+    {
+        var result = RunGenerator(AotSource(TwoParameters), null, out _, enableAotAnalyzer);
+
+        Assert.Empty(Of(result, "ACTA0107"));
+    }
+
+    // A declared input, no input, or a custom format's record is not System.Text.Json's to describe.
+    [Theory]
+    [InlineData("[Job(\"one-input\")] public static void Run(Input input) { }")]
+    [InlineData("[Job(\"no-input\")] public static void Run() { }")]
+    [InlineData("[Job(\"packed-two\", InputFormat = \"packed\")] public static void Run(int left, int right) { }")]
+    public void A_declared_input_no_input_or_custom_format_under_the_aot_analyzer_is_silent(string handler)
+    {
+        var result = RunGenerator(AotSource(handler), null, out _, "true");
+
+        Assert.Empty(Of(result, "ACTA0107"));
+    }
+
+    private const string TwoParameters = "[Job(\"add-two\")] public static void Run(int left, int right) { }";
+
+    private static string AotSource(string handler) =>
+        $$"""
+            using Acta;
+            namespace GenTests;
+
+            public sealed record Input(int Value);
+
+            [JobPayloadFormatDeclaration(130, "packed")]
+            public sealed class Packed : IJobPayloadSerializer
+            {
+                {{SerializerBody}}
+            }
+
+            public static class Handler
+            {
+                {{handler}}
+            }
+            """;
 
     // ACTA0105: invalid policy value
 
@@ -2383,25 +2454,26 @@ public class ManifestGeneratorDiagnosticTests
 /// <summary>
 /// Minimal options provider so tests can set <c>build_property.RootNamespace</c>.
 /// </summary>
-internal sealed class TestConfigOptionsProvider(string? rootNamespace) : AnalyzerConfigOptionsProvider
+internal sealed class TestConfigOptionsProvider(string? rootNamespace, string? enableAotAnalyzer = null) : AnalyzerConfigOptionsProvider
 {
-    public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(rootNamespace);
+    public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(rootNamespace, enableAotAnalyzer);
 
     public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
 
     public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
 
-    private sealed class Options(string? rootNamespace) : AnalyzerConfigOptions
+    private sealed class Options(string? rootNamespace, string? enableAotAnalyzer) : AnalyzerConfigOptions
     {
         public override bool TryGetValue(string key, out string value)
         {
-            if (key == "build_property.RootNamespace" && rootNamespace is not null)
+            var found = key switch
             {
-                value = rootNamespace;
-                return true;
-            }
-            value = null!;
-            return false;
+                "build_property.RootNamespace" => rootNamespace,
+                "build_property.EnableAotAnalyzer" => enableAotAnalyzer,
+                _ => null,
+            };
+            value = found!;
+            return found is not null;
         }
     }
 }

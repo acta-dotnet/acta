@@ -11,6 +11,7 @@ ACTA0103 | Acta | Error | Invalid handler signature (per-variant message)
 ACTA0104 | Acta | Warning | Duplicate input type; typed enqueue cannot route uniquely
 ACTA0105 | Acta | Error | Invalid [Job] policy value (duration, bounds, undefined code)
 ACTA0106 | Acta | Warning | Duplicate contract member name; colliding members are omitted
+ACTA0107 | Acta | Error | Several input parameters (a generated JSON input record) where the AOT analyzer runs
 ACTA0121 | Acta | Error | Invalid [Schedule] declaration
 ACTA0122 | Acta | Error | Invalid schedule expression (cron, or a positive interval of days or less)
 ACTA0123 | Acta | Error | Scheduled input has no accessible parameterless constructor

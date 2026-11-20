@@ -20,6 +20,7 @@ Not yet released.
 
 ### Additions
 
+- Under Native AOT a host refuses to start when a job's JSON input or result type has no metadata in the context, and names every one, where the first enqueue of each used to throw. A handler with several input parameters is a build error, ACTA0107, in a project where the AOT analyzer runs (`PublishAot` or `IsAotCompatible`): its input record is generated, and no context can describe a generated type.
 - PostgreSQL 17 is supported. Nothing in Acta's SQL needed 18; the conformance suite now runs on 17 and 18 in CI, and it passes on PostgreSQL 19 RC2 as well. The release validation and the benchmark stay on 18.
 - A result that may be absent is declared on the handler, `Task<Customer?>` or `Task<int?>`, and read with `TryGetResultAsync` or `TryGetValue`. `Task<int?>` used to declare a nullable result type and warn at build; it now declares an `int` result, as `Task<Customer?>` declares a `Customer`. A job already declared `Task<int?>` reads as changed on its next deploy, since its stored result type name moves to `int`.
 - `JobOutcome<TResult>` and `SignalWaitOutcome<T>` gain `HasValue`, and `SignalWaitOutcome<T>` gains `TryGetValue` and `ThrowIfTimedOut()`. `HasValue` is true exactly when `TryGetValue` is, so a handler can tell a stored `0` from no value, and a raise that carried a value from one that did not.

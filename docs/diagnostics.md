@@ -6,7 +6,7 @@ package reports a catch in handler code that can take Acta's control flow. Each
 section below is one id: what the generator found, what to change, and the smallest example that
 clears it. The message you see in the build output names the exact member and variant; the id is
 the same for every variant of a section. An error stops the manifest from being generated for the
-offending job; a warning leaves the manifest usable.
+offending job, except ACTA0107, which stops the build and keeps the job; a warning leaves the manifest usable.
 
 The families `ACTA02xx` (code families), `ACTA04xx` (schema model), and `ACTA05xx` (projections)
 belong to Acta's own build and never fire in an application.
@@ -104,6 +104,24 @@ so does a job named `descriptors`. The colliding members are left out of the man
 are still deployed and run.
 
 Rename the job so the derived member is unique.
+
+## ACTA0107 <a id="acta0107"></a>
+
+**Several input parameters under Native AOT.** A handler that takes several input parameters travels
+as an input record the generator writes, and System.Text.Json's source generator never sees a type
+another generator emits, so no `JsonSerializerContext` can describe it and the first enqueue under
+Native AOT would throw. The generator reports it in a project where the AOT analyzer runs
+(`PublishAot` or `IsAotCompatible`). The job is still in the manifest.
+
+Declare the input record, give the handler that one parameter, and add the record to the context you
+pass to `UseJsonPayloads`.
+
+```csharp
+public sealed record SendInvoice(string Customer, decimal Amount);
+
+[Job("send-invoice")]
+public static Task Handle(SendInvoice input, CancellationToken ct) => Task.CompletedTask;
+```
 
 ## ACTA0121 <a id="acta0121"></a>
 

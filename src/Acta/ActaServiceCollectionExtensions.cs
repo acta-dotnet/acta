@@ -311,8 +311,8 @@ public static class ActaServiceCollectionExtensions
     }
 
     /// <summary>
-    /// What the builder declared: alert channels and routing, the enqueue indexes, the pipeline, the non-retryable exceptions,
-    /// the workers, and outbox relays.
+    /// What the builder declared: alert channels and routing, the enqueue indexes and the JSON check of their types, the
+    /// pipeline, the non-retryable exceptions, the workers, and outbox relays.
     /// </summary>
     private static void AddDeclared(IServiceCollection services, ActaBuilder builder)
     {
@@ -363,6 +363,13 @@ public static class ActaServiceCollectionExtensions
         // Descriptor index: (namespace, job name) -> generated descriptor, backing IDefinitions.GetInputTemplateAsync.
         // Same catalogs again, so an enqueue-only host answers for every job it references.
         services.AddSingleton(JobDescriptorRegistry.Build(builder.Catalogs));
+
+        // The reflection-off JSON check of every declared job. It rides JobsOptions validation because every host runs
+        // that as it starts, the CLI and the test host included.
+        var catalogs = builder.Catalogs;
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<JobsOptions>, JsonMetadataValidator>(sp => new JsonMetadataValidator(catalogs, sp))
+        );
 
         // Each behavior type was registered scoped by AddPipelineBehavior; this singleton holds only
         // the order and never captures a scope, so per-attempt resolution runs against the attempt

@@ -72,11 +72,21 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             )
             .Where(static d => d is not null);
 
+        // The SDK sets EnableAotAnalyzer for PublishAot and IsAotCompatible and hands it to analyzers; PublishAot itself
+        // never reaches a generator.
+        var aotAnalysis = context.AnalyzerConfigOptionsProvider.Select(
+            static (provider, _) =>
+                provider.GlobalOptions.TryGetValue("build_property.EnableAotAnalyzer", out var value)
+                && string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+        );
+
         context.RegisterSourceOutput(orphanSchedules, static (spc, d) => ReportDiagnostic(spc, d!));
 
-        var collected = discoveredJobs.Collect().Combine(customFormats.Collect()).Combine(rootNamespace);
+        var collected = discoveredJobs.Collect().Combine(customFormats.Collect()).Combine(rootNamespace).Combine(aotAnalysis);
 
-        context.RegisterSourceOutput(collected, static (spc, tuple) => Emit(spc, tuple.Left.Left, tuple.Left.Right, tuple.Right));
+        context.RegisterSourceOutput(collected, static (spc, tuple) =>
+            Emit(spc, tuple.Left.Left.Left, tuple.Left.Left.Right, tuple.Left.Right, tuple.Right)
+        );
     }
 
     /// <summary>
@@ -343,7 +353,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         SourceProductionContext spc,
         ImmutableArray<DiscoveredJob> jobs,
         ImmutableArray<CustomPayloadFormat> customFormats,
-        string rootNamespace
+        string rootNamespace,
+        bool aotAnalysis
     )
     {
         // The framework assembly alone may use the reserved `sys.` name prefix.
@@ -431,6 +442,16 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             foreach (var job in g)
             {
                 ReportDiagnostic(spc, ManifestDiagnostics.DuplicateInputType(job, g.Key));
+            }
+        }
+
+        // ACTA0107: a JSON argument record under the AOT analyzer. Reported apart from the job's own diagnostics, which
+        // would drop it from the manifest and bury this error under the missing members.
+        if (aotAnalysis)
+        {
+            foreach (var job in valid.Where(j => j.TakesArguments && j.InputPayloadFormatName == "json"))
+            {
+                ReportDiagnostic(spc, ManifestDiagnostics.GeneratedInputUnderAot(job));
             }
         }
 
