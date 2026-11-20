@@ -54,7 +54,7 @@ BEGIN TRY
         claim_token = @p_claim_token,
         claim_until_utc = DATEADD(SECOND, @p_lease_ttl_seconds, SYSUTCDATETIME())
     OUTPUT
-        INSERTED.outbox_id, INSERTED.namespace_name, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
+        INSERTED.job_ref, INSERTED.namespace_name, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
         INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane_name, INSERTED.job_priority_code,
         INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_name, INSERTED.meta, INSERTED.failure_count, INSERTED.id
     FROM {{table_ref}} AS o WITH (FORCESEEK, ROWLOCK)

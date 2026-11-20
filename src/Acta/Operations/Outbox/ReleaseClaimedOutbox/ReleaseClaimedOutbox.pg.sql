@@ -8,4 +8,4 @@ SET
 WHERE
     claim_token = @p_claim_token
     AND outbox_status_code = 20 /* OutboxStatusCode.Claimed */
-    AND outbox_id IN (SELECT value::uuid FROM jsonb_array_elements_text(@p_outbox_ids::jsonb));
+    AND job_ref IN (SELECT value::uuid FROM jsonb_array_elements_text(@p_job_refs::jsonb));

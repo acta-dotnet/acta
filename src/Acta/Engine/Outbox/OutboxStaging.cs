@@ -8,7 +8,7 @@ namespace Acta;
 /// <see cref="EnqueueJobRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK (identifiers, tags,
 /// schedule mutual exclusion, priority, payload pair) and layers the two stricter outbox-only rules on top, a
 /// required deduplication key and no parent id, projecting a valid request into an <see cref="OutboxStagingValues"/>
-/// with a client-generated <c>outbox_id</c>. <see cref="Prepare"/> runs the whole provider-neutral prologue
+/// with a client-generated <c>job_ref</c>. <see cref="Prepare"/> runs the whole provider-neutral prologue
 /// (identifier qualification, projection, transaction guard, INSERT text), leaving each provider its binding and execution.
 /// </summary>
 internal static class OutboxStaging
@@ -18,9 +18,9 @@ internal static class OutboxStaging
     /// extension binds these named parameters with its own typed parameter objects.
     /// </summary>
     private const string InsertColumnsAndValues = """
-            (outbox_id, namespace_name, job_name, input_format_id, input, deduplication_key,
+            (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
              correlation_key, concurrency_key, lane_name, job_priority_code, next_run_at_utc, delay_seconds, tenant_name, meta)
-        VALUES (@outbox_id, @namespace_name, @job_name, @input_format_id, @input, @deduplication_key,
+        VALUES (@job_ref, @namespace_name, @job_name, @input_format_id, @input, @deduplication_key,
                 @correlation_key, @concurrency_key, @lane_name, @job_priority_code, @next_run_at_utc, @delay_seconds, @tenant_name, @meta);
         """;
 
@@ -64,7 +64,7 @@ internal static class OutboxStaging
                 $"{nameof(request)}.{nameof(EnqueueJobRequest.ParentJobId)}"
             )
             : new OutboxStagingValues(
-                OutboxId: Guid.NewGuid(),
+                JobRef: Guid.NewGuid(),
                 JobNamespace: normalized.JobNamespace,
                 JobName: normalized.JobName,
                 InputFormatId: normalized.Input.Format.Id,

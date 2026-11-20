@@ -69,7 +69,7 @@ public static class PostgresMigrations
         return $"""
             CREATE TABLE {t} (
                 id bigint GENERATED ALWAYS AS IDENTITY,
-                outbox_id uuid NOT NULL,
+                job_ref uuid NOT NULL,
                 namespace_name varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id smallint NOT NULL,
@@ -91,7 +91,7 @@ public static class PostgresMigrations
                 claim_token uuid NULL,
                 claim_until_utc timestamptz NULL,
                 CONSTRAINT pk_{table} PRIMARY KEY (id),
-                CONSTRAINT uq_{table}_outbox_id UNIQUE (outbox_id),
+                CONSTRAINT uq_{table}_job_ref UNIQUE (job_ref),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
                     AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),

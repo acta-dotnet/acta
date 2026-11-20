@@ -48,7 +48,7 @@ public static class SqliteOutboxStagingExtensions
         var p = command.Parameters;
         // Explicit SqliteType (never AddWithValue, per the AOT parameter-metadata policy). The raw Guid binds
         // to TEXT with Microsoft.Data.Sqlite's canonical encoding; instants use the millisecond ISO text.
-        p.Add(new SqliteParameter("@outbox_id", SqliteType.Text) { Value = row.OutboxId });
+        p.Add(new SqliteParameter("@job_ref", SqliteType.Text) { Value = row.JobRef });
         p.Add(new SqliteParameter("@namespace_name", SqliteType.Text) { Value = row.JobNamespace });
         p.Add(new SqliteParameter("@job_name", SqliteType.Text) { Value = row.JobName });
         p.Add(new SqliteParameter("@input_format_id", SqliteType.Integer) { Value = (long)row.InputFormatId });

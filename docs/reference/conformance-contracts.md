@@ -1483,8 +1483,8 @@
   - A pending command reads back with its format, its bytes, and the version a consume must match
   - Only a Set signal row of that job and name answers: an expired signal and a same-named variable read as empty
 
-### The source pages its Quarantined rows by outbox id with their failure evidence
-- **Contract:** ListQuarantinedOutboxRows returns up to a page of Quarantined rows after the cursor id in the source's outbox_id order, with identity and failure evidence.
+### The source pages its Quarantined rows by job ref with their failure evidence
+- **Contract:** ListQuarantinedOutboxRows returns up to a page of Quarantined rows after the cursor id in the source's job_ref order, with identity and failure evidence.
 - **Guarantees:**
   - A source with no Quarantined rows reads an empty page
   - Each row carries its identity, routing keys, staging instant, and failure evidence, and other statuses stay out
@@ -1568,7 +1568,7 @@
   - The quarantine alert takes the job's alert channel, collapses repeats, opens again after a resolve while rows remain, and resolves once the quarantine is empty
 
 ### Quarantined rows list in keyset pages with their failure evidence
-- **Contract:** ListQuarantinedOutboxRows pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.
+- **Contract:** ListQuarantinedOutboxRows pages every Quarantined row by job_ref with identity and failure evidence, and CountQuarantined reports the current total.
 - **Guarantees:**
   - Two keyset pages cover every quarantined row exactly once, evidence intact
 

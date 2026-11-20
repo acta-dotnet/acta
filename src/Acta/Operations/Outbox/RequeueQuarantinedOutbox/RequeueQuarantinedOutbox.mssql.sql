@@ -7,11 +7,11 @@ SET
     outbox_status_code = 10 /* OutboxStatusCode.Pending */,
     failure_count = 0,
     next_attempt_at_utc = SYSUTCDATETIME()
-OUTPUT INSERTED.outbox_id
+OUTPUT INSERTED.job_ref
 FROM {{table_ref}} AS o WITH (FORCESEEK)
 WHERE
     o.outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (
-        @p_outbox_ids IS NULL
-        OR o.outbox_id IN (SELECT CAST(value AS UNIQUEIDENTIFIER) FROM OPENJSON(@p_outbox_ids))
+        @p_job_refs IS NULL
+        OR o.job_ref IN (SELECT CAST(value AS UNIQUEIDENTIFIER) FROM OPENJSON(@p_job_refs))
     );

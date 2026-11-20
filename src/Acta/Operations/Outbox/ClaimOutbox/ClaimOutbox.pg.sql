@@ -37,6 +37,6 @@ SET
 FROM due
 WHERE o.id = due.id
 RETURNING
-    o.outbox_id, o.namespace_name, o.job_name, o.input_format_id, o.input,
+    o.job_ref, o.namespace_name, o.job_name, o.input_format_id, o.input,
     o.deduplication_key, o.correlation_key, o.concurrency_key, o.lane_name, o.job_priority_code,
     o.next_run_at_utc, o.delay_seconds, o.tenant_name, o.meta, o.failure_count, o.id;

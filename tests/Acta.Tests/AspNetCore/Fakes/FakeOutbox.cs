@@ -8,7 +8,7 @@ namespace Acta.Tests.AspNetCore.Fakes;
 /// </summary>
 internal sealed class FakeOutbox : IOutbox
 {
-    public static readonly Guid QuarantinedId = Guid.Parse("00000000-0000-0000-0000-00000000000a");
+    public static readonly JobRef QuarantinedId = new(Guid.Parse("00000000-0000-0000-0000-00000000000a"));
 
     public static readonly DateTime PendingSince = new(2026, 6, 12, 7, 30, 0, DateTimeKind.Utc);
 
@@ -17,12 +17,12 @@ internal sealed class FakeOutbox : IOutbox
         ListSources = static (query, _) =>
             Task.FromResult(new ListOutboxSourcesResponse(query.JobNamespace is null or "billing" ? [Billing] : [], null, false, 50, null));
         ListQuarantined = static (query, _) => Task.FromResult(Quarantined(query));
-        Requeue = (jobNamespace, outboxIds, reason, actor, _) =>
-            Control("requeue", jobNamespace, outboxIds, false, reason, actor, static (action, pendingSince) =>
+        Requeue = (jobNamespace, jobRefs, reason, actor, _) =>
+            Control("requeue", jobNamespace, jobRefs, false, reason, actor, static (action, pendingSince) =>
                 new RequeueOutboxResponse(action, pendingSince)
             );
-        Discard = (jobNamespace, outboxIds, all, reason, actor, _) =>
-            Control("discard", jobNamespace, outboxIds, all, reason, actor, static (action, pendingSince) =>
+        Discard = (jobNamespace, jobRefs, all, reason, actor, _) =>
+            Control("discard", jobNamespace, jobRefs, all, reason, actor, static (action, pendingSince) =>
                 new DiscardOutboxResponse(action, pendingSince)
             );
     }
@@ -31,7 +31,7 @@ internal sealed class FakeOutbox : IOutbox
     public List<(
         string Verb,
         string JobNamespace,
-        IReadOnlyList<Guid>? OutboxIds,
+        IReadOnlyList<JobRef>? JobRefs,
         bool All,
         string? Reason,
         string? Actor
@@ -41,9 +41,17 @@ internal sealed class FakeOutbox : IOutbox
 
     public Func<ListQuarantinedOutboxQuery, CancellationToken, Task<ListQuarantinedOutboxResponse>> ListQuarantined { get; set; }
 
-    public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, Task<RequeueOutboxResponse>> Requeue { get; set; }
+    public Func<string, IReadOnlyList<JobRef>?, string?, string?, CancellationToken, Task<RequeueOutboxResponse>> Requeue { get; set; }
 
-    public Func<string, IReadOnlyList<Guid>?, bool, string?, string?, CancellationToken, Task<DiscardOutboxResponse>> Discard { get; set; }
+    public Func<
+        string,
+        IReadOnlyList<JobRef>?,
+        bool,
+        string?,
+        string?,
+        CancellationToken,
+        Task<DiscardOutboxResponse>
+    > Discard { get; set; }
 
     Task<ListOutboxSourcesResponse> IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct) => ListSources(query, ct);
 
@@ -52,20 +60,20 @@ internal sealed class FakeOutbox : IOutbox
 
     Task<RequeueOutboxResponse> IOutbox.RequeueAsync(
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds,
+        IReadOnlyList<JobRef>? jobRefs,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Requeue(jobNamespace, outboxIds, reasonMessage, actor, ct);
+    ) => Requeue(jobNamespace, jobRefs, reasonMessage, actor, ct);
 
     Task<DiscardOutboxResponse> IOutbox.DiscardAsync(
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds,
+        IReadOnlyList<JobRef>? jobRefs,
         bool all,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Discard(jobNamespace, outboxIds, all, reasonMessage, actor, ct);
+    ) => Discard(jobNamespace, jobRefs, all, reasonMessage, actor, ct);
 
     private static readonly ListOutboxSourcesItem Billing = new(
         "billing",
@@ -102,7 +110,7 @@ internal sealed class FakeOutbox : IOutbox
     private Task<T> Control<T>(
         string verb,
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds,
+        IReadOnlyList<JobRef>? jobRefs,
         bool all,
         string? reasonMessage,
         string? actor,
@@ -120,7 +128,7 @@ internal sealed class FakeOutbox : IOutbox
             return Task.FromResult(response(ControlAction.Rejected, PendingSince));
         }
 
-        ControlCalls.Add((verb, jobNamespace, outboxIds, all, reasonMessage, actor));
+        ControlCalls.Add((verb, jobNamespace, jobRefs, all, reasonMessage, actor));
         return Task.FromResult(response(ControlAction.Accepted, null));
     }
 }

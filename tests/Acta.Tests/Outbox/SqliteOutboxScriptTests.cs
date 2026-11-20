@@ -46,12 +46,12 @@ public sealed class SqliteOutboxScriptTests
     [InlineData("")]
     [InlineData("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\0garbage")]
     [InlineData("aaaaaaaabbbbccccddddeeeeeeeeeeee\0abc")]
-    public async Task An_id_that_is_not_a_uuid_is_refused(string outboxId)
+    public async Task An_id_that_is_not_a_uuid_is_refused(string jobRef)
     {
         await using var db = await OpenAsync();
 
-        var refused = await Assert.ThrowsAsync<SqliteException>(() => InsertAsync(db, outboxId));
-        Assert.Contains("ck_acta_outbox_outbox_id_uuid", refused.Message, StringComparison.Ordinal);
+        var refused = await Assert.ThrowsAsync<SqliteException>(() => InsertAsync(db, jobRef));
+        Assert.Contains("ck_acta_outbox_job_ref_uuid", refused.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -125,7 +125,7 @@ public sealed class SqliteOutboxScriptTests
         await InsertAsync(db, Id);
         await InsertAsync(db, Guid.NewGuid().ToString("N"));
         var refused = await Assert.ThrowsAsync<SqliteException>(() => InsertAsync(db, Guid.NewGuid() + "\0garbage"));
-        Assert.Contains("ck_acta_outbox_outbox_id_uuid", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("ck_acta_outbox_job_ref_uuid", refused.Message, StringComparison.Ordinal);
     }
 
     /// <summary>A fresh in-memory database holding the table, in <paramref name="encoding"/> when one is named.</summary>
@@ -140,15 +140,15 @@ public sealed class SqliteOutboxScriptTests
     }
 
     /// <summary>A minimal Pending row, with one more column set when <paramref name="extra"/> names one.</summary>
-    private static async Task InsertAsync(SqliteConnection db, string outboxId, (string Column, object Value)? extra = null)
+    private static async Task InsertAsync(SqliteConnection db, string jobRef, (string Column, object Value)? extra = null)
     {
         await using var cmd = db.CreateCommand();
         var column = extra is { } e ? ", " + e.Column : "";
         var value = extra is null ? "" : ", @value";
         cmd.CommandText =
-            $"INSERT INTO acta_outbox (outbox_id, namespace_name, job_name, input_format_id, deduplication_key{column}) "
+            $"INSERT INTO acta_outbox (job_ref, namespace_name, job_name, input_format_id, deduplication_key{column}) "
             + $"VALUES (@id, 'orders', 'send', 0, @dedup{value})";
-        cmd.Parameters.AddWithValue("@id", outboxId);
+        cmd.Parameters.AddWithValue("@id", jobRef);
         cmd.Parameters.AddWithValue("@dedup", Guid.NewGuid().ToString("N"));
         if (extra is { } set)
         {

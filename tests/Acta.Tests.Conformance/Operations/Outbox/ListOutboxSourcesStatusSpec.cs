@@ -101,7 +101,7 @@ public sealed class ListOutboxSourcesStatusSpec : OutboxRelayHostBase
         await Fixture.SeedOutboxRowAsync(
             SourceTable,
             new OutboxSeed(
-                OutboxId: Guid.NewGuid(),
+                JobRef: Guid.NewGuid(),
                 JobNamespace: TestNamespace,
                 JobName: "echo",
                 InputFormatId: 4,

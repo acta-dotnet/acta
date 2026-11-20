@@ -12,22 +12,22 @@ public interface IOutbox
     /// <summary>Lists the relay sources: one item per namespace whose <c>sys.outbox</c> job exists, composed cross-peer from that job's <c>outbox-status</c> variable (any host with ledger access can serve it). A namespace whose relay job has produced no successful tick yet reports a null <see cref="ListOutboxSourcesItem.LastTickAtUtc"/> and null counters. Paging follows the namespace catalog; a <see cref="ListOutboxSourcesQuery.JobNamespace"/> filter returns at most one item.</summary>
     Task<ListOutboxSourcesResponse> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default);
 
-    /// <summary>Lists a source's Quarantined rows (identity and failure evidence, never the payload), ordered by outbox id. This read opens the producer's source database, so it works only on a host that registered the namespace's relay via <c>AddOutboxRelay</c>; elsewhere it throws <see cref="InvalidOperationException"/> naming the constraint. Use <see cref="ListOutboxSourcesItem.IsLocal"/> to discover where the listing can run.</summary>
+    /// <summary>Lists a source's Quarantined rows (identity and failure evidence, never the payload), ordered by job ref. This read opens the producer's source database, so it works only on a host that registered the namespace's relay via <c>AddOutboxRelay</c>; elsewhere it throws <see cref="InvalidOperationException"/> naming the constraint. Use <see cref="ListOutboxSourcesItem.IsLocal"/> to discover where the listing can run.</summary>
     Task<ListQuarantinedOutboxResponse> ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct = default);
 
-    /// <summary>Requeues Quarantined rows of <paramref name="jobNamespace"/>'s source: back to Pending, immediately due, failure budget reset. Null <paramref name="outboxIds"/> targets every quarantined row. The command parks on the relay job's bounded signal inbox and the next relay pass applies it, writing an audit event with <paramref name="actor"/> as its actor and <paramref name="reasonMessage"/> as its message; any peer can park, no source registration needed. Accepted means parked, with application owed to that pass; a pending unapplied command of the same verb is Rejected carrying its park instant; a namespace without a <c>sys.outbox</c> job is NotFound.</summary>
+    /// <summary>Requeues Quarantined rows of <paramref name="jobNamespace"/>'s source: back to Pending, immediately due, failure budget reset. Null <paramref name="jobRefs"/> targets every quarantined row. The command parks on the relay job's bounded signal inbox and the next relay pass applies it, writing an audit event with <paramref name="actor"/> as its actor and <paramref name="reasonMessage"/> as its message; any peer can park, no source registration needed. Accepted means parked, with application owed to that pass; a pending unapplied command of the same verb is Rejected carrying its park instant; a namespace without a <c>sys.outbox</c> job is NotFound.</summary>
     Task<RequeueOutboxResponse> RequeueAsync(
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds = null,
+        IReadOnlyList<JobRef>? jobRefs = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     );
 
-    /// <summary>Discards Quarantined rows of <paramref name="jobNamespace"/>'s source: the rows are deleted from the staging table, with the applied ids preserved in the relay job's audit event. A discard names its rows or says all of them: pass <paramref name="outboxIds"/> with at least one id, or <paramref name="all"/> true for every quarantined row, exactly one, or it throws <see cref="ArgumentException"/> and parks nothing. Parking, application, auditing, and outcomes follow <see cref="RequeueAsync"/> exactly.</summary>
+    /// <summary>Discards Quarantined rows of <paramref name="jobNamespace"/>'s source: the rows are deleted from the staging table, with the applied ids preserved in the relay job's audit event. A discard names its rows or says all of them: pass <paramref name="jobRefs"/> with at least one ref, or <paramref name="all"/> true for every quarantined row, exactly one, or it throws <see cref="ArgumentException"/> and parks nothing. Parking, application, auditing, and outcomes follow <see cref="RequeueAsync"/> exactly.</summary>
     Task<DiscardOutboxResponse> DiscardAsync(
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds = null,
+        IReadOnlyList<JobRef>? jobRefs = null,
         bool all = false,
         string? reasonMessage = null,
         string? actor = null,

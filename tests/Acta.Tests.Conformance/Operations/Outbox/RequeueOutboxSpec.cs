@@ -72,7 +72,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
 
         // The inbox slot is occupied and the parked command is unapplied, so a second requeue is
         // rejected carrying the pending command's park instant.
-        var rejected = await Outbox.RequeueAsync(TestNamespace, [row.OutboxId], "second try", "marko", ct);
+        var rejected = await Outbox.RequeueAsync(TestNamespace, [new JobRef(row.JobRef)], "second try", "marko", ct);
         Assert.Equal(ControlAction.Rejected, rejected.Action);
         Assert.NotNull(rejected.PendingSinceUtc);
 
@@ -82,7 +82,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         var (requeued, discarded) = await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct);
         Assert.Equal(1, requeued);
         Assert.Equal(0, discarded);
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, row.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, row.JobRef)).StatusCode);
 
         var evidence = Assert.Single(
             await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotJobId).ToListAsync(ct)

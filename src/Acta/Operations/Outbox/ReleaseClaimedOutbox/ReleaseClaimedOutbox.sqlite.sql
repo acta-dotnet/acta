@@ -8,4 +8,4 @@ SET
 WHERE
     claim_token = @p_claim_token COLLATE NOCASE
     AND outbox_status_code = 20 /* OutboxStatusCode.Claimed */
-    AND lower(replace(outbox_id, '-', '')) IN (SELECT lower(replace(value, '-', '')) FROM json_each(@p_outbox_ids));
+    AND lower(replace(job_ref, '-', '')) IN (SELECT lower(replace(value, '-', '')) FROM json_each(@p_job_refs));

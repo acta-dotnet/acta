@@ -4,7 +4,7 @@ namespace Acta;
 /// One quarantined outbox row: what it would enqueue, when it was staged, and why relaying it failed. Its payload stays in the producer's
 /// database.
 /// </summary>
-/// <param name="OutboxId">The quarantined row's id.</param>
+/// <param name="JobRef">The quarantined row's job ref.</param>
 /// <param name="JobNamespace">The namespace of the job the row would enqueue.</param>
 /// <param name="JobName">The name of the definition the row would enqueue.</param>
 /// <param name="DeduplicationKey">The deduplication key the row would enqueue with.</param>
@@ -14,7 +14,7 @@ namespace Acta;
 /// <param name="LastError">The last relay error; null when none was recorded.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 public sealed record ListQuarantinedOutboxItem(
-    Guid OutboxId,
+    JobRef JobRef,
     string JobNamespace,
     string JobName,
     string DeduplicationKey,

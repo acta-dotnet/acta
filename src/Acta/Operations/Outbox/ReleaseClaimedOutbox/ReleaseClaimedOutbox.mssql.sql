@@ -26,7 +26,7 @@ BEGIN TRY
     WHERE
         o.claim_token = @p_claim_token
         AND o.outbox_status_code = 20 /* OutboxStatusCode.Claimed */
-        AND o.outbox_id IN (SELECT CAST(value AS UNIQUEIDENTIFIER) FROM OPENJSON(@p_outbox_ids));
+        AND o.job_ref IN (SELECT CAST(value AS UNIQUEIDENTIFIER) FROM OPENJSON(@p_job_refs));
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

@@ -30,7 +30,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
 
         var slotJobId = await SeedSlotJobAsync(ct);
-        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "fixed the target route", [row.OutboxId], ct));
+        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "fixed the target route", [row.JobRef], ct));
 
         var relay = Relay(SourceStore, OwnedSubmission);
         var (requeued, discarded) = await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct);
@@ -40,7 +40,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         // The signal row is consumed, the source row is Pending with its budget reset, and the
         // evidence event carries the operator's actor, justification, and the applied id.
         Assert.Null(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
-        var state = await Fixture.ReadOutboxRowAsync(SourceTable, row.OutboxId);
+        var state = await Fixture.ReadOutboxRowAsync(SourceTable, row.JobRef);
         Assert.Equal((byte)OutboxStatusCode.Pending, state.StatusCode);
         Assert.Equal(0, state.FailureCount);
 
@@ -51,7 +51,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         Assert.Equal("marko", evidence.Actor);
         Assert.Null(EventDetail(evidence, "actor"));
         Assert.Contains("fixed the target route", evidence.EventMessage);
-        Assert.Contains(row.OutboxId.ToString(), evidence.EventMessage);
+        Assert.Contains(new JobRef(row.JobRef).ToString(), evidence.EventMessage);
 
         // The same pass's drain now claims the freed row and relays it into a ledger job.
         var (summary, _) = await relay.RunTickAsync(TickOptions(), ct);

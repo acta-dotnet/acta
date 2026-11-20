@@ -750,7 +750,7 @@ public sealed partial class OpenApiContractTests
     /// list of one with something else.
     /// </summary>
     [Fact]
-    public async Task Outbox_ids_name_at_least_one_row()
+    public async Task Outbox_job_refs_name_at_least_one_row()
     {
         var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!;
         var answers = new List<(string Verb, HttpStatusCode Empty, HttpStatusCode One)>();
@@ -762,14 +762,14 @@ public sealed partial class OpenApiContractTests
                 answers.Add(
                     (
                         verb,
-                        await SendControlAsync(client, HttpMethod.Post, path, """{"outboxIds":[]}"""),
-                        await SendControlAsync(client, HttpMethod.Post, path, $$"""{"outboxIds":["{{Guid.NewGuid()}}"]}""")
+                        await SendControlAsync(client, HttpMethod.Post, path, """{"jobRefs":[]}"""),
+                        await SendControlAsync(client, HttpMethod.Post, path, $$"""{"jobRefs":["{{JobRef.New()}}"]}""")
                     )
                 );
             }
         });
 
-        Assert.All(OutboxVerbs, verb => Assert.Equal(1, schemas[verb.Request]!["properties"]!["outboxIds"]!["minItems"]!.GetValue<int>()));
+        Assert.All(OutboxVerbs, verb => Assert.Equal(1, schemas[verb.Request]!["properties"]!["jobRefs"]!["minItems"]!.GetValue<int>()));
         Assert.Equal(OutboxVerbs.Length, answers.Count);
         Assert.All(answers, answer => Assert.Equal(HttpStatusCode.BadRequest, answer.Empty));
         Assert.All(answers, answer => Assert.NotEqual(HttpStatusCode.BadRequest, answer.One));

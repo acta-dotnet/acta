@@ -8,12 +8,10 @@ internal sealed class DiscardQuarantinedOutboxHandler(IDbSession session, ISqlDi
         var affected = await session.ExecuteAsync(
             new StoreCommand("DiscardQuarantinedOutbox"),
             cmd =>
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, OutboxJson.OptionalIdArray(command.OutboxIds))
-                ),
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.JobRefsOptional, OutboxJson.OptionalIdArray(command.JobRefs))),
             DbProjectionResolver.Resolve<DiscardQuarantinedOutboxRow>(),
             ct
         );
-        return new DiscardQuarantinedOutboxResponse([.. affected.Select(static row => row.OutboxId)]);
+        return new DiscardQuarantinedOutboxResponse([.. affected.Select(static row => row.JobRef)]);
     }
 }

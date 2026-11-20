@@ -25,15 +25,15 @@ public sealed class ListQuarantinedOutboxIdsSpec : OutboxSpecBase
         var pending = OutboxSpecBase.DueRow(Unique("mq-c"));
         await Fixture.SeedOutboxRowAsync(TableName, pending);
 
-        var scoped = await Store.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery([first, pending.OutboxId]), ct);
-        Assert.Equal([first], scoped.OutboxIds);
+        var scoped = await Store.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery([first, pending.JobRef]), ct);
+        Assert.Equal([first], scoped.JobRefs);
         Assert.Equal(
             new HashSet<Guid> { first, second },
-            (await Store.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery(null), ct)).OutboxIds.ToHashSet()
+            (await Store.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery(null), ct)).JobRefs.ToHashSet()
         );
 
         Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(TableName, first)).StatusCode);
         Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(TableName, second)).StatusCode);
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, pending.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, pending.JobRef)).StatusCode);
     }
 }

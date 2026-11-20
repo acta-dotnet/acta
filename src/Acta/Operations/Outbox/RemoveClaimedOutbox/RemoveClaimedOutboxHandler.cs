@@ -9,7 +9,7 @@ internal sealed class RemoveClaimedOutboxHandler(IDbSession session, ISqlDialect
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
-                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.OutboxIds, OutboxJson.IdArray(command.OutboxIds)));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.JobRefs, OutboxJson.IdArray(command.JobRefs)));
             },
             ct
         );

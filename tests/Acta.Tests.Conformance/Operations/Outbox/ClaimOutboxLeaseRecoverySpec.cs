@@ -33,7 +33,7 @@ public sealed class ClaimOutboxLeaseRecoverySpec : OutboxSpecBase
 
         await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(() => ClaimAsync(Guid.NewGuid(), -1, ct));
 
-        var state = await Fixture.ReadOutboxRowAsync(TableName, expired.OutboxId);
+        var state = await Fixture.ReadOutboxRowAsync(TableName, expired.JobRef);
         Assert.Equal((byte)OutboxStatusCode.Claimed, state.StatusCode);
         Assert.Equal(oldToken, state.ClaimToken);
         Assert.Single(await ClaimAsync(Guid.NewGuid(), 1, ct));
@@ -51,9 +51,9 @@ public sealed class ClaimOutboxLeaseRecoverySpec : OutboxSpecBase
         var claimed = await ClaimAsync(freshToken, batchSize: 10, ct);
 
         var one = Assert.Single(claimed);
-        Assert.Equal(expired.OutboxId, one.OutboxId);
+        Assert.Equal(expired.JobRef, one.JobRef);
 
-        var state = await Fixture.ReadOutboxRowAsync(TableName, expired.OutboxId);
+        var state = await Fixture.ReadOutboxRowAsync(TableName, expired.JobRef);
         Assert.Equal((byte)OutboxStatusCode.Claimed, state.StatusCode);
         Assert.Equal(freshToken, state.ClaimToken);
         Assert.NotEqual(staleToken, state.ClaimToken);
@@ -75,7 +75,7 @@ public sealed class ClaimOutboxLeaseRecoverySpec : OutboxSpecBase
         var claimed = await ClaimAsync(Guid.NewGuid(), batchSize: 10, ct);
 
         Assert.Empty(claimed);
-        var state = await Fixture.ReadOutboxRowAsync(TableName, live.OutboxId);
+        var state = await Fixture.ReadOutboxRowAsync(TableName, live.JobRef);
         Assert.Equal((byte)OutboxStatusCode.Claimed, state.StatusCode);
         Assert.Equal(owner, state.ClaimToken);
     }

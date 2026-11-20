@@ -17,30 +17,30 @@ internal static class OutboxSchema
         public static readonly DbValueSpec<int> LeaseTtlSeconds = new("p_lease_ttl_seconds", DbKind.Int32);
 
         /// <summary>
-        /// A JSON array of claimed outbox-id strings (["&lt;guid&gt;", ...]) so the set-based delete/release
+        /// A JSON array of claimed job_ref strings (["&lt;guid&gt;", ...]) so the set-based delete/release
         /// finalize the whole claimed group in one round trip; each provider parses it natively
         /// (PG jsonb_array_elements_text, SQLite json_each, SQL Server OPENJSON). Size -1 is the provider
         /// max text width so a full 256-row batch of ids never truncates.
         /// </summary>
-        public static readonly DbValueSpec<string> OutboxIds = new("p_outbox_ids", DbKind.UnicodeString, -1);
+        public static readonly DbValueSpec<string> JobRefs = new("p_job_refs", DbKind.UnicodeString, -1);
 
         /// <summary>
-        /// The operator verbs' optional id filter: the same JSON id-array shape as OutboxIds, but NULL
+        /// The operator verbs' optional id filter: the same JSON id-array shape as JobRefs, but NULL
         /// means "every quarantined row" so a bulk requeue-after-fix needs no listing round trip.
         /// </summary>
-        public static readonly DbValueSpec<string?> OutboxIdsOptional = new("p_outbox_ids", DbKind.UnicodeString, -1);
+        public static readonly DbValueSpec<string?> JobRefsOptional = new("p_job_refs", DbKind.UnicodeString, -1);
 
         public static readonly DbValueSpec<int> PageSize = new("p_page_size", DbKind.Int32);
 
         /// <summary>
-        /// Keyset cursor for the quarantined listing: the last outbox_id of the previous page, NULL for
+        /// Keyset cursor for the quarantined listing: the last job_ref of the previous page, NULL for
         /// the first page. The id is the order key - see ListQuarantinedOutboxRows.sql for why not a timestamp.
         /// </summary>
-        public static readonly DbValueSpec<Guid?> AfterOutboxId = new("p_after_outbox_id", DbKind.Guid);
+        public static readonly DbValueSpec<Guid?> AfterJobRef = new("p_after_job_ref", DbKind.Guid);
 
         /// <summary>
         /// A JSON array of per-row reschedule/quarantine records
-        /// ([{"outbox_id","failure_count","backoff_seconds"?,"failure_message"}, ...]) so each of those finalizes
+        /// ([{"job_ref","failure_count","backoff_seconds"?,"failure_message"}, ...]) so each of those finalizes
         /// the whole claimed group in one set-based round trip; every provider unnests it server-side
         /// (PG jsonb_to_recordset, SQL Server OPENJSON ... WITH, SQLite json_each + json_extract). Each row
         /// carries its own failure count, per-row backoff (added to the SOURCE clock in-SQL), and error, so

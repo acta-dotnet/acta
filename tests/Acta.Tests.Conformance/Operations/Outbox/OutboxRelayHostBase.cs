@@ -47,7 +47,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
     {
         var when = DateTime.UtcNow.AddMinutes(-5);
         var row = new OutboxSeed(
-            OutboxId: Guid.NewGuid(),
+            JobRef: Guid.NewGuid(),
             JobNamespace: TestNamespace,
             JobName: "echo",
             InputFormatId: 0,
@@ -60,7 +60,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
             FailureCount: 5
         );
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
-        return row.OutboxId;
+        return row.JobRef;
     }
 
     /// <summary>Runs one pass of this namespace's <c>sys.outbox</c> slot, which applies the parked operator commands first.</summary>

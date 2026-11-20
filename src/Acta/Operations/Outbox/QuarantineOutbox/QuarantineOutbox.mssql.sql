@@ -29,11 +29,11 @@ BEGIN TRY
     INNER JOIN
         OPENJSON (@p_rows)
         WITH (
-            outbox_id UNIQUEIDENTIFIER '$.outbox_id',
+            job_ref UNIQUEIDENTIFIER '$.job_ref',
             failure_count INT '$.failure_count',
             failure_message NVARCHAR(512) '$.failure_message'
         ) AS r
-        ON o.outbox_id = r.outbox_id
+        ON o.job_ref = r.job_ref
     WHERE o.claim_token = @p_claim_token AND o.outbox_status_code = 20 /* OutboxStatusCode.Claimed */;
 
     IF @entry_trancount = 0

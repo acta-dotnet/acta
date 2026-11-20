@@ -25,7 +25,7 @@ public sealed class RequeueQuarantinedOutboxSpec : OutboxSpecBase
         var first = await SeedAndQuarantineAsync(Unique("rq-a"), "poison a", ct);
         var second = await SeedAndQuarantineAsync(Unique("rq-b"), "poison b", ct);
 
-        var targeted = (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([first]), ct)).OutboxIds;
+        var targeted = (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([first]), ct)).JobRefs;
         Assert.Equal([first], targeted);
 
         var state = await Fixture.ReadOutboxRowAsync(TableName, first);
@@ -34,12 +34,12 @@ public sealed class RequeueQuarantinedOutboxSpec : OutboxSpecBase
         Assert.Equal("poison a", state.LastError);
         Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(TableName, second)).StatusCode);
 
-        var swept = (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(null), ct)).OutboxIds;
+        var swept = (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(null), ct)).JobRefs;
         Assert.Equal([second], swept);
-        Assert.Empty((await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(null), ct)).OutboxIds);
+        Assert.Empty((await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(null), ct)).JobRefs);
 
         // Requeued rows are due now, so a fresh claim finds both again.
         var reclaimed = await ClaimAsync(Guid.NewGuid(), batchSize: 10, ct);
-        Assert.Equal(new HashSet<Guid> { first, second }, reclaimed.Select(r => r.OutboxId).ToHashSet());
+        Assert.Equal(new HashSet<Guid> { first, second }, reclaimed.Select(r => r.JobRef).ToHashSet());
     }
 }

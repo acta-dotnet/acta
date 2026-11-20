@@ -121,13 +121,13 @@ public sealed partial class SqlServerConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {Schema}.{table}
-                (outbox_id, namespace_name, job_name, input_format_id, input, deduplication_key,
+                (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
                  meta, job_priority_code, created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count,
                  claim_token, claim_until_utc)
             VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
                     @token, @until);
             """;
-        cmd.Parameters.Add(new SqlParameter("@id", System.Data.SqlDbType.UniqueIdentifier) { Value = seed.OutboxId });
+        cmd.Parameters.Add(new SqlParameter("@id", System.Data.SqlDbType.UniqueIdentifier) { Value = seed.JobRef });
         cmd.Parameters.Add(new SqlParameter("@ns", System.Data.SqlDbType.VarChar, 64) { Value = seed.JobNamespace });
         cmd.Parameters.Add(new SqlParameter("@name", System.Data.SqlDbType.VarChar, 128) { Value = seed.JobName });
         cmd.Parameters.Add(new SqlParameter("@fmt", System.Data.SqlDbType.TinyInt) { Value = seed.InputFormatId });
@@ -150,16 +150,16 @@ public sealed partial class SqlServerConformanceFixture
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async ValueTask<OutboxRowState> ReadOutboxRowAsync(string table, Guid outboxId)
+    public async ValueTask<OutboxRowState> ReadOutboxRowAsync(string table, Guid jobRef)
     {
         await using var c = new SqlConnection(Conn);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             SELECT outbox_status_code, failure_count, claim_token, claim_until_utc, next_attempt_at_utc, failure_message
-              FROM {Schema}.{table} WHERE outbox_id = @id;
+              FROM {Schema}.{table} WHERE job_ref = @id;
             """;
-        cmd.Parameters.Add(new SqlParameter("@id", System.Data.SqlDbType.UniqueIdentifier) { Value = outboxId });
+        cmd.Parameters.Add(new SqlParameter("@id", System.Data.SqlDbType.UniqueIdentifier) { Value = jobRef });
         await using var r = await cmd.ExecuteReaderAsync();
         return !await r.ReadAsync()
             ? default

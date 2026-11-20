@@ -14,7 +14,7 @@ public sealed class OutboxScriptColumnsTests
     private static readonly string[] Columns =
     [
         "id",
-        "outbox_id",
+        "job_ref",
         "namespace_name",
         "job_name",
         "input_format_id",

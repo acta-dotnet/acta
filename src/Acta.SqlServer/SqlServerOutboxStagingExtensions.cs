@@ -46,7 +46,7 @@ public static class SqlServerOutboxStagingExtensions
         command.CommandText = sql;
 
         var p = command.Parameters;
-        p.Add(new SqlParameter("@outbox_id", SqlDbType.UniqueIdentifier) { Value = row.OutboxId });
+        p.Add(new SqlParameter("@job_ref", SqlDbType.UniqueIdentifier) { Value = row.JobRef });
         p.Add(new SqlParameter("@namespace_name", SqlDbType.VarChar, 64) { Value = row.JobNamespace });
         p.Add(new SqlParameter("@job_name", SqlDbType.VarChar, 128) { Value = row.JobName });
         p.Add(new SqlParameter("@input_format_id", SqlDbType.TinyInt) { Value = row.InputFormatId });

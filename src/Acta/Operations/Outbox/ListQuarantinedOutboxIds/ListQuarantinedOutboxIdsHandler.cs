@@ -7,13 +7,10 @@ internal sealed class ListQuarantinedOutboxIdsHandler(IDbSession session, ISqlDi
     {
         var rows = await session.QueryListAsync(
             "ListQuarantinedOutboxIds",
-            cmd =>
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, OutboxJson.OptionalIdArray(query.OutboxIds))
-                ),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.JobRefsOptional, OutboxJson.OptionalIdArray(query.JobRefs))),
             DbProjectionResolver.Resolve<ListQuarantinedOutboxIdsRow>(),
             ct
         );
-        return new ListQuarantinedOutboxIdsResponse([.. rows.Select(static row => row.OutboxId)]);
+        return new ListQuarantinedOutboxIdsResponse([.. rows.Select(static row => row.JobRef)]);
     }
 }

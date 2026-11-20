@@ -594,7 +594,7 @@ public sealed class DashboardApiEndpointTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Contains($"\"outboxId\":\"{FakeOutbox.QuarantinedId}\"", body);
+        Assert.Contains($"\"jobRef\":\"{FakeOutbox.QuarantinedId}\"", body);
         Assert.Contains("\"lastError\":\"route rejected: unknown job\"", body);
         Assert.Contains("\"totalCount\":1", body);
     }

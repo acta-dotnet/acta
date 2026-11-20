@@ -13,7 +13,7 @@ internal sealed class ListQuarantinedOutboxHandler(OutboxRelayRegistry? registry
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace))!;
         var paging = Paging.Start(
             "ListQuarantinedOutbox",
-            "outbox_id asc",
+            "job_ref asc",
             [CursorKeyKind.Text],
             query.Cursor,
             query.PageSize,
@@ -28,19 +28,19 @@ internal sealed class ListQuarantinedOutboxHandler(OutboxRelayRegistry? registry
                         + "run the listing there (sources report IsLocal), or requeue/discard from any peer."
                 );
 
-        Guid? afterOutboxId = null;
+        Guid? afterJobRef = null;
         if (paging.After is [string key])
         {
             if (!Guid.TryParse(key, out var parsed))
             {
-                throw new InvalidPageCursorException("Cursor key is not a valid outbox id.");
+                throw new InvalidPageCursorException("Cursor key is not a valid job ref.");
             }
-            afterOutboxId = parsed;
+            afterJobRef = parsed;
         }
 
-        var rows = (await source.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(paging.Fetch, afterOutboxId), ct)).Items;
+        var rows = (await source.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(paging.Fetch, afterJobRef), ct)).Items;
         long? total = query.IncludeTotal ? await source.CountQuarantinedAsync(ct) : null;
-        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.OutboxId.ToString("D")]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.JobRef.Value.ToString("D")]);
         return new ListQuarantinedOutboxResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

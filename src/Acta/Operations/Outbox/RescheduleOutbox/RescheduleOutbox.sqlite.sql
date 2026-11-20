@@ -11,13 +11,13 @@ SET
     failure_message = r.r_failure_message
 FROM (
     SELECT
-        json_extract(value, '$.outbox_id') AS r_outbox_id,
+        json_extract(value, '$.job_ref') AS r_job_ref,
         json_extract(value, '$.failure_count') AS r_failure_count,
         json_extract(value, '$.backoff_seconds') AS r_backoff_seconds,
         json_extract(value, '$.failure_message') AS r_failure_message
     FROM json_each(@p_rows)
 ) AS r
 WHERE
-    lower(replace(outbox_id, '-', '')) = lower(replace(r.r_outbox_id, '-', ''))
+    lower(replace(job_ref, '-', '')) = lower(replace(r.r_job_ref, '-', ''))
     AND claim_token = @p_claim_token COLLATE NOCASE
     AND outbox_status_code = 20 /* OutboxStatusCode.Claimed */;

@@ -10,9 +10,9 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 /// </summary>
 [ConformanceSpec(
     "list-quarantined-outbox-rows.keyset-page",
-    "The source pages its Quarantined rows by outbox id with their failure evidence",
+    "The source pages its Quarantined rows by job ref with their failure evidence",
     Area = "Outbox",
-    Contract = "ListQuarantinedOutboxRows returns up to a page of Quarantined rows after the cursor id in the source's outbox_id order, with identity and failure evidence."
+    Contract = "ListQuarantinedOutboxRows returns up to a page of Quarantined rows after the cursor id in the source's job_ref order, with identity and failure evidence."
 )]
 public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
 {
@@ -39,7 +39,7 @@ public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
         var page = await ListAsync(pageSize: 10, after: null, ct);
 
         Assert.Equal(2, page.Count);
-        var fromSeed = Assert.Single(page, r => r.OutboxId == seeded.OutboxId);
+        var fromSeed = Assert.Single(page, r => r.JobRef.Value == seeded.JobRef);
         Assert.Equal("orders", fromSeed.JobNamespace);
         Assert.Equal("send", fromSeed.JobName);
         Assert.Equal(seeded.DeduplicationKey, fromSeed.DeduplicationKey);
@@ -49,7 +49,7 @@ public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
         Assert.Null(fromSeed.LastError);
         Assert.Equal(stagedAt, fromSeed.CreatedAtUtc);
 
-        var fromRelay = Assert.Single(page, r => r.OutboxId == relayed);
+        var fromRelay = Assert.Single(page, r => r.JobRef.Value == relayed);
         Assert.Equal(5, fromRelay.FailureCount);
         Assert.Equal("poison payload", fromRelay.LastError);
     }
@@ -60,7 +60,7 @@ public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
         var ct = TestContext.Current.CancellationToken;
         var seeded = await SeedQuarantinedAsync(5);
         var full = await ListAsync(pageSize: 100, after: null, ct);
-        Assert.Equal(seeded, full.Select(r => r.OutboxId).ToHashSet());
+        Assert.Equal(seeded, full.Select(r => r.JobRef.Value).ToHashSet());
 
         // The order itself is the provider's uuid order (SQL Server sorts by trailing bytes, SQLite by
         // case-folded text), so the walk is held to the full read rather than to a .NET Guid sort.
@@ -71,11 +71,11 @@ public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
         {
             pageSizes.Add(page.Count);
             walked.AddRange(page);
-            after = page[^1].OutboxId;
+            after = page[^1].JobRef.Value;
         }
 
         Assert.Equal([2, 2, 1], pageSizes);
-        Assert.Equal(full.Select(r => r.OutboxId), walked.Select(r => r.OutboxId));
+        Assert.Equal(full.Select(r => r.JobRef.Value), walked.Select(r => r.JobRef.Value));
     }
 
     [Fact(
@@ -85,14 +85,14 @@ public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
     {
         var ct = TestContext.Current.CancellationToken;
         await SeedQuarantinedAsync(4);
-        var full = (await ListAsync(pageSize: 100, after: null, ct)).Select(r => r.OutboxId).ToList();
+        var full = (await ListAsync(pageSize: 100, after: null, ct)).Select(r => r.JobRef.Value).ToList();
 
         var first = await ListAsync(pageSize: 2, after: null, ct);
-        Assert.Equal(full.Take(2), first.Select(r => r.OutboxId));
+        Assert.Equal(full.Take(2), first.Select(r => r.JobRef.Value));
 
-        Assert.Equal([full[2]], (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([full[2]]), ct)).OutboxIds);
+        Assert.Equal([full[2]], (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([full[2]]), ct)).JobRefs);
 
-        Assert.Equal([full[3]], (await ListAsync(pageSize: 2, after: first[^1].OutboxId, ct)).Select(r => r.OutboxId));
+        Assert.Equal([full[3]], (await ListAsync(pageSize: 2, after: first[^1].JobRef.Value, ct)).Select(r => r.JobRef.Value));
         Assert.Empty(await ListAsync(pageSize: 2, after: full[3], ct));
     }
 
@@ -106,7 +106,7 @@ public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
         {
             var row = DueRow(Unique($"stuck-{i}"), status: (byte)OutboxStatusCode.Quarantined, failureCount: 5);
             await Fixture.SeedOutboxRowAsync(TableName, row);
-            ids.Add(row.OutboxId);
+            ids.Add(row.JobRef);
         }
 
         return ids;

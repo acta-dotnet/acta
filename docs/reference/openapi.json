@@ -6300,8 +6300,8 @@
               "examples": {
                 "requeueOutbox": {
                   "value": {
-                    "outboxIds": [
-                      "00000000-0000-0000-0000-00000000000a"
+                    "jobRefs": [
+                      "job_0000000000000000000000000000000a"
                     ],
                     "reasonMessage": "Fixed the payload."
                   }
@@ -6522,8 +6522,8 @@
               "examples": {
                 "discardOutbox": {
                   "value": {
-                    "outboxIds": [
-                      "00000000-0000-0000-0000-00000000000a"
+                    "jobRefs": [
+                      "job_0000000000000000000000000000000a"
                     ],
                     "reasonMessage": "Sent by hand."
                   }
@@ -12075,7 +12075,7 @@
                     "value": {
                       "items": [
                         {
-                          "outboxId": "00000000-0000-0000-0000-00000000000a",
+                          "jobRef": "job_0000000000000000000000000000000a",
                           "jobNamespace": "billing",
                           "jobName": "send-invoice",
                           "deduplicationKey": "inv-9",
@@ -16912,21 +16912,20 @@
       "DiscardOutboxRequest": {
         "type": "object",
         "properties": {
-          "outboxIds": {
+          "jobRefs": {
             "minItems": 1,
             "type": [
               "null",
               "array"
             ],
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/JobRef"
             },
-            "description": "The ids of the quarantined rows to delete, at least one; leave it out when all is true."
+            "description": "The job refs of the quarantined rows to delete, at least one; leave it out when all is true."
           },
           "all": {
             "type": "boolean",
-            "description": "True deletes every quarantined row of the namespace; leave it out, or false, when outboxIds names the rows."
+            "description": "True deletes every quarantined row of the namespace; leave it out, or false, when jobRefs names the rows."
           },
           "reasonMessage": {
             "type": [
@@ -16937,7 +16936,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Body of the outbox discard: the quarantined rows to delete, or all of them, and a reason. It takes exactly one of outboxIds and all, and answers 400 for neither or both."
+        "description": "Body of the outbox discard: the quarantined rows to delete, or all of them, and a reason. It takes exactly one of jobRefs and all, and answers 400 for neither or both."
       },
       "DiscardOutboxResponse": {
         "required": [
@@ -20582,7 +20581,7 @@
       },
       "ListQuarantinedOutboxItem": {
         "required": [
-          "outboxId",
+          "jobRef",
           "jobNamespace",
           "jobName",
           "deduplicationKey",
@@ -20594,10 +20593,9 @@
         ],
         "type": "object",
         "properties": {
-          "outboxId": {
-            "type": "string",
-            "description": "The quarantined row's id.",
-            "format": "uuid"
+          "jobRef": {
+            "description": "The quarantined row's job ref.",
+            "$ref": "#/components/schemas/JobRef"
           },
           "jobNamespace": {
             "type": "string",
@@ -21829,17 +21827,16 @@
       "RequeueOutboxRequest": {
         "type": "object",
         "properties": {
-          "outboxIds": {
+          "jobRefs": {
             "minItems": 1,
             "type": [
               "null",
               "array"
             ],
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/JobRef"
             },
-            "description": "The ids of the quarantined rows to act on, at least one; omitted or null acts on every quarantined row of the namespace."
+            "description": "The job refs of the quarantined rows to act on, at least one; omitted or null acts on every quarantined row of the namespace."
           },
           "reasonMessage": {
             "type": [
@@ -21850,7 +21847,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Optional body of the outbox requeue: the quarantined rows to make deliverable again, and a reason. Without outboxIds it acts on every quarantined row of the namespace."
+        "description": "Optional body of the outbox requeue: the quarantined rows to make deliverable again, and a reason. Without jobRefs it acts on every quarantined row of the namespace."
       },
       "RequeueOutboxResponse": {
         "required": [

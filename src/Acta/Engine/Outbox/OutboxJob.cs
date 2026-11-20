@@ -156,7 +156,7 @@ internal sealed class OutboxSignalApplier(OutboxOperations.Source source, Outbox
         var planned = payload.PlannedIds;
         if (planned is null)
         {
-            planned = (await source.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery(payload.OutboxIds), ct)).OutboxIds;
+            planned = (await source.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery(payload.JobRefs), ct)).JobRefs;
             var plannedValue = JsonSerializer.SerializeToUtf8Bytes(
                 payload with
                 {
@@ -174,8 +174,8 @@ internal sealed class OutboxSignalApplier(OutboxOperations.Source source, Outbox
 
         var affected =
             name == OutboxSignalNames.Requeue
-                ? (await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(planned), ct)).OutboxIds
-                : (await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(planned), ct)).OutboxIds;
+                ? (await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(planned), ct)).JobRefs
+                : (await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(planned), ct)).JobRefs;
 
         // A pass that found the command planned changes only what an earlier pass left undone, so its evidence is
         // the plan.

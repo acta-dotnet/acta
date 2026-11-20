@@ -43,7 +43,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
             var kept = DueSeed();
             await Fixture.SeedOutboxRowAsync(table, kept);
             Assert.False(await TestDdl.RunAsync(() => Fixture.ApplyOutboxAsync(table)));
-            Assert.True((await Fixture.ReadOutboxRowAsync(table, kept.OutboxId)).Exists);
+            Assert.True((await Fixture.ReadOutboxRowAsync(table, kept.JobRef)).Exists);
         }
         finally
         {
@@ -83,8 +83,8 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         await Fixture.SeedOutboxRowAsync(table, toDelete);
         var deleteToken = Guid.NewGuid();
         Assert.Single((await store.ClaimAsync(new ClaimOutboxCommand(deleteToken, 10, LeaseTtlSeconds), ct)).Rows);
-        await store.RemoveClaimedAsync(new RemoveClaimedOutboxCommand(deleteToken, [toDelete.OutboxId]), ct);
-        Assert.False((await Fixture.ReadOutboxRowAsync(table, toDelete.OutboxId)).Exists);
+        await store.RemoveClaimedAsync(new RemoveClaimedOutboxCommand(deleteToken, [toDelete.JobRef]), ct);
+        Assert.False((await Fixture.ReadOutboxRowAsync(table, toDelete.JobRef)).Exists);
 
         // Claim then reschedule back to pending with an incremented failure count.
         var toReschedule = DueSeed();
@@ -92,10 +92,10 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var rescheduleToken = Guid.NewGuid();
         Assert.Single((await store.ClaimAsync(new ClaimOutboxCommand(rescheduleToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.RescheduleAsync(
-            new RescheduleOutboxCommand(rescheduleToken, [new OutboxReschedule(toReschedule.OutboxId, 1, 60, "recoverable")]),
+            new RescheduleOutboxCommand(rescheduleToken, [new OutboxReschedule(toReschedule.JobRef, 1, 60, "recoverable")]),
             ct
         );
-        var rescheduled = await Fixture.ReadOutboxRowAsync(table, toReschedule.OutboxId);
+        var rescheduled = await Fixture.ReadOutboxRowAsync(table, toReschedule.JobRef);
         Assert.Equal((byte)OutboxStatusCode.Pending, rescheduled.StatusCode);
         Assert.Equal(1, rescheduled.FailureCount);
 
@@ -105,17 +105,17 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var quarantineToken = Guid.NewGuid();
         Assert.Single((await store.ClaimAsync(new ClaimOutboxCommand(quarantineToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.QuarantineAsync(
-            new QuarantineOutboxCommand(quarantineToken, [new OutboxQuarantine(toQuarantine.OutboxId, 5, "poison")]),
+            new QuarantineOutboxCommand(quarantineToken, [new OutboxQuarantine(toQuarantine.JobRef, 5, "poison")]),
             ct
         );
-        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(table, toQuarantine.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(table, toQuarantine.JobRef)).StatusCode);
     }
 
     // A due Pending row staged in the past so the claim predicate is satisfied at once; a none payload keeps
     // the payload-pair check satisfied without binding bytes.
     private static OutboxSeed DueSeed() =>
         new(
-            OutboxId: Guid.NewGuid(),
+            JobRef: Guid.NewGuid(),
             JobNamespace: "orders",
             JobName: "send",
             InputFormatId: 0,

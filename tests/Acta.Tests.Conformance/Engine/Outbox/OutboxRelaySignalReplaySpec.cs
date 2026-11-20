@@ -41,8 +41,8 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
             )
         );
         await Assert.ThrowsAsync<InvalidOperationException>(() => new OutboxSignalApplier(SourceStore, crashing).ApplyAsync(slotJobId, ct));
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, first.OutboxId)).StatusCode);
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, second.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, first.JobRef)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, second.JobRef)).StatusCode);
 
         var later = EchoRow(Unique("replay-later"), status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, later);
@@ -50,11 +50,11 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
         Assert.Equal((2, 0), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
 
         Assert.Null(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
-        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, later.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, later.JobRef)).StatusCode);
         var evidence = Assert.Single(await SlotEventsAsync(slotJobId, ct));
         Assert.Contains("2 row(s)", evidence.EventMessage, StringComparison.Ordinal);
-        Assert.Contains(first.OutboxId.ToString(), evidence.EventMessage, StringComparison.Ordinal);
-        Assert.Contains(second.OutboxId.ToString(), evidence.EventMessage, StringComparison.Ordinal);
+        Assert.Contains(new JobRef(first.JobRef).ToString(), evidence.EventMessage, StringComparison.Ordinal);
+        Assert.Contains(new JobRef(second.JobRef).ToString(), evidence.EventMessage, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "A discard that crashed before its evidence is never replaced by a newer one, so its deletion keeps its event")]
@@ -67,7 +67,7 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, first);
         await Fixture.SeedOutboxRowAsync(SourceTable, second);
         var slotJobId = await SeedSlotJobAsync(ct);
-        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Discard, "first row", [first.OutboxId], ct));
+        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Discard, "first row", [first.JobRef], ct));
 
         // The crashing pass plans and deletes, then dies before the statement that records and consumes.
         var crashing = ActivatorUtilities.CreateInstance<OutboxOperations>(
@@ -78,15 +78,15 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
             )
         );
         await Assert.ThrowsAsync<InvalidOperationException>(() => new OutboxSignalApplier(SourceStore, crashing).ApplyAsync(slotJobId, ct));
-        Assert.False((await Fixture.ReadOutboxRowAsync(SourceTable, first.OutboxId)).Exists);
+        Assert.False((await Fixture.ReadOutboxRowAsync(SourceTable, first.JobRef)).Exists);
 
-        var newer = await AdmitAsync(slotJobId, OutboxSignalNames.Discard, "second row", [second.OutboxId], ct);
+        var newer = await AdmitAsync(slotJobId, OutboxSignalNames.Discard, "second row", [second.JobRef], ct);
         Assert.Equal((byte)ControlAction.Rejected, newer.Action);
 
         Assert.Equal((0, 1), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
         var evidence = Assert.Single(await SlotEventsAsync(slotJobId, ct));
-        Assert.Contains(first.OutboxId.ToString(), evidence.EventMessage, StringComparison.Ordinal);
-        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, second.OutboxId)).StatusCode);
+        Assert.Contains(new JobRef(first.JobRef).ToString(), evidence.EventMessage, StringComparison.Ordinal);
+        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, second.JobRef)).StatusCode);
     }
 
     [Fact(DisplayName = "A stale command no pass has planned is replaced by a newer one")]
@@ -136,7 +136,7 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
         release.SetResult();
         Assert.Equal((0, 0), await stale);
 
-        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, later.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, later.JobRef)).StatusCode);
         Assert.Single(await SlotEventsAsync(slotJobId, ct));
     }
 
@@ -148,7 +148,7 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
         long slotJobId,
         string name,
         string reasonMessage,
-        IReadOnlyList<Guid> outboxIds,
+        IReadOnlyList<Guid> jobRefs,
         CancellationToken ct
     ) =>
         Services
@@ -157,7 +157,7 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
                 slotJobId,
                 name,
                 JsonSerializer.SerializeToUtf8Bytes(
-                    new OutboxSignalPayload(Guid.NewGuid(), "marko", reasonMessage, outboxIds),
+                    new OutboxSignalPayload(Guid.NewGuid(), "marko", reasonMessage, jobRefs),
                     OutboxSignalJsonContext.Default.OutboxSignalPayload
                 ),
                 DateTime.UtcNow.AddHours(1),

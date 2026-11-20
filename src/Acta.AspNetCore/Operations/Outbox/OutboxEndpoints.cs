@@ -66,7 +66,7 @@ internal static class OutboxEndpoints
             ControlStatus.Outbox<RequeueOutboxResponse>(),
             Namespace,
             static (call, jobNamespace) =>
-                call.Operations.Outbox.RequeueAsync(jobNamespace, call.Body?.OutboxIds, call.ReasonMessage, call.Actor, call.Ct)
+                call.Operations.Outbox.RequeueAsync(jobNamespace, call.Body?.JobRefs, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/outbox/{jobNamespace}/discard",
@@ -78,16 +78,16 @@ internal static class OutboxEndpoints
             ControlStatus.Outbox<DiscardOutboxResponse>(),
             Namespace,
             static (call, jobNamespace) =>
-                call.Body!.OutboxIds is null == call.Body.All
+                call.Body!.JobRefs is null == call.Body.All
                     ? call.Operations.Outbox.DiscardAsync(
                         jobNamespace,
-                        call.Body.OutboxIds,
+                        call.Body.JobRefs,
                         call.Body.All,
                         call.ReasonMessage,
                         call.Actor,
                         call.Ct
                     )
-                    : throw new InvalidControlException("Invalid outbox command.", "Send outboxIds or all: true, exactly one."),
+                    : throw new InvalidControlException("Invalid outbox command.", "Send jobRefs or all: true, exactly one."),
             bodyRequired: true
         );
     }

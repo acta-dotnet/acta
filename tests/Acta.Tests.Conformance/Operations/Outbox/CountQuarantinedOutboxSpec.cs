@@ -50,10 +50,10 @@ public sealed class CountQuarantinedOutboxSpec : OutboxSpecBase
         var discarded = await SeedAndQuarantineAsync(Unique("discard"), "poison", ct);
         Assert.Equal(2L, await Store.CountQuarantinedAsync(ct));
 
-        Assert.Equal([requeued], (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([requeued]), ct)).OutboxIds);
+        Assert.Equal([requeued], (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([requeued]), ct)).JobRefs);
         Assert.Equal(1L, await Store.CountQuarantinedAsync(ct));
 
-        Assert.Equal([discarded], (await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([discarded]), ct)).OutboxIds);
+        Assert.Equal([discarded], (await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([discarded]), ct)).JobRefs);
         Assert.Equal(0L, await Store.CountQuarantinedAsync(ct));
     }
 }

@@ -43,7 +43,7 @@ internal static class OutboxJson
             foreach (var row in rows)
             {
                 writer.WriteStartObject();
-                writer.WriteString("outbox_id", row.OutboxId.ToString());
+                writer.WriteString("job_ref", row.JobRef.ToString());
                 writer.WriteNumber("failure_count", row.FailureCount);
                 writer.WriteNumber("backoff_seconds", row.BackoffSeconds);
                 WriteStringOrNull(writer, "failure_message", LastError(row.LastError));
@@ -58,7 +58,7 @@ internal static class OutboxJson
             foreach (var row in rows)
             {
                 writer.WriteStartObject();
-                writer.WriteString("outbox_id", row.OutboxId.ToString());
+                writer.WriteString("job_ref", row.JobRef.ToString());
                 writer.WriteNumber("failure_count", row.FailureCount);
                 WriteStringOrNull(writer, "failure_message", LastError(row.LastError));
                 writer.WriteEndObject();

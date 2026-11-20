@@ -57,7 +57,7 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
     {
         var when = DateTime.UtcNow.AddMinutes(-5);
         return new OutboxSeed(
-            OutboxId: Guid.NewGuid(),
+            JobRef: Guid.NewGuid(),
             JobNamespace: jobNamespace ?? TestNamespace,
             JobName: jobName ?? "echo",
             InputFormatId: inputFormatId,
@@ -116,11 +116,11 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
         long slotJobId,
         string name,
         string reasonMessage,
-        IReadOnlyList<Guid>? outboxIds,
+        IReadOnlyList<Guid>? jobRefs,
         CancellationToken ct
     )
     {
-        var payload = new OutboxSignalPayload(Guid.NewGuid(), "marko", reasonMessage, outboxIds);
+        var payload = new OutboxSignalPayload(Guid.NewGuid(), "marko", reasonMessage, jobRefs);
         var admitted = await Services
             .GetRequiredService<ParkOutboxSignalHandler>()
             .HandleAsync(

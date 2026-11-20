@@ -34,15 +34,15 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var claimed = await ClaimAsync(Guid.NewGuid(), batchSize: 1, ct);
 
         var one = Assert.Single(claimed);
-        Assert.Equal(low.OutboxId, one.OutboxId);
+        Assert.Equal(low.JobRef, one.JobRef);
 
-        var claimedState = await Fixture.ReadOutboxRowAsync(TableName, low.OutboxId);
+        var claimedState = await Fixture.ReadOutboxRowAsync(TableName, low.JobRef);
         Assert.Equal((byte)OutboxStatusCode.Claimed, claimedState.StatusCode);
         Assert.NotNull(claimedState.ClaimToken);
         Assert.True(claimedState.ClaimUntilUtc > before, "lease is stamped from the database clock into the future");
 
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, normal.OutboxId)).StatusCode);
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, high.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, normal.JobRef)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, high.JobRef)).StatusCode);
     }
 
     [Fact(DisplayName = "The row due earliest claims first")]
@@ -58,8 +58,8 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var claimed = await ClaimAsync(Guid.NewGuid(), batchSize: 1, ct);
 
         var one = Assert.Single(claimed);
-        Assert.Equal(older.OutboxId, one.OutboxId);
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, newer.OutboxId)).StatusCode);
+        Assert.Equal(older.JobRef, one.JobRef);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, newer.JobRef)).StatusCode);
     }
 
     [Fact(DisplayName = "Two claims split the backlog disjointly and never double claim a row")]
@@ -80,9 +80,9 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         Assert.Single(second);
         Assert.Empty(third);
 
-        var claimedIds = first.Concat(second).Select(r => r.OutboxId).ToList();
+        var claimedIds = first.Concat(second).Select(r => r.JobRef).ToList();
         Assert.Equal(3, claimedIds.Distinct().Count());
-        Assert.Equal(rows.Select(r => r.OutboxId).OrderBy(x => x), claimedIds.OrderBy(x => x));
+        Assert.Equal(rows.Select(r => r.JobRef).OrderBy(x => x), claimedIds.OrderBy(x => x));
     }
 
     [Fact(DisplayName = "Two simultaneous claimers split the backlog with no overlap")]
@@ -94,7 +94,7 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         for (var i = 0; i < total; i++)
         {
             var row = DueRow(Unique($"c{i}"));
-            seeded.Add(row.OutboxId);
+            seeded.Add(row.JobRef);
             await Fixture.SeedOutboxRowAsync(TableName, row);
         }
 
@@ -106,13 +106,13 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var claimB = second.ClaimAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
         var results = await Task.WhenAll(claimA, claimB);
 
-        var concurrent = results[0].Rows.Concat(results[1].Rows).Select(r => r.OutboxId).ToList();
+        var concurrent = results[0].Rows.Concat(results[1].Rows).Select(r => r.JobRef).ToList();
         Assert.Equal(concurrent.Count, concurrent.Distinct().Count());
 
         // Draining the remainder proves every seeded row is claimable exactly once overall: no row was
         // lost to a double claim and none was stranded.
         var rest = await ClaimAsync(Guid.NewGuid(), total, ct);
-        var all = concurrent.Concat(rest.Select(r => r.OutboxId)).ToList();
+        var all = concurrent.Concat(rest.Select(r => r.JobRef)).ToList();
         Assert.Equal(total, all.Count);
         Assert.Equal(total, all.Distinct().Count());
         Assert.Equal(seeded.OrderBy(x => x), all.OrderBy(x => x));
@@ -130,7 +130,7 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var claimed = await ClaimAsync(Guid.NewGuid(), batchSize: 10, ct);
 
         var one = Assert.Single(claimed);
-        Assert.Equal(due.OutboxId, one.OutboxId);
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, future.OutboxId)).StatusCode);
+        Assert.Equal(due.JobRef, one.JobRef);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, future.JobRef)).StatusCode);
     }
 }

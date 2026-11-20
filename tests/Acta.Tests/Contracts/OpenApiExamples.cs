@@ -77,9 +77,9 @@ internal static partial class OpenApiExamples
         ["POST /alerts/{alertRef}/acknowledge"] = """{"reasonMessage":"Looking into it."}""",
         ["POST /alerts/{alertRef}/resolve"] = """{"reasonMessage":"The provider is back."}""",
         ["POST /outbox/{jobNamespace}/requeue"] =
-            """{"outboxIds":["00000000-0000-0000-0000-00000000000a"],"reasonMessage":"Fixed the payload."}""",
+            """{"jobRefs":["job_0000000000000000000000000000000a"],"reasonMessage":"Fixed the payload."}""",
         ["POST /outbox/{jobNamespace}/discard"] =
-            """{"outboxIds":["00000000-0000-0000-0000-00000000000a"],"reasonMessage":"Sent by hand."}""",
+            """{"jobRefs":["job_0000000000000000000000000000000a"],"reasonMessage":"Sent by hand."}""",
         ["PUT /definitions/{jobNamespace}/{jobName}/overrides"] = """
             {"overrides":{"priority":"high","maxAttempts":5,"concurrencyLimit":null,"rateLimit":null,"backoff":null,
             "executionTimeoutSeconds":null,"deadlineSeconds":null,"deadlineBehavior":null,"jobRetentionSeconds":null,

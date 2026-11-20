@@ -36,7 +36,7 @@ WHERE
 /* A run instant reads back canonical, so a T or Z spelling of the UTC text reads as the same instant; text SQLite
    cannot read comes back as written and fails the read rather than reading as no instant. */
 RETURNING
-    outbox_id, namespace_name, job_name, input_format_id, input,
+    job_ref, namespace_name, job_name, input_format_id, input,
     deduplication_key, correlation_key, concurrency_key, lane_name, job_priority_code,
     COALESCE(strftime('%Y-%m-%d %H:%M:%f', next_run_at_utc), next_run_at_utc) AS next_run_at_utc,
     delay_seconds, tenant_name, meta, failure_count, id;

@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// do). Mirrors the canonical columns the claim projects and the relay finalizes under.
 /// </summary>
 public readonly record struct OutboxSeed(
-    Guid OutboxId,
+    Guid JobRef,
     string JobNamespace,
     string JobName,
     byte InputFormatId,

@@ -31,17 +31,11 @@ public sealed class ControlBodyStrictnessTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var snake = await client.SendAsync(
-            Send(HttpMethod.Post, "outbox/billing/requeue", $"{{\"outbox_ids\":[\"{Guid.NewGuid()}\"]}}"),
-            ct
-        );
-        var pascal = await client.SendAsync(
-            Send(HttpMethod.Post, "outbox/billing/discard", $"{{\"OutboxIds\":[\"{Guid.NewGuid()}\"]}}"),
-            ct
-        );
+        var snake = await client.SendAsync(Send(HttpMethod.Post, "outbox/billing/requeue", $"{{\"job_refs\":[\"{Guid.NewGuid()}\"]}}"), ct);
+        var pascal = await client.SendAsync(Send(HttpMethod.Post, "outbox/billing/discard", $"{{\"JobRefs\":[\"{Guid.NewGuid()}\"]}}"), ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, snake.StatusCode);
-        Assert.Contains("$.outbox_ids", await snake.Content.ReadAsStringAsync(ct));
+        Assert.Contains("$.job_refs", await snake.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.BadRequest, pascal.StatusCode);
         Assert.Empty(fakes.Outbox.ControlCalls);
     }

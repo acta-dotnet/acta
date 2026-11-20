@@ -36,6 +36,6 @@ public sealed class ReleaseClaimedOutboxSpec : OutboxSpecBase
 
         var reclaimed = await ClaimAsync(Guid.NewGuid(), batchSize: 10, ct);
         var one = Assert.Single(reclaimed);
-        Assert.Equal(id, one.OutboxId);
+        Assert.Equal(id, one.JobRef);
     }
 }

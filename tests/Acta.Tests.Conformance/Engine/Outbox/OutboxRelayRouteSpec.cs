@@ -34,7 +34,7 @@ public sealed class OutboxRelayRouteSpec : OutboxRelayIntegrationBase
         // (below threshold), so the tick is quiet: no throw, and the row reschedules to Pending with a
         // bumped failure count and a future attempt instant. It is neither delivered nor quarantined.
         await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
-        var waiting = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
+        var waiting = await Fixture.ReadOutboxRowAsync(SourceTable, seed.JobRef);
         Assert.True(waiting.Exists);
         Assert.Equal((byte)OutboxStatusCode.Pending, waiting.StatusCode);
         Assert.Equal(1, waiting.FailureCount);

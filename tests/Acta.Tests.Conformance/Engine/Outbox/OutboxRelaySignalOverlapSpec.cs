@@ -28,7 +28,7 @@ public sealed class OutboxRelaySignalOverlapSpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, first);
         await Fixture.SeedOutboxRowAsync(SourceTable, second);
         var slotJobId = await SeedSlotJobAsync(ct);
-        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "first command", [first.OutboxId], ct));
+        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "first command", [first.JobRef], ct));
 
         // The stale pass reads and plans the first command, then holds before its source requeue.
         var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -46,7 +46,7 @@ public sealed class OutboxRelaySignalOverlapSpec : OutboxRelayIntegrationBase
 
         // The faster pass applies and consumes the first command; the operator then parks the second.
         Assert.Equal((1, 0), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
-        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "second command", [second.OutboxId], ct));
+        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "second command", [second.JobRef], ct));
 
         release.SetResult();
         Assert.Equal((0, 0), await stale);
@@ -54,10 +54,10 @@ public sealed class OutboxRelaySignalOverlapSpec : OutboxRelayIntegrationBase
         Assert.NotNull(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
         Assert.Equal((1, 0), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
         Assert.Null(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, second.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, second.JobRef)).StatusCode);
 
         var events = await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotJobId).ToListAsync(ct);
         var applied = Assert.Single(events, e => e.EventMessage?.Contains("second command", StringComparison.Ordinal) == true);
-        Assert.Contains(second.OutboxId.ToString(), applied.EventMessage);
+        Assert.Contains(new JobRef(second.JobRef).ToString(), applied.EventMessage);
     }
 }

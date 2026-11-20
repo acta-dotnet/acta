@@ -32,7 +32,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         // claim and fails the tick. No target job exists and the source row is back to Pending.
         await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(), ct));
         Assert.Equal(0, await CountLedgerJobsAsync(dedup, ct));
-        var released = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
+        var released = await Fixture.ReadOutboxRowAsync(SourceTable, seed.JobRef);
         Assert.True(released.Exists);
         Assert.Equal((byte)OutboxStatusCode.Pending, released.StatusCode);
 

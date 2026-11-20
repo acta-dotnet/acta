@@ -510,7 +510,7 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
 
 - **`_ref`** is the uuid behind a public handle: the column stores the uuid, and the API renders it as a
   prefix plus its 32 hex digits (`job_ref` is `job_...`, `worker_ref` is `wrk_...`). A uuid with no rendered
-  handle is never a `_ref`, so the staging table's `outbox_id` keeps its name.
+  handle is never a `_ref`.
 - **`_id`** is a numeric identity, a uuid with no rendered handle, or a standard string identifier kept as its
   standard writes it (`time_zone_id`, an IANA tz id).
 - **`_name`** is a name: Acta's vocabulary, ASCII `dotted.kebab-case`, trimmed and lowercased on input, so it compares
@@ -661,8 +661,7 @@ The boundary has three sides, and only two of them are inside it:
 
 ### Wire conventions (HTTP/JSON)
 
-- Identities are resource-qualified: `jobRef`, `alertRef`, `workerRef`, `outboxId` - never a bare `id`.
-  `outboxId` keeps the `Id` suffix because it is a uuid with no rendered handle.
+- Identities are resource-qualified: `jobRef`, `alertRef`, `workerRef` - never a bare `id`.
 - `jobNamespace` is the namespace's name everywhere, on every tier.
 - Instants end in `AtUtc` (`createdAtUtc`); every persisted instant is UTC.
 - Narrowing booleans end in `Only` and are nullable (`unresolvedOnly`, `liveOnly`). A filter on a state with two

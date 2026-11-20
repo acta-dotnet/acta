@@ -72,7 +72,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await cmd.ExecuteNonQueryAsync();
     }
 
-    private async Task SeedSqliteRowAsync(Guid outboxId, string dedup)
+    private async Task SeedSqliteRowAsync(Guid jobRef, string dedup)
     {
         var payload = Services
             .GetRequiredService<IJobPayloadSerializerRegistry>()
@@ -83,14 +83,14 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await using var cmd = c.CreateCommand();
         cmd.CommandText = """
             INSERT INTO main.acta_outbox
-                (outbox_id, namespace_name, job_name, input_format_id, input, deduplication_key,
+                (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
                  created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count)
             VALUES (@id, @ns, 'echo', 1, @data, @dedup,
                     strftime('%Y-%m-%d %H:%M:%f','now','-5 minutes'),
                     strftime('%Y-%m-%d %H:%M:%f','now','-5 minutes'), 10, 0);
             """;
         // Raw Guid so Microsoft.Data.Sqlite stores the true UPPER-CASE TEXT id an EF producer would write.
-        cmd.Parameters.AddWithValue("@id", outboxId);
+        cmd.Parameters.AddWithValue("@id", jobRef);
         cmd.Parameters.AddWithValue("@ns", TestNamespace);
         cmd.Parameters.AddWithValue("@data", payload.Data.ToArray());
         cmd.Parameters.AddWithValue("@dedup", dedup);

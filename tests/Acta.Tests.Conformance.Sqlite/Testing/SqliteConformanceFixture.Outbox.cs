@@ -117,7 +117,7 @@ public sealed partial class SqliteConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO main.{table}
-                (outbox_id, namespace_name, job_name, input_format_id, input, deduplication_key,
+                (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
                  meta, job_priority_code, created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count,
                  claim_token, claim_until_utc)
             VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
@@ -125,7 +125,7 @@ public sealed partial class SqliteConformanceFixture
             """;
         // Bind the raw Guid (not .ToString()) so Microsoft.Data.Sqlite applies its real UPPER-CASE TEXT
         // encoding, reproducing the true EF producer row the relay finalize must match case-insensitively.
-        cmd.Parameters.AddWithValue("@id", seed.OutboxId);
+        cmd.Parameters.AddWithValue("@id", seed.JobRef);
         cmd.Parameters.AddWithValue("@ns", seed.JobNamespace);
         cmd.Parameters.AddWithValue("@name", seed.JobName);
         cmd.Parameters.AddWithValue("@fmt", (long)seed.InputFormatId);
@@ -145,16 +145,16 @@ public sealed partial class SqliteConformanceFixture
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async ValueTask<OutboxRowState> ReadOutboxRowAsync(string table, Guid outboxId)
+    public async ValueTask<OutboxRowState> ReadOutboxRowAsync(string table, Guid jobRef)
     {
         await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             SELECT outbox_status_code, failure_count, claim_token, claim_until_utc, next_attempt_at_utc, failure_message
-              FROM main.{table} WHERE outbox_id = @id;
+              FROM main.{table} WHERE job_ref = @id;
             """;
-        cmd.Parameters.AddWithValue("@id", outboxId);
+        cmd.Parameters.AddWithValue("@id", jobRef);
         await using var r = await cmd.ExecuteReaderAsync();
         return !await r.ReadAsync()
             ? default

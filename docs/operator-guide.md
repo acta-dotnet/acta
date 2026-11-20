@@ -1211,9 +1211,9 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
   finds rows and no open alert opens it again, and the first pass that finds none resolves it. Requeue or discard it through `IActaOperations.Outbox`, `POST /outbox/{jobNamespace}/requeue` or
   `/discard`, or the dashboard's outbox panel; the
   [quarantine SQL recipes](#quarantined-outbox-rows) are the unaudited fallback. A requeue without
-  `outboxIds` takes every quarantined row of the namespace. A discard names its rows in `outboxIds` or
-  sends `"all": true`, exactly one, and answers 400 for neither or both, so leaving the ids out never
-  deletes every row; `IOutbox.DiscardAsync` takes the same choice, `outboxIds` or `all: true`, and
+  `jobRefs` takes every quarantined row of the namespace. A discard names its rows in `jobRefs` or
+  sends `"all": true`, exactly one, and answers 400 for neither or both, so leaving the refs out never
+  deletes every row; `IOutbox.DiscardAsync` takes the same choice, `jobRefs` or `all: true`, and
   throws `ArgumentException` otherwise. Recoverable rejections (for example
   an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once.
   A pass applies parked requeues before parked discards, so a discard parked beside a requeue of the same
@@ -1610,7 +1610,7 @@ Background: [transactional enqueue and the external outbox](./developer-guide.md
 Inspect quarantined rows:
 
 ```sql
-SELECT outbox_id, namespace_name, job_name, deduplication_key, failure_count, failure_message, created_at_utc
+SELECT job_ref, namespace_name, job_name, deduplication_key, failure_count, failure_message, created_at_utc
   FROM acta_outbox
  WHERE outbox_status_code = 90
  ORDER BY created_at_utc;
@@ -1627,7 +1627,7 @@ UPDATE acta_outbox
    SET outbox_status_code = 10, failure_count = 0, next_attempt_at_utc = now(),
        claim_token = NULL, claim_until_utc = NULL, failure_message = NULL
  WHERE outbox_status_code = 90
-   AND outbox_id = :outbox_id;
+   AND job_ref = :job_ref;
 ```
 
 **SQL Server**:
@@ -1637,7 +1637,7 @@ UPDATE acta_outbox
    SET outbox_status_code = 10, failure_count = 0, next_attempt_at_utc = SYSUTCDATETIME(),
        claim_token = NULL, claim_until_utc = NULL, failure_message = NULL
  WHERE outbox_status_code = 90
-   AND outbox_id = @outbox_id;
+   AND job_ref = @job_ref;
 ```
 
 **SQLite** (its clock is already UTC):
@@ -1647,7 +1647,7 @@ UPDATE acta_outbox
    SET outbox_status_code = 10, failure_count = 0, next_attempt_at_utc = datetime('now'),
        claim_token = NULL, claim_until_utc = NULL, failure_message = NULL
  WHERE outbox_status_code = 90
-   AND outbox_id = :outbox_id;
+   AND job_ref = :job_ref;
 ```
 
 Delete a quarantined row that should never be delivered (the payload is wrong and there is no fix):
@@ -1655,7 +1655,7 @@ Delete a quarantined row that should never be delivered (the payload is wrong an
 ```sql
 DELETE FROM acta_outbox
  WHERE outbox_status_code = 90
-   AND outbox_id = :outbox_id;
+   AND job_ref = :job_ref;
 ```
 
 The `outbox_status_code = 90` guard keeps a requeue or delete from racing a row the relay currently owns: a

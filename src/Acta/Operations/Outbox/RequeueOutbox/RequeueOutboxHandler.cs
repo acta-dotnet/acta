@@ -8,7 +8,7 @@ internal sealed class RequeueOutboxHandler(ParkOutboxSignalHandler park)
         var (action, pendingSinceUtc) = await park.ParkAsync(
             OutboxSignalNames.Requeue,
             command.JobNamespace,
-            command.OutboxIds,
+            command.JobRefs,
             command.ReasonMessage,
             command.Actor,
             ct

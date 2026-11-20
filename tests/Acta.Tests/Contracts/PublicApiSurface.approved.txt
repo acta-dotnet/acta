@@ -1201,10 +1201,10 @@ interface Acta.INamespaces
     System.Threading.Tasks.Task<Acta.SuspendNamespaceResponse> SuspendAsync(System.String jobNamespace, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.UpdateNamespaceResponse> UpdateAsync(System.String jobNamespace, System.Int64 expectedVersion, System.String? ownerTeam, System.String? description, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.IOutbox
-    System.Threading.Tasks.Task<Acta.DiscardOutboxResponse> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid>? outboxIds = null, System.Boolean all = false, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.DiscardOutboxResponse> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<Acta.JobRef>? jobRefs = null, System.Boolean all = false, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ListOutboxSourcesResponse> ListSourcesAsync(Acta.ListOutboxSourcesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ListQuarantinedOutboxResponse> ListQuarantinedAsync(Acta.ListQuarantinedOutboxQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.RequeueOutboxResponse> RequeueAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid>? outboxIds = null, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.RequeueOutboxResponse> RequeueAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<Acta.JobRef>? jobRefs = null, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.IOutboxControlResponse : Acta.IControlResponse
     System.Nullable<System.DateTime> PendingSinceUtc { get; }
 interface Acta.IOutboxSourceBuilder
@@ -2031,9 +2031,9 @@ sealed record Acta.ListOutboxSourcesResponse : Acta.IPagedResponse<Acta.ListOutb
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
 sealed record Acta.ListQuarantinedOutboxItem
-    .ctor(System.Guid OutboxId, System.String JobNamespace, System.String JobName, System.String DeduplicationKey, System.String? CorrelationKey, System.String? TenantName, System.Int32 FailureCount, System.String? LastError, System.DateTime CreatedAtUtc)
+    .ctor(Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.String DeduplicationKey, System.String? CorrelationKey, System.String? TenantName, System.Int32 FailureCount, System.String? LastError, System.DateTime CreatedAtUtc)
+    Acta.JobRef JobRef { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
-    System.Guid OutboxId { get;init; }
     System.Int32 FailureCount { get;init; }
     System.String DeduplicationKey { get;init; }
     System.String JobName { get;init; }

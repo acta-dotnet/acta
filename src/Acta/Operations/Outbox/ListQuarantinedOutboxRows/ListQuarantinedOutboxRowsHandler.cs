@@ -10,7 +10,7 @@ internal sealed class ListQuarantinedOutboxRowsHandler(IDbSession session, ISqlD
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.PageSize, query.PageSize));
-                    cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.AfterOutboxId, query.AfterOutboxId));
+                    cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.AfterJobRef, query.AfterJobRef));
                 },
                 DbProjectionResolver.Resolve<ListQuarantinedOutboxItem>(),
                 ct

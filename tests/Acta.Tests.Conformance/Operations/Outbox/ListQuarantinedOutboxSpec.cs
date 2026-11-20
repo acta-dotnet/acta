@@ -35,7 +35,7 @@ public sealed class ListQuarantinedOutboxSpec : OutboxRelayHostBase
         Assert.False(second.HasMore);
 
         var listed = first.Items.Concat(second.Items).ToList();
-        Assert.Equal(seeded, listed.Select(r => r.OutboxId).ToHashSet());
+        Assert.Equal(seeded, listed.Select(r => r.JobRef.Value).ToHashSet());
         Assert.Equal(3, listed.Count);
         Assert.All(listed, row => Assert.Equal(TestNamespace, row.JobNamespace));
         Assert.All(listed, row => Assert.Equal("echo", row.JobName));

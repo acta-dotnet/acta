@@ -33,7 +33,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         for (var attempt = 1; attempt <= 4; attempt++)
         {
             await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
-            var pending = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
+            var pending = await Fixture.ReadOutboxRowAsync(SourceTable, seed.JobRef);
             Assert.Equal((byte)OutboxStatusCode.Pending, pending.StatusCode);
             Assert.Equal(attempt, pending.FailureCount);
             await Fixture.RewindOutboxAsync(SourceTable); // make it due for the next tick
@@ -41,10 +41,10 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 
         // Tick 5: the fifth rejection reaches the threshold and quarantines the row, and the tick still succeeds.
         var (summary, quarantined) = await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
-        Assert.Equal([seed.OutboxId], quarantined);
+        Assert.Equal([seed.JobRef], quarantined);
         Assert.Equal(1, summary.QuarantineTotal);
 
-        var row = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
+        var row = await Fixture.ReadOutboxRowAsync(SourceTable, seed.JobRef);
         Assert.True(row.Exists);
         Assert.Equal((byte)OutboxStatusCode.Quarantined, row.StatusCode);
         Assert.Equal(5, row.FailureCount);
@@ -79,7 +79,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 
         foreach (var seed in new[] { malformed, oversize, unsupportedFormat, jsonWithNul, notJson })
         {
-            var row = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
+            var row = await Fixture.ReadOutboxRowAsync(SourceTable, seed.JobRef);
             Assert.True(row.Exists);
             Assert.Equal((byte)OutboxStatusCode.Quarantined, row.StatusCode);
             Assert.Equal(0, row.FailureCount); // immediate quarantine, no retry churn
@@ -87,7 +87,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 
         Assert.Contains(
             "input does not fit input_format_id 1",
-            (await Fixture.ReadOutboxRowAsync(SourceTable, jsonWithNul.OutboxId)).LastError,
+            (await Fixture.ReadOutboxRowAsync(SourceTable, jsonWithNul.JobRef)).LastError,
             StringComparison.Ordinal
         );
     }

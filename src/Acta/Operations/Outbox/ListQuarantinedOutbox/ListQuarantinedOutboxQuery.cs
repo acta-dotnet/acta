@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Paging for <see cref="IOutbox.ListQuarantinedAsync"/> over one source's Quarantined rows, ordered
-/// by outbox id (the one portable unique order across source encodings).
+/// by job ref (the one portable unique order across source encodings).
 /// </summary>
 /// <param name="JobNamespace">The namespace whose registered source to read; required.</param>
 /// <param name="PageSize">Rows per page; null defaults to 50, values above 100 clamp to 100.</param>

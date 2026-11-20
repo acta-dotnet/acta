@@ -9,7 +9,7 @@ SET
 WHERE
     outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (
-        @p_outbox_ids IS NULL
-        OR outbox_id IN (SELECT value::uuid FROM jsonb_array_elements_text(@p_outbox_ids::jsonb))
+        @p_job_refs IS NULL
+        OR job_ref IN (SELECT value::uuid FROM jsonb_array_elements_text(@p_job_refs::jsonb))
     )
-RETURNING outbox_id;
+RETURNING job_ref;

@@ -58,7 +58,7 @@ public static class SqlServerMigrations
         return $"""
             CREATE TABLE {t} (
                 id bigint IDENTITY(1,1) NOT NULL,
-                outbox_id uniqueidentifier NOT NULL,
+                job_ref uniqueidentifier NOT NULL,
                 namespace_name varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id tinyint NOT NULL,
@@ -80,7 +80,7 @@ public static class SqlServerMigrations
                 claim_token uniqueidentifier NULL,
                 claim_until_utc datetime2 NULL,
                 CONSTRAINT pk_{table} PRIMARY KEY (id),
-                CONSTRAINT uq_{table}_outbox_id UNIQUE (outbox_id),
+                CONSTRAINT uq_{table}_job_ref UNIQUE (job_ref),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     (input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL)),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),

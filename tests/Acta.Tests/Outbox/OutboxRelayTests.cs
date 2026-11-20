@@ -77,7 +77,7 @@ public sealed class OutboxRelayTests
         var batch = Assert.Single(target.Batches);
         var request = Assert.Single(batch);
         Assert.Equal("k1", request.DeduplicationKey);
-        Assert.Equal([early.OutboxId, late.OutboxId], store.Deleted.ToHashSet());
+        Assert.Equal([early.JobRef, late.JobRef], store.Deleted.ToHashSet());
         // Two rows claimed, one job inserted, one coalesced member absorbed as a dedup.
         Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0), summary);
     }
@@ -120,7 +120,7 @@ public sealed class OutboxRelayTests
 
         var batch = Assert.Single(target.Batches);
         Assert.Equal(2, batch.Count);
-        Assert.Equal([upper.OutboxId, lower.OutboxId, otherKey.OutboxId], store.Deleted.ToHashSet());
+        Assert.Equal([upper.JobRef, lower.JobRef, otherKey.JobRef], store.Deleted.ToHashSet());
     }
 
     [Fact]
@@ -138,9 +138,9 @@ public sealed class OutboxRelayTests
         var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Single(Assert.Single(target.Batches));
-        Assert.Equal([first.OutboxId, untenanted.OutboxId], store.Deleted.ToHashSet());
+        Assert.Equal([first.JobRef, untenanted.JobRef], store.Deleted.ToHashSet());
         var refused = Assert.Single(store.Rescheduled);
-        Assert.Equal((other.OutboxId, 1), (refused.OutboxId, refused.FailureCount));
+        Assert.Equal((other.JobRef, 1), (refused.JobRef, refused.FailureCount));
         Assert.Equal("Enqueue rejected: the deduplication key belongs to another tenant's job.", refused.LastError);
         Assert.Equal(new OutboxTickSummary(3, 1, 1, 0, 0), summary);
     }
@@ -155,7 +155,7 @@ public sealed class OutboxRelayTests
 
         var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
-        Assert.Contains(row.OutboxId, store.Deleted);
+        Assert.Contains(row.JobRef, store.Deleted);
         Assert.Empty(store.Quarantined);
         // The target already held the handoff: nothing relayed, the whole group counts as deduplicated.
         Assert.Equal(new OutboxTickSummary(1, 0, 1, 0, 0), summary);
@@ -178,13 +178,13 @@ public sealed class OutboxRelayTests
 
         var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
-        Assert.Contains(good1.OutboxId, store.Deleted);
-        Assert.Contains(good2.OutboxId, store.Deleted);
-        Assert.DoesNotContain(bad.OutboxId, store.Deleted);
+        Assert.Contains(good1.JobRef, store.Deleted);
+        Assert.Contains(good2.JobRef, store.Deleted);
+        Assert.DoesNotContain(bad.JobRef, store.Deleted);
         // The per-group retry arm counts too: two groups relayed, the rejected group counts nothing.
         Assert.Equal(new OutboxTickSummary(3, 2, 0, 0, 0), summary);
         var reschedule = Assert.Single(store.Rescheduled);
-        Assert.Equal(bad.OutboxId, reschedule.OutboxId);
+        Assert.Equal(bad.JobRef, reschedule.JobRef);
         Assert.Equal(1, reschedule.FailureCount);
         Assert.True(reschedule.BackoffSeconds > 0, "backoff pushes the next attempt into the future");
         // One whole-batch attempt plus one retry per group: the per-group linear shape, not a binary split.
@@ -201,9 +201,9 @@ public sealed class OutboxRelayTests
 
         var (summary, quarantined) = await svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken);
 
-        Assert.Equal([bad.OutboxId], quarantined);
+        Assert.Equal([bad.JobRef], quarantined);
         Assert.Equal(1, summary.Claimed);
-        Assert.Contains(bad.OutboxId, store.Quarantined);
+        Assert.Contains(bad.JobRef, store.Quarantined);
         Assert.Empty(store.Rescheduled);
     }
 
@@ -217,8 +217,8 @@ public sealed class OutboxRelayTests
 
         var (_, quarantined) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
-        Assert.Equal([row.OutboxId], quarantined);
-        Assert.Contains(row.OutboxId, store.Quarantined);
+        Assert.Equal([row.JobRef], quarantined);
+        Assert.Contains(row.JobRef, store.Quarantined);
         Assert.Empty(target.Batches);
     }
 
@@ -233,8 +233,8 @@ public sealed class OutboxRelayTests
 
         await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
-        Assert.Equal([poison.OutboxId], store.Quarantined);
-        Assert.Equal([good.OutboxId], store.Deleted);
+        Assert.Equal([poison.JobRef], store.Quarantined);
+        Assert.Equal([good.JobRef], store.Deleted);
         Assert.Empty(store.Released);
     }
 
@@ -279,9 +279,9 @@ public sealed class OutboxRelayTests
         // The count-4 row reaches the threshold of five and quarantines; the count-0 row reschedules at 1.
         await svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken);
 
-        Assert.Equal([aged.OutboxId], store.Quarantined);
+        Assert.Equal([aged.JobRef], store.Quarantined);
         var resched = Assert.Single(store.Rescheduled);
-        Assert.Equal(fresh.OutboxId, resched.OutboxId);
+        Assert.Equal(fresh.JobRef, resched.JobRef);
         Assert.Equal(1, resched.FailureCount);
     }
 
@@ -325,7 +325,7 @@ public sealed class OutboxRelayTests
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => svc.RunTickAsync(Options(), cts.Token));
 
-        Assert.Contains(row.OutboxId, store.Released);
+        Assert.Contains(row.JobRef, store.Released);
         Assert.Empty(store.Deleted);
     }
 
@@ -342,7 +342,7 @@ public sealed class OutboxRelayTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
 
-        Assert.Contains(row.OutboxId, store.Released);
+        Assert.Contains(row.JobRef, store.Released);
         Assert.Empty(store.Quarantined);
         Assert.Empty(store.Deleted);
     }
@@ -441,7 +441,7 @@ public sealed class OutboxRelayTests
                     "RemoveClaimedOutbox" => Record(Deleted, Ids(call)),
                     "ReleaseClaimedOutbox" => Record(Released, Ids(call)),
                     "RescheduleOutbox" => Record(Rescheduled, Records(call, Reschedule)),
-                    "QuarantineOutbox" => Record(Quarantined, Records(call, static r => r.GetProperty("outbox_id").GetGuid())),
+                    "QuarantineOutbox" => Record(Quarantined, Records(call, static r => r.GetProperty("job_ref").GetGuid())),
                     // The unclaimed remainder plus everything released back stands in for the Pending backlog.
                     "CountOutboxBacklog" => (long)(_due.Count + Released.Count),
                     "CountQuarantinedOutbox" => (long)Quarantined.Count,
@@ -467,13 +467,13 @@ public sealed class OutboxRelayTests
         }
 
         // A finalize binds its rows as JSON: an array of ids, or one record per row.
-        private static List<Guid> Ids(BoundCall call) => Json(call.Get(OutboxSchema.Sql.OutboxIds), static e => e.GetGuid());
+        private static List<Guid> Ids(BoundCall call) => Json(call.Get(OutboxSchema.Sql.JobRefs), static e => e.GetGuid());
 
         private static List<T> Records<T>(BoundCall call, Func<JsonElement, T> read) => Json(call.Get(OutboxSchema.Sql.RowRecords), read);
 
         private static OutboxReschedule Reschedule(JsonElement row) =>
             new(
-                row.GetProperty("outbox_id").GetGuid(),
+                row.GetProperty("job_ref").GetGuid(),
                 row.GetProperty("failure_count").GetInt32(),
                 row.GetProperty("backoff_seconds").GetInt32(),
                 row.GetProperty("failure_message").GetString()!

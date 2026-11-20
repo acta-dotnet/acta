@@ -57,7 +57,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     private sealed record OutboxGroup(ClaimOutboxRow Representative, IReadOnlyList<ClaimOutboxRow> Rows)
     {
         /// <summary>Materialized once at construction (read on both the finalize and release paths).</summary>
-        public IReadOnlyList<Guid> Ids { get; } = Rows.Select(r => r.OutboxId).ToList();
+        public IReadOnlyList<Guid> Ids { get; } = Rows.Select(r => r.JobRef).ToList();
     }
 
     /// <summary>
@@ -133,7 +133,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList());
+                await ReleaseBestEffortAsync(token, claimed.Select(r => r.JobRef).ToList());
                 throw;
             }
 
@@ -169,7 +169,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// so none prints the full (up to 5,120) id set.</summary>
     internal static string FormatSample(IReadOnlyList<Guid> ids)
     {
-        var sample = string.Join(", ", ids.Take(10));
+        var sample = string.Join(", ", ids.Take(10).Select(static id => new JobRef(id)));
         var suffix = ids.Count > 10 ? ", ..." : "";
         return $"{sample}{suffix}";
     }
@@ -221,7 +221,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             // Infrastructure/target-availability failure: release the claimed batch best-effort and fail
             // the tick without consuming any row's quarantine budget. Partially-enqueued rows are safe;
             // the next tick re-enqueues them and the target deduplicates.
-            await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList());
+            await ReleaseBestEffortAsync(token, claimed.Select(r => r.JobRef).ToList());
             ActaLog.OutboxTargetEnqueueFailed(_log, ex, options.SourceName);
             throw;
         }
@@ -249,7 +249,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                 case GroupVerdictKind.Malformed:
                     // A reconstruction failure is a pre-target contract failure: quarantine at once, leaving each row's
                     // existing failure count untouched (no retry budget was consumed).
-                    quarantines.AddRange(group.Rows.Select(r => new OutboxQuarantine(r.OutboxId, r.FailureCount, error!)));
+                    quarantines.AddRange(group.Rows.Select(r => new OutboxQuarantine(r.JobRef, r.FailureCount, error!)));
                     break;
                 case GroupVerdictKind.Rejected:
                     // Retry/quarantine state is row-specific and monotonic: each claimed row of the group advances
@@ -261,13 +261,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                         var failureCount = row.FailureCount + 1;
                         if (failureCount >= options.QuarantineThreshold)
                         {
-                            quarantines.Add(new OutboxQuarantine(row.OutboxId, failureCount, error!));
+                            quarantines.Add(new OutboxQuarantine(row.JobRef, failureCount, error!));
                             groupQuarantined++;
                         }
                         else
                         {
                             var backoffSeconds = BackoffSchedule.ComputeDelaySeconds(failureCount, RowBackoff);
-                            reschedules.Add(new OutboxReschedule(row.OutboxId, failureCount, backoffSeconds, error!));
+                            reschedules.Add(new OutboxReschedule(row.JobRef, failureCount, backoffSeconds, error!));
                         }
                     }
 
@@ -307,7 +307,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             await ReleaseBestEffortAsync(token, deferredIds);
         }
 
-        return (relayed, deduplicated, [.. quarantines.Select(static q => q.OutboxId)], deferredIds.Count > 0);
+        return (relayed, deduplicated, [.. quarantines.Select(static q => q.JobRef)], deferredIds.Count > 0);
     }
 
     /// <summary>
@@ -414,12 +414,12 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// <summary>The row's tenant as the enqueue stores it, trimmed and lowercased.</summary>
     private static string? Tenant(ClaimOutboxRow row) => row.TenantName?.Trim().ToLowerInvariant();
 
-    private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds)
+    private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> jobRefs)
     {
         try
         {
             // Uncancellable, because the tick's cancellation is the commonest reason to release.
-            await source.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(token, outboxIds), CancellationToken.None);
+            await source.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(token, jobRefs), CancellationToken.None);
         }
         catch (Exception)
         {

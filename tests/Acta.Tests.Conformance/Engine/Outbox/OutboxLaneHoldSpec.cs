@@ -95,13 +95,13 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
                     {
                         "RescheduleOutbox" => dialect.CreateParameter(
                             OutboxSchema.Sql.RowRecords,
-                            OutboxJson.Reschedules([new OutboxReschedule(head.OutboxId, 1, 3600, "held open")])
+                            OutboxJson.Reschedules([new OutboxReschedule(head.JobRef, 1, 3600, "held open")])
                         ),
                         "QuarantineOutbox" => dialect.CreateParameter(
                             OutboxSchema.Sql.RowRecords,
-                            OutboxJson.Quarantines([new OutboxQuarantine(head.OutboxId, 1, "held open")])
+                            OutboxJson.Quarantines([new OutboxQuarantine(head.JobRef, 1, "held open")])
                         ),
-                        _ => dialect.CreateParameter(OutboxSchema.Sql.OutboxIds, OutboxJson.IdArray([head.OutboxId])),
+                        _ => dialect.CreateParameter(OutboxSchema.Sql.JobRefs, OutboxJson.IdArray([head.JobRef])),
                     }
                 );
             },

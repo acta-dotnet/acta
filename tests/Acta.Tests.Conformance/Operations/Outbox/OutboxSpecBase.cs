@@ -35,7 +35,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
         byte inputFormatId = 0
     ) =>
         new(
-            OutboxId: Guid.NewGuid(),
+            JobRef: Guid.NewGuid(),
             JobNamespace: "orders",
             JobName: "send",
             InputFormatId: inputFormatId,
@@ -68,7 +68,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
         var token = Guid.NewGuid();
         var claimed = await ClaimAsync(token, batchSize: 10, ct);
         Assert.Single(claimed);
-        return (row.OutboxId, token);
+        return (row.JobRef, token);
     }
 
     // Seed one due row, claim it, and quarantine it under the owning token with the given error - the

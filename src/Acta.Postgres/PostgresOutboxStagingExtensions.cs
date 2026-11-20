@@ -46,7 +46,7 @@ public static class PostgresOutboxStagingExtensions
         command.CommandText = sql;
 
         var p = command.Parameters;
-        p.Add(new NpgsqlParameter("@outbox_id", NpgsqlDbType.Uuid) { Value = row.OutboxId });
+        p.Add(new NpgsqlParameter("@job_ref", NpgsqlDbType.Uuid) { Value = row.JobRef });
         p.Add(new NpgsqlParameter("@namespace_name", NpgsqlDbType.Varchar) { Value = row.JobNamespace });
         p.Add(new NpgsqlParameter("@job_name", NpgsqlDbType.Varchar) { Value = row.JobName });
         p.Add(new NpgsqlParameter("@input_format_id", NpgsqlDbType.Smallint) { Value = (short)row.InputFormatId });

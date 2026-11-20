@@ -38,7 +38,7 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
 
         Assert.Equal(
             ControlAction.Accepted,
-            (await Outbox.DiscardAsync(TestNamespace, [named], reasonMessage: "poison payload", actor: "op-1", ct: ct)).Action
+            (await Outbox.DiscardAsync(TestNamespace, [new JobRef(named)], reasonMessage: "poison payload", actor: "op-1", ct: ct)).Action
         );
         var slotId = await RunRelayPassAsync(ct);
 
@@ -49,7 +49,7 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
         Assert.Equal("op-1", evidence.Actor);
         Assert.Null(EventDetail(evidence, "actor"));
         Assert.Contains("poison payload", evidence.EventMessage);
-        Assert.Contains(named.ToString(), evidence.EventMessage);
+        Assert.Contains(new JobRef(named).ToString(), evidence.EventMessage);
 
         Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, all: true, ct: ct)).Action);
     }
@@ -76,9 +76,11 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
         await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, ct: ct));
         await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [], ct: ct));
         await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [], all: true, ct: ct));
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [row], all: true, ct: ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Outbox.DiscardAsync(TestNamespace, [new JobRef(row)], all: true, ct: ct)
+        );
 
         // The inbox is still free, so none of the refused calls parked a command.
-        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, [row], all: false, ct: ct)).Action);
+        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, [new JobRef(row)], all: false, ct: ct)).Action);
     }
 }

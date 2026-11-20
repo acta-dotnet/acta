@@ -45,7 +45,7 @@ public sealed class OutboxControlEndpointTests
 
         var ids = new[] { FakeOutbox.QuarantinedId };
         var response = await client.SendAsync(
-            Post(verb, body: new { outboxIds = ids, reasonMessage = "fixed the route" }),
+            Post(verb, body: new { jobRefs = ids, reasonMessage = "fixed the route" }),
             TestContext.Current.CancellationToken
         );
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -55,7 +55,7 @@ public sealed class OutboxControlEndpointTests
         var call = Assert.Single(fakes.Outbox.ControlCalls);
         Assert.Equal(verb, call.Verb);
         Assert.Equal("billing", call.JobNamespace);
-        Assert.Equal(ids, call.OutboxIds);
+        Assert.Equal(ids, call.JobRefs);
         Assert.False(call.All);
         Assert.Equal("fixed the route", call.Reason);
     }
@@ -74,7 +74,7 @@ public sealed class OutboxControlEndpointTests
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var call = Assert.Single(fakes.Outbox.ControlCalls);
-        Assert.Null(call.OutboxIds);
+        Assert.Null(call.JobRefs);
         Assert.True(call.All);
         Assert.Equal("poison payloads", call.Reason);
     }
@@ -88,13 +88,13 @@ public sealed class OutboxControlEndpointTests
 
         var ids = new[] { FakeOutbox.QuarantinedId };
         var response = await client.SendAsync(
-            Post("discard", body: new { outboxIds = ids, all = false }),
+            Post("discard", body: new { jobRefs = ids, all = false }),
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var call = Assert.Single(fakes.Outbox.ControlCalls);
-        Assert.Equal(ids, call.OutboxIds);
+        Assert.Equal(ids, call.JobRefs);
         Assert.False(call.All);
     }
 
@@ -103,8 +103,8 @@ public sealed class OutboxControlEndpointTests
     [InlineData("{}")]
     [InlineData("""{"reasonMessage":"cleanup"}""")]
     [InlineData("""{"all":false}""")]
-    [InlineData("""{"outboxIds":["00000000-0000-0000-0000-00000000000a"],"all":true}""")]
-    public async Task A_discard_without_exactly_one_of_outboxIds_and_all_is_400(string json)
+    [InlineData("""{"jobRefs":["job_0000000000000000000000000000000a"],"all":true}""")]
+    public async Task A_discard_without_exactly_one_of_jobRefs_and_all_is_400(string json)
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
@@ -116,7 +116,7 @@ public sealed class OutboxControlEndpointTests
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("outboxIds", body);
+        Assert.Contains("jobRefs", body);
         Assert.Contains("all: true", body);
         Assert.Empty(fakes.Outbox.ControlCalls);
     }
@@ -145,7 +145,7 @@ public sealed class OutboxControlEndpointTests
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var call = Assert.Single(fakes.Outbox.ControlCalls);
-        Assert.Null(call.OutboxIds);
+        Assert.Null(call.JobRefs);
         Assert.Null(call.Reason);
     }
 
@@ -230,11 +230,11 @@ public sealed class OutboxControlEndpointTests
         await using var _ = app;
 
         // No Content-Length, no Content-Type, a real scoped body: read as "no body" it would mean null
-        // outboxIds, which the requeue reads as "every quarantined row". The 415 is the route's
+        // jobRefs, which the requeue reads as "every quarantined row". The 415 is the route's
         // already-declared answer to a body it cannot parse, and nothing dispatches.
         var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/outbox/billing/requeue")
         {
-            Content = TestDashboardHost.UndeclaredContent("{\"outboxIds\":[\"00000000-0000-0000-0000-00000000000a\"]}"),
+            Content = TestDashboardHost.UndeclaredContent("{\"jobRefs\":[\"job_0000000000000000000000000000000a\"]}"),
         };
         request.Headers.Add(Confirm, "true");
 
@@ -263,7 +263,7 @@ public sealed class OutboxControlEndpointTests
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var call = Assert.Single(fakes.Outbox.ControlCalls);
-        Assert.Null(call.OutboxIds);
+        Assert.Null(call.JobRefs);
         Assert.Null(call.Reason);
     }
 

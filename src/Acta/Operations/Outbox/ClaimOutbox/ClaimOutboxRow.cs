@@ -10,7 +10,7 @@ namespace Acta;
 /// </summary>
 [DbProjection]
 internal sealed record ClaimOutboxRow(
-    Guid OutboxId,
+    Guid JobRef,
     string JobNamespace,
     string JobName,
     byte InputFormatId,

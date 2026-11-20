@@ -41,7 +41,7 @@ internal sealed class ParkOutboxSignalHandler(
     public async ValueTask<(ControlAction Action, DateTime? PendingSinceUtc)> ParkAsync(
         string name,
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds,
+        IReadOnlyList<Guid>? jobRefs,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
@@ -49,9 +49,9 @@ internal sealed class ParkOutboxSignalHandler(
     {
         ArgumentNullException.ThrowIfNull(jobNamespace);
         jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
-        if (outboxIds is { Count: 0 })
+        if (jobRefs is { Count: 0 })
         {
-            throw new ArgumentException("OutboxIds must be null (every quarantined row) or non-empty.", nameof(outboxIds));
+            throw new ArgumentException("JobRefs must be null (every quarantined row) or non-empty.", nameof(jobRefs));
         }
 
         if (await OutboxSlot.FindAsync(getJobIdBySlot, jobs, jobNamespace, ct) is not { } slot)
@@ -67,7 +67,7 @@ internal sealed class ParkOutboxSignalHandler(
             Guid.NewGuid(),
             JobControlActor.Operator(actor),
             reasonMessage.Truncate(ActaTextLimits.EventMessage),
-            outboxIds
+            jobRefs
         );
         var nowUtc = await clock.GetUtcNowAsync(ct);
         var admission = await AdmitAsync(

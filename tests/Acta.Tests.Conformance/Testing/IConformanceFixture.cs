@@ -175,7 +175,7 @@ public interface IConformanceFixture
     ValueTask SeedOutboxRowAsync(string table, OutboxSeed seed);
 
     /// <summary>Read one row's relay-visible state back from <paramref name="table"/>.</summary>
-    ValueTask<OutboxRowState> ReadOutboxRowAsync(string table, Guid outboxId);
+    ValueTask<OutboxRowState> ReadOutboxRowAsync(string table, Guid jobRef);
 
     /// <summary>Count the rows present in <paramref name="table"/>.</summary>
     ValueTask<int> CountOutboxAsync(string table);

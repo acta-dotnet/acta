@@ -53,7 +53,7 @@ public static class SqliteMigrations
         // tinyint and int do this by type). An id is 32 hex digits, with or without the four dashes, in either case;
         // GLOB and length() stop at a NUL, so the bytes must be that many characters' worth in the database's
         // encoding (octet_length('x') is 1 in UTF-8, 2 in UTF-16). The relay matches an id in its dashless
-        // lower-case form, so ux_{table}_outbox_id keys that form and two spellings of one UUID are one row.
+        // lower-case form, so ux_{table}_job_ref keys that form and two spellings of one UUID are one row.
         // next_run_at_utc is UTC text SQLite reads as written, from year 0001, since the claim reads it into a DateTime: a
         // date SQLite would roll over, or the hour 24 it keeps on some days, fails here.
         // id is the rowid under its own name and, with AUTOINCREMENT, the staging order: every index ends in it,
@@ -61,7 +61,7 @@ public static class SqliteMigrations
         return $"""
             CREATE TABLE {table} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                outbox_id TEXT NOT NULL,
+                job_ref TEXT NOT NULL,
                 namespace_name TEXT NOT NULL,
                 job_name TEXT NOT NULL,
                 input_format_id INTEGER NOT NULL,
@@ -82,11 +82,11 @@ public static class SqliteMigrations
                 next_attempt_at_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
                 claim_token TEXT NULL,
                 claim_until_utc TEXT NULL,
-                CONSTRAINT ck_{table}_outbox_id_uuid CHECK (
-                    octet_length(outbox_id) = length(outbox_id) * octet_length('x')
+                CONSTRAINT ck_{table}_job_ref_uuid CHECK (
+                    octet_length(job_ref) = length(job_ref) * octet_length('x')
                     AND (
-                        outbox_id GLOB replace('xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'x', '[0-9A-Fa-f]')
-                        OR outbox_id GLOB replace('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'x', '[0-9A-Fa-f]'))),
+                        job_ref GLOB replace('xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'x', '[0-9A-Fa-f]')
+                        OR job_ref GLOB replace('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'x', '[0-9A-Fa-f]'))),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
                     AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),
@@ -103,7 +103,7 @@ public static class SqliteMigrations
                     (outbox_status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
                     OR (outbox_status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             ) STRICT;
-            CREATE UNIQUE INDEX ux_{table}_outbox_id ON {table} (lower(replace(outbox_id, '-', '')));
+            CREATE UNIQUE INDEX ux_{table}_job_ref ON {table} (lower(replace(job_ref, '-', '')));
             CREATE INDEX ix_{table}_due ON {table}
                 (outbox_status_code, next_attempt_at_utc);
             CREATE INDEX ix_{table}_claims ON {table} (outbox_status_code, claim_until_utc);

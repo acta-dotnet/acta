@@ -9,7 +9,7 @@ SET
 WHERE
     outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (
-        @p_outbox_ids IS NULL
-        OR lower(replace(outbox_id, '-', '')) IN (SELECT lower(replace(value, '-', '')) FROM json_each(@p_outbox_ids))
+        @p_job_refs IS NULL
+        OR lower(replace(job_ref, '-', '')) IN (SELECT lower(replace(value, '-', '')) FROM json_each(@p_job_refs))
     )
-RETURNING outbox_id;
+RETURNING job_ref;

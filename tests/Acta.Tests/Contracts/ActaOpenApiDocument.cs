@@ -589,18 +589,20 @@ internal static partial class ActaOpenApiDocument
             }
         }
 
-        // An outbox verb's ids name at least one row, and the operation refuses an empty list. A requeue leaves them out for
-        // every quarantined row, and a discard leaves them out when all is true.
+        // An outbox verb's refs name at least one row, and the operation refuses an empty list. A requeue leaves them out for
+        // every quarantined row, and a discard leaves them out when all is true. The generator writes no item schema for a
+        // list of refs, so each item is pointed at the ref's component here.
         foreach (var name in new[] { "DiscardOutboxRequest", "RequeueOutboxRequest" })
         {
             if (
                 schemas.TryGetValue(name, out var verb)
                 && verb is OpenApiSchema { Properties: { } verbProperties }
-                && verbProperties.TryGetValue("outboxIds", out var outboxIds)
-                && outboxIds is OpenApiSchema idList
+                && verbProperties.TryGetValue("jobRefs", out var jobRefs)
+                && jobRefs is OpenApiSchema refList
             )
             {
-                idList.MinItems = 1;
+                refList.MinItems = 1;
+                refList.Items = new OpenApiSchemaReference(nameof(JobRef));
             }
         }
 

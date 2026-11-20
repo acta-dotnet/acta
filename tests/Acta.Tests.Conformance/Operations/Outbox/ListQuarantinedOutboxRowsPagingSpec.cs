@@ -6,19 +6,19 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 
 /// <summary>
 /// Conformance for the operator's quarantine window: the keyset listing pages every Quarantined row by
-/// <c>outbox_id</c> with its failure evidence and no payload, and the count reports the current total -
+/// <c>job_ref</c> with its failure evidence and no payload, and the count reports the current total -
 /// the number the tick summary carries cross-peer.
 /// </summary>
 [ConformanceSpec(
     "outbox-quarantine.listing",
     "Quarantined rows list in keyset pages with their failure evidence",
     Area = "Outbox",
-    Contract = "ListQuarantinedOutboxRows pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total."
+    Contract = "ListQuarantinedOutboxRows pages every Quarantined row by job_ref with identity and failure evidence, and CountQuarantined reports the current total."
 )]
 public sealed class ListQuarantinedOutboxRowsPagingSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "Two keyset pages cover every quarantined row exactly once, evidence intact")]
-    public async Task Listing_pages_by_outbox_id_and_count_reports_the_total()
+    public async Task Listing_pages_by_job_ref_and_count_reports_the_total()
     {
         var ct = TestContext.Current.CancellationToken;
         var quarantined = new List<Guid>();
@@ -32,10 +32,10 @@ public sealed class ListQuarantinedOutboxRowsPagingSpec : OutboxSpecBase
 
         Assert.Equal(3, await Store.CountQuarantinedAsync(ct));
 
-        var first = (await Store.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(PageSize: 2, AfterOutboxId: null), ct)).Items;
+        var first = (await Store.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(PageSize: 2, AfterJobRef: null), ct)).Items;
         Assert.Equal(2, first.Count);
         var second = (
-            await Store.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(PageSize: 2, AfterOutboxId: first[^1].OutboxId), ct)
+            await Store.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(PageSize: 2, AfterJobRef: first[^1].JobRef.Value), ct)
         ).Items;
         Assert.Single(second);
 
@@ -43,8 +43,8 @@ public sealed class ListQuarantinedOutboxRowsPagingSpec : OutboxSpecBase
         // uuid ordering (SQL Server sorts UNIQUEIDENTIFIER by trailing bytes), so pages are asserted
         // disjoint and complete, not .NET-Guid-sorted.
         var listed = first.Concat(second).ToList();
-        Assert.Equal(3, listed.Select(r => r.OutboxId).Distinct().Count());
-        Assert.Equal(quarantined.ToHashSet(), listed.Select(r => r.OutboxId).ToHashSet());
+        Assert.Equal(3, listed.Select(r => r.JobRef.Value).Distinct().Count());
+        Assert.Equal(quarantined.ToHashSet(), listed.Select(r => r.JobRef.Value).ToHashSet());
 
         // Identity and failure evidence ride every row; the payload never leaves the producer table.
         Assert.All(listed, row => Assert.Equal("orders", row.JobNamespace));

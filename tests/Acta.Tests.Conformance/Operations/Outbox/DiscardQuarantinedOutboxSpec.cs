@@ -26,16 +26,16 @@ public sealed class DiscardQuarantinedOutboxSpec : OutboxSpecBase
         var second = await SeedAndQuarantineAsync(Unique("dc-b"), "poison b", ct);
         var (claimed, _) = await SeedAndClaimAsync(Unique("dc-claimed"), ct);
 
-        var targeted = (await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([first]), ct)).OutboxIds;
+        var targeted = (await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([first]), ct)).JobRefs;
         Assert.Equal([first], targeted);
         Assert.False((await Fixture.ReadOutboxRowAsync(TableName, first)).Exists);
         Assert.True((await Fixture.ReadOutboxRowAsync(TableName, second)).Exists);
 
-        var swept = (await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(null), ct)).OutboxIds;
+        var swept = (await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(null), ct)).JobRefs;
         Assert.Equal([second], swept);
 
         // Naming an in-flight claimed row explicitly still deletes nothing: only status 90 qualifies.
-        Assert.Empty((await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([claimed]), ct)).OutboxIds);
+        Assert.Empty((await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([claimed]), ct)).JobRefs);
         Assert.True((await Fixture.ReadOutboxRowAsync(TableName, claimed)).Exists);
         Assert.Equal(1, await Fixture.CountOutboxAsync(TableName));
     }

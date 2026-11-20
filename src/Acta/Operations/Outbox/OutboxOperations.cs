@@ -23,20 +23,22 @@ internal sealed class OutboxOperations(
 
     public Task<RequeueOutboxResponse> RequeueAsync(
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds = null,
+        IReadOnlyList<JobRef>? jobRefs = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => requeueOutbox.HandleAsync(new RequeueOutboxCommand(jobNamespace, outboxIds, reasonMessage, actor), ct);
+    ) => requeueOutbox.HandleAsync(new RequeueOutboxCommand(jobNamespace, Values(jobRefs), reasonMessage, actor), ct);
 
     public Task<DiscardOutboxResponse> DiscardAsync(
         string jobNamespace,
-        IReadOnlyList<Guid>? outboxIds = null,
+        IReadOnlyList<JobRef>? jobRefs = null,
         bool all = false,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => discardOutbox.HandleAsync(new DiscardOutboxCommand(jobNamespace, outboxIds, all, reasonMessage, actor), ct);
+    ) => discardOutbox.HandleAsync(new DiscardOutboxCommand(jobNamespace, Values(jobRefs), all, reasonMessage, actor), ct);
+
+    private static List<Guid>? Values(IReadOnlyList<JobRef>? jobRefs) => jobRefs?.Select(static jobRef => jobRef.Value).ToList();
 
     /// <summary>Reads the slot's pending command under <paramref name="name"/>, or null when the inbox holds none under that name.</summary>
     internal Task<GetOutboxSignalResponse?> GetOutboxSignalAsync(long slotJobId, string name, CancellationToken ct) =>
@@ -128,7 +130,7 @@ internal sealed class OutboxOperations(
         /// </summary>
         public Task<long> CountQuarantinedAsync(CancellationToken ct) => _countQuarantined.HandleAsync(ct);
 
-        /// <summary>One keyset page of Quarantined rows ordered by outbox id: identity and failure evidence, never the payload.</summary>
+        /// <summary>One keyset page of Quarantined rows ordered by job ref: identity and failure evidence, never the payload.</summary>
         public Task<ListQuarantinedOutboxRowsResponse> ListQuarantinedRowsAsync(
             ListQuarantinedOutboxRowsQuery query,
             CancellationToken ct

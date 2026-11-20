@@ -10,8 +10,8 @@ SET
     failure_message = r.failure_message
 FROM
     jsonb_to_recordset(@p_rows::jsonb)
-    AS r (outbox_id uuid, failure_count integer, failure_message varchar(512))
+    AS r (job_ref uuid, failure_count integer, failure_message varchar(512))
 WHERE
-    o.outbox_id = r.outbox_id
+    o.job_ref = r.job_ref
     AND o.claim_token = @p_claim_token
     AND o.outbox_status_code = 20 /* OutboxStatusCode.Claimed */;
