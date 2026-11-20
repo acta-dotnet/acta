@@ -47,9 +47,9 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// The public reference clients see in place of the numeric id ("job_" plus the Guid's 32 hex digits),
-    /// minted in C# as a UUIDv7 (<see cref="Acta.JobRef.New"/>) and never defaulted by the database. It is copied onto
-    /// alerts, and a purge leaves it in the job.purged event's details; it is never used for joins, claim order, or
-    /// keyset paging.
+    /// minted in C# as a UUIDv7 (<see cref="Acta.JobRef.New"/>); the enqueue routines default a missing one, which
+    /// no C# path relies on. It is copied onto alerts, and a purge leaves it in the job.purged event's details; it is
+    /// never used for joins, claim order, or keyset paging.
     /// </summary>
     [DbColumn("job_ref", DbKind.Guid)]
     public Guid JobRef { get; init; }
