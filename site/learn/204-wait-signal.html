@@ -75,14 +75,15 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Wait for a named signal in the handler</h2>
 <p><code>WaitSignalAsync</code> stores the wait as a row and ends this execution. The job reads <code>suspended</code>. Suspends (no executor held) until the named signal is raised, then re-enters with the latched payload.</p>
 <figure class="listing"><figcaption><span class="file">wait-signal.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ApproveExpenseJob
 {
-    <span class="a">[Job(<span class="s">&quot;approve-expense&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;approve-expense&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(ApproveExpense expense, JobContext context, CancellationToken ct)
     {
-<span class="hl">        <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;Decision&gt;(<span class="s">&quot;approval&quot;</span>, ct);</span>
+<span class="hl">        <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;Decision&gt;(<span class="s ct" data-ct="signal" tabindex="0">&quot;approval&quot;</span>, ct);</span>
         <span class="k">var</span> amount = expense.Amount.ToString(<span class="s">&quot;0.00&quot;</span>, CultureInfo.InvariantCulture);
         Console.WriteLine(<span class="s">$&quot;[{expense.Id}] expense for {amount} EUR {(decision!.Approved ? &quot;APPROVED&quot; : &quot;rejected&quot;)} by {decision.By}&quot;</span>);
     }
@@ -330,13 +331,13 @@ EnsureDone(terminal);
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ApproveExpenseJob
     {
-        <span class="a">[Job(<span class="s">&quot;approve-expense&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;approve-expense&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(ApproveExpense expense, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 1. Wait for a named signal in the handler</span>
             <span class="c">// `WaitSignalAsync` stores the wait as a row and ends this execution. The job reads `suspended`.</span>
             <span class="c">// Suspends (no executor held) until the named signal is raised, then re-enters with the latched payload.</span>
-<span class="hl">            <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;Decision&gt;(<span class="s">&quot;approval&quot;</span>, ct);</span>
+<span class="hl">            <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;Decision&gt;(<span class="s ct" data-ct="signal" tabindex="0">&quot;approval&quot;</span>, ct);</span>
             <span class="c">// learn: end</span>
             <span class="k">var</span> amount = expense.Amount.ToString(<span class="s">&quot;0.00&quot;</span>, CultureInfo.InvariantCulture);
             Console.WriteLine(<span class="s">$&quot;[{expense.Id}] expense for {amount} EUR {(decision!.Approved ? &quot;APPROVED&quot; : &quot;rejected&quot;)} by {decision.By}&quot;</span>);

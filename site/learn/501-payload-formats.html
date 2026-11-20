@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Give each format a name and an id</h2>
 <p>The name is what a job writes in its attribute, so it is a constant. The id is stored with every payload: pick one from 128 to 255 and never change it. The ids below 128 are Acta's own.</p>
 <figure class="listing"><figcaption><span class="file">PayloadFormats.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">/// &lt;summary&gt;</span>
@@ -102,7 +103,7 @@ builder.Services.AddSingleton(<span class="k">new</span> LearnLab(builder.Config
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;PayloadFormatsJobs&gt;(<span class="s">&quot;payload-formats&quot;</span>);
+    j.Run&lt;PayloadFormatsJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;payload-formats&quot;</span>);
 });
 builder.Services.AddHostedService&lt;Primer&gt;();
 
@@ -114,7 +115,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
     <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
     <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
 
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;echo-gzip&quot;</span>, Format = PayloadFormats.JsonGzip)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;echo-gzip&quot;</span>, Format = PayloadFormats.JsonGzip)]</span></span>
     <span class="k">public</span> Task&lt;EchoGzip&gt; Handle(EchoGzip input, CancellationToken ct)
     {
         <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _count);
@@ -182,7 +183,7 @@ builder.Services.AddSingleton(<span class="k">new</span> LearnLab(builder.Config
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;PayloadFormatsJobs&gt;(<span class="s">&quot;payload-formats&quot;</span>);
+    j.Run&lt;PayloadFormatsJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;payload-formats&quot;</span>);
 });
 builder.Services.AddHostedService&lt;Primer&gt;();
 
@@ -198,7 +199,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
     <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
     <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
 
-    <span class="a">[Job(<span class="s">&quot;echo-scalar&quot;</span>, Format = PayloadFormats.ScalarV1)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;echo-scalar&quot;</span>, Format = PayloadFormats.ScalarV1)]</span>
     <span class="k">public</span> Task&lt;Guid&gt; Handle(Guid input, CancellationToken ct)
     {
         <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _count);
@@ -223,7 +224,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
     <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
 
     <span class="c">// learn: 3. Name the format on the job</span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;echo-gzip&quot;</span>, Format = PayloadFormats.JsonGzip)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;echo-gzip&quot;</span>, Format = PayloadFormats.JsonGzip)]</span></span>
     <span class="c">// learn: end</span>
     <span class="k">public</span> Task&lt;EchoGzip&gt; Handle(EchoGzip input, CancellationToken ct)
     {
@@ -246,7 +247,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
     <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
     <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
 
-    <span class="a">[Job(<span class="s">&quot;echo-json&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;echo-json&quot;</span>)]</span>
     <span class="k">public</span> Task&lt;EchoJson&gt; Handle(EchoJson input, CancellationToken ct)
     {
         <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _count);

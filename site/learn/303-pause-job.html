@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Pause the job from its handler</h2>
 <p><code>PauseAsync</code> ends the attempt where it stands and parks the job as <code>Paused</code> until someone resumes it. The lines after it run only after the resume, when the handler starts again from its first line.</p>
 <figure class="listing"><figcaption><span class="file">pause-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ApplyMigrationJob
 {
-    <span class="a">[Job(<span class="s">&quot;apply-migration&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;apply-migration&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(ApplyMigration migration, JobContext context, CancellationToken ct)
     {
 <span class="hl">        <span class="k">if</span> (migration.NeedsApproval)</span>
@@ -130,7 +131,7 @@ status=Succeeded</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;PauseJobJobs&gt;(<span class="s">&quot;pause-job&quot;</span>);
+    j.Run&lt;PauseJobJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;pause-job&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -166,7 +167,7 @@ Console.WriteLine(<span class="s">$&quot;status={(await jobs.GetAsync(outcome))!
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ApplyMigrationJob
     {
-        <span class="a">[Job(<span class="s">&quot;apply-migration&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;apply-migration&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(ApplyMigration migration, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 1. Pause the job from its handler</span>

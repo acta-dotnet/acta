@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Register the service as you would for any other code</h2>
 <figure class="listing"><figcaption><span class="file">dependency-injection.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
 
@@ -83,14 +84,14 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;DependencyInjectionJobs&gt;(<span class="s">&quot;dependency-injection&quot;</span>);
+    j.Run&lt;DependencyInjectionJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;dependency-injection&quot;</span>);
 });</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Take it in the constructor of the handler's class</h2>
 <p>Acta constructs a fresh handler instance per attempt, injecting constructor dependencies.</p>
 <figure class="listing"><figcaption><span class="file">dependency-injection.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> WelcomeJob(IEmailSender sender)</span>
 <span class="hl">{</span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;send-welcome-email&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-welcome-email&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">async</span> Task Handle(SendWelcomeEmail input, CancellationToken ct) =&gt;</span>
 <span class="hl">        <span class="k">await</span> sender.SendAsync(input.Email, <span class="s">$&quot;Welcome, {input.Name}!&quot;</span>, ct);</span>
 <span class="hl">}</span></code></pre></figure>
@@ -122,7 +123,7 @@ builder.Services.UseActa(j =&gt;
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;DependencyInjectionJobs&gt;(<span class="s">&quot;dependency-injection&quot;</span>);
+    j.Run&lt;DependencyInjectionJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;dependency-injection&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -158,7 +159,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
     <span class="c">// Acta constructs a fresh handler instance per attempt, injecting constructor dependencies.</span>
 <span class="hl">    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> WelcomeJob(IEmailSender sender)</span>
 <span class="hl">    {</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;send-welcome-email&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-welcome-email&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">async</span> Task Handle(SendWelcomeEmail input, CancellationToken ct) =&gt;</span>
 <span class="hl">            <span class="k">await</span> sender.SendAsync(input.Email, <span class="s">$&quot;Welcome, {input.Name}!&quot;</span>, ct);</span>
 <span class="hl">    }</span>

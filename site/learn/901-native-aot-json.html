@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Declare a source-generated context for the payload types</h2>
 <p>Source-generated context: covers every job input and result type so no runtime reflection is needed under Native AOT. Wired via j.UseJsonPayloads(AotPayloadContext.Default). The two options give enums the wire shape a JIT host writes (camelCase strings), so an AOT worker reads what a JIT producer enqueued.</p>
 <figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = <span class="k">true</span>)]</span></span>
@@ -89,7 +90,7 @@ builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
 <span class="hl">    j.UseJsonPayloads(AotPayloadContext.Default);</span>
-    j.Run&lt;NativeAotJsonJobs&gt;(<span class="s">&quot;native-aot-json&quot;</span>);
+    j.Run&lt;NativeAotJsonJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;native-aot-json&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -143,7 +144,7 @@ builder.Services.UseActa(j =&gt;
     <span class="c">// Wire the source-generated resolver so payload (de)serialization needs no reflection.</span>
 <span class="hl">    j.UseJsonPayloads(AotPayloadContext.Default);</span>
     <span class="c">// learn: end</span>
-    j.Run&lt;NativeAotJsonJobs&gt;(<span class="s">&quot;native-aot-json&quot;</span>);
+    j.Run&lt;NativeAotJsonJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;native-aot-json&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -189,7 +190,7 @@ Console.WriteLine(<span class="s">$&quot;Status: {snapshot!.Status}&quot;</span>
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ProcessOrderJob
     {
-        <span class="a">[Job(<span class="s">&quot;process-order&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-order&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(ProcessOrder input) =&gt; Console.WriteLine(<span class="s">$&quot;Processed order {input.OrderId} x{input.Quantity}&quot;</span>);
     }
 }</code></pre></figure>

@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Pause the schedule when a firing fails for good</h2>
 <p>A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the second job below keeps the default, <code>Continue</code>. <code>FailAsync</code> in the bodies is the program's own helper that throws, so each attempt fails and retries; it is not <code>ctx.FailAsync</code>.</p>
 <figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentDictionary&lt;<span class="k">string</span>, <span class="k">int</span>&gt; FailedAttempts = <span class="k">new</span>();
@@ -82,11 +83,11 @@
 <span class="c">/// &lt;summary&gt;Firings of &lt;paramref name=&quot;job&quot;/&gt; that spent their budget here: two failed attempts each.&lt;/summary&gt;</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> SpentFirings(<span class="k">string</span> job) =&gt; FailedAttempts.GetValueOrDefault(job) / 2;
 
-<span class="hl"><span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
+<span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
 <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
 <span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);
 
-<span class="a">[Job(<span class="s">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
+<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
 <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
 <span class="k">public</span> Task Continuing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-continuing&quot;</span>);</code></pre></figure>
 </div>
@@ -198,12 +199,12 @@ Console.WriteLine(<span class="s">$&quot;sync-prices-continuing  spent {PriceFee
         <span class="c">// A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the</span>
         <span class="c">// second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that</span>
         <span class="c">// throws, so each attempt fails and retries; it is not `ctx.FailAsync`.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
         <span class="c">// learn: end</span>
         <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
         <span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);
 
-        <span class="a">[Job(<span class="s">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
         <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
         <span class="k">public</span> Task Continuing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-continuing&quot;</span>);
 

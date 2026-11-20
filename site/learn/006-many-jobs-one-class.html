@@ -75,17 +75,18 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Put the jobs in one class</h2>
 <p>Each [Job] method in a class registers independently, under the name in its attribute.</p>
 <figure class="listing"><figcaption><span class="file">many-jobs-one-class.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> TextAndMath
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;shout&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;shout&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Shout(<span class="k">string</span> text) =&gt; Console.WriteLine(text.ToUpperInvariant());</span>
 <span class="hl"> </span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;double-it&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;double-it&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Double(<span class="k">int</span> n) =&gt; Console.WriteLine(n * 2);</span>
 <span class="hl"> </span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;halve&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;halve&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Halve(<span class="k">double</span> x) =&gt; Console.WriteLine(x / 2);</span>
 }</code></pre></figure>
 </div>
@@ -127,7 +128,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued 3 jobs. Worker is running - pre
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;ManyJobsOneClassJobs&gt;(<span class="s">&quot;many-jobs-one-class&quot;</span>);
+    j.Run&lt;ManyJobsOneClassJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;many-jobs-one-class&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -153,13 +154,13 @@ Console.WriteLine(<span class="s">&quot;Enqueued 3 jobs. Worker is running - pre
     {
         <span class="c">// learn: 1. Put the jobs in one class</span>
         <span class="c">// Each [Job] method in a class registers independently, under the name in its attribute.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;shout&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;shout&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Shout(<span class="k">string</span> text) =&gt; Console.WriteLine(text.ToUpperInvariant());</span>
 <span class="hl"> </span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;double-it&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;double-it&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Double(<span class="k">int</span> n) =&gt; Console.WriteLine(n * 2);</span>
 <span class="hl"> </span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;halve&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;halve&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Halve(<span class="k">double</span> x) =&gt; Console.WriteLine(x / 2);</span>
         <span class="c">// learn: end</span>
     }

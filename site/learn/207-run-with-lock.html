@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Run the work under a named lock</h2>
 <p>Named lock held for the action; same key serializes both concurrently-running jobs. To exclude the whole job instead, set ConcurrencyKey on enqueue (see 209-concurrency-key).</p>
 <figure class="listing"><figcaption><span class="file">run-with-lock.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> UpdateInventoryJob
 {
-    <span class="a">[Job(<span class="s">&quot;update-inventory&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;update-inventory&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(UpdateInventory input, JobContext context, CancellationToken ct)
     {
 <span class="hl">        <span class="k">await</span> context.RunWithLockAsync(</span>
@@ -118,7 +119,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;RunWithLockJobs&gt;(<span class="s">&quot;run-with-lock&quot;</span>);
+    j.Run&lt;RunWithLockJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;run-with-lock&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -140,7 +141,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued 2 jobs. Worker is running - pre
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> UpdateInventoryJob
     {
-        <span class="a">[Job(<span class="s">&quot;update-inventory&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;update-inventory&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(UpdateInventory input, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: Run the work under a named lock</span>

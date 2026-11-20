@@ -75,9 +75,10 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Wait for the confirmation, with a deadline</h2>
 <p>The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo. <code>CancelAsync</code> ends the handler there, so the lines after it run only for a confirmed sign-up.</p>
-<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
+<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s ct" data-ct="signal" tabindex="0">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
 <span class="hl"><span class="k">if</span> (confirmed.TimedOut)</span>
 <span class="hl">{</span>
 <span class="hl">    Console.WriteLine(<span class="s">$&quot;[{input.Email}] not confirmed in time&quot;</span>);</span>
@@ -87,7 +88,7 @@
 <div class="step"><h2><span class="step-n">2</span>Create the user only after the confirmation</h2>
 <p>Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step adds nothing.</p>
 <figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> ctx.RunStepAsync(</span>
-<span class="hl">    <span class="s">&quot;create-user&quot;</span>,</span>
+<span class="hl">    <span class="s ct" data-ct="step" tabindex="0">&quot;create-user&quot;</span>,</span>
 <span class="hl">    _ =&gt;</span>
 <span class="hl">    {</span>
 <span class="hl">        users.CreateIfAbsent(input.Email, input.DisplayName);</span>
@@ -160,7 +161,7 @@ builder.Services.AddSingleton&lt;UserStore&gt;();
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;PendingSignupJobs&gt;(<span class="s">&quot;pending-signup&quot;</span>);
+    j.Run&lt;PendingSignupJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;pending-signup&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -226,11 +227,11 @@ Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RegistrationJobs(UserStore users)
     {
         <span class="c">// The finished job is kept with its input for seven days, not the default ninety.</span>
-        <span class="a">[Job(<span class="s">&quot;register-user&quot;</span>, JobRetention = <span class="s">&quot;7d&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;register-user&quot;</span>, JobRetention = <span class="s">&quot;7d&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(RegisterUser input, JobContext ctx, CancellationToken ct)
         {
             <span class="k">await</span> ctx.RunStepAsync(
-                <span class="s">&quot;send-confirmation&quot;</span>,
+                <span class="s ct" data-ct="step" tabindex="0">&quot;send-confirmation&quot;</span>,
                 _ =&gt;
                 {
                     Console.WriteLine(<span class="s">$&quot;[{input.Email}] confirmation email sent&quot;</span>);
@@ -243,7 +244,7 @@ Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</
             <span class="c">// The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When</span>
             <span class="c">// nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.</span>
             <span class="c">// `CancelAsync` ends the handler there, so the lines after it run only for a confirmed sign-up.</span>
-<span class="hl">            <span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
+<span class="hl">            <span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s ct" data-ct="signal" tabindex="0">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
 <span class="hl">            <span class="k">if</span> (confirmed.TimedOut)</span>
 <span class="hl">            {</span>
 <span class="hl">                Console.WriteLine(<span class="s">$&quot;[{input.Email}] not confirmed in time&quot;</span>);</span>
@@ -255,7 +256,7 @@ Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</
             <span class="c">// Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step</span>
             <span class="c">// adds nothing.</span>
 <span class="hl">            <span class="k">await</span> ctx.RunStepAsync(</span>
-<span class="hl">                <span class="s">&quot;create-user&quot;</span>,</span>
+<span class="hl">                <span class="s ct" data-ct="step" tabindex="0">&quot;create-user&quot;</span>,</span>
 <span class="hl">                _ =&gt;</span>
 <span class="hl">                {</span>
 <span class="hl">                    users.CreateIfAbsent(input.Email, input.DisplayName);</span>

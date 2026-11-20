@@ -75,19 +75,20 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Choose the misfire strategy on the schedule</h2>
 <p><code>MisfireStrategy</code> says what the next admission pass does with the occurrences that came due while the schedule could not fire.</p>
 <figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MisfireJobs
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;skip-report&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;skip-report&quot;</span>)]</span></span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.Skip)]</span></span>
 <span class="hl">    <span class="k">public</span> Task Skip(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
 <span class="hl"> </span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;catch-up-once-report&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;catch-up-once-report&quot;</span>)]</span></span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]</span></span>
 <span class="hl">    <span class="k">public</span> Task CatchUpOnce(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
 <span class="hl"> </span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;catch-up-all-report&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;catch-up-all-report&quot;</span>)]</span></span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpAll)]</span></span>
 <span class="hl">    <span class="k">public</span> Task CatchUpAll(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
 
@@ -324,15 +325,15 @@ Console.WriteLine(<span class="s">$&quot;catch-up-all-report    ran {all.Count} 
         <span class="c">// learn: 1. Choose the misfire strategy on the schedule</span>
         <span class="c">// `MisfireStrategy` says what the next admission pass does with the occurrences that came due while the</span>
         <span class="c">// schedule could not fire.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;skip-report&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;skip-report&quot;</span>)]</span></span>
 <span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.Skip)]</span></span>
 <span class="hl">        <span class="k">public</span> Task Skip(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
 <span class="hl"> </span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;catch-up-once-report&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;catch-up-once-report&quot;</span>)]</span></span>
 <span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]</span></span>
 <span class="hl">        <span class="k">public</span> Task CatchUpOnce(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
 <span class="hl"> </span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;catch-up-all-report&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;catch-up-all-report&quot;</span>)]</span></span>
 <span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpAll)]</span></span>
 <span class="hl">        <span class="k">public</span> Task CatchUpAll(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
 

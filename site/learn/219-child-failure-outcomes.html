@@ -75,12 +75,13 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Carry on without the items that failed</h2>
 <p>The map does not throw for a failed item. <code>Failed</code> lists them, and this parent returns a partial result and lands Succeeded.</p>
 <figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">string</span>[] ids = [<span class="s">&quot;item-a&quot;</span>, <span class="s">&quot;item-b&quot;</span>, <span class="s">&quot;item-c&quot;</span>];
 
 <span class="hl"><span class="k">var</span> result = <span class="k">await</span> context.MapAsync(</span>
-<span class="hl">    <span class="s">&quot;process&quot;</span>,</span>
+<span class="hl">    <span class="s ct" data-ct="child" tabindex="0">&quot;process&quot;</span>,</span>
 <span class="hl">    ids,</span>
 <span class="hl">    itemKey: id =&gt; id,</span>
 <span class="hl">    child: id =&gt; <span class="k">new</span> ProcessItem(id, ShouldFail: id == <span class="s">&quot;item-b&quot;</span>),</span>
@@ -100,11 +101,11 @@
 <p>ThrowIfAnyFailed throws ChildGroupException; the parent lands Failed.</p>
 <figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Scenario 2: two children enqueued and waited for; one child fails. The handler calls</span>
 <span class="c">// ThrowIfAnyFailed on the outcome, and the parent lands Failed at once, with no retry.</span>
-<span class="a">[Job(<span class="s">&quot;run-join-escalated&quot;</span>)]</span>
+<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;run-join-escalated&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
 {
-    <span class="k">var</span> alpha = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;alpha&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;alpha&quot;</span>, ShouldFail: <span class="k">false</span>), ct);
-    <span class="k">var</span> beta = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;beta&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;beta&quot;</span>, ShouldFail: <span class="k">true</span>), ct);
+    <span class="k">var</span> alpha = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;alpha&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;alpha&quot;</span>, ShouldFail: <span class="k">false</span>), ct);
+    <span class="k">var</span> beta = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;beta&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;beta&quot;</span>, ShouldFail: <span class="k">true</span>), ct);
 
     <span class="k">var</span> result = <span class="k">await</span> context.WaitChildrenAsync([alpha, beta], ct);
 
@@ -141,7 +142,7 @@ parent: Failed (expected Failed)</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;ChildFailureOutcomesJobs&gt;(<span class="s">&quot;child-failure-outcomes&quot;</span>);
+    j.Run&lt;ChildFailureOutcomesJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;child-failure-outcomes&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -185,7 +186,7 @@ Console.WriteLine(<span class="s">$&quot;parent: {joinOutcome.Status} (expected 
     {
         <span class="c">// Scenario 1: map over three items; one item is rigged to fail. After waiting, the handler</span>
         <span class="c">// checks MapOutcome.Failed and returns a partial summary; the parent lands Succeeded.</span>
-        <span class="a">[Job(<span class="s">&quot;run-map-soft&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;run-map-soft&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;MapReport&gt; HandleMapSoft(RunMapSoft _, JobContext context, CancellationToken ct)
         {
             <span class="k">string</span>[] ids = [<span class="s">&quot;item-a&quot;</span>, <span class="s">&quot;item-b&quot;</span>, <span class="s">&quot;item-c&quot;</span>];
@@ -194,7 +195,7 @@ Console.WriteLine(<span class="s">$&quot;parent: {joinOutcome.Status} (expected 
             <span class="c">// The map does not throw for a failed item. `Failed` lists them, and this parent returns a partial result</span>
             <span class="c">// and lands Succeeded.</span>
 <span class="hl">            <span class="k">var</span> result = <span class="k">await</span> context.MapAsync(</span>
-<span class="hl">                <span class="s">&quot;process&quot;</span>,</span>
+<span class="hl">                <span class="s ct" data-ct="child" tabindex="0">&quot;process&quot;</span>,</span>
 <span class="hl">                ids,</span>
 <span class="hl">                itemKey: id =&gt; id,</span>
 <span class="hl">                child: id =&gt; <span class="k">new</span> ProcessItem(id, ShouldFail: id == <span class="s">&quot;item-b&quot;</span>),</span>
@@ -214,7 +215,7 @@ Console.WriteLine(<span class="s">$&quot;parent: {joinOutcome.Status} (expected 
 
         <span class="c">// FailAsync ends the job Failed at once, with no retry, and leaves MaxAttempts to absorb crashes; a thrown</span>
         <span class="c">// exception would retry, and MaxAttempts = 1 would fail the job on its first crash too.</span>
-        <span class="a">[Job(<span class="s">&quot;process-item&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-item&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task ProcessItemHandler(ProcessItem input, JobContext context, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(100, ct);
@@ -228,11 +229,11 @@ Console.WriteLine(<span class="s">$&quot;parent: {joinOutcome.Status} (expected 
 
         <span class="c">// Scenario 2: two children enqueued and waited for; one child fails. The handler calls</span>
         <span class="c">// ThrowIfAnyFailed on the outcome, and the parent lands Failed at once, with no retry.</span>
-        <span class="a">[Job(<span class="s">&quot;run-join-escalated&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;run-join-escalated&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
         {
-            <span class="k">var</span> alpha = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;alpha&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;alpha&quot;</span>, ShouldFail: <span class="k">false</span>), ct);
-            <span class="k">var</span> beta = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;beta&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;beta&quot;</span>, ShouldFail: <span class="k">true</span>), ct);
+            <span class="k">var</span> alpha = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;alpha&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;alpha&quot;</span>, ShouldFail: <span class="k">false</span>), ct);
+            <span class="k">var</span> beta = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;beta&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;beta&quot;</span>, ShouldFail: <span class="k">true</span>), ct);
 
             <span class="k">var</span> result = <span class="k">await</span> context.WaitChildrenAsync([alpha, beta], ct);
 
@@ -248,7 +249,7 @@ Console.WriteLine(<span class="s">$&quot;parent: {joinOutcome.Status} (expected 
         }
 
         <span class="c">// FailAsync, as in process-item: the failing child ends at once and keeps its budget for crashes.</span>
-        <span class="a">[Job(<span class="s">&quot;run-child&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;run-child&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task RunChildHandler(RunChild input, JobContext context, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(100, ct);

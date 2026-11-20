@@ -75,9 +75,10 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Raise the alert from the handler</h2>
 <p>No channel name routes to the implicit &quot;default&quot; channel (log transport). The database stores only the channel name; delivery configuration comes from worker startup.</p>
-<figure class="listing"><figcaption><span class="file">alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;verify-backup&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="file">alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;verify-backup&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task Handle(VerifyBackup input, JobContext context, CancellationToken ct)
 {
     <span class="k">await</span> Task.Delay(50, ct);
@@ -138,7 +139,7 @@ alert [Error] Backup verification failed: photos -&gt; channel 'default'</code><
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;AlertsJobs&gt;(<span class="s">&quot;alerts&quot;</span>);
+    j.Run&lt;AlertsJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;alerts&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -170,7 +171,7 @@ builder.Services.UseActa(j =&gt;
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> VerifyBackupJob
     {
-        <span class="a">[Job(<span class="s">&quot;verify-backup&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;verify-backup&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(VerifyBackup input, JobContext context, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);

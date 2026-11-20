@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Start one test host for the test class</h2>
 <p>The fixture starts the host, and migrates its schema, once per test class rather than once per test.</p>
 <figure class="listing"><figcaption><span class="file">ActaHostFixture.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> IActaTestHost Host { <span class="k">get</span>; <span class="k">private</span> <span class="k">set</span>; } = <span class="k">null</span>!;
@@ -87,7 +88,7 @@
 <span class="hl">        (j, schema) =&gt;</span>
 <span class="hl">        {</span>
 <span class="hl">            j.UseLocalDatabase(configuration, schema);</span>
-<span class="hl">            j.Run&lt;TestingJobs&gt;(<span class="s">&quot;testing-jobs&quot;</span>);</span>
+<span class="hl">            j.Run&lt;TestingJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;testing-jobs&quot;</span>);</span>
 <span class="hl">        }</span>
 <span class="hl">    );</span>
 }</code></pre></figure>
@@ -204,7 +205,7 @@
 <span class="hl">            (j, schema) =&gt;</span>
 <span class="hl">            {</span>
 <span class="hl">                j.UseLocalDatabase(configuration, schema);</span>
-<span class="hl">                j.Run&lt;TestingJobs&gt;(<span class="s">&quot;testing-jobs&quot;</span>);</span>
+<span class="hl">                j.Run&lt;TestingJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;testing-jobs&quot;</span>);</span>
 <span class="hl">            }</span>
 <span class="hl">        );</span>
         <span class="c">// learn: end</span>
@@ -239,7 +240,7 @@
 <span class="c">// backoff keeps each retry due now, so one attempt == one RunOnceAsync tick.</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> EchoJob
 {
-    <span class="a">[Job(<span class="s">&quot;echo&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;echo&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> EchoResult Handle(Echo input) =&gt;
         input.Message == <span class="s">&quot;boom&quot;</span> ? <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;echo cannot say boom&quot;</span>) : <span class="k">new</span>(input.Message);
 }</code></pre></figure>

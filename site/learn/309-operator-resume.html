@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Pause the job</h2>
 <p>The job is not yet claimable (delayed), so the transition is Applied.</p>
 <figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before</span>
@@ -122,7 +123,7 @@ Console.WriteLine(<span class="s">$&quot;PauseAsync on terminal -&gt; action={re
 <div class="step"><h2><span class="step-n">5</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessReportJob
 {
-    <span class="a">[Job(<span class="s">&quot;process-report&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-report&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(ProcessReport input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{input.Name}] processing started&quot;</span>);
@@ -157,7 +158,7 @@ PauseAsync on terminal -&gt; action=Rejected blocking-status=Succeeded</code></p
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;OperatorResumeJobs&gt;(<span class="s">&quot;operator-resume&quot;</span>);
+    j.Run&lt;OperatorResumeJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;operator-resume&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -222,7 +223,7 @@ Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessReportJob
     {
-        <span class="a">[Job(<span class="s">&quot;process-report&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-report&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(ProcessReport input, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.Name}] processing started&quot;</span>);

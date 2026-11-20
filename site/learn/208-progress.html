@@ -75,9 +75,10 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Store the progress as the work advances</h2>
 <p>Each call replaces the last value. The dashboard shows it with the job's checkpoints; a page of your own reads a variable instead (415).</p>
-<figure class="listing"><figcaption><span class="file">progress.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;import-file&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="file">progress.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;import-file&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task Handle(ImportFile input, JobContext context, CancellationToken ct)
 {
     <span class="k">for</span> (<span class="k">var</span> row = 1; row &lt;= input.Rows; row++)
@@ -120,7 +121,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;ProgressJobs&gt;(<span class="s">&quot;progress&quot;</span>);
+    j.Run&lt;ProgressJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;progress&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -140,7 +141,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ImportFileJob
     {
-        <span class="a">[Job(<span class="s">&quot;import-file&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;import-file&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(ImportFile input, JobContext context, CancellationToken ct)
         {
             <span class="k">for</span> (<span class="k">var</span> row = 1; row &lt;= input.Rows; row++)

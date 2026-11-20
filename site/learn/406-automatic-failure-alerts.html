@@ -75,12 +75,13 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Say on the job when its failures alert, and where</h2>
 <p>AlertProfile = OnFailure + AlertChannelName routes automatic alerts to the &quot;default&quot; log channel. RunbookUrl surfaces on the delivered alert log line (LogAlertTransport prints runbook=...), not on list queries. Backoff = 0s skips the wait between retries. The program cancels the job during its third attempt, so the alert stays at the FirstFailure stage.</p>
 <figure class="listing"><figcaption><span class="file">automatic-failure-alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ProcessReportJob
 {
 <span class="hl">    <span class="a">[Job(</span></span>
-<span class="hl"><span class="a">        <span class="s">&quot;process-report&quot;</span>,</span></span>
+<span class="hl"><span class="a">        <span class="s ct" data-ct="job" tabindex="0">&quot;process-report&quot;</span>,</span></span>
 <span class="hl"><span class="a">        AlertProfile = AlertProfileCode.OnFailure,</span></span>
 <span class="hl"><span class="a">        AlertChannelName = <span class="s">&quot;default&quot;</span>,</span></span>
 <span class="hl"><span class="a">        RunbookUrl = <span class="s">&quot;https://runbooks.example.com/process-report&quot;</span>,</span></span>
@@ -201,7 +202,7 @@ ListAlertsResponse? alertPage = <span class="k">null</span>;
         <span class="c">// Backoff = 0s skips the wait between retries. The program cancels the job during its third</span>
         <span class="c">// attempt, so the alert stays at the FirstFailure stage.</span>
 <span class="hl">        <span class="a">[Job(</span></span>
-<span class="hl"><span class="a">            <span class="s">&quot;process-report&quot;</span>,</span></span>
+<span class="hl"><span class="a">            <span class="s ct" data-ct="job" tabindex="0">&quot;process-report&quot;</span>,</span></span>
 <span class="hl"><span class="a">            AlertProfile = AlertProfileCode.OnFailure,</span></span>
 <span class="hl"><span class="a">            AlertChannelName = <span class="s">&quot;default&quot;</span>,</span></span>
 <span class="hl"><span class="a">            RunbookUrl = <span class="s">&quot;https://runbooks.example.com/process-report&quot;</span>,</span></span>

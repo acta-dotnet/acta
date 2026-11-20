@@ -75,9 +75,10 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the job a retry budget, because a crash spends an attempt</h2>
 <p>Nothing in the handler recovers the job. A worker that dies stops heartbeating, the lease on its job lapses, and another worker reclaims the job as a failed attempt and runs it again.</p>
-<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[Job(<span class="s">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
+<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Handle(CrashRecoveryProbe input, CancellationToken ct)
 {
     Console.WriteLine(<span class="s">$&quot;[{role.Name}] executing {input.ProbeId}; ordinary handler code is at-least-once.&quot;</span>);
@@ -355,7 +356,7 @@ Console.WriteLine(<span class="s">&quot;Worker B is live. Waiting for A's short 
         <span class="c">// learn: 1. Give the job a retry budget, because a crash spends an attempt</span>
         <span class="c">// Nothing in the handler recovers the job. A worker that dies stops heartbeating, the lease on its job lapses,</span>
         <span class="c">// and another worker reclaims the job as a failed attempt and runs it again.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(CrashRecoveryProbe input, CancellationToken ct)
         {

@@ -75,13 +75,14 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the job its retry budget</h2>
 <p>A step retries through its job: a body that throws fails the attempt, MaxAttempts and Backoff retry it, and the retry replays the steps that already succeeded, so the slot is reserved once.</p>
-<figure class="listing"><figcaption><span class="file">step-retry.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[Job(<span class="s">&quot;fetch-forecast&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;1s&quot;</span>)]</span></span>
+<figure class="listing"><figcaption><span class="file">step-retry.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;fetch-forecast&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;1s&quot;</span>)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Handle(FetchForecast input, JobContext context, CancellationToken ct)
 {
     <span class="k">await</span> context.RunStepAsync(
-        <span class="s">&quot;reserve-slot&quot;</span>,
+        <span class="s ct" data-ct="step" tabindex="0">&quot;reserve-slot&quot;</span>,
         <span class="k">async</span> inner =&gt;
         {
             Console.WriteLine(<span class="s">$&quot;[{input.City}] report slot reserved&quot;</span>);
@@ -93,7 +94,7 @@
     <span class="k">try</span>
     {
         <span class="k">await</span> context.RunStepAsync(
-            <span class="s">&quot;call-weather-api&quot;</span>,
+            <span class="s ct" data-ct="step" tabindex="0">&quot;call-weather-api&quot;</span>,
             <span class="k">async</span> inner =&gt;
             {
                 Console.WriteLine(<span class="s">$&quot;[{input.City}] calling weather API (attempt {context.ExecutionNumber})&quot;</span>);
@@ -112,7 +113,7 @@
         <span class="c">// This failure ends the job, so give the slot back first. Best effort: a crash on the last attempt</span>
         <span class="c">// skips this block, which is why the release is a step of its own and safe to repeat.</span>
         <span class="k">await</span> context.RunStepAsync(
-            <span class="s">&quot;release-slot&quot;</span>,
+            <span class="s ct" data-ct="step" tabindex="0">&quot;release-slot&quot;</span>,
             <span class="k">async</span> inner =&gt;
             {
                 Console.WriteLine(<span class="s">$&quot;[{input.City}] report slot released; the job fails for good&quot;</span>);
@@ -131,7 +132,7 @@
 <figure class="listing"><figcaption><span class="file">step-retry.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">try</span>
 {
     <span class="k">await</span> context.RunStepAsync(
-        <span class="s">&quot;call-weather-api&quot;</span>,
+        <span class="s ct" data-ct="step" tabindex="0">&quot;call-weather-api&quot;</span>,
         <span class="k">async</span> inner =&gt;
         {
             Console.WriteLine(<span class="s">$&quot;[{input.City}] calling weather API (attempt {context.ExecutionNumber})&quot;</span>);
@@ -150,7 +151,7 @@
 <span class="hl">    <span class="c">// This failure ends the job, so give the slot back first. Best effort: a crash on the last attempt</span></span>
 <span class="hl">    <span class="c">// skips this block, which is why the release is a step of its own and safe to repeat.</span></span>
 <span class="hl">    <span class="k">await</span> context.RunStepAsync(</span>
-<span class="hl">        <span class="s">&quot;release-slot&quot;</span>,</span>
+<span class="hl">        <span class="s ct" data-ct="step" tabindex="0">&quot;release-slot&quot;</span>,</span>
 <span class="hl">        <span class="k">async</span> inner =&gt;</span>
 <span class="hl">        {</span>
 <span class="hl">            Console.WriteLine(<span class="s">$&quot;[{input.City}] report slot released; the job fails for good&quot;</span>);</span>
@@ -187,7 +188,7 @@ Console.WriteLine(<span class="s">$&quot;[{input.City}] forecast stored&quot;</s
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;StepRetryJobs&gt;(<span class="s">&quot;step-retry&quot;</span>);
+    j.Run&lt;StepRetryJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;step-retry&quot;</span>);
 });
 
 <span class="c">// The steps fail on purpose to show the retries; quiet the framework retry logging.</span>
@@ -215,12 +216,12 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
         <span class="c">// learn: 1. Give the job its retry budget</span>
         <span class="c">// A step retries through its job: a body that throws fails the attempt, MaxAttempts and Backoff retry it,</span>
         <span class="c">// and the retry replays the steps that already succeeded, so the slot is reserved once.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;fetch-forecast&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;1s&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;fetch-forecast&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;1s&quot;</span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(FetchForecast input, JobContext context, CancellationToken ct)
         {
             <span class="k">await</span> context.RunStepAsync(
-                <span class="s">&quot;reserve-slot&quot;</span>,
+                <span class="s ct" data-ct="step" tabindex="0">&quot;reserve-slot&quot;</span>,
                 <span class="k">async</span> inner =&gt;
                 {
                     Console.WriteLine(<span class="s">$&quot;[{input.City}] report slot reserved&quot;</span>);
@@ -232,7 +233,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
             <span class="k">try</span>
             {
                 <span class="k">await</span> context.RunStepAsync(
-                    <span class="s">&quot;call-weather-api&quot;</span>,
+                    <span class="s ct" data-ct="step" tabindex="0">&quot;call-weather-api&quot;</span>,
                     <span class="k">async</span> inner =&gt;
                     {
                         Console.WriteLine(<span class="s">$&quot;[{input.City}] calling weather API (attempt {context.ExecutionNumber})&quot;</span>);
@@ -253,7 +254,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 <span class="hl">                <span class="c">// This failure ends the job, so give the slot back first. Best effort: a crash on the last attempt</span></span>
 <span class="hl">                <span class="c">// skips this block, which is why the release is a step of its own and safe to repeat.</span></span>
 <span class="hl">                <span class="k">await</span> context.RunStepAsync(</span>
-<span class="hl">                    <span class="s">&quot;release-slot&quot;</span>,</span>
+<span class="hl">                    <span class="s ct" data-ct="step" tabindex="0">&quot;release-slot&quot;</span>,</span>
 <span class="hl">                    <span class="k">async</span> inner =&gt;</span>
 <span class="hl">                    {</span>
 <span class="hl">                        Console.WriteLine(<span class="s">$&quot;[{input.City}] report slot released; the job fails for good&quot;</span>);</span>

@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Start a job at an instant</h2>
 <p>Pin the earliest claim to an absolute wall-clock instant rather than a relative delay. This demo uses a two-second offset so the run stays fast.</p>
 <figure class="listing"><figcaption><span class="file">absolute-time-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -92,13 +93,13 @@ Console.WriteLine(<span class="s">$&quot;  job {report.JobRef} is Ready, due lat
 <p>SleepUntilAsync arms a named durable timer at an absolute instant; on replay after the instant passes the named timer is already consumed and the handler continues.</p>
 <figure class="listing"><figcaption><span class="file">absolute-time-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReportJob
 {
-    <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;generate-report&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[generate-report] claimed at {DateTime.UtcNow:HH:mm:ss.fff} UTC&quot;</span>);
 
 <span class="hl">        Console.WriteLine(<span class="s">$&quot;[generate-report] sleeping until absolute instant {input.SleepUntil:HH:mm:ss.fff} UTC&quot;</span>);</span>
-<span class="hl">        <span class="k">await</span> context.SleepUntilAsync(<span class="s">&quot;report-delay&quot;</span>, input.SleepUntil, ct: ct);</span>
+<span class="hl">        <span class="k">await</span> context.SleepUntilAsync(<span class="s ct" data-ct="timer" tabindex="0">&quot;report-delay&quot;</span>, input.SleepUntil, ct: ct);</span>
 
         Console.WriteLine(<span class="s">$&quot;[generate-report] resumed at {DateTime.UtcNow:HH:mm:ss.fff} UTC; report for {input.Period} sent&quot;</span>);
     }
@@ -110,7 +111,7 @@ Console.WriteLine(<span class="s">$&quot;  job {report.JobRef} is Ready, due lat
 {
     <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _runs;
 
-    <span class="a">[Job(<span class="s">&quot;poll-external&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;poll-external&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(PollExternal input, JobContext context, CancellationToken ct)
     {
         <span class="k">var</span> run = Interlocked.Increment(<span class="k">ref</span> _runs);
@@ -152,7 +153,7 @@ PollExternal final status:   Succeeded</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;AbsoluteTimeControlsJobs&gt;(<span class="s">&quot;absolute-time-controls&quot;</span>);
+    j.Run&lt;AbsoluteTimeControlsJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;absolute-time-controls&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -198,7 +199,7 @@ Console.WriteLine(<span class="s">$&quot;PollExternal final status:   {pollSnap!
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReportJob
     {
-        <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;generate-report&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[generate-report] claimed at {DateTime.UtcNow:HH:mm:ss.fff} UTC&quot;</span>);
@@ -207,7 +208,7 @@ Console.WriteLine(<span class="s">$&quot;PollExternal final status:   {pollSnap!
             <span class="c">// SleepUntilAsync arms a named durable timer at an absolute instant; on replay after the</span>
             <span class="c">// instant passes the named timer is already consumed and the handler continues.</span>
 <span class="hl">            Console.WriteLine(<span class="s">$&quot;[generate-report] sleeping until absolute instant {input.SleepUntil:HH:mm:ss.fff} UTC&quot;</span>);</span>
-<span class="hl">            <span class="k">await</span> context.SleepUntilAsync(<span class="s">&quot;report-delay&quot;</span>, input.SleepUntil, ct: ct);</span>
+<span class="hl">            <span class="k">await</span> context.SleepUntilAsync(<span class="s ct" data-ct="timer" tabindex="0">&quot;report-delay&quot;</span>, input.SleepUntil, ct: ct);</span>
             <span class="c">// learn: end</span>
 
             Console.WriteLine(<span class="s">$&quot;[generate-report] resumed at {DateTime.UtcNow:HH:mm:ss.fff} UTC; report for {input.Period} sent&quot;</span>);
@@ -218,7 +219,7 @@ Console.WriteLine(<span class="s">$&quot;PollExternal final status:   {pollSnap!
     {
         <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _runs;
 
-        <span class="a">[Job(<span class="s">&quot;poll-external&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;poll-external&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(PollExternal input, JobContext context, CancellationToken ct)
         {
             <span class="k">var</span> run = Interlocked.Increment(<span class="k">ref</span> _runs);

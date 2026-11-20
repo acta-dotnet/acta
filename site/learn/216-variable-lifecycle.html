@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Compute a value once</h2>
 <p>GetOrSet: factory runs on the first call; the second call returns the stored value without invoking the factory.</p>
 <figure class="listing"><figcaption><span class="file">variable-lifecycle.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> factoryCalls = 0;
 <span class="hl"><span class="k">var</span> v1 = <span class="k">await</span> context.GetOrSetVariableAsync(</span>
-<span class="hl">    <span class="s">&quot;counter&quot;</span>,</span>
+<span class="hl">    <span class="s ct" data-ct="variable" tabindex="0">&quot;counter&quot;</span>,</span>
 <span class="hl">    () =&gt;</span>
 <span class="hl">    {</span>
 <span class="hl">        factoryCalls++;</span>
@@ -88,7 +89,7 @@
 <span class="hl">    ct</span>
 <span class="hl">);</span>
 <span class="hl"><span class="k">var</span> v2 = <span class="k">await</span> context.GetOrSetVariableAsync(</span>
-<span class="hl">    <span class="s">&quot;counter&quot;</span>,</span>
+<span class="hl">    <span class="s ct" data-ct="variable" tabindex="0">&quot;counter&quot;</span>,</span>
 <span class="hl">    () =&gt;</span>
 <span class="hl">    {</span>
 <span class="hl">        factoryCalls++;</span>
@@ -112,7 +113,7 @@ Console.WriteLine(<span class="s">$&quot;exists before delete: {existsBefore}&qu
 <span class="hl"><span class="k">var</span> existsAfter = <span class="k">await</span> context.ExistsVariableAsync(<span class="s">&quot;counter&quot;</span>, ct);</span>
 Console.WriteLine(<span class="s">$&quot;exists after delete: {existsAfter}&quot;</span>);
 
-<span class="k">var</span> fallback = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s">&quot;counter&quot;</span>, <span class="s">&quot;missing&quot;</span>, ct);
+<span class="k">var</span> fallback = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;counter&quot;</span>, <span class="s">&quot;missing&quot;</span>, ct);
 Console.WriteLine(<span class="s">$&quot;default fallback: {fallback}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read a variable that may not be there</h2>
@@ -121,7 +122,7 @@ Console.WriteLine(<span class="s">$&quot;default fallback: {fallback}&quot;</spa
 <span class="k">var</span> existsAfter = <span class="k">await</span> context.ExistsVariableAsync(<span class="s">&quot;counter&quot;</span>, ct);
 Console.WriteLine(<span class="s">$&quot;exists after delete: {existsAfter}&quot;</span>);
 
-<span class="hl"><span class="k">var</span> fallback = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s">&quot;counter&quot;</span>, <span class="s">&quot;missing&quot;</span>, ct);</span>
+<span class="hl"><span class="k">var</span> fallback = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;counter&quot;</span>, <span class="s">&quot;missing&quot;</span>, ct);</span>
 Console.WriteLine(<span class="s">$&quot;default fallback: {fallback}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
@@ -151,7 +152,7 @@ raw payload round-trip: raw-value</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;VariableLifecycleJobs&gt;(<span class="s">&quot;variable-lifecycle&quot;</span>);
+    j.Run&lt;VariableLifecycleJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;variable-lifecycle&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -169,14 +170,14 @@ builder.Services.UseActa(j =&gt;
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> InspectVariablesJob
     {
-        <span class="a">[Job(<span class="s">&quot;inspect-variables&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;inspect-variables&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(InspectVariables input, JobContext context, CancellationToken ct)
         {
             <span class="k">var</span> factoryCalls = 0;
             <span class="c">// learn: 1. Compute a value once</span>
             <span class="c">// GetOrSet: factory runs on the first call; the second call returns the stored value without invoking the factory.</span>
 <span class="hl">            <span class="k">var</span> v1 = <span class="k">await</span> context.GetOrSetVariableAsync(</span>
-<span class="hl">                <span class="s">&quot;counter&quot;</span>,</span>
+<span class="hl">                <span class="s ct" data-ct="variable" tabindex="0">&quot;counter&quot;</span>,</span>
 <span class="hl">                () =&gt;</span>
 <span class="hl">                {</span>
 <span class="hl">                    factoryCalls++;</span>
@@ -185,7 +186,7 @@ builder.Services.UseActa(j =&gt;
 <span class="hl">                ct</span>
 <span class="hl">            );</span>
 <span class="hl">            <span class="k">var</span> v2 = <span class="k">await</span> context.GetOrSetVariableAsync(</span>
-<span class="hl">                <span class="s">&quot;counter&quot;</span>,</span>
+<span class="hl">                <span class="s ct" data-ct="variable" tabindex="0">&quot;counter&quot;</span>,</span>
 <span class="hl">                () =&gt;</span>
 <span class="hl">                {</span>
 <span class="hl">                    factoryCalls++;</span>
@@ -209,14 +210,14 @@ builder.Services.UseActa(j =&gt;
 
             <span class="c">// learn: 3. Read a variable that may not be there</span>
             <span class="c">// GetVariableOrDefaultAsync with a default value: absent variable returns the supplied default.</span>
-<span class="hl">            <span class="k">var</span> fallback = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s">&quot;counter&quot;</span>, <span class="s">&quot;missing&quot;</span>, ct);</span>
+<span class="hl">            <span class="k">var</span> fallback = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;counter&quot;</span>, <span class="s">&quot;missing&quot;</span>, ct);</span>
             <span class="c">// learn: end</span>
             Console.WriteLine(<span class="s">$&quot;default fallback: {fallback}&quot;</span>);
 
             <span class="c">// Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.</span>
             <span class="k">var</span> raw = JobPayload.Json(<span class="s">&quot;raw-value&quot;</span>);
-            <span class="k">await</span> context.SetVariableAsync(<span class="s">&quot;raw-var&quot;</span>, raw, ct);
-            <span class="k">var</span> rawBack = <span class="k">await</span> context.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(<span class="s">&quot;raw-var&quot;</span>, ct);
+            <span class="k">await</span> context.SetVariableAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;raw-var&quot;</span>, raw, ct);
+            <span class="k">var</span> rawBack = <span class="k">await</span> context.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(<span class="s ct" data-ct="variable" tabindex="0">&quot;raw-var&quot;</span>, ct);
             Console.WriteLine(<span class="s">$&quot;raw payload round-trip: {rawBack}&quot;</span>);
         }
     }

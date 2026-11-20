@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Set the correlation key when you enqueue</h2>
 <p>JobExecutionOptions extends JobEnqueueOptions, so CorrelationKey is an enqueue-time option here.</p>
 <figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// The caller supplies a correlation id - a W3C trace id or any opaque string up to 64 chars.</span>
@@ -116,12 +117,12 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 
     <span class="c">// The framework opens a log scope with the job identity before calling this handler;</span>
     <span class="c">// ActaCorrelationKey is one of the scope properties. Every log line below inherits it automatically.</span>
-    <span class="a">[Job(<span class="s">&quot;run-pipeline&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;run-pipeline&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(RunPipeline input, JobContext context, CancellationToken ct)
     {
         _log.LogInformation(<span class="s">&quot;parent handler: RunId={RunId}; look for ActaCorrelationKey in Scopes&quot;</span>, input.RunId);
 
-        <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;step-1&quot;</span>, <span class="k">new</span> ProcessStep(input.RunId, 1), ct);
+        <span class="k">await</span> context.CallChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;step-1&quot;</span>, <span class="k">new</span> ProcessStep(input.RunId, 1), ct);
 
         _log.LogInformation(<span class="s">&quot;parent handler complete&quot;</span>);
     }
@@ -155,7 +156,7 @@ job=run-pipeline correlation_key=trace-</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;CorrelationKeyJobs&gt;(<span class="s">&quot;correlation-id&quot;</span>);
+    j.Run&lt;CorrelationKeyJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;correlation-id&quot;</span>);
 });
 
 <span class="c">// Log the program's own handler output at Information so the log-scope demo is visible.</span>
@@ -223,12 +224,12 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 
         <span class="c">// The framework opens a log scope with the job identity before calling this handler;</span>
         <span class="c">// ActaCorrelationKey is one of the scope properties. Every log line below inherits it automatically.</span>
-        <span class="a">[Job(<span class="s">&quot;run-pipeline&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;run-pipeline&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(RunPipeline input, JobContext context, CancellationToken ct)
         {
             _log.LogInformation(<span class="s">&quot;parent handler: RunId={RunId}; look for ActaCorrelationKey in Scopes&quot;</span>, input.RunId);
 
-            <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;step-1&quot;</span>, <span class="k">new</span> ProcessStep(input.RunId, 1), ct);
+            <span class="k">await</span> context.CallChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;step-1&quot;</span>, <span class="k">new</span> ProcessStep(input.RunId, 1), ct);
 
             _log.LogInformation(<span class="s">&quot;parent handler complete&quot;</span>);
         }
@@ -242,7 +243,7 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 
         <span class="c">// The child inherits the parent's correlation id at enqueue (stored on its own job row).</span>
         <span class="c">// The framework opens the same ActaCorrelationKey scope for the child's attempt.</span>
-        <span class="a">[Job(<span class="s">&quot;process-step&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-step&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">void</span> Handle(ProcessStep input)
         {
             _log.LogInformation(

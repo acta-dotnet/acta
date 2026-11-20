@@ -131,3 +131,49 @@
   const asked = new URLSearchParams(location.search).get('q');
   if (asked) { ask.value = asked; search(); }
 })();
+
+// The names a job is stored under: a card on hover, focus or tap says what a rename does.
+(() => {
+  const names = document.querySelectorAll('.ct');
+  if (!names.length) return;
+  const text = {
+    job: ['This name is a contract.', 'It is stored with every job. Treat it as permanent once jobs exist under it.'],
+    namespace: ['This namespace is a contract.', 'Every job is stored under it, and there is no rename.'],
+    step: ['This name is a contract.', "It is the key to the step's stored result. Rename it and the step runs again."],
+    signal: ['This name is a contract.', 'A renamed signal is a different signal. Let the waiting jobs finish first.'],
+    timer: ['This name is a contract.', 'A renamed timer is a different timer. Let the sleeping jobs finish first.'],
+    variable: ['This name is a contract.', 'It is the key to a stored value. A renamed variable reads as absent.'],
+    child: ['This name is a contract.', 'It is how a handler that runs again finds this child. A renamed child is new work.'],
+  };
+  const tip = document.createElement('div');
+  const star = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6l1.9 4.3 4.6.4-3.5 3.1 1.1 4.6L8 11.5 3.9 14l1.1-4.6L1.5 6.3l4.6-.4z" fill="currentColor"/></svg>';
+  tip.className = 'ct-tip'; tip.id = 'ct-tip'; tip.setAttribute('role', 'tooltip'); tip.hidden = true;
+  document.body.appendChild(tip);
+  let open = null;
+  const hide = () => {
+    if (!open) return;
+    open.classList.remove('is-open'); open.removeAttribute('aria-describedby'); open = null;
+    tip.classList.remove('is-shown'); tip.hidden = true;
+  };
+  const show = el => {
+    const t = text[el.dataset.ct]; if (!t) return;
+    if (open && open !== el) hide();
+    tip.innerHTML = star; const lead = document.createElement('b'); lead.textContent = t[0]; tip.append(lead, t[1]);
+    tip.hidden = false; open = el; el.classList.add('is-open'); el.setAttribute('aria-describedby', 'ct-tip');
+    const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, vw = document.documentElement.clientWidth;
+    const left = Math.max(16, Math.min(r.left + r.width / 2 - w / 2, vw - w - 16));
+    const top = r.top - h - 10 < 72 ? r.bottom + 10 : r.top - h - 10;
+    tip.style.left = left + scrollX + 'px'; tip.style.top = top + scrollY + 'px';
+    void tip.offsetWidth; tip.classList.add('is-shown');
+  };
+  names.forEach(el => {
+    el.addEventListener('mouseenter', () => show(el));
+    el.addEventListener('mouseleave', () => { if (document.activeElement !== el) hide(); });
+    el.addEventListener('focus', () => show(el));
+    el.addEventListener('blur', hide);
+    el.addEventListener('click', event => { event.stopPropagation(); el.focus(); show(el); });
+  });
+  document.addEventListener('click', () => { if (document.activeElement && document.activeElement.classList.contains('ct')) document.activeElement.blur(); hide(); });
+  addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
+  document.querySelectorAll('.listing').forEach(box => box.addEventListener('scroll', hide, { passive: true, capture: true }));
+})();

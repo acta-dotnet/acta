@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Insert the record and enqueue its job on one transaction</h2>
 <p><code>connection</code> is a <code>SqliteConnection</code> the program opens on Acta's own connection string, so the orders table and Acta's tables are in one database. The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No worker sees the job before the commit.</p>
 <figure class="listing"><figcaption><span class="file">enqueue-in-transaction.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// A run of its own, so a second run against the same file adds its own two orders.</span>
@@ -108,7 +109,7 @@ Console.WriteLine(<span class="s">$&quot;rolled back: order row {await OrderExis
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">enqueue-in-transaction.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FulfilOrderJob
 {
-    <span class="a">[Job(<span class="s">&quot;fulfil-order&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;fulfil-order&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(FulfilOrder order) =&gt; Console.WriteLine(<span class="s">$&quot;[{order.OrderId[^4..]}] order fulfilled&quot;</span>);
 }</code></pre></figure>
 </div>
@@ -146,7 +147,7 @@ rolled back: order row no, job none</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;EnqueueInTransactionJobs&gt;(<span class="s">&quot;enqueue-in-transaction&quot;</span>);
+    j.Run&lt;EnqueueInTransactionJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;enqueue-in-transaction&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -224,7 +225,7 @@ Console.WriteLine(<span class="s">$&quot;rolled back: order row {await OrderExis
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FulfilOrderJob
     {
-        <span class="a">[Job(<span class="s">&quot;fulfil-order&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;fulfil-order&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(FulfilOrder order) =&gt; Console.WriteLine(<span class="s">$&quot;[{order.OrderId[^4..]}] order fulfilled&quot;</span>);
     }
 }</code></pre></figure>

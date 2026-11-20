@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the hours as a calendar definition</h2>
 <p>A <code>weekly-availability</code> definition opens windows by weekday. <code>dateOverrides</code> replaces one date's windows: the Friday before the holiday closes at noon, and <code>[]</code> closes the holiday itself. <code>&quot;timeZone&quot;: &quot;schedule&quot;</code> reads the hours in the zone of the schedule that names the calendar.</p>
 <figure class="listing"><figcaption><span class="file">office-hours.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Definitions
@@ -112,7 +113,7 @@ current = draft.Version.Value;
 <p><code>Availability</code> names the calendar, and <code>TimeZoneId</code> is the zone its hours are read in. A tick outside the windows is left out; the next one inside them fires.</p>
 <figure class="listing"><figcaption><span class="file">office-hours.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncCrmJob
 {
-    <span class="a">[Job(<span class="s">&quot;sync-crm&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-crm&quot;</span>)]</span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;quarter-hourly&quot;</span>, <span class="s">&quot;*/15 * * * *&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
     <span class="k">public</span> Task Handle(SyncCrm input, CancellationToken ct)
     {
@@ -184,7 +185,7 @@ inside office hours: True</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;OfficeHoursJobs&gt;(<span class="s">&quot;crm&quot;</span>);
+    j.Run&lt;OfficeHoursJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;crm&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -226,7 +227,7 @@ Console.WriteLine(<span class="s">$&quot;Next firing {Local(next, &quot;ddd yyyy
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncCrmJob
     {
-        <span class="a">[Job(<span class="s">&quot;sync-crm&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-crm&quot;</span>)]</span>
         <span class="c">// learn: 3. Name the calendar on the schedule</span>
         <span class="c">// `Availability` names the calendar, and `TimeZoneId` is the zone its hours are read in. A tick outside the</span>
         <span class="c">// windows is left out; the next one inside them fires.</span>

@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Cap how many jobs the worker runs at once</h2>
 <p>Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup; not autoscaled. The program sets <code>Cap</code> to 3.</p>
 <figure class="listing"><figcaption><span class="file">worker-tuning.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>builder.Services.UseActa(j =&gt;
@@ -88,7 +89,7 @@
         o.SafetyPollInterval = TimeSpan.FromSeconds(1);
     });
 
-    j.Run&lt;WorkerTuningJobs&gt;(<span class="s">&quot;worker-tuning&quot;</span>);
+    j.Run&lt;WorkerTuningJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;worker-tuning&quot;</span>);
 });</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Bound how long an idle worker sleeps</h2>
@@ -104,7 +105,7 @@
 <span class="hl">        o.SafetyPollInterval = TimeSpan.FromSeconds(1);</span>
     });
 
-    j.Run&lt;WorkerTuningJobs&gt;(<span class="s">&quot;worker-tuning&quot;</span>);
+    j.Run&lt;WorkerTuningJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;worker-tuning&quot;</span>);
 });</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
@@ -113,7 +114,7 @@
 
 <span class="c">// Each handler holds its executor for 50 ms - long enough that Cap parallel handlers</span>
 <span class="c">// overlap and the peak counter exceeds 1.</span>
-<span class="a">[Job(<span class="s">&quot;slow-task&quot;</span>)]</span>
+<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-task&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(SlowTask input, CancellationToken ct)
 {
     <span class="c">// Increment active count; update peak if this is a new high.</span>
@@ -179,7 +180,7 @@ builder.Services.UseActa(j =&gt;
         <span class="c">// learn: end</span>
     });
 
-    j.Run&lt;WorkerTuningJobs&gt;(<span class="s">&quot;worker-tuning&quot;</span>);
+    j.Run&lt;WorkerTuningJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;worker-tuning&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -227,7 +228,7 @@ Console.WriteLine(<span class="s">$&quot;Concurrency cap respected: {SlowTaskJob
 
         <span class="c">// Each handler holds its executor for 50 ms - long enough that Cap parallel handlers</span>
         <span class="c">// overlap and the peak counter exceeds 1.</span>
-        <span class="a">[Job(<span class="s">&quot;slow-task&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-task&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(SlowTask input, CancellationToken ct)
         {
             <span class="c">// Increment active count; update peak if this is a new high.</span>

@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Restart the job under the same identity</h2>
 <p>RestartAsync re-arms the same job id: resets failure_count, clears retention, moves to Ready.</p>
 <figure class="listing"><figcaption><span class="file">operator-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>FlakyReportJob.DataSourceFixed = <span class="k">true</span>;
@@ -92,12 +93,12 @@ Console.WriteLine(<span class="s">$&quot;immediately observed after restart: fai
 <span class="k">public</span> <span class="k">static</span> <span class="k">bool</span> DataSourceFixed { <span class="k">get</span>; <span class="k">set</span>; }
 
 <span class="c">// MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.</span>
-<span class="a">[Job(<span class="s">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
 {
     Console.WriteLine(<span class="s">$&quot;[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}&quot;</span>);
     <span class="k">await</span> context.RunStepAsync(
-        <span class="s">&quot;prepare-report&quot;</span>,
+        <span class="s ct" data-ct="step" tabindex="0">&quot;prepare-report&quot;</span>,
         _ =&gt;
         {
             Console.WriteLine(<span class="s">$&quot;[{input.Id}] preparation step body invoked; its recorded success can be reused&quot;</span>);
@@ -166,7 +167,7 @@ re-run complete: status=Succeeded executionNumber=4</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;OperatorRestartJobs&gt;(<span class="s">&quot;operator-restart&quot;</span>);
+    j.Run&lt;OperatorRestartJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;operator-restart&quot;</span>);
 });
 
 <span class="c">// Three failures are deliberate course data; keep their events/rows without printing three framework stack traces.</span>
@@ -283,12 +284,12 @@ Console.WriteLine(<span class="s">$&quot;re-run complete: status={snapshot!.Stat
         <span class="k">public</span> <span class="k">static</span> <span class="k">bool</span> DataSourceFixed { <span class="k">get</span>; <span class="k">set</span>; }
 
         <span class="c">// MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.</span>
-        <span class="a">[Job(<span class="s">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}&quot;</span>);
             <span class="k">await</span> context.RunStepAsync(
-                <span class="s">&quot;prepare-report&quot;</span>,
+                <span class="s ct" data-ct="step" tabindex="0">&quot;prepare-report&quot;</span>,
                 _ =&gt;
                 {
                     Console.WriteLine(<span class="s">$&quot;[{input.Id}] preparation step body invoked; its recorded success can be reused&quot;</span>);

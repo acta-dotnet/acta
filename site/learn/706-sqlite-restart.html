@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the job a retry budget, because a crash spends an attempt</h2>
 <p>The attempt a dead process held is taken back as a failed one. With one attempt only, the crash would end the job instead of handing it to the restarted app.</p>
 <figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ExportJob(AppRun run)
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;export&quot;</span>, MaxAttempts = 3)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;export&quot;</span>, MaxAttempts = 3)]</span></span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(Export input, JobContext ctx, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{run.Name}] export of {input.What} started, execution {ctx.ExecutionNumber}&quot;</span>);
@@ -156,7 +157,7 @@ builder.Services.AddSingleton(<span class="k">new</span> AppRun(firstRun));
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;SqliteRestartJobs&gt;(<span class="s">&quot;sqlite-restart&quot;</span>);
+    j.Run&lt;SqliteRestartJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;sqlite-restart&quot;</span>);
 });
 
 <span class="c">// The lost attempt is reported as a warning when it is taken back; the program prints what matters itself.</span>
@@ -219,7 +220,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
         <span class="c">// learn: 1. Give the job a retry budget, because a crash spends an attempt</span>
         <span class="c">// The attempt a dead process held is taken back as a failed one. With one attempt only, the crash would end the</span>
         <span class="c">// job instead of handing it to the restarted app.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;export&quot;</span>, MaxAttempts = 3)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;export&quot;</span>, MaxAttempts = 3)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(Export input, JobContext ctx, CancellationToken ct)
         {

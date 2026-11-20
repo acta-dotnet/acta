@@ -250,3 +250,18 @@ a.door:hover { border-top-color: var(--verdi); }
   .reader, .ask-try, .howto-rail, .done-toggle { display: none; }
   .howto-body { grid-template-columns: 1fr; }
 }
+
+/* A name a job is stored under: marked in a listing, explained in a card on hover, focus or tap. */
+.ct-legend { margin: 0 0 2rem; font-size: 0.92rem; color: var(--faint); }
+.ct { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: color-mix(in srgb, var(--verdi) 70%, transparent); cursor: help; border-radius: 3px; }
+.ct:hover, .ct:focus-visible, .ct.is-open { background: var(--verdi-wash); box-shadow: 0 0 0 3px var(--verdi-wash); text-decoration-color: var(--verdi); }
+/* The card is two steps lighter than the listing it lies on, with a brighter edge and a deep shadow, so it reads as a
+   raised rectangle and does not sink into the code behind it. The mark in its corner is
+   drawn in a colour close to the card's own, so it is found without competing with the text. */
+:root { --tip-bg: #2a3d5a; --tip-edge: #4a6388; --tip-ink: #F2F5FA; --tip-soft: #C3CDDD; --tip-lift: rgba(0, 0, 0, 0.55); --tip-sheen: rgba(255, 255, 255, 0.10); --tip-mark: rgba(195, 205, 221, 0.34); }
+:root[data-theme="light"] { --tip-bg: #eef2f8; --tip-edge: #9fb0c8; --tip-ink: #16202F; --tip-soft: #44506A; --tip-lift: rgba(22, 32, 47, 0.28); --tip-sheen: rgba(255, 255, 255, 0); --tip-mark: rgba(68, 80, 106, 0.30); }
+.ct-tip { position: absolute; z-index: 40; width: max-content; max-width: min(20.5rem, calc(100vw - 32px)); padding: 0.7rem 0.9rem 0.75rem; background: var(--tip-bg); border: 1px solid var(--tip-edge); border-radius: 8px; box-shadow: 0 18px 40px var(--tip-lift), 0 2px 6px var(--tip-lift), inset 0 1px 0 var(--tip-sheen); font-family: var(--sans); font-size: 0.88rem; line-height: 1.45; color: var(--tip-soft); opacity: 0; transform: translateY(3px); transition: opacity 120ms ease, transform 120ms ease; pointer-events: none; }
+.ct-tip.is-shown { opacity: 1; transform: none; }
+.ct-tip svg { position: absolute; top: 0.62rem; right: 0.7rem; width: 15px; height: 15px; color: var(--tip-mark); }
+.ct-tip b { display: block; margin-bottom: 0.2rem; padding-right: 1.5rem; font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 1.06rem; line-height: 1.25; color: var(--tip-ink); }
+@media (prefers-reduced-motion: reduce) { .ct-tip { transition: none; transform: none; } }

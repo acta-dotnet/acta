@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Make the deadline advisory</h2>
 <p>Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its own; here it emits a quick summary instead of the expensive full report when it is late. To show an overdue job the program holds the first run past the deadline, as 307 does.</p>
 <figure class="listing"><figcaption><span class="file">deadline-advisory.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GenerateReportJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span></span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
     {
         <span class="k">if</span> (context.IsOverdue)
@@ -99,7 +100,7 @@
 <div class="step"><h2><span class="step-n">2</span>Ask whether the job is overdue, and do less when it is</h2>
 <figure class="listing"><figcaption><span class="file">deadline-advisory.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GenerateReportJob
 {
-    <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
     {
 <span class="hl">        <span class="k">if</span> (context.IsOverdue)</span>
@@ -140,7 +141,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;DeadlineAdvisoryJobs&gt;(<span class="s">&quot;deadline-advisory&quot;</span>);
+    j.Run&lt;DeadlineAdvisoryJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;deadline-advisory&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -176,7 +177,7 @@ Console.WriteLine(<span class="s">$&quot;[{DateTime.UtcNow:HH:mm:ss}] status={sn
         <span class="c">// overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its</span>
         <span class="c">// own; here it emits a quick summary instead of the expensive full report when it is late. To show an</span>
         <span class="c">// overdue job the program holds the first run past the deadline, as 307 does.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
         {

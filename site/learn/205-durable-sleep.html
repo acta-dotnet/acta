@@ -75,16 +75,17 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Sleep by name in the handler</h2>
 <p><code>SleepAsync</code> stores the due time as a row, frees the worker, and ends this execution. When the time comes the handler runs again from its first line, and the sleep, now over, lets it carry on.</p>
 <figure class="listing"><figcaption><span class="file">durable-sleep.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> FollowUpJob
 {
-    <span class="a">[Job(<span class="s">&quot;send-follow-up&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-follow-up&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(SendFollowUp input, JobContext context, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{input.UserEmail}] handler entered; preserving the cool-down in a durable timer&quot;</span>);
 
-<span class="hl">        <span class="k">await</span> context.SleepAsync(<span class="s">&quot;cool-down&quot;</span>, TimeSpan.FromSeconds(input.CoolDownSeconds), ct: ct);</span>
+<span class="hl">        <span class="k">await</span> context.SleepAsync(<span class="s ct" data-ct="timer" tabindex="0">&quot;cool-down&quot;</span>, TimeSpan.FromSeconds(input.CoolDownSeconds), ct: ct);</span>
 
         <span class="c">// Durable sleep preserves when work becomes due; it does not make a later external delivery exactly once.</span>
         Console.WriteLine(<span class="s">$&quot;[{input.UserEmail}] follow-up is due; delivery still needs its own idempotency policy&quot;</span>);
@@ -295,7 +296,7 @@ EnsureDone(terminal);
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> FollowUpJob
     {
-        <span class="a">[Job(<span class="s">&quot;send-follow-up&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-follow-up&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(SendFollowUp input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.UserEmail}] handler entered; preserving the cool-down in a durable timer&quot;</span>);
@@ -303,7 +304,7 @@ EnsureDone(terminal);
             <span class="c">// learn: Sleep by name in the handler</span>
             <span class="c">// `SleepAsync` stores the due time as a row, frees the worker, and ends this execution. When the time comes</span>
             <span class="c">// the handler runs again from its first line, and the sleep, now over, lets it carry on.</span>
-<span class="hl">            <span class="k">await</span> context.SleepAsync(<span class="s">&quot;cool-down&quot;</span>, TimeSpan.FromSeconds(input.CoolDownSeconds), ct: ct);</span>
+<span class="hl">            <span class="k">await</span> context.SleepAsync(<span class="s ct" data-ct="timer" tabindex="0">&quot;cool-down&quot;</span>, TimeSpan.FromSeconds(input.CoolDownSeconds), ct: ct);</span>
             <span class="c">// learn: end</span>
 
             <span class="c">// Durable sleep preserves when work becomes due; it does not make a later external delivery exactly once.</span>

@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Name the namespace and the job in a request</h2>
 <p>Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying a request body. An in-process caller with an ambiguous input type uses the generated call instead (023). A caller that holds only the JSON text passes it as it came, <code>JobPayload.CopyBytes(JobPayloadFormat.Json, bytes)</code>: <code>JobPayload.Json(text)</code> would store the text as one JSON string.</p>
 <figure class="listing"><figcaption><span class="file">raw-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -111,7 +112,7 @@ Console.WriteLine(<span class="s">$&quot;Enqueued job {enqueued.JobRef} by name.
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">raw-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> WelcomeJob
 {
-    <span class="a">[Job(<span class="s">&quot;send-welcome-email&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-welcome-email&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendWelcomeEmail input) =&gt; Console.WriteLine(<span class="s">$&quot;Sent welcome email to {input.Name} &lt;{input.Email}&gt;&quot;</span>);
 }</code></pre></figure>
 </div>
@@ -138,7 +139,7 @@ Sent welcome email to Sam &lt;sam@example.com&gt;</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;RawEnqueueJobs&gt;(<span class="s">&quot;raw-enqueue&quot;</span>);
+    j.Run&lt;RawEnqueueJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;raw-enqueue&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -175,7 +176,7 @@ Console.WriteLine(<span class="s">$&quot;Enqueued job {enqueued.JobRef} by name.
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> WelcomeJob
     {
-        <span class="a">[Job(<span class="s">&quot;send-welcome-email&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-welcome-email&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendWelcomeEmail input) =&gt; Console.WriteLine(<span class="s">$&quot;Sent welcome email to {input.Name} &lt;{input.Email}&gt;&quot;</span>);
     }
 }</code></pre></figure>

@@ -75,12 +75,13 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Check the token between pieces of work, and pass it to what you await</h2>
 <p>The token trips on an operator's cancel, at the <code>ExecutionTimeout</code>, on a lost lease, and on a shutdown once the host's <code>ShutdownTimeout</code> has passed. A handler that ignores it keeps running after the worker has been told to stop.</p>
 <figure class="listing"><figcaption><span class="file">cancellation-token.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ImportJob
 {
     <span class="c">// Acta trips the CancellationToken on shutdown or lease loss; the handler must observe it.</span>
-    <span class="a">[Job(<span class="s">&quot;slow-import&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-import&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(SlowImport input, CancellationToken ct)
     {
         <span class="k">for</span> (<span class="k">var</span> batch = 1; batch &lt;= input.Batches; batch++)
@@ -115,7 +116,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;CancellationJobs&gt;(<span class="s">&quot;cancellation-token&quot;</span>);
+    j.Run&lt;CancellationJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;cancellation-token&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -136,7 +137,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ImportJob
     {
         <span class="c">// Acta trips the CancellationToken on shutdown or lease loss; the handler must observe it.</span>
-        <span class="a">[Job(<span class="s">&quot;slow-import&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-import&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(SlowImport input, CancellationToken ct)
         {
             <span class="k">for</span> (<span class="k">var</span> batch = 1; batch &lt;= input.Batches; batch++)

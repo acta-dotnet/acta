@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Cancel the job from outside</h2>
 <p>Operator cancel from outside the handler: any process holding an IJobs trips a running job's CancellationToken.</p>
 <figure class="listing"><figcaption><span class="file">operator-cancel.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
@@ -96,7 +97,7 @@ Console.WriteLine(<span class="s">$&quot;final status: {snapshot!.Status}&quot;<
 <p>The handler hands its CancellationToken to everything it awaits; the cancel from outside ends the wait here.</p>
 <figure class="listing"><figcaption><span class="file">operator-cancel.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> BigExportJob
 {
-    <span class="a">[Job(<span class="s">&quot;big-export&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;big-export&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(BigExport input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{input.Id}] export started&quot;</span>);
@@ -130,7 +131,7 @@ final status: Cancelled</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;OperatorCancelJobs&gt;(<span class="s">&quot;operator-cancel&quot;</span>);
+    j.Run&lt;OperatorCancelJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;operator-cancel&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -161,7 +162,7 @@ Console.WriteLine(<span class="s">$&quot;final status: {snapshot!.Status}&quot;<
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> BigExportJob
     {
-        <span class="a">[Job(<span class="s">&quot;big-export&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;big-export&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(BigExport input, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.Id}] export started&quot;</span>);

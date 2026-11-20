@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Enqueue through the generated call</h2>
 <p>The manifest's generated call names the job and takes its handler's parameters; the namespace resolves from the registered manifest, and nothing is inferred from the input's type.</p>
 <figure class="listing"><figcaption><span class="file">job-call.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
@@ -82,7 +83,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;JobCallJobs&gt;(<span class="s">&quot;job-call&quot;</span>);
+    j.Run&lt;JobCallJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;job-call&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -101,10 +102,10 @@ Console.WriteLine(<span class="s">$&quot;Enqueued hello as {single.JobRef} and g
 <p>Several input parameters travel as one generated record, JobCallJobs.GreetArgs, stored as {&quot;name&quot;:..,&quot;times&quot;:..}.</p>
 <figure class="listing"><figcaption><span class="file">job-call.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> HelloJobs
 {
-    <span class="a">[Job(<span class="s">&quot;hello&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;hello&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Hello input) =&gt; Console.WriteLine(<span class="s">$&quot;Hello, {input.Name}!&quot;</span>);
 
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;greet&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;greet&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Greet(<span class="k">string</span> name, <span class="k">int</span> times)</span>
 <span class="hl">    {</span>
 <span class="hl">        <span class="k">for</span> (<span class="k">var</span> i = 0; i &lt; times; i++)</span>
@@ -137,7 +138,7 @@ Greetings, Ada!</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;JobCallJobs&gt;(<span class="s">&quot;job-call&quot;</span>);
+    j.Run&lt;JobCallJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;job-call&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -163,12 +164,12 @@ Console.WriteLine(<span class="s">$&quot;Enqueued hello as {single.JobRef} and g
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> HelloJobs
     {
-        <span class="a">[Job(<span class="s">&quot;hello&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;hello&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Hello input) =&gt; Console.WriteLine(<span class="s">$&quot;Hello, {input.Name}!&quot;</span>);
 
         <span class="c">// learn: 2. Give a handler several parameters</span>
         <span class="c">// Several input parameters travel as one generated record, JobCallJobs.GreetArgs, stored as {&quot;name&quot;:..,&quot;times&quot;:..}.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;greet&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;greet&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Greet(<span class="k">string</span> name, <span class="k">int</span> times)</span>
 <span class="hl">        {</span>
 <span class="hl">            <span class="k">for</span> (<span class="k">var</span> i = 0; i &lt; times; i++)</span>

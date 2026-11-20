@@ -177,7 +177,7 @@ builder.Services.UseActa(j =&gt;
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> QueueDepthCheckJob
     {
-        <span class="a">[Job(<span class="s">&quot;queue-depth-check&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;queue-depth-check&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(QueueDepthCheck input, JobContext context, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);

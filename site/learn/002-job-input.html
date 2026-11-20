@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the input as a record</h2>
 <p>The input is plain data. Acta serializes it, stores it with the job, and hands it to the handler.</p>
 <figure class="listing"><figcaption><span class="file">job-input.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PrintNameTag(<span class="k">string</span> Name, <span class="k">string</span> Workshop);</span></code></pre></figure>
@@ -83,7 +84,7 @@
 <p>The handler declares the record as its first parameter, and Acta passes it the stored input on every attempt.</p>
 <figure class="listing"><figcaption><span class="file">job-input.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PrintNameTagJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;print-name-tag&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;print-name-tag&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(PrintNameTag tag, CancellationToken ct)</span>
 <span class="hl">    {</span>
 <span class="hl">        <span class="k">await</span> Task.Delay(50, ct);</span>
@@ -98,7 +99,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;JobInputJobs&gt;(<span class="s">&quot;job-input&quot;</span>);
+    j.Run&lt;JobInputJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;job-input&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -135,7 +136,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;JobInputJobs&gt;(<span class="s">&quot;job-input&quot;</span>);
+    j.Run&lt;JobInputJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;job-input&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -165,7 +166,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
     {
         <span class="c">// learn: 2. Take the record as the handler's first parameter</span>
         <span class="c">// The handler declares the record as its first parameter, and Acta passes it the stored input on every attempt.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;print-name-tag&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;print-name-tag&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(PrintNameTag tag, CancellationToken ct)</span>
 <span class="hl">        {</span>
 <span class="hl">            <span class="k">await</span> Task.Delay(50, ct);</span>

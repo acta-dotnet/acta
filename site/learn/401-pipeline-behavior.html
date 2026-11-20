@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the behavior around the call to the handler</h2>
 <p>What stands before <code>next()</code> runs before the handler, and what stands after it runs after.</p>
 <figure class="listing"><figcaption><span class="file">pipeline-behavior.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Wraps every handler invocation; first registered is outermost. Resolved per attempt, so it can</span>
@@ -104,7 +105,7 @@ builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
 <span class="hl">    j.AddPipelineBehavior&lt;TimingBehavior&gt;();</span>
-    j.Run&lt;PipelineBehaviorJobs&gt;(<span class="s">&quot;pipeline-behavior&quot;</span>);
+    j.Run&lt;PipelineBehaviorJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;pipeline-behavior&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -147,7 +148,7 @@ builder.Services.UseActa(j =&gt;
     <span class="c">// The first one registered is the outermost.</span>
 <span class="hl">    j.AddPipelineBehavior&lt;TimingBehavior&gt;();</span>
     <span class="c">// learn: end</span>
-    j.Run&lt;PipelineBehaviorJobs&gt;(<span class="s">&quot;pipeline-behavior&quot;</span>);
+    j.Run&lt;PipelineBehaviorJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;pipeline-behavior&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -167,7 +168,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GreetUserJob
     {
-        <span class="a">[Job(<span class="s">&quot;greet-user&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;greet-user&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(GreetUser input, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(100, ct);

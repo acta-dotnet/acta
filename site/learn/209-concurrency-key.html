@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Give jobs that must not overlap the same key</h2>
 <p>Shared concurrency key serializes whole jobs: the key is taken after claim, before the handler; a worker claiming the second job while it's held releases back to Ready (no executor tied up). Contrast 207-run-with-lock, which serializes only a section while the waiter holds its executor.</p>
 <figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -90,7 +91,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurre
 <p>ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the definitions row without a deploy. Two at a time, whatever the fleet size.</p>
 <figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReindexShardJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;reindex-shard&quot;</span>, ConcurrencyLimit = 2)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;reindex-shard&quot;</span>, ConcurrencyLimit = 2)]</span></span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(ReindexShard input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;shard {input.Shard} started&quot;</span>);
@@ -103,7 +104,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurre
 <p>RateLimit is the other admission gate: five admissions a second across the namespace's workers, every execution taking a turn, a retry included. It is metered on the definition name because no RateName was given. Like ConcurrencyLimit it is an operator-overridable policy value on the definitions row.</p>
 <figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PingEndpointJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
     <span class="k">public</span> Task Handle(PingEndpoint input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}&quot;</span>);
@@ -167,7 +168,7 @@ shard 3 finished</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;ConcurrencyKeyJobs&gt;(<span class="s">&quot;concurrency-key&quot;</span>);
+    j.Run&lt;ConcurrencyKeyJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;concurrency-key&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -370,7 +371,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued twelve jobs against a definitio
         <span class="c">// RateLimit is the other admission gate: five admissions a second across the namespace's workers, every</span>
         <span class="c">// execution taking a turn, a retry included. It is metered on the definition name because no RateName was given. Like ConcurrencyLimit it is an</span>
         <span class="c">// operator-overridable policy value on the definitions row.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> Task Handle(PingEndpoint input, CancellationToken ct)
         {
@@ -384,7 +385,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued twelve jobs against a definitio
         <span class="c">// learn: 2. Let several run at once, up to a limit</span>
         <span class="c">// ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the</span>
         <span class="c">// definitions row without a deploy. Two at a time, whatever the fleet size.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;reindex-shard&quot;</span>, ConcurrencyLimit = 2)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;reindex-shard&quot;</span>, ConcurrencyLimit = 2)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(ReindexShard input, CancellationToken ct)
         {
@@ -398,7 +399,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued twelve jobs against a definitio
     {
         <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _n;
 
-        <span class="a">[Job(<span class="s">&quot;rebuild-index&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;rebuild-index&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(RebuildIndex input, CancellationToken ct)
         {
             <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _n);

@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>List jobs with a filter</h2>
 <p>ListJobsAsync with a namespace filter: all jobs in this namespace, three to a page, with the total.</p>
 <figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Allow the worker to process the others.</span>
@@ -118,7 +119,7 @@ Console.WriteLine(<span class="s">$&quot;UnresolvedAlerts={overview.UnresolvedAl
 <div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReportJob
 {
-    <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;generate-report&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(GenerateReport input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.ReportId}] report generated&quot;</span>);
 }</code></pre></figure>
 </div>
@@ -150,7 +151,7 @@ TotalCount across namespace: 7</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;OperatorQueriesJobs&gt;(<span class="s">&quot;operator-queries&quot;</span>);
+    j.Run&lt;OperatorQueriesJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;operator-queries&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -239,13 +240,13 @@ Console.WriteLine(<span class="s">$&quot;UnresolvedAlerts={overview.UnresolvedAl
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReportJob
     {
-        <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;generate-report&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(GenerateReport input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.ReportId}] report generated&quot;</span>);
     }
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> NotificationJob
     {
-        <span class="a">[Job(<span class="s">&quot;send-notification&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-notification&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendNotification input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.NotificationId}] notification sent&quot;</span>);
     }
 }</code></pre></figure>

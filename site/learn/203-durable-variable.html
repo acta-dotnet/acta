@@ -75,16 +75,17 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Compute the value once and read it back on every attempt</h2>
 <p>Pin the sync window once: GetOrSet stores it on the first pass and replays it on the retry, so the window can't shift between attempts.</p>
 <figure class="listing"><figcaption><span class="file">durable-variable.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncUsersJob
 {
     <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _attempts;
 
-    <span class="a">[Job(<span class="s">&quot;sync-users&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-users&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(SyncUsers input, JobContext context, CancellationToken ct)
     {
-<span class="hl">        <span class="k">var</span> syncedAt = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s">&quot;synced-at-utc&quot;</span>, () =&gt; DateTime.UtcNow, ct);</span>
+<span class="hl">        <span class="k">var</span> syncedAt = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;synced-at-utc&quot;</span>, () =&gt; DateTime.UtcNow, ct);</span>
         Console.WriteLine(<span class="s">$&quot;[{input.Source}] syncing changes as of {syncedAt:HH:mm:ss.fff} UTC&quot;</span>);
 
         <span class="c">// Fail the first attempt; the same timestamp comes back on the retry.</span>
@@ -123,7 +124,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;DurableVariableJobs&gt;(<span class="s">&quot;durable-variable&quot;</span>);
+    j.Run&lt;DurableVariableJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;durable-variable&quot;</span>);
 });
 
 <span class="c">// Handler fails once to show retry; quiet the framework failure warning/alert.</span>
@@ -148,12 +149,12 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
     {
         <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _attempts;
 
-        <span class="a">[Job(<span class="s">&quot;sync-users&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-users&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(SyncUsers input, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: Compute the value once and read it back on every attempt</span>
             <span class="c">// Pin the sync window once: GetOrSet stores it on the first pass and replays it on the retry, so the window can't shift between attempts.</span>
-<span class="hl">            <span class="k">var</span> syncedAt = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s">&quot;synced-at-utc&quot;</span>, () =&gt; DateTime.UtcNow, ct);</span>
+<span class="hl">            <span class="k">var</span> syncedAt = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;synced-at-utc&quot;</span>, () =&gt; DateTime.UtcNow, ct);</span>
             <span class="c">// learn: end</span>
             Console.WriteLine(<span class="s">$&quot;[{input.Source}] syncing changes as of {syncedAt:HH:mm:ss.fff} UTC&quot;</span>);
 

@@ -75,15 +75,16 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Call the other job as a child and take its result</h2>
 <p>CallChildAsync enqueues one child and waits for its result; ValueOrThrow() returns it or throws. A failed child stays failed, so the throw fails the parent at once, with no retry; recovering means restarting the child, then the parent once the child has succeeded.</p>
 <figure class="listing"><figcaption><span class="file">call-child.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// A child is a real job (own retry policy, queue identity, operator-visible), unlike a private</span>
 <span class="c">// idempotent step (202).</span>
-<span class="a">[Job(<span class="s">&quot;publish-episode&quot;</span>)]</span>
+<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;publish-episode&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task&lt;EpisodePublished&gt; Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
 {
 <span class="hl">    <span class="k">var</span> transcode = CallChildJobs.TranscodeVideo(<span class="k">new</span> TranscodeVideo(episode.SourceUrl));</span>
-<span class="hl">    <span class="k">var</span> transcoded = <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;transcode&quot;</span>, transcode, ct);</span>
+<span class="hl">    <span class="k">var</span> transcoded = <span class="k">await</span> context.CallChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;transcode&quot;</span>, transcode, ct);</span>
 <span class="hl">    <span class="k">return</span> <span class="k">new</span> EpisodePublished(episode.EpisodeId, transcoded.ValueOrThrow().StreamUrl);</span>
 }</code></pre></figure>
 </div>
@@ -110,7 +111,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;CallChildJobs&gt;(<span class="s">&quot;call-child&quot;</span>);
+    j.Run&lt;CallChildJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;call-child&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -137,7 +138,7 @@ Console.WriteLine(<span class="s">$&quot;published: {outcome.ValueOrThrow()}&quo
     {
         <span class="c">// A child is a real job (own retry policy, queue identity, operator-visible), unlike a private</span>
         <span class="c">// idempotent step (202).</span>
-        <span class="a">[Job(<span class="s">&quot;publish-episode&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;publish-episode&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;EpisodePublished&gt; Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: Call the other job as a child and take its result</span>
@@ -146,12 +147,12 @@ Console.WriteLine(<span class="s">$&quot;published: {outcome.ValueOrThrow()}&quo
             <span class="c">// parent at once, with no retry; recovering means restarting the child, then the parent once</span>
             <span class="c">// the child has succeeded.</span>
 <span class="hl">            <span class="k">var</span> transcode = CallChildJobs.TranscodeVideo(<span class="k">new</span> TranscodeVideo(episode.SourceUrl));</span>
-<span class="hl">            <span class="k">var</span> transcoded = <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;transcode&quot;</span>, transcode, ct);</span>
+<span class="hl">            <span class="k">var</span> transcoded = <span class="k">await</span> context.CallChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;transcode&quot;</span>, transcode, ct);</span>
 <span class="hl">            <span class="k">return</span> <span class="k">new</span> EpisodePublished(episode.EpisodeId, transcoded.ValueOrThrow().StreamUrl);</span>
             <span class="c">// learn: end</span>
         }
 
-        <span class="a">[Job(<span class="s">&quot;transcode-video&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;transcode-video&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;TranscodeResult&gt; Transcode(TranscodeVideo video, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(400, ct);

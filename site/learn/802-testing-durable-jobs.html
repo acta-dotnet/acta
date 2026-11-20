@@ -226,7 +226,7 @@
             (j, schema) =&gt;
             {
                 j.UseLocalDatabase(configuration, schema);
-                j.Run&lt;TestingDurableJobs&gt;(<span class="s">&quot;testing-durable&quot;</span>);
+                j.Run&lt;TestingDurableJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;testing-durable&quot;</span>);
             },
             <span class="k">new</span> ActaTestHostOptions { ConfigureServices = services =&gt; services.AddSingleton(Warehouse) }
         );
@@ -277,11 +277,11 @@
 
 <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderJob(Warehouse warehouse)
 {
-    <span class="a">[Job(<span class="s">&quot;process-order&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-order&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task&lt;OrderResult&gt; Handle(PlaceOrder order, JobContext context, CancellationToken ct)
     {
         <span class="k">await</span> context.RunStepAsync(
-            <span class="s">&quot;reserve-stock&quot;</span>,
+            <span class="s ct" data-ct="step" tabindex="0">&quot;reserve-stock&quot;</span>,
             _ =&gt;
             {
                 warehouse.Reserve(order.OrderId);
@@ -292,13 +292,13 @@
 
         <span class="c">// Suspend until the signal arrives; on resume the job replays from the top but the recorded</span>
         <span class="c">// reserve step is NOT re-run.</span>
-        <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;ApprovalDecision&gt;(<span class="s">&quot;approval&quot;</span>, ct);
+        <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;ApprovalDecision&gt;(<span class="s ct" data-ct="signal" tabindex="0">&quot;approval&quot;</span>, ct);
         <span class="k">if</span> (!decision!.Approved)
         {
             <span class="k">return</span> <span class="k">new</span> OrderResult(order.OrderId, Charged: <span class="k">false</span>);
         }
 
-        <span class="k">await</span> context.RunStepAsync(<span class="s">&quot;charge&quot;</span>, _ =&gt; Task.CompletedTask, ct);
+        <span class="k">await</span> context.RunStepAsync(<span class="s ct" data-ct="step" tabindex="0">&quot;charge&quot;</span>, _ =&gt; Task.CompletedTask, ct);
         <span class="k">return</span> <span class="k">new</span> OrderResult(order.OrderId, Charged: <span class="k">true</span>);
     }
 }</code></pre></figure>

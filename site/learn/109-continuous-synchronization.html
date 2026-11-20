@@ -75,15 +75,16 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Fire the job on a schedule</h2>
 <p>The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so between firings the job is <code>Idle</code> and holds no thread.</p>
 <figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">const</span> <span class="k">int</span> BatchSize = 40;
 
-<span class="hl"><span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span></span>
+<span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span></span>
 <span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
-    <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);
+    <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);
     <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);
     <span class="k">if</span> (changes.Count == 0)
     {
@@ -93,7 +94,7 @@
 
     <span class="k">await</span> store.ApplyAsync(changes, ct);
     <span class="k">var</span> head = changes[^1].ChangeId;
-    <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);
+    <span class="k">await</span> ctx.SetVariableAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, head, ct);
     Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);
     <span class="c">// The lab's switch for killing the worker after a batch; a job of your own has no such line.</span>
     <span class="k">await</span> crash.AfterBatchAsync(head, ct);
@@ -101,7 +102,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read the watermark and ask for what changed after it</h2>
 <p>The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on schedule.</p>
-<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);</span>
+<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);</span>
 <span class="hl"><span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);</span>
 <span class="hl"><span class="k">if</span> (changes.Count == 0)</span>
 <span class="hl">{</span>
@@ -119,11 +120,11 @@
 </div>
 <div class="step"><h2><span class="step-n">4</span>Save the work first and the watermark after</h2>
 <p>The orders land first and the watermark after them: an attempt that dies between the two replays one batch, which the upsert absorbs; the other order would skip one.</p>
-<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
 <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
-    <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);
+    <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);
     <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);
     <span class="k">if</span> (changes.Count == 0)
     {
@@ -133,7 +134,7 @@
 
 <span class="hl">    <span class="k">await</span> store.ApplyAsync(changes, ct);</span>
 <span class="hl">    <span class="k">var</span> head = changes[^1].ChangeId;</span>
-<span class="hl">    <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);</span>
+<span class="hl">    <span class="k">await</span> ctx.SetVariableAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, head, ct);</span>
     Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);
     <span class="c">// The lab's switch for killing the worker after a batch; a job of your own has no such line.</span>
     <span class="k">await</span> crash.AfterBatchAsync(head, ct);
@@ -172,15 +173,15 @@ feed head: change 120; local orders: 40 (newest change 120)</code></pre></figure
 <ul class="plain"><li>A <code>BackgroundService</code> with a <code>PeriodicTimer</code>: progress lives in memory or in a hand-maintained table, and nothing records what each run did.</li><li>A queue that fans out &quot;sync now&quot; messages to workers, plus a state table, plus a scheduler to enqueue them.</li><li>A platform cron that starts a process per tick, which must find its own position and never overlap the previous tick.</li><li>A workflow engine with a long-running activity that loops forever.</li></ul>
 <h3>Why this design</h3>
 <p>One permanent job, <code>sync-orders</code>, with one schedule, <code>every-5s</code>, and one durable variable, <code>watermark</code>. The handler, as <code>SyncOrdersJob.cs</code> has it without its console lines and the lab's crash switch:</p>
-<figure class="listing"><figcaption><span class="note">C#</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="note">C#</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
 <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
-    <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);
+    <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);
     <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, 40, ct);
     <span class="k">if</span> (changes.Count == 0) <span class="k">return</span>;                                    <span class="c">// up to date: nothing to do until the next firing</span>
     <span class="k">await</span> store.ApplyAsync(changes, ct);                               <span class="c">// an upsert: a replayed batch lands once</span>
-    <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, changes[^1].ChangeId, ct);
+    <span class="k">await</span> ctx.SetVariableAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, changes[^1].ChangeId, ct);
 }</code></pre></figure>
 <p>The web shop is a simulator: an append-only table of order changes in the lab's own SQLite file, beside the local orders and Acta's tables, seeded the same way on every machine. The handler reads it through <code>ShopFeed</code> as it would read a remote API, never through Acta.</p>
 <p>The schedule admits a firing onto the permanent job every five seconds; the firing applies one batch of forty changes and returns; the job then sits <code>Idle</code> until the next admission, holding no thread. The watermark, the id of the last shop change applied, is a variable on the job. Acta keeps it the way it keeps the job itself: a row in <code>checkpoints_view</code>, carried across firings, retries, and workers, and the handler reads it at the top of every execution. Nothing else remembers how far the sync has come: no table of the application's, no field, no loop.</p>
@@ -792,7 +793,7 @@ Console.WriteLine(<span class="s">&quot;Watching three firings of one permanent 
     <span class="c">// learn: 1. Fire the job on a schedule</span>
     <span class="c">// The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so</span>
     <span class="c">// between firings the job is `Idle` and holds no thread.</span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span></span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span></span>
     <span class="c">// learn: end</span>
     <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
@@ -801,7 +802,7 @@ Console.WriteLine(<span class="s">&quot;Watching three firings of one permanent 
         <span class="c">// The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step</span>
         <span class="c">// would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on</span>
         <span class="c">// schedule.</span>
-<span class="hl">        <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);</span>
+<span class="hl">        <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);</span>
 <span class="hl">        <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);</span>
 <span class="hl">        <span class="k">if</span> (changes.Count == 0)</span>
 <span class="hl">        {</span>
@@ -815,7 +816,7 @@ Console.WriteLine(<span class="s">&quot;Watching three firings of one permanent 
         <span class="c">// which the upsert absorbs; the other order would skip one.</span>
 <span class="hl">        <span class="k">await</span> store.ApplyAsync(changes, ct);</span>
 <span class="hl">        <span class="k">var</span> head = changes[^1].ChangeId;</span>
-<span class="hl">        <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);</span>
+<span class="hl">        <span class="k">await</span> ctx.SetVariableAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, head, ct);</span>
         <span class="c">// learn: end</span>
         Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);
         <span class="c">// The lab's switch for killing the worker after a batch; a job of your own has no such line.</span>

@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Enqueue a few named children and wait for them together</h2>
 <p>Independent analyzes, none needs another's result: enqueue each, and they run at once.</p>
-<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> exif = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;exif&quot;</span>, <span class="k">new</span> ExtractExif(photo.AssetId, photo.SourceUrl), ct);</span>
-<span class="hl"><span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);</span>
-<span class="hl"><span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);</span>
+<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> exif = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;exif&quot;</span>, <span class="k">new</span> ExtractExif(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl"><span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl"><span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);</span>
 <span class="hl"><span class="k">var</span> analyze = <span class="k">await</span> context.WaitChildrenAsync([exif, blurhash, moderation], ct);</span>
 
 analyze.ThrowIfAnyFailed();</code></pre></figure>
@@ -90,7 +91,7 @@ analyze.ThrowIfAnyFailed();</code></pre></figure>
 
 <span class="hl"><span class="k">int</span>[] widths = [256, 512, 1024, 2048];</span>
 <span class="hl"><span class="k">var</span> resized = <span class="k">await</span> context.MapAsync(</span>
-<span class="hl">    <span class="s">&quot;resize&quot;</span>,</span>
+<span class="hl">    <span class="s ct" data-ct="child" tabindex="0">&quot;resize&quot;</span>,</span>
 <span class="hl">    widths,</span>
 <span class="hl">    itemKey: width =&gt; width,</span>
 <span class="hl">    child: width =&gt; <span class="k">new</span> Resize(photo.AssetId, photo.SourceUrl, width),</span>
@@ -104,8 +105,8 @@ analyze.ThrowIfAnyFailed();</code></pre></figure>
 <figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> renditionsReady = resized.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
 
 <span class="c">// Two independent side effects, enqueued and waited for the same way.</span>
-<span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);
-<span class="k">var</span> index = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;update-index&quot;</span>, <span class="k">new</span> UpdateIndex(photo.AssetId), ct);
+<span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);
+<span class="k">var</span> index = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;update-index&quot;</span>, <span class="k">new</span> UpdateIndex(photo.AssetId), ct);
 <span class="k">var</span> published = <span class="k">await</span> context.WaitChildrenAsync([cdn, index], ct);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
@@ -131,7 +132,7 @@ analyze.ThrowIfAnyFailed();</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;MapWaitChildrenJobs&gt;(<span class="s">&quot;photos&quot;</span>);
+    j.Run&lt;MapWaitChildrenJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;photos&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -172,14 +173,14 @@ Console.WriteLine(<span class="s">$&quot;photo {result.AssetId}: {result.Renditi
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PhotoJobs
     {
-        <span class="a">[Job(<span class="s">&quot;process-photo&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-photo&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;PhotoResult&gt; Process(ProcessPhoto photo, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 1. Enqueue a few named children and wait for them together</span>
             <span class="c">// Independent analyzes, none needs another's result: enqueue each, and they run at once.</span>
-<span class="hl">            <span class="k">var</span> exif = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;exif&quot;</span>, <span class="k">new</span> ExtractExif(photo.AssetId, photo.SourceUrl), ct);</span>
-<span class="hl">            <span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);</span>
-<span class="hl">            <span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl">            <span class="k">var</span> exif = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;exif&quot;</span>, <span class="k">new</span> ExtractExif(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl">            <span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl">            <span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);</span>
 <span class="hl">            <span class="k">var</span> analyze = <span class="k">await</span> context.WaitChildrenAsync([exif, blurhash, moderation], ct);</span>
             <span class="c">// learn: end</span>
 
@@ -189,7 +190,7 @@ Console.WriteLine(<span class="s">$&quot;photo {result.AssetId}: {result.Renditi
             <span class="c">// Map: one resize per width, keyed by width so replay dedupes onto the same children.</span>
 <span class="hl">            <span class="k">int</span>[] widths = [256, 512, 1024, 2048];</span>
 <span class="hl">            <span class="k">var</span> resized = <span class="k">await</span> context.MapAsync(</span>
-<span class="hl">                <span class="s">&quot;resize&quot;</span>,</span>
+<span class="hl">                <span class="s ct" data-ct="child" tabindex="0">&quot;resize&quot;</span>,</span>
 <span class="hl">                widths,</span>
 <span class="hl">                itemKey: width =&gt; width,</span>
 <span class="hl">                child: width =&gt; <span class="k">new</span> Resize(photo.AssetId, photo.SourceUrl, width),</span>
@@ -203,49 +204,49 @@ Console.WriteLine(<span class="s">$&quot;photo {result.AssetId}: {result.Renditi
             <span class="c">// learn: end</span>
 
             <span class="c">// Two independent side effects, enqueued and waited for the same way.</span>
-            <span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);
-            <span class="k">var</span> index = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;update-index&quot;</span>, <span class="k">new</span> UpdateIndex(photo.AssetId), ct);
+            <span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);
+            <span class="k">var</span> index = <span class="k">await</span> context.EnqueueChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;update-index&quot;</span>, <span class="k">new</span> UpdateIndex(photo.AssetId), ct);
             <span class="k">var</span> published = <span class="k">await</span> context.WaitChildrenAsync([cdn, index], ct);
 
             <span class="k">return</span> <span class="k">new</span> PhotoResult(photo.AssetId, renditionsReady, published.Succeeded);
         }
 
-        <span class="a">[Job(<span class="s">&quot;exif&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;exif&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task ReadExif(ExtractExif request, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);
             Console.WriteLine(<span class="s">$&quot;exif read for {request.AssetId}&quot;</span>);
         }
 
-        <span class="a">[Job(<span class="s">&quot;blurhash&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;blurhash&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Blurhash(ComputeBlurhash request, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);
             Console.WriteLine(<span class="s">$&quot;blurhash computed for {request.AssetId}&quot;</span>);
         }
 
-        <span class="a">[Job(<span class="s">&quot;moderation&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;moderation&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Moderate(ScanModeration request, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);
             Console.WriteLine(<span class="s">$&quot;moderation cleared for {request.AssetId}&quot;</span>);
         }
 
-        <span class="a">[Job(<span class="s">&quot;resize&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;resize&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Scale(Resize request, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);
             Console.WriteLine(<span class="s">$&quot;resized {request.AssetId} to {request.Width}px&quot;</span>);
         }
 
-        <span class="a">[Job(<span class="s">&quot;publish-cdn&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;publish-cdn&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Publish(PublishCdn request, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);
             Console.WriteLine(<span class="s">$&quot;published {request.AssetId} to cdn&quot;</span>);
         }
 
-        <span class="a">[Job(<span class="s">&quot;update-index&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;update-index&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Index(UpdateIndex request, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(50, ct);

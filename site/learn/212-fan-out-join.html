@@ -75,13 +75,14 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Map the list onto child jobs</h2>
 <p>MapAsync starts one child per chunk and waits for all of them. Each child is keyed by its range, so a replay finds the same children by name. A child given as its generated call types the map, so each item's outcome carries the child's result and the merge reads no child by id.</p>
-<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;add-numbers&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
 {
 <span class="hl">    <span class="k">var</span> chunks = <span class="k">await</span> context.MapAsync(</span>
-<span class="hl">        <span class="s">&quot;chunk&quot;</span>,</span>
+<span class="hl">        <span class="s ct" data-ct="child" tabindex="0">&quot;chunk&quot;</span>,</span>
 <span class="hl">        request.Chunks,</span>
 <span class="hl">        itemKey: chunk =&gt; <span class="s">$&quot;{chunk.From}-{chunk.To}&quot;</span>,</span>
 <span class="hl">        child: chunk =&gt; FanOutJoinJobs.SumRange(chunk),</span>
@@ -98,11 +99,11 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Stop if a child failed, then merge the results</h2>
 <p>The map does not throw for a failed child; the parent asks, and decides. <code>FailAsync</code> ends the handler there, so the merge runs only when every chunk succeeded.</p>
-<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;add-numbers&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
 {
     <span class="k">var</span> chunks = <span class="k">await</span> context.MapAsync(
-        <span class="s">&quot;chunk&quot;</span>,
+        <span class="s ct" data-ct="child" tabindex="0">&quot;chunk&quot;</span>,
         request.Chunks,
         itemKey: chunk =&gt; <span class="s">$&quot;{chunk.From}-{chunk.To}&quot;</span>,
         child: chunk =&gt; FanOutJoinJobs.SumRange(chunk),
@@ -140,7 +141,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;FanOutJoinJobs&gt;(<span class="s">&quot;fan-out-join&quot;</span>);
+    j.Run&lt;FanOutJoinJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;fan-out-join&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -168,7 +169,7 @@ Console.WriteLine(<span class="s">$&quot;sum 1..1000 = {outcome.ValueOrThrow().T
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> AddNumbersJobs
     {
-        <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;add-numbers&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 1. Map the list onto child jobs</span>
@@ -176,7 +177,7 @@ Console.WriteLine(<span class="s">$&quot;sum 1..1000 = {outcome.ValueOrThrow().T
             <span class="c">// so a replay finds the same children by name. A child given as its generated call types the map,</span>
             <span class="c">// so each item's outcome carries the child's result and the merge reads no child by id.</span>
 <span class="hl">            <span class="k">var</span> chunks = <span class="k">await</span> context.MapAsync(</span>
-<span class="hl">                <span class="s">&quot;chunk&quot;</span>,</span>
+<span class="hl">                <span class="s ct" data-ct="child" tabindex="0">&quot;chunk&quot;</span>,</span>
 <span class="hl">                request.Chunks,</span>
 <span class="hl">                itemKey: chunk =&gt; <span class="s">$&quot;{chunk.From}-{chunk.To}&quot;</span>,</span>
 <span class="hl">                child: chunk =&gt; FanOutJoinJobs.SumRange(chunk),</span>
@@ -196,7 +197,7 @@ Console.WriteLine(<span class="s">$&quot;sum 1..1000 = {outcome.ValueOrThrow().T
             <span class="c">// learn: end</span>
         }
 
-        <span class="a">[Job(<span class="s">&quot;sum-range&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sum-range&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;PartialSum&gt; Sum(SumRange range, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(150, ct);

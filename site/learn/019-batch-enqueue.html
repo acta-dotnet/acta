@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Build the requests and enqueue them together</h2>
 <p>EnqueueJobsAsync writes the whole batch in one round-trip; outcomes return in request order. Two requests with one deduplication key in the same batch throw before anything is written.</p>
 <figure class="listing"><figcaption><span class="file">batch-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -95,7 +96,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">batch-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PingJob
 {
-    <span class="a">[Job(<span class="s">&quot;ping&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ping&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle() { }
 }</code></pre></figure>
 </div>
@@ -123,7 +124,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;BatchEnqueueJobs&gt;(<span class="s">&quot;batch-enqueue&quot;</span>);
+    j.Run&lt;BatchEnqueueJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;batch-enqueue&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -153,7 +154,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 {
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PingJob
     {
-        <span class="a">[Job(<span class="s">&quot;ping&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ping&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle() { }
     }
 }</code></pre></figure>

@@ -75,10 +75,11 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Mark the step at-most-once</h2>
 <p>The step's start is recorded before its body runs. When the process dies inside the body, the replay does not call it again: the step throws <code>StepInterruptedException</code> instead.</p>
 <figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> context.RunStepAsync(</span>
-<span class="hl">    <span class="s">&quot;charge-card&quot;</span>,</span>
+<span class="hl">    <span class="s ct" data-ct="step" tabindex="0">&quot;charge-card&quot;</span>,</span>
 <span class="hl">    _ =&gt;</span>
 <span class="hl">    {</span>
 <span class="hl">        <span class="c">// Simulated external system: this write cannot share Acta's SQL transaction.</span></span>
@@ -97,7 +98,7 @@
 <figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">try</span>
 {
     <span class="k">await</span> context.RunStepAsync(
-        <span class="s">&quot;charge-card&quot;</span>,
+        <span class="s ct" data-ct="step" tabindex="0">&quot;charge-card&quot;</span>,
         _ =&gt;
         {
             <span class="c">// Simulated external system: this write cannot share Acta's SQL transaction.</span>
@@ -307,7 +308,7 @@ Console.WriteLine(<span class="s">$&quot;External side-effect records: {sideEffe
         <span class="k">public</span> <span class="k">static</span> <span class="k">string</span> SideEffectFile(JobRef jobRef) =&gt;
             Path.Combine(Path.GetTempPath(), <span class="s">$&quot;acta-at-most-once-side-effects-{jobRef}.log&quot;</span>);
 
-        <span class="a">[Job(<span class="s">&quot;charge-card&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;charge-card&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ChargeCard input, JobContext context, CancellationToken ct)
         {
             <span class="k">try</span>
@@ -316,7 +317,7 @@ Console.WriteLine(<span class="s">$&quot;External side-effect records: {sideEffe
                 <span class="c">// The step's start is recorded before its body runs. When the process dies inside the body, the</span>
                 <span class="c">// replay does not call it again: the step throws `StepInterruptedException` instead.</span>
 <span class="hl">                <span class="k">await</span> context.RunStepAsync(</span>
-<span class="hl">                    <span class="s">&quot;charge-card&quot;</span>,</span>
+<span class="hl">                    <span class="s ct" data-ct="step" tabindex="0">&quot;charge-card&quot;</span>,</span>
 <span class="hl">                    _ =&gt;</span>
 <span class="hl">                    {</span>
 <span class="hl">                        <span class="c">// Simulated external system: this write cannot share Acta's SQL transaction.</span></span>

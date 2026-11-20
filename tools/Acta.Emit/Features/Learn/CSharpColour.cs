@@ -5,7 +5,8 @@ namespace Acta.Emit.Features.Learn;
 
 /// <summary>
 /// C# as the site colours it: comments, strings, keywords, and attribute lines, each in a span of its own class. A
-/// string or a comment that runs over several lines is coloured line by line, so any line can be banded by itself.
+/// string or a comment that runs over several lines is coloured line by line, so any line can be banded by itself. A
+/// string a job is stored under is marked with its kind, for the page to say that it is a contract.
 /// </summary>
 internal static partial class CSharpColour
 {
@@ -96,7 +97,15 @@ internal static partial class CSharpColour
             if (StartsString(src, i))
             {
                 var end = StringEnd(src, i);
-                Push(html, "s", src[i..end]);
+                if (ContractKind(src, i) is { } kind && src.IndexOf('\n', i, end - i) < 0)
+                {
+                    html.Append("<span class=\"s ct\" data-ct=\"").Append(kind).Append("\" tabindex=\"0\">");
+                    html.Append(Esc(src[i..end])).Append("</span>");
+                }
+                else
+                {
+                    Push(html, "s", src[i..end]);
+                }
                 i = end;
                 continue;
             }
@@ -136,6 +145,59 @@ internal static partial class CSharpColour
             return;
         }
         html.Append(string.Join('\n', text.Split('\n').Select(line => $"<span class=\"{cls}\">{Esc(line)}</span>")));
+    }
+
+    /// <summary>
+    /// The kind of stored name the string at <paramref name="at"/> is: the first argument of an attribute or a call
+    /// that stores a job, or a part of one, under it. Null for every other string.
+    /// </summary>
+    private static string? ContractKind(string src, int at)
+    {
+        var i = at - 1;
+        while (i >= 0 && char.IsWhiteSpace(src[i]))
+        {
+            i--;
+        }
+        if (i < 0 || src[i] != '(')
+        {
+            return null;
+        }
+        i--;
+        var generic = i >= 0 && src[i] == '>';
+        if (generic)
+        {
+            var depth = 0;
+            while (i >= 0)
+            {
+                if (src[i] == '>')
+                {
+                    depth++;
+                }
+                else if (src[i] == '<' && --depth == 0)
+                {
+                    i--;
+                    break;
+                }
+                i--;
+            }
+        }
+        var end = i + 1;
+        while (i >= 0 && IsWordChar(src[i]))
+        {
+            i--;
+        }
+        return src[(i + 1)..end] switch
+        {
+            "Job" => "job",
+            "Run" or "Reference" when generic => "namespace",
+            "RunStepAsync" or "RunStepWithCheckAsync" => "step",
+            "WaitSignalAsync" => "signal",
+            "SleepAsync" or "SleepUntilAsync" => "timer",
+            "SetVariableAsync" or "GetOrSetVariableAsync" or "GetVariableAsync" or "TryGetVariableAsync" or "GetVariableOrDefaultAsync" =>
+                "variable",
+            "EnqueueChildAsync" or "CallChildAsync" or "MapAsync" => "child",
+            _ => null,
+        };
     }
 
     private static bool At(string src, int i, string text) => string.CompareOrdinal(src, i, text, 0, text.Length) == 0;

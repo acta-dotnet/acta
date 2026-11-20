@@ -75,17 +75,18 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the jobs: one that retries and returns a result, one that fails for good</h2>
 <p>A result-bearing job: its handler books the shipment and returns the label. The default policy, 15 attempts with backoff from one minute, suits a flaky carrier: a timeout costs an attempt, not the order.</p>
 <figure class="listing"><figcaption><span class="file">Jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderHandlers(Carrier carrier, LabelPrinter printer)
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;ship-order&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">async</span> Task&lt;ShipmentLabel&gt; Ship(ShipOrder input, CancellationToken ct) =&gt;</span>
 <span class="hl">        <span class="k">new</span>(input.OrderId, <span class="s">&quot;acme-post&quot;</span>, <span class="k">await</span> carrier.BookAsync(input.OrderId, ct));</span>
 <span class="hl"> </span>
 <span class="hl">    <span class="c">// One attempt: a printer that is off is not retried for a day; the job fails for good and the</span></span>
 <span class="hl">    <span class="c">// explanation says why.</span></span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;print-label&quot;</span>, MaxAttempts = 1)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;print-label&quot;</span>, MaxAttempts = 1)]</span></span>
 <span class="hl">    <span class="k">public</span> Task Print(PrintLabel input, CancellationToken ct) =&gt; printer.PrintAsync(input.TrackingNumber, ct);</span>
 }</code></pre></figure>
 </div>
@@ -103,7 +104,7 @@
 <span class="hl">        sqlite.ConnectionString = <span class="s">&quot;Data Source=acta-local.db&quot;</span>;</span>
 <span class="hl">        sqlite.MigrateOnStartup = <span class="k">true</span>; <span class="c">// local development only; in production a deploy step runs &quot;jobs migrate&quot;</span></span>
 <span class="hl">    });</span>
-<span class="hl">    j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);</span>
+<span class="hl">    j.Run&lt;ShippingJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;shipping&quot;</span>);</span>
 <span class="hl">});</span>
 <span class="hl"> </span>
 <span class="hl"><span class="k">var</span> app = builder.Build();</span>
@@ -233,7 +234,7 @@ Now listening on: http://127.0.0.1:</code></pre></figure>
 <span class="hl">        sqlite.ConnectionString = <span class="s">&quot;Data Source=acta-local.db&quot;</span>;</span>
 <span class="hl">        sqlite.MigrateOnStartup = <span class="k">true</span>; <span class="c">// local development only; in production a deploy step runs &quot;jobs migrate&quot;</span></span>
 <span class="hl">    });</span>
-<span class="hl">    j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);</span>
+<span class="hl">    j.Run&lt;ShippingJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;shipping&quot;</span>);</span>
 <span class="hl">});</span>
 <span class="hl"> </span>
 <span class="hl"><span class="k">var</span> app = builder.Build();</span>
@@ -354,13 +355,13 @@ app.Run();</code></pre></figure>
     <span class="c">// learn: 1. Write the jobs: one that retries and returns a result, one that fails for good</span>
     <span class="c">// A result-bearing job: its handler books the shipment and returns the label. The default policy, 15 attempts</span>
     <span class="c">// with backoff from one minute, suits a flaky carrier: a timeout costs an attempt, not the order.</span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;ship-order&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">async</span> Task&lt;ShipmentLabel&gt; Ship(ShipOrder input, CancellationToken ct) =&gt;</span>
 <span class="hl">        <span class="k">new</span>(input.OrderId, <span class="s">&quot;acme-post&quot;</span>, <span class="k">await</span> carrier.BookAsync(input.OrderId, ct));</span>
 <span class="hl"> </span>
 <span class="hl">    <span class="c">// One attempt: a printer that is off is not retried for a day; the job fails for good and the</span></span>
 <span class="hl">    <span class="c">// explanation says why.</span></span>
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;print-label&quot;</span>, MaxAttempts = 1)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;print-label&quot;</span>, MaxAttempts = 1)]</span></span>
 <span class="hl">    <span class="k">public</span> Task Print(PrintLabel input, CancellationToken ct) =&gt; printer.PrintAsync(input.TrackingNumber, ct);</span>
     <span class="c">// learn: end</span>
 }</code></pre></figure>

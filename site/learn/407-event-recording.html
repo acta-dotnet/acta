@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Record only failures for a job that runs often</h2>
 <p>Failures: a failure writes an event, and so does the success that answers one; a run that succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean. The program also runs <code>audit-work</code> at the default level and counts the events of both.</p>
 <figure class="listing"><figcaption><span class="file">event-recording.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FailuresWorkJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;failures-work&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;failures-work&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(FailuresWork input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.Id}] running at Failures level&quot;</span>);
 }</code></pre></figure>
 </div>
@@ -108,7 +109,7 @@ Failures level -&gt; event count: 0</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;EventRecordingJobs&gt;(<span class="s">&quot;event-recording&quot;</span>);
+    j.Run&lt;EventRecordingJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;event-recording&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -142,7 +143,7 @@ Console.WriteLine(
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AuditWorkJob
     {
         <span class="c">// Audit (default): a finished event is written for every execution.</span>
-        <span class="a">[Job(<span class="s">&quot;audit-work&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;audit-work&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(AuditWork input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.Id}] running at Audit level&quot;</span>);
     }
 
@@ -152,7 +153,7 @@ Console.WriteLine(
         <span class="c">// Failures: a failure writes an event, and so does the success that answers one; a run that</span>
         <span class="c">// succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.</span>
         <span class="c">// The program also runs `audit-work` at the default level and counts the events of both.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;failures-work&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;failures-work&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(FailuresWork input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.Id}] running at Failures level&quot;</span>);
     }

@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Register the tenant</h2>
 <p>A tenant is a row in the catalog. An enqueue names it, and the name must resolve to a tenant that is not suspended.</p>
 <figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -115,17 +116,17 @@ Console.WriteLine(
 <div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ExportAccountJob
 {
-    <span class="a">[Job(<span class="s">&quot;export-account&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;export-account&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ExportAccount input, JobContext context, CancellationToken ct)
     {
         <span class="c">// No TenantName override: the child inherits the parent's resolved tenant_id.</span>
-        <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;write-export&quot;</span>, <span class="k">new</span> WriteExport(input.TenantName), ct);
+        <span class="k">await</span> context.CallChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;write-export&quot;</span>, <span class="k">new</span> WriteExport(input.TenantName), ct);
     }
 
-    <span class="a">[Job(<span class="s">&quot;write-export&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;write-export&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Write(WriteExport input) =&gt; Console.WriteLine(<span class="s">$&quot;wrote account export for {input.TenantName}&quot;</span>);
 
-    <span class="a">[Job(<span class="s">&quot;tenant-lifecycle-probe&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tenant-lifecycle-probe&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Probe(TenantLifecycleProbe input) =&gt;
         Console.WriteLine(<span class="s">$&quot;work accepted before suspension still ran for {input.TenantName}&quot;</span>);
 }</code></pre></figure>
@@ -338,17 +339,17 @@ Console.WriteLine(
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ExportAccountJob
     {
-        <span class="a">[Job(<span class="s">&quot;export-account&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;export-account&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ExportAccount input, JobContext context, CancellationToken ct)
         {
             <span class="c">// No TenantName override: the child inherits the parent's resolved tenant_id.</span>
-            <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;write-export&quot;</span>, <span class="k">new</span> WriteExport(input.TenantName), ct);
+            <span class="k">await</span> context.CallChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;write-export&quot;</span>, <span class="k">new</span> WriteExport(input.TenantName), ct);
         }
 
-        <span class="a">[Job(<span class="s">&quot;write-export&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;write-export&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Write(WriteExport input) =&gt; Console.WriteLine(<span class="s">$&quot;wrote account export for {input.TenantName}&quot;</span>);
 
-        <span class="a">[Job(<span class="s">&quot;tenant-lifecycle-probe&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tenant-lifecycle-probe&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Probe(TenantLifecycleProbe input) =&gt;
             Console.WriteLine(<span class="s">$&quot;work accepted before suspension still ran for {input.TenantName}&quot;</span>);
     }

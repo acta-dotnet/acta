@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Put several schedules on the one job</h2>
 <p>Several [Schedule]s share one permanent job; schedules due at the same instant coalesce into ONE execution, and context.TriggeringSchedules reports which fired.</p>
 <figure class="listing"><figcaption><span class="file">multiple-schedules.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReportJob
 {
-    <span class="a">[Job(<span class="s">&quot;report&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;report&quot;</span>)]</span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;fast&quot;</span>, <span class="s">&quot;PT10S&quot;</span>)]</span></span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;faster&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span></span>
     <span class="k">public</span> Task Handle(Report input, JobContext context, CancellationToken ct)
@@ -94,7 +95,7 @@
 <div class="step"><h2><span class="step-n">2</span>Read which schedules fired this execution</h2>
 <figure class="listing"><figcaption><span class="file">multiple-schedules.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReportJob
 {
-    <span class="a">[Job(<span class="s">&quot;report&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;report&quot;</span>)]</span>
     <span class="a">[Schedule(<span class="s">&quot;fast&quot;</span>, <span class="s">&quot;PT10S&quot;</span>)]</span>
     <span class="a">[Schedule(<span class="s">&quot;faster&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
     <span class="k">public</span> Task Handle(Report input, JobContext context, CancellationToken ct)
@@ -154,7 +155,7 @@ fired by [fast, faster]</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;MultipleSchedulesJobs&gt;(<span class="s">&quot;multiple-schedules&quot;</span>);
+    j.Run&lt;MultipleSchedulesJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;multiple-schedules&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -210,7 +211,7 @@ Console.WriteLine(<span class="s">&quot;Watching two schedule cursors drive one 
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReportJob
     {
-        <span class="a">[Job(<span class="s">&quot;report&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;report&quot;</span>)]</span>
         <span class="c">// learn: 1. Put several schedules on the one job</span>
         <span class="c">// Several [Schedule]s share one permanent job; schedules due at the same instant coalesce</span>
         <span class="c">// into ONE execution, and context.TriggeringSchedules reports which fired.</span>

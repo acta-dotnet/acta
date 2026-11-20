@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Return the result from the handler</h2>
 <p>What the handler returns is stored with the job as its result.</p>
 <figure class="listing"><figcaption><span class="file">job-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AddNumbersJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;add-numbers&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> AddNumbersResult Handle(AddNumbers input) =&gt; <span class="k">new</span>(input.Left + input.Right);</span>
 }</code></pre></figure>
 </div>
@@ -90,7 +91,7 @@
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;JobResultJobs&gt;(<span class="s">&quot;job-result&quot;</span>);
+    j.Run&lt;JobResultJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;job-result&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -128,7 +129,7 @@ builder.Services.UseActa(j =&gt;
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;JobResultJobs&gt;(<span class="s">&quot;job-result&quot;</span>);
+    j.Run&lt;JobResultJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;job-result&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -157,7 +158,7 @@ builder.Services.UseActa(j =&gt;
     {
         <span class="c">// learn: 1. Return the result from the handler</span>
         <span class="c">// What the handler returns is stored with the job as its result.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;add-numbers&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> AddNumbersResult Handle(AddNumbers input) =&gt; <span class="k">new</span>(input.Left + input.Right);</span>
         <span class="c">// learn: end</span>
     }

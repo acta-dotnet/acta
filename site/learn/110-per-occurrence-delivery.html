@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Deliver each occurrence as a job of its own</h2>
 <p>Each occurrence is an ordinary root job with a ref, retries, and result of its own. <code>MaxOutstanding</code> bounds how many may be unfinished at once, and a full schedule set to <code>Skip</code> passes over an occurrence, audited as <code>schedule.skipped</code> with the reason <code>capacity</code>. Unset, <code>MaxOutstanding</code> is 1 and <code>FullBehavior</code> is <code>Wait</code>, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.</p>
 <figure class="listing"><figcaption><span class="file">per-occurrence-delivery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">int</span> AtOnce =&gt; Volatile.Read(<span class="k">ref</span> _atOnce);
@@ -83,7 +84,7 @@
 
 <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Release() =&gt; Gate.TrySetResult();
 
-<span class="hl"><span class="a">[Job(<span class="s">&quot;import-files&quot;</span>, ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span></span>
+<span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;import-files&quot;</span>, ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span></span>
 <span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Import(JobContext ctx, CancellationToken ct)
 {
@@ -237,7 +238,7 @@ Console.WriteLine(<span class="s">$&quot;{skipped} occurrences were skipped whil
         <span class="c">// occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and</span>
         <span class="c">// `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how</span>
         <span class="c">// many run at once; a job of your own does the occurrence's work there.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;import-files&quot;</span>, ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;import-files&quot;</span>, ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span></span>
 <span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Import(JobContext ctx, CancellationToken ct)

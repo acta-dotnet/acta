@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the rule as a calendar definition</h2>
 <p>A <code>business-day</code> definition picks the first or last business day of each week, month, quarter or year, at a local time. Business days are Monday to Friday unless <code>businessDays</code> says otherwise, and a date in <code>holidays</code> is not one.</p>
 <figure class="listing"><figcaption><span class="file">business-day-schedule.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Definitions
@@ -111,7 +112,7 @@ current = draft.Version.Value;
 <p><code>Calendar</code> takes the place of a cron or an interval, and <code>TimeZoneId</code> is the zone the calendar's local time is read in.</p>
 <figure class="listing"><figcaption><span class="file">business-day-schedule.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SettleJob
 {
-    <span class="a">[Job(<span class="s">&quot;settle&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;settle&quot;</span>)]</span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;month-end&quot;</span>, Calendar = <span class="s">&quot;settlement-days&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
     <span class="k">public</span> Task Handle(Settle input, CancellationToken ct)
     {
@@ -185,7 +186,7 @@ the calendar's next instant: True</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;BusinessDayScheduleJobs&gt;(<span class="s">&quot;settlement&quot;</span>);
+    j.Run&lt;BusinessDayScheduleJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;settlement&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -226,7 +227,7 @@ Console.WriteLine(
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SettleJob
     {
-        <span class="a">[Job(<span class="s">&quot;settle&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;settle&quot;</span>)]</span>
         <span class="c">// learn: 3. Name the calendar on the schedule</span>
         <span class="c">// `Calendar` takes the place of a cron or an interval, and `TimeZoneId` is the zone the calendar's local time</span>
         <span class="c">// is read in.</span>

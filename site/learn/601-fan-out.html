@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Enqueue each job with a key taken from what it is</h2>
 <p>The handler can be retried, and a replay runs the whole loop again. With a stable key the replay gets the existing job back instead of a second copy.</p>
 <figure class="listing"><figcaption><span class="file">fan-out.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.</span>
@@ -85,7 +86,7 @@
 <span class="c">// already enqueued. With one, the replay re-enqueues and Acta returns the existing job instead.</span>
 <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MakeAlbumThumbnailsJob(IJobs jobs)
 {
-    <span class="a">[Job(<span class="s">&quot;make-album-thumbnails&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;make-album-thumbnails&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(MakeAlbumThumbnails input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;fanning out {input.PhotoCount} thumbnail jobs&quot;</span>);
@@ -125,7 +126,7 @@ made thumbnail for photo #5</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;FanOutJobs&gt;(<span class="s">&quot;fan-out&quot;</span>);
+    j.Run&lt;FanOutJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;fan-out&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -153,7 +154,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
     <span class="c">// already enqueued. With one, the replay re-enqueues and Acta returns the existing job instead.</span>
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MakeAlbumThumbnailsJob(IJobs jobs)
     {
-        <span class="a">[Job(<span class="s">&quot;make-album-thumbnails&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;make-album-thumbnails&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(MakeAlbumThumbnails input, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;fanning out {input.PhotoCount} thumbnail jobs&quot;</span>);
@@ -171,7 +172,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> MakeThumbnailJob
     {
-        <span class="a">[Job(<span class="s">&quot;make-thumbnail&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;make-thumbnail&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(MakeThumbnail input) =&gt; Console.WriteLine(<span class="s">$&quot;  made thumbnail for photo #{input.PhotoIndex}&quot;</span>);
     }
 }</code></pre></figure>

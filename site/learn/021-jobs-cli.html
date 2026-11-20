@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Run the app's own binary with a jobs verb</h2>
 <p>A first argument of <code>jobs</code> runs that verb against the app's database and exits; without it the process starts as a normal worker. The program needs no line of its own for this.</p>
 <figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">const</span> <span class="k">string</span> cli = <span class="s">&quot;dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs&quot;</span>;</span>
@@ -91,11 +92,11 @@
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReviewDocumentJob
 {
-    <span class="a">[Job(<span class="s">&quot;review-document&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;review-document&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ReviewDocument input, JobContext context, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{input.DocumentId}] indexed; waiting for legal approval&quot;</span>);
-        <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;legal-approval&quot;</span>, ct);
+        <span class="k">await</span> context.WaitSignalAsync(<span class="s ct" data-ct="signal" tabindex="0">&quot;legal-approval&quot;</span>, ct);
         Console.WriteLine(<span class="s">$&quot;[{input.DocumentId}] approved&quot;</span>);
     }
 }</code></pre></figure>
@@ -154,7 +155,7 @@ dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs debug &lt;job-r
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;JobsCliJobs&gt;(<span class="s">&quot;jobs-cli&quot;</span>);
+    j.Run&lt;JobsCliJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;jobs-cli&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -224,11 +225,11 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReviewDocumentJob
     {
-        <span class="a">[Job(<span class="s">&quot;review-document&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;review-document&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ReviewDocument input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.DocumentId}] indexed; waiting for legal approval&quot;</span>);
-            <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;legal-approval&quot;</span>, ct);
+            <span class="k">await</span> context.WaitSignalAsync(<span class="s ct" data-ct="signal" tabindex="0">&quot;legal-approval&quot;</span>, ct);
             Console.WriteLine(<span class="s">$&quot;[{input.DocumentId}] approved&quot;</span>);
         }
     }

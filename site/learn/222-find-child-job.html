@@ -75,18 +75,19 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Start each child under the item's own key</h2>
 <p><code>itemKey</code> names each child after its item. The name is stored as the child's deduplication key, and it is how a replay of the parent and a reader from outside find the same child.</p>
 <figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> InvoiceJobs
 {
-    <span class="a">[Job(<span class="s">&quot;send-invoices&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-invoices&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(SendInvoices batch, JobContext ctx, CancellationToken ct)
     {
-<span class="hl">        <span class="k">var</span> sent = <span class="k">await</span> ctx.MapAsync(<span class="s">&quot;invoice&quot;</span>, batch.InvoiceIds, itemKey: id =&gt; id, child: id =&gt; <span class="k">new</span> SendInvoice(id), ct);</span>
+<span class="hl">        <span class="k">var</span> sent = <span class="k">await</span> ctx.MapAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;invoice&quot;</span>, batch.InvoiceIds, itemKey: id =&gt; id, child: id =&gt; <span class="k">new</span> SendInvoice(id), ct);</span>
         Console.WriteLine(<span class="s">$&quot;{sent.Items.Count(item =&gt; item.Outcome.Succeeded)} of {batch.InvoiceIds.Length} invoices sent&quot;</span>);
     }
 
-    <span class="a">[Job(<span class="s">&quot;send-invoice&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-invoice&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Send(SendInvoice invoice, JobContext ctx, CancellationToken ct)
     {
         <span class="c">// FailAsync ends the job there, Failed with no retry, so only the other invoices print as sent.</span>
@@ -160,7 +161,7 @@ invoice 7: Failed. the customer's address bounced</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;FindChildJobJobs&gt;(<span class="s">&quot;find-child-job&quot;</span>);
+    j.Run&lt;FindChildJobJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;find-child-job&quot;</span>);
 });
 
 <span class="c">// One invoice fails on purpose; quiet the framework's warning for it.</span>
@@ -204,18 +205,18 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> InvoiceJobs
     {
-        <span class="a">[Job(<span class="s">&quot;send-invoices&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-invoices&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(SendInvoices batch, JobContext ctx, CancellationToken ct)
         {
             <span class="c">// learn: 1. Start each child under the item's own key</span>
             <span class="c">// `itemKey` names each child after its item. The name is stored as the child's deduplication key, and it</span>
             <span class="c">// is how a replay of the parent and a reader from outside find the same child.</span>
-<span class="hl">            <span class="k">var</span> sent = <span class="k">await</span> ctx.MapAsync(<span class="s">&quot;invoice&quot;</span>, batch.InvoiceIds, itemKey: id =&gt; id, child: id =&gt; <span class="k">new</span> SendInvoice(id), ct);</span>
+<span class="hl">            <span class="k">var</span> sent = <span class="k">await</span> ctx.MapAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;invoice&quot;</span>, batch.InvoiceIds, itemKey: id =&gt; id, child: id =&gt; <span class="k">new</span> SendInvoice(id), ct);</span>
             <span class="c">// learn: end</span>
             Console.WriteLine(<span class="s">$&quot;{sent.Items.Count(item =&gt; item.Outcome.Succeeded)} of {batch.InvoiceIds.Length} invoices sent&quot;</span>);
         }
 
-        <span class="a">[Job(<span class="s">&quot;send-invoice&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-invoice&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Send(SendInvoice invoice, JobContext ctx, CancellationToken ct)
         {
             <span class="c">// FailAsync ends the job there, Failed with no retry, so only the other invoices print as sent.</span>

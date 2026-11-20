@@ -166,6 +166,10 @@ internal sealed partial class LearnPages
     {
         var html = new StringBuilder();
         var steps = Steps(entry);
+        if (steps.Any(step => step.Html.Contains("class=\"s ct\"", StringComparison.Ordinal)))
+        {
+            html.Append("<p class=\"ct-legend\">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>\n");
+        }
         for (var n = 0; n < steps.Count; n++)
         {
             html.Append(

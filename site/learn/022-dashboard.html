@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Map the dashboard into your app</h2>
 <p><code>MapActa</code> adds the dashboard and its JSON API under the path you give. By default it answers local requests only, and its controls (pause, resume, cancel, restart) stay disabled until <code>EnableControls</code> is set.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// The failed/retrying rows are intentional fixtures; preserve their evidence without startup stack-trace noise.</span>
@@ -90,7 +91,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GreetVisitorJob
 {
-    <span class="a">[Job(<span class="s">&quot;greet-visitor&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;greet-visitor&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(GreetVisitor input, CancellationToken ct)
     {
         <span class="k">await</span> Task.Delay(200, ct);
@@ -148,7 +149,7 @@ Dashboard: http://127.0.0.1:</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;DashboardSampleJobs&gt;(<span class="s">&quot;dashboard-sample&quot;</span>);
+    j.Run&lt;DashboardSampleJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;dashboard-sample&quot;</span>);
 });
 
 <span class="c">// The failed/retrying rows are intentional fixtures; preserve their evidence without startup stack-trace noise.</span>
@@ -239,7 +240,7 @@ Console.WriteLine(<span class="s">&quot;Press Ctrl+C to stop.&quot;</span>);
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GreetVisitorJob
     {
-        <span class="a">[Job(<span class="s">&quot;greet-visitor&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;greet-visitor&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(GreetVisitor input, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(200, ct);
@@ -249,35 +250,35 @@ Console.WriteLine(<span class="s">&quot;Press Ctrl+C to stop.&quot;</span>);
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> BrokenImportJob
     {
-        <span class="a">[Job(<span class="s">&quot;broken-import&quot;</span>, MaxAttempts = 1)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;broken-import&quot;</span>, MaxAttempts = 1)]</span>
         <span class="k">public</span> <span class="k">static</span> Task Handle(BrokenImport input) =&gt; <span class="k">throw</span> <span class="k">new</span> InvalidDataException(<span class="s">$&quot;{input.FileName}: invalid header&quot;</span>);
     }
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> RetryImportJob
     {
-        <span class="a">[Job(<span class="s">&quot;retry-import&quot;</span>, MaxAttempts = 5, Backoff = <span class="s">&quot;30s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;retry-import&quot;</span>, MaxAttempts = 5, Backoff = <span class="s">&quot;30s&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> Task Handle(RetryImport input) =&gt; <span class="k">throw</span> <span class="k">new</span> IOException(<span class="s">$&quot;{input.FileName}: upstream unavailable&quot;</span>);
     }
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AwaitApprovalJob
     {
-        <span class="a">[Job(<span class="s">&quot;await-approval&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;await-approval&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(AwaitApproval input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.InvoiceId}] waiting for approval&quot;</span>);
-            <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;approval&quot;</span>, ct);
+            <span class="k">await</span> context.WaitSignalAsync(<span class="s ct" data-ct="signal" tabindex="0">&quot;approval&quot;</span>, ct);
         }
     }
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PreviewJob
     {
-        <span class="a">[Job(<span class="s">&quot;build-preview&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;build-preview&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(BuildPreview input, JobContext context, CancellationToken ct)
         {
-            <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;thumbnail&quot;</span>, <span class="k">new</span> RenderThumbnail(input.CatalogId), ct);
+            <span class="k">await</span> context.CallChildAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;thumbnail&quot;</span>, <span class="k">new</span> RenderThumbnail(input.CatalogId), ct);
         }
 
-        <span class="a">[Job(<span class="s">&quot;render-thumbnail&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;render-thumbnail&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(RenderThumbnail input, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(4000, ct);
@@ -287,7 +288,7 @@ Console.WriteLine(<span class="s">&quot;Press Ctrl+C to stop.&quot;</span>);
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> HeartbeatJob
     {
-        <span class="a">[Job(<span class="s">&quot;heartbeat&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;heartbeat&quot;</span>)]</span>
         <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, Cron.Every15Seconds)]</span>
         <span class="k">public</span> Task Handle(HeartbeatTick input) =&gt; Task.Delay(50);
     }

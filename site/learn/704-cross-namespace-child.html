@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Run a worker for each namespace</h2>
 <p>A child can target any registered namespace: the parent's wait is released when the child finishes, whichever namespace ran it.</p>
 <figure class="listing"><figcaption><span class="file">cross-namespace-child.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
@@ -83,8 +84,8 @@ builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
 
-<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s">&quot;storefront&quot;</span>);</span>
-<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s">&quot;billing&quot;</span>);</span>
+<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;storefront&quot;</span>);</span>
+<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;billing&quot;</span>);</span>
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -95,7 +96,7 @@ builder.Services.UseActa(j =&gt;
 <div class="step"><h2><span class="step-n">2</span>Name the child's namespace and job</h2>
 <p>The raw EnqueueChildAsync overload names an explicit (namespace, job) route. The first argument is the child's name: on a re-entry the same name finds the child already enqueued, so it is sent once.</p>
 <figure class="listing"><figcaption><span class="file">cross-namespace-child.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> charge = <span class="k">await</span> context.EnqueueChildAsync(</span>
-<span class="hl">    <span class="s">&quot;charge&quot;</span>,</span>
+<span class="hl">    <span class="s ct" data-ct="child" tabindex="0">&quot;charge&quot;</span>,</span>
 <span class="hl">    <span class="s">&quot;billing&quot;</span>,</span>
 <span class="hl">    <span class="s">&quot;charge-payment&quot;</span>,</span>
 <span class="hl">    JobPayload.Json(<span class="k">new</span> ChargePayment(order.OrderId, order.Amount)),</span>
@@ -145,8 +146,8 @@ builder.Services.UseActa(j =&gt;
     <span class="c">// learn: 1. Run a worker for each namespace</span>
     <span class="c">// A child can target any registered namespace: the parent's wait is released when the child finishes,</span>
     <span class="c">// whichever namespace ran it.</span>
-<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s">&quot;storefront&quot;</span>);</span>
-<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s">&quot;billing&quot;</span>);</span>
+<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;storefront&quot;</span>);</span>
+<span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;billing&quot;</span>);</span>
     <span class="c">// learn: end</span>
 });
 
@@ -186,14 +187,14 @@ Console.WriteLine(<span class="s">$&quot;order finished: {await jobs.GetResultAs
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderJobs
     {
-        <span class="a">[Job(<span class="s">&quot;place-order&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;place-order&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;OrderConfirmation&gt; Handle(PlaceOrder order, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 2. Name the child's namespace and job</span>
             <span class="c">// The raw EnqueueChildAsync overload names an explicit (namespace, job) route. The first argument is</span>
             <span class="c">// the child's name: on a re-entry the same name finds the child already enqueued, so it is sent once.</span>
 <span class="hl">            <span class="k">var</span> charge = <span class="k">await</span> context.EnqueueChildAsync(</span>
-<span class="hl">                <span class="s">&quot;charge&quot;</span>,</span>
+<span class="hl">                <span class="s ct" data-ct="child" tabindex="0">&quot;charge&quot;</span>,</span>
 <span class="hl">                <span class="s">&quot;billing&quot;</span>,</span>
 <span class="hl">                <span class="s">&quot;charge-payment&quot;</span>,</span>
 <span class="hl">                JobPayload.Json(<span class="k">new</span> ChargePayment(order.OrderId, order.Amount)),</span>
@@ -213,7 +214,7 @@ Console.WriteLine(<span class="s">$&quot;order finished: {await jobs.GetResultAs
             <span class="k">return</span> <span class="k">new</span> OrderConfirmation(order.OrderId, receipt.TransactionId);
         }
 
-        <span class="a">[Job(<span class="s">&quot;charge-payment&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;charge-payment&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;PaymentReceipt&gt; Charge(ChargePayment charge, CancellationToken ct)
         {
             <span class="k">await</span> Task.Delay(200, ct);

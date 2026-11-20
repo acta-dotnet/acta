@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Run a worker for each namespace</h2>
 <p>Each Run starts an independent worker owning a distinct namespace (own claim loop, lease identity, heartbeat); they share process and database but never each other's jobs.</p>
 <figure class="listing"><figcaption><span class="file">namespaces-in-one-process.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
@@ -83,8 +84,8 @@ builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
 
-<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s">&quot;orders-eu&quot;</span>);</span>
-<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s">&quot;orders-us&quot;</span>);</span>
+<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;orders-eu&quot;</span>);</span>
+<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;orders-us&quot;</span>);</span>
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -113,7 +114,7 @@ builder.Services.UseActa(j =&gt;
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">namespaces-in-one-process.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ProcessOrderJob
 {
-    <span class="a">[Job(<span class="s">&quot;process-order&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-order&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(ProcessOrder input) =&gt; Console.WriteLine(<span class="s">$&quot;processed {input.OrderId}&quot;</span>);
 }</code></pre></figure>
 </div>
@@ -149,8 +150,8 @@ builder.Services.UseActa(j =&gt;
     <span class="c">// learn: 1. Run a worker for each namespace</span>
     <span class="c">// Each Run starts an independent worker owning a distinct namespace (own claim loop, lease</span>
     <span class="c">// identity, heartbeat); they share process and database but never each other's jobs.</span>
-<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s">&quot;orders-eu&quot;</span>);</span>
-<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s">&quot;orders-us&quot;</span>);</span>
+<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;orders-eu&quot;</span>);</span>
+<span class="hl">    j.Run&lt;NamespacesInOneProcessJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;orders-us&quot;</span>);</span>
     <span class="c">// learn: end</span>
 });
 
@@ -188,7 +189,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued 3 orders into each region. Both
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ProcessOrderJob
     {
-        <span class="a">[Job(<span class="s">&quot;process-order&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-order&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(ProcessOrder input) =&gt; Console.WriteLine(<span class="s">$&quot;processed {input.OrderId}&quot;</span>);
     }
 }</code></pre></figure>

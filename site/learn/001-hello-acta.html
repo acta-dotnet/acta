@@ -75,11 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the job</h2>
 <p>A job is a method with <code>[Job(&quot;name&quot;)]</code> on it, and the record is its input. Acta stores the input as a row and calls the method with it.</p>
 <figure class="listing"><figcaption><span class="file">hello-acta.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> HelloJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;hello&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;hello&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Hello input) =&gt; Console.WriteLine(<span class="s">$&quot;Hello, {input.Name}!&quot;</span>);</span>
 }</code></pre></figure>
 </div>
@@ -95,7 +96,7 @@ builder.Services.UseActa(j =&gt;
 <span class="hl">            ?? <span class="s">$&quot;Data Source={Path.Combine(Path.GetTempPath(), &quot;acta-local.db&quot;)}&quot;</span>;</span>
 <span class="hl">        sqlite.MigrateOnStartup = <span class="k">true</span>;</span>
 <span class="hl">    });</span>
-<span class="hl">    j.Run&lt;HelloActaJobs&gt;(<span class="s">&quot;hello-acta&quot;</span>);</span>
+<span class="hl">    j.Run&lt;HelloActaJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;hello-acta&quot;</span>);</span>
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -150,7 +151,7 @@ builder.Services.UseActa(j =&gt;
 <span class="hl">            ?? <span class="s">$&quot;Data Source={Path.Combine(Path.GetTempPath(), &quot;acta-local.db&quot;)}&quot;</span>;</span>
 <span class="hl">        sqlite.MigrateOnStartup = <span class="k">true</span>;</span>
 <span class="hl">    });</span>
-<span class="hl">    j.Run&lt;HelloActaJobs&gt;(<span class="s">&quot;hello-acta&quot;</span>);</span>
+<span class="hl">    j.Run&lt;HelloActaJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;hello-acta&quot;</span>);</span>
     <span class="c">// learn: end</span>
 });
 
@@ -179,7 +180,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. The worker is running - press 
         <span class="c">// learn: 1. Write the job</span>
         <span class="c">// A job is a method with `[Job(&quot;name&quot;)]` on it, and the record is its input. Acta stores the input as a row</span>
         <span class="c">// and calls the method with it.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;hello&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;hello&quot;</span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Hello input) =&gt; Console.WriteLine(<span class="s">$&quot;Hello, {input.Name}!&quot;</span>);</span>
         <span class="c">// learn: end</span>
     }

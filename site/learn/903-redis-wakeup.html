@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Turn the Redis wake-up on in every process</h2>
 <p>Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a latency accelerator, not a correctness dependency; if it's down, workers fall back to polling at their <code>SafetyPollInterval</code>. <code>redis</code> is a StackExchange.Redis configuration string such as &quot;localhost:6379&quot;, and the call comes from the <code>Acta.Redis</code> package.</p>
 <figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>j.UseLocalDatabase(builder.Configuration);
@@ -84,7 +85,7 @@
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PingJob
 {
-    <span class="a">[Job(<span class="s">&quot;ping&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ping&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Ping input) =&gt;
         Console.WriteLine(<span class="s">$&quot;{DateTime.Now:HH:mm:ss.fff} woke and ran a ping enqueued at {input.EnqueuedAt}&quot;</span>);
 }</code></pre></figure>
@@ -131,11 +132,11 @@ builder.Services.UseActa(j =&gt;
     <span class="k">if</span> (role == <span class="s">&quot;enqueue&quot;</span>)
     {
         <span class="c">// Reference gives typed enqueue with no worker loop in this process.</span>
-        j.Reference&lt;RedisWakeupJobs&gt;(<span class="s">&quot;redis-wakeup&quot;</span>);
+        j.Reference&lt;RedisWakeupJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;redis-wakeup&quot;</span>);
     }
     <span class="k">else</span>
     {
-        j.Run&lt;RedisWakeupJobs&gt;(<span class="s">&quot;redis-wakeup&quot;</span>);
+        j.Run&lt;RedisWakeupJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;redis-wakeup&quot;</span>);
 
         <span class="c">// Poll once a minute on purpose: a millisecond start then proves it was the Redis wake, not the poll.</span>
         j.ConfigureOptions(o =&gt; o.SafetyPollInterval = TimeSpan.FromSeconds(60));
@@ -168,7 +169,7 @@ Console.WriteLine(<span class="s">&quot;It shows up here almost instantly - that
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PingJob
     {
-        <span class="a">[Job(<span class="s">&quot;ping&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ping&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Ping input) =&gt;
             Console.WriteLine(<span class="s">$&quot;{DateTime.Now:HH:mm:ss.fff} woke and ran a ping enqueued at {input.EnqueuedAt}&quot;</span>);
     }
