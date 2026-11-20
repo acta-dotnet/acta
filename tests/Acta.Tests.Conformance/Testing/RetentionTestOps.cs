@@ -12,9 +12,7 @@ internal static class RetentionTestOps
     public static Task<RetentionSweepCounts> PurgeAsync(
         IServiceProvider services,
         int namespaceId,
-        int eventsRetentionDays,
-        int alertRetentionDays,
-        int workerRetentionSeconds,
+        int retentionDays,
         int batchSize,
         int maxIterations,
         CancellationToken ct,
@@ -26,9 +24,7 @@ internal static class RetentionTestOps
             .PurgeExpiredDataAsync(
                 new RetentionSweep(
                     namespaceId,
-                    eventsRetentionDays,
-                    alertRetentionDays,
-                    workerRetentionSeconds,
+                    retentionDays,
                     batchSize,
                     maxIterations,
                     TimeSpan.FromSeconds(30),
@@ -70,9 +66,7 @@ internal static class RetentionTestOps
     public static async Task<RetentionSweepCounts> PurgeUntilAsync(
         IServiceProvider services,
         int namespaceId,
-        int eventsRetentionDays,
-        int alertRetentionDays,
-        int workerRetentionSeconds,
+        int retentionDays,
         int batchSize,
         int maxIterations,
         Func<Task<bool>> settled,
@@ -87,9 +81,7 @@ internal static class RetentionTestOps
             var result = await PurgeAsync(
                 services,
                 namespaceId,
-                eventsRetentionDays,
-                alertRetentionDays,
-                workerRetentionSeconds,
+                retentionDays,
                 batchSize,
                 maxIterations,
                 ct,

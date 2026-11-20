@@ -447,7 +447,7 @@ app.MapActa("/acta", options =>
 
 ## Retention and purge
 
-A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints, steps, and settled alerts, and deletes events and alerts past `Retention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `Retention` have passed, so every event keeps its worker. The job sweep reads only its own namespace's jobs, starting at the newest one old enough to have expired under the namespace's shortest `JobRetention`, so a namespace whose definitions share a retention reads little beyond what it deletes. A pass deletes a bounded number of rows a section; one that reaches that with rows still expiring, or that deleted jobs and has more of its walk left, runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
+A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints, steps, and settled alerts, and deletes events and alerts once `Retention` has passed, a year by default, and stopped or dead workers once it has passed since their last heartbeat and their last event, so every event keeps its worker. The job sweep reads only its own namespace's jobs, starting at the newest one old enough to have expired under the namespace's shortest `JobRetention`, so a namespace whose definitions share a retention reads little beyond what it deletes. A pass deletes a bounded number of rows a section; one that reaches that with rows still expiring, or that deleted jobs and has more of its walk left, runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
 
 Two things follow from where the sweep starts. A namespace that mixes a short retention with long ones reads its long-kept jobs on the way to the expired ones, a bounded stretch of them each pass, so short-lived work beside a very large long-kept history is swept late: give that work a namespace of its own. And a job that landed under a retention you have since raised is kept until it is as old as the namespace's shortest retention now: a retention change deletes late, never early.
 
@@ -455,7 +455,7 @@ A permanent job is purged only by deliberate decommission: `Idle`, `Failed`, or 
 
 A job is kept past its retention while one of its alerts is undelivered, since the failure it reports has reached nobody yet, and while the alert projector still owes one of its events; its settled alerts are deleted with it, an open incident included, so no alert outlives its job and its reminders end there. A paused or cancelled `sys.alerts` therefore holds retention back, by design: resume it rather than work around it.
 
-`AlertRetention` is a hard cap: an alert past it is deleted even if it was never delivered or is still open, and a pass that deleted undelivered alerts logs one warning (`reason=alert-retention-cap`). If that line appears, find out why delivery is not settling.
+`Retention` is a hard cap on alerts: an alert past it is deleted even if it was never delivered or is still open, and a pass that deleted undelivered alerts logs one warning (`reason=alert-retention-cap`). If that line appears, find out why delivery is not settling.
 
 | | Retention sweep | Manual purge |
 | --- | --- | --- |
@@ -900,7 +900,7 @@ w.AddAlertChannel("ops-slack", AlertTransportKinds.SlackWebhook,
 
 ### Operator surface
 
-`IActaOperations.Alerts` lists, reads, acknowledges, and resolves alerts, as do the dashboard and `POST /alerts/{alertRef}/acknowledge|resolve`. Acknowledging does not stop reminders; resolving does. Neither changes the job. An alert is deleted with its job, by retention or a purge, and otherwise ages out on `AlertRetention`. The how-tos `402-alerts`, `403-alert-channel`, `405-real-alert-routing`, `406-automatic-failure-alerts`, and `411-alert-escalation` run each part.
+`IActaOperations.Alerts` lists, reads, acknowledges, and resolves alerts, as do the dashboard and `POST /alerts/{alertRef}/acknowledge|resolve`. Acknowledging does not stop reminders; resolving does. Neither changes the job. An alert is deleted with its job, by retention or a purge, and otherwise ages out on `Retention`. The how-tos `402-alerts`, `403-alert-channel`, `405-real-alert-routing`, `406-automatic-failure-alerts`, and `411-alert-escalation` run each part.
 
 ## What happens if…
 

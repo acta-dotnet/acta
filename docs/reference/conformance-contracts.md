@@ -2146,7 +2146,8 @@
 ### A worker's events keep resolving its ref through retention
 - **Contract:** Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves.
 - **Guarantees:**
-  - Aged completion and lifecycle events still resolve their stopped worker's ref after a sweep with the default windows
+  - Aged completion and lifecycle events still resolve their stopped worker's ref after a sweep with the default window
+  - A stopped worker that leases nothing is kept inside the window and reaped past it
   - A terminal worker aged past the window survives a sweep while it still leases an Executing job
   - A worker whose last heartbeat is past the window keeps its row and ref through a sweep after recovery orphans its job in its name
 

@@ -18,9 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 [Deploys("lane-step")]
 public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneRetentionSpec>>
 {
-    private const int NoEventPurgeDays = 100_000;
-    private const int NoAlertPurgeDays = 100_000;
-    private const int NoWorkerPurgeSeconds = 100_000_000;
+    private const int NoPurgeDays = 100_000;
     private const int RaceRounds = 20;
 
     [Fact(DisplayName = "An unreferenced lane is deleted while lanes with a finished or live job survive")]
@@ -35,9 +33,7 @@ public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await RetentionTestOps.PurgeUntilAsync(
             Services,
             Runtime.RegisteredNamespaceIds[TestNamespace],
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            NoPurgeDays,
             1000,
             50,
             async () => !await LaneExistsAsync("gone", ct),
@@ -58,16 +54,7 @@ public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, 
             var lane = $"race-{round}";
             await EmptiedLaneAsync(lane, ct);
 
-            var sweep = RetentionTestOps.PurgeAsync(
-                Services,
-                Runtime.RegisteredNamespaceIds[TestNamespace],
-                NoEventPurgeDays,
-                NoAlertPurgeDays,
-                NoWorkerPurgeSeconds,
-                1000,
-                1,
-                ct
-            );
+            var sweep = RetentionTestOps.PurgeAsync(Services, Runtime.RegisteredNamespaceIds[TestNamespace], NoPurgeDays, 1000, 1, ct);
             var enqueue = StepAsync(lane, ct);
             await Task.WhenAll(sweep, enqueue);
 

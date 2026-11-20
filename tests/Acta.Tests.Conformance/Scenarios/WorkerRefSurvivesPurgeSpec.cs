@@ -8,8 +8,8 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Conformance for worker identity across retention: an event names its worker by <c>worker_id</c> alone, so the
-/// sweep keeps a terminal worker's row for as long as the events window and the joined <c>workerRef</c> keeps
-/// resolving on every event that survives.
+/// sweep keeps a terminal worker's row as long as its events and the joined <c>workerRef</c> keeps resolving on
+/// every event that survives.
 /// </summary>
 [ConformanceSpec(
     "worker-ref.survives-purge",
@@ -21,7 +21,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WorkerRefSurvivesPurgeSpec>>
 {
     [Fact(
-        DisplayName = "Aged completion and lifecycle events still resolve their stopped worker's ref after a sweep with the default windows"
+        DisplayName = "Aged completion and lifecycle events still resolve their stopped worker's ref after a sweep with the default window"
     )]
     public async Task Aged_events_resolve_their_worker_ref_after_a_default_sweep()
     {
@@ -58,14 +58,14 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         );
         await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(ns, workerId, ct);
 
-        // Past the default worker window, inside the default events window.
+        // Aged, but inside the default window.
         var agedAt = DateTime.UtcNow.AddDays(-200);
         await Db.From<WorkerEntity>().Where(w => w.Id == workerId).UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = agedAt }, ct);
         await Db.From<EventEntity>()
             .Where(e => e.WorkerId == workerId)
             .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = agedAt }, ct);
 
-        await PurgeWithDefaultWindowsAsync(ns, ct);
+        await PurgeWithTheDefaultWindowAsync(ns, ct);
 
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
         var events = (
@@ -78,6 +78,29 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         Assert.All(events, e => Assert.Equal<WorkerRef?>(workerRef, e.WorkerRef));
     }
 
+    [Fact(DisplayName = "A stopped worker that leases nothing is kept inside the window and reaped past it")]
+    public async Task Stopped_worker_is_kept_inside_the_window_and_reaped_past_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var inside = await StoppedWorkerAgedAsync(ns, DefaultWindowDays - 1, ct);
+        var past = await StoppedWorkerAgedAsync(ns, DefaultWindowDays + 1, ct);
+
+        // Drained, because a single sweep passes over a row another transaction holds under READPAST.
+        await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            DefaultWindowDays,
+            1000,
+            50,
+            async () => await Db.From<WorkerEntity>().Where(w => w.Id == past).SingleOrDefaultAsync(ct) is null,
+            ct
+        );
+
+        Assert.Null(await Db.From<WorkerEntity>().Where(w => w.Id == past).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == inside).SingleOrDefaultAsync(ct));
+    }
+
     [Fact(DisplayName = "A terminal worker aged past the window survives a sweep while it still leases an Executing job")]
     public async Task Terminal_worker_survives_while_it_leases_an_executing_job()
     {
@@ -86,7 +109,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         var (workerId, _, _) = await AgedStoppedWorkerHoldingAJobAsync(ns, ct);
 
         // Recovery has not reclaimed the job yet, and will name this worker when it does.
-        await PurgeWithDefaultWindowsAsync(ns, ct);
+        await PurgeWithTheDefaultWindowAsync(ns, ct);
 
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
     }
@@ -101,7 +124,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         var (workerId, workerRef, jobRef) = await AgedStoppedWorkerHoldingAJobAsync(ns, ct);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
-        await PurgeWithDefaultWindowsAsync(ns, ct);
+        await PurgeWithTheDefaultWindowAsync(ns, ct);
 
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
         var orphaned = Assert.Single(
@@ -113,7 +136,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
 
     /// <summary>
     /// A worker that stopped while its job was still Executing, with its last heartbeat and its last write aged past
-    /// the retention windows and the job's lease lapsed: the state a cluster finds when it restarts long after.
+    /// the retention window and the job's lease lapsed: the state a cluster finds when it restarts long after.
     /// </summary>
     private async Task<(int WorkerId, WorkerRef WorkerRef, JobRef JobRef)> AgedStoppedWorkerHoldingAJobAsync(int ns, CancellationToken ct)
     {
@@ -145,7 +168,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         );
         await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(ns, workerId, ct);
 
-        // Past both default windows, worker and events.
+        // Past the default window.
         var agedAt = DateTime.UtcNow.AddDays(-400);
         await Db.From<WorkerEntity>()
             .Where(w => w.Id == workerId)
@@ -154,18 +177,35 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         return (workerId, workerRef, enqueued.JobRef);
     }
 
-    private Task PurgeWithDefaultWindowsAsync(int ns, CancellationToken ct)
+    /// <summary>A worker that stopped cleanly and leases nothing, with its last heartbeat, its last write and its events aged.</summary>
+    private async Task<int> StoppedWorkerAgedAsync(int ns, int days, CancellationToken ct)
     {
-        var defaults = new JobsOptions();
-        return RetentionTestOps.PurgeAsync(
+        var (_, workerId) = await WorkerTestOps.StartAsync(
             Services,
-            ns,
-            (int)defaults.Retention.TotalDays,
-            (int)defaults.AlertRetention.TotalDays,
-            (int)defaults.WorkerRetention.TotalSeconds,
-            1000,
-            50,
+            TestNamespace,
+            "test",
+            null,
+            "purge-host",
+            "v1",
+            null,
+            null,
+            4242,
+            4,
             ct
         );
+        await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(ns, workerId, ct);
+        var agedAt = DateTime.UtcNow.AddDays(-days);
+        await Db.From<WorkerEntity>()
+            .Where(w => w.Id == workerId)
+            .UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = agedAt, ModifiedAtUtc = agedAt }, ct);
+        await Db.From<EventEntity>()
+            .Where(e => e.WorkerId == workerId)
+            .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = agedAt }, ct);
+        return workerId;
     }
+
+    private static int DefaultWindowDays => (int)new JobsOptions().Retention.TotalDays;
+
+    private Task PurgeWithTheDefaultWindowAsync(int ns, CancellationToken ct) =>
+        RetentionTestOps.PurgeAsync(Services, ns, DefaultWindowDays, 1000, 50, ct);
 }

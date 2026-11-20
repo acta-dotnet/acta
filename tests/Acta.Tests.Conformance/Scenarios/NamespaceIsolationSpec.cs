@@ -184,16 +184,7 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         await other.Check("purge an expired job and its tags", async t =>
         {
-            var purged = await RetentionTestOps.PurgeAsync(
-                Services,
-                NamespaceId,
-                eventsRetentionDays: 30,
-                alertRetentionDays: 30,
-                workerRetentionSeconds: 86400,
-                batchSize: 100,
-                maxIterations: 50,
-                t
-            );
+            var purged = await RetentionTestOps.PurgeAsync(Services, NamespaceId, retentionDays: 30, batchSize: 100, maxIterations: 50, t);
             Assert.True(purged.Jobs > 0, "the sweep purged no job");
         });
         // Last: the worker serves nothing after it stops.

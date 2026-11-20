@@ -33,21 +33,12 @@ internal sealed class RetentionJob(
     /// </summary>
     private static readonly TimeSpan JobsWalkBudget = TimeSpan.FromSeconds(30);
 
-    /// <summary>The seeded sys namespace, which owns the tenant events and where no worker runs a pass of its own.</summary>
     /// <summary>
-    /// These casts truncate nothing: JobsOptionsValidator already rejected any events or alerts
-    /// window that is not a whole number of days. Without that rule a 47-hour alert window would
-    /// have purged at 24 hours, deleting a day earlier than the deployment asked for.
+    /// This cast truncates nothing: JobsOptionsValidator already rejected a window that is not a
+    /// whole number of days. Without that rule a 47-hour window would have purged at 24 hours,
+    /// deleting a day earlier than the deployment asked for.
     /// </summary>
-    private readonly int _eventsRetentionDays = (int)options.Value.Retention.TotalDays;
-    private readonly int _alertRetentionDays = (int)options.Value.AlertRetention.TotalDays;
-
-    /// <summary>
-    /// Ceiling, because retention is destructive: flooring a fractional window would delete up to
-    /// a second before the configured instant. The day-granularity windows above are exact by the
-    /// validator's whole-days rule; WorkerRetention is exempt from it, so it rounds up here instead.
-    /// </summary>
-    private readonly int _workerRetentionSeconds = (int)Math.Ceiling(options.Value.WorkerRetention.TotalSeconds);
+    private readonly int _retentionDays = (int)options.Value.Retention.TotalDays;
     private readonly ILogger _log = log ?? NullLogger<RetentionJob>.Instance;
 
     [Job(
@@ -63,9 +54,7 @@ internal sealed class RetentionJob(
         var swept = await PurgeExpiredDataAsync(
             new RetentionSweep(
                 ctx.NamespaceId,
-                _eventsRetentionDays,
-                _alertRetentionDays,
-                _workerRetentionSeconds,
+                _retentionDays,
                 BatchSize,
                 MaxIterations,
                 JobsWalkBudget,
@@ -112,12 +101,10 @@ internal sealed class RetentionJob(
                 var section = (RetentionSection)(index + 1);
                 var cutoff = section switch
                 {
-                    RetentionSection.Events => now.AddDays(-command.EventsRetentionDays),
-                    RetentionSection.SettledAlerts or RetentionSection.UndeliveredAlerts => now.AddDays(-command.AlertRetention),
-                    // A terminal worker is also kept for the events window, so an event's worker_id finds its row while the event lasts.
-                    RetentionSection.Workers => now.AddSeconds(
-                        -Math.Max(command.WorkerRetentionSeconds, command.EventsRetentionDays * TimeSpan.SecondsPerDay)
-                    ),
+                    RetentionSection.Events
+                    or RetentionSection.SettledAlerts
+                    or RetentionSection.UndeliveredAlerts
+                    or RetentionSection.Workers => now.AddDays(-command.RetentionDays),
                     _ => now,
                 };
                 var (floorUtc, floorEventId) = alertFloor.Floor(cutoff);
@@ -210,7 +197,7 @@ internal sealed class RetentionJob(
     }
 
     /// <summary>
-    /// One line per pass, never one per row: a namespace whose channel has been down for a quarter
+    /// One line per pass, never one per row: a namespace whose channel has been down past the window
     /// would otherwise log a page of them. Warning, because an alert deleted before it ever reached
     /// a channel is a signal an operator never got - and never an Acta alert of its own, which
     /// would recurse.
@@ -233,9 +220,7 @@ internal sealed class RetentionJob(
 /// </summary>
 internal sealed record RetentionSweep(
     int NamespaceId,
-    int EventsRetentionDays,
-    int AlertRetention,
-    int WorkerRetentionSeconds,
+    int RetentionDays,
     int BatchSize,
     int MaxIterations,
     TimeSpan JobsWalkBudget,

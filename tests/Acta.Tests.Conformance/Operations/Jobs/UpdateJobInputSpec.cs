@@ -52,9 +52,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
     }
 
     // ACTA-004 acceptance: the updated-away payload must not outlive the job's payload retention.
-    private const int NoEventPurgeDays = 100_000;
-    private const int NoAlertPurgeDays = 100_000;
-    private const int NoWorkerPurgeSeconds = 100_000_000;
+    private const int NoPurgeDays = 100_000;
 
     [Fact(DisplayName = "UpdateJobInput audit metadata outlives the purged job without leaking payload bytes")]
     public async Task Updated_old_payload_never_survives_the_retention_purge()
@@ -71,19 +69,9 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var update = await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct: ct);
         Assert.Equal(ControlAction.Applied, update.Action);
 
-        // Sweep with the events window wide open: the job row goes, the ledger stays.
+        // Sweep with the retention window wide open: the job row goes, the ledger stays.
         Task<JobEntity?> RowAsync() => Db.From<JobEntity>().Where(j => j.Id == enqueued.JobId).SingleOrDefaultAsync(ct);
-        await RetentionTestOps.PurgeUntilAsync(
-            Services,
-            ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
-            1000,
-            50,
-            async () => await RowAsync() is null,
-            ct
-        );
+        await RetentionTestOps.PurgeUntilAsync(Services, ns, NoPurgeDays, 1000, 50, async () => await RowAsync() is null, ct);
         Assert.Null(await RowAsync());
 
         // The update event outlives the job (events carry no FK to jobs) with metadata only.

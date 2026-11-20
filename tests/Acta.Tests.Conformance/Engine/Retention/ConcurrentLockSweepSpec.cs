@@ -45,7 +45,7 @@ public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFix
                     async () =>
                     {
                         await start.Task;
-                        await RetentionTestOps.PurgeAsync(Services, ns, 100_000, 100_000, 100_000_000, 10, 50, ct);
+                        await RetentionTestOps.PurgeAsync(Services, ns, 100_000, 10, 50, ct);
                     },
                     ct
                 )
@@ -56,7 +56,7 @@ public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFix
 
         // Racing sweeps may stage the same rows and each skip what another holds, so one round can leave
         // rows for the next pass, as retention's own schedule would; the race itself must not deadlock.
-        await RetentionTestOps.PurgeUntilAsync(Services, ns, 100_000, 100_000, 100_000_000, 10, 50, RemainingEmptyAsync, ct);
+        await RetentionTestOps.PurgeUntilAsync(Services, ns, 100_000, 10, 50, RemainingEmptyAsync, ct);
         foreach (var chunk in keys.Chunk(200).Select(c => c.ToList()))
         {
             Assert.Empty(await Db.From<Acta.LockEntity>().Where(l => chunk.Contains(l.LockKey)).ToListAsync(ct));

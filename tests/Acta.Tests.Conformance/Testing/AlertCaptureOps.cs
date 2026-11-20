@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Testing;
 internal static class AlertCaptureOps
 {
     /// <summary>The window the sweeps run with: an aged event sits far outside it, a fresh one inside it.</summary>
-    public const int EventsRetentionDays = 30;
+    public const int RetentionDays = 30;
 
     /// <summary>A job that fails on its only attempt: NotImplementedException is not retryable, so it lands JobFailed.</summary>
     public static async Task<EnqueueJobResponse> FailTerminallyAsync(
@@ -26,10 +26,10 @@ internal static class AlertCaptureOps
         return job;
     }
 
-    /// <summary>Puts the job's events far outside the events window and its own retention in the past.</summary>
+    /// <summary>Puts the job's events far outside the window and its own retention in the past.</summary>
     public static async Task AgeAsync(IDbSession db, long jobId, CancellationToken ct)
     {
-        var aged = DateTime.UtcNow.AddDays(-10 * EventsRetentionDays);
+        var aged = DateTime.UtcNow.AddDays(-10 * RetentionDays);
         await db.From<EventEntity>()
             .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId)
             .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
@@ -38,18 +38,16 @@ internal static class AlertCaptureOps
             .UpdateOnlyAsync(() => new JobStateEntity { RetentionUntilUtc = aged }, ct);
     }
 
-    /// <summary>One bounded retention sweep with the events window above and the other windows out of the way.</summary>
+    /// <summary>One bounded retention sweep with the window above.</summary>
     public static Task SweepAsync(IServiceProvider services, int namespaceId, CancellationToken ct) =>
-        RetentionTestOps.PurgeAsync(services, namespaceId, EventsRetentionDays, 100_000, 100_000_000, 1000, 50, ct);
+        RetentionTestOps.PurgeAsync(services, namespaceId, RetentionDays, 1000, 50, ct);
 
     /// <summary>Sweeps until the job and every event of it are gone, the way the hourly sweep settles.</summary>
     public static Task SweepUntilGoneAsync(IServiceProvider services, IDbSession db, int namespaceId, long jobId, CancellationToken ct) =>
         RetentionTestOps.PurgeUntilAsync(
             services,
             namespaceId,
-            EventsRetentionDays,
-            100_000,
-            100_000_000,
+            RetentionDays,
             1000,
             50,
             async () =>

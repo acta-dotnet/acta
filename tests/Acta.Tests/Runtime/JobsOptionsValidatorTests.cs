@@ -27,18 +27,6 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
-    public void AlertRetention_longer_than_Retention_fails()
-    {
-        var result = Validate(o =>
-        {
-            o.Retention = TimeSpan.FromDays(30);
-            o.AlertRetention = TimeSpan.FromDays(31);
-        });
-        Assert.True(result.Failed);
-        Assert.Contains("AlertRetention must not exceed Retention", result.FailureMessage);
-    }
-
-    [Fact]
     public void MaxConcurrentExecutors_below_one_fails()
     {
         var result = Validate(o => o.MaxConcurrentExecutors = 0);
@@ -188,61 +176,31 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
-    public void WorkerDeadAfter_and_WorkerRetention_beyond_ceiling_fail()
+    public void WorkerDeadAfter_beyond_ceiling_fails()
     {
-        // Extreme TimeSpans would overflow the int-second conversions in recovery and retention.
-        var result = Validate(o =>
-        {
-            o.WorkerDeadAfter = TimeSpan.FromDays(31);
-            o.WorkerRetention = TimeSpan.FromDays(4000);
-        });
+        // An extreme TimeSpan would overflow the int-second conversion in recovery.
+        var result = Validate(o => o.WorkerDeadAfter = TimeSpan.FromDays(31));
         Assert.True(result.Failed);
         Assert.Contains("WorkerDeadAfter must be <=", result.FailureMessage);
-        Assert.Contains("WorkerRetention must be <=", result.FailureMessage);
     }
 
     [Fact]
     public void Retention_days_above_ten_years_fail()
     {
-        var result = Validate(o =>
-        {
-            o.Retention = TimeSpan.FromDays(40_000);
-            o.AlertRetention = TimeSpan.FromDays(40_000);
-        });
+        var result = Validate(o => o.Retention = TimeSpan.FromDays(40_000));
         Assert.True(result.Failed);
         Assert.Contains("JobsOptions.Retention", result.FailureMessage);
-        Assert.Contains("AlertRetention", result.FailureMessage);
     }
 
     [Fact]
-    public void Day_granular_retention_windows_reject_a_fractional_day()
+    public void Retention_of_a_fractional_day_fails()
     {
-        // Both windows reach the purge as whole int days, so 47 hours would have been truncated to one
-        // day and deleted a day early. These values passed validation before and now do not, on purpose.
-        var result = Validate(o =>
-        {
-            o.Retention = TimeSpan.FromHours(47);
-            o.AlertRetention = TimeSpan.FromDays(90.5);
-        });
+        // The window reaches the purge as whole int days, so 47 hours would have been truncated to one
+        // day and deleted a day early.
+        var result = Validate(o => o.Retention = TimeSpan.FromHours(47));
 
         Assert.True(result.Failed);
         Assert.Contains("JobsOptions.Retention must be a whole number of days", result.FailureMessage);
-        Assert.Contains("AlertRetention must be a whole number of days", result.FailureMessage);
-    }
-
-    [Fact]
-    public void Whole_day_retention_windows_pass_and_the_second_granular_one_is_exempt()
-    {
-        // WorkerRetention converts to seconds rather than days, so a fractional value there truncates
-        // nothing and stays legal; pinning it here keeps the new rule from quietly widening.
-        var result = Validate(o =>
-        {
-            o.Retention = TimeSpan.FromDays(30);
-            o.AlertRetention = TimeSpan.FromDays(7);
-            o.WorkerRetention = TimeSpan.FromHours(36);
-        });
-
-        Assert.True(result.Succeeded, result.FailureMessage);
     }
 
     [Fact]

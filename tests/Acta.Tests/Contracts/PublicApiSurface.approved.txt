@@ -1678,13 +1678,11 @@ sealed class Acta.JobsOptions
     System.String? DeploymentVersion { get;set; }
     System.String? EnvironmentName { get;set; }
     System.TimeSpan AlertReminderInterval { get;set; }
-    System.TimeSpan AlertRetention { get;set; }
     System.TimeSpan HeartbeatInterval { get;set; }
     System.TimeSpan LeaseTtl { get; }
     System.TimeSpan Retention { get;set; }
     System.TimeSpan SafetyPollInterval { get;set; }
     System.TimeSpan WorkerDeadAfter { get; }
-    System.TimeSpan WorkerRetention { get;set; }
 static class Acta.JobsScheduleExtensions
     static System.Threading.Tasks.Task<Acta.EnqueueJobResponse> ScheduleAsync<TInput, TResult>(this Acta.IJobs jobs, System.Data.Common.DbTransaction transaction, Acta.JobCall<TInput, TResult> job, System.DateTimeOffset runAt, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default) where TInput : notnull where TResult : notnull
     static System.Threading.Tasks.Task<Acta.EnqueueJobResponse> ScheduleAsync<TInput, TResult>(this Acta.IJobs jobs, System.Data.Common.DbTransaction transaction, Acta.JobCall<TInput, TResult> job, System.TimeSpan delay, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default) where TInput : notnull where TResult : notnull

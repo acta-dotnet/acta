@@ -23,9 +23,7 @@ public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixtur
 {
     // A wide retention window makes the events/alerts/workers sections no-ops, so only the
     // zero-retention job row is deleted, leaving its events behind.
-    private const int NoEventPurgeDays = 100_000;
-    private const int NoAlertPurgeDays = 100_000;
-    private const int NoWorkerPurgeSeconds = 100_000_000;
+    private const int NoPurgeDays = 100_000;
 
     [Fact(DisplayName = "After a retention purge the timeline reads by job id without the ref, and the ref resolves to null")]
     public async Task Events_read_by_job_id_after_the_job_row_is_purged_but_the_ref_no_longer_resolves()
@@ -55,9 +53,7 @@ public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixtur
         var purge = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            NoPurgeDays,
             1000,
             50,
             async () => await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct) is null,

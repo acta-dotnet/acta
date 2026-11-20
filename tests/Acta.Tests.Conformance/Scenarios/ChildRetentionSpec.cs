@@ -53,17 +53,7 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Terminal and expired on both rows: the child is a leaf, so it goes first and the parent follows.
         await ExpireAsync(parent.JobId, ct);
-        await RetentionTestOps.PurgeUntilAsync(
-            Services,
-            NamespaceId,
-            365,
-            365,
-            86400,
-            100,
-            5,
-            async () => await Jobs.GetAsync(parent, ct) is null,
-            ct
-        );
+        await RetentionTestOps.PurgeUntilAsync(Services, NamespaceId, 365, 100, 5, async () => await Jobs.GetAsync(parent, ct) is null, ct);
         Assert.Null(await Jobs.GetAsync(JobLookup.ById(childId), ct));
     }
 
@@ -158,17 +148,7 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
         var root = await EnqueueAndRunAsync("job-child-echo", new ChildEcho(1), ct);
         await ExpireAsync(root.JobId, ct);
 
-        await RetentionTestOps.PurgeUntilAsync(
-            Services,
-            NamespaceId,
-            365,
-            365,
-            86400,
-            100,
-            5,
-            async () => await Jobs.GetAsync(root, ct) is null,
-            ct
-        );
+        await RetentionTestOps.PurgeUntilAsync(Services, NamespaceId, 365, 100, 5, async () => await Jobs.GetAsync(root, ct) is null, ct);
         Assert.Null(await Jobs.GetAsync(root, ct));
     }
 
@@ -197,17 +177,7 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
             .UpdateOnlyAsync(() => new JobStateEntity { RetentionUntilUtc = DateTime.UtcNow.AddDays(1) }, ct);
 
         // The sweep reads a child's direct parent alone: the middle job is due, so its leaf goes, and the root keeps the middle job.
-        await RetentionTestOps.PurgeUntilAsync(
-            Services,
-            NamespaceId,
-            365,
-            365,
-            86400,
-            100,
-            5,
-            async () => await Jobs.GetAsync(leaf, ct) is null,
-            ct
-        );
+        await RetentionTestOps.PurgeUntilAsync(Services, NamespaceId, 365, 100, 5, async () => await Jobs.GetAsync(leaf, ct) is null, ct);
         Assert.Null(await Jobs.GetAsync(leaf, ct));
         await SweepPastAJobWithNoParentAsync(ct);
         Assert.NotNull(await Jobs.GetAsync(middle, ct));
@@ -261,8 +231,6 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
             Services,
             NamespaceId,
             365,
-            365,
-            86400,
             100,
             5,
             async () => await Jobs.GetAsync(control, ct) is null,
@@ -306,5 +274,5 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
             .Where(r => r.Id == jobId)
             .UpdateOnlyAsync(() => new JobStateEntity { RetentionUntilUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
 
-    private Task SweepAsync(CancellationToken ct) => RetentionTestOps.PurgeAsync(Services, NamespaceId, 365, 365, 86400, 100, 5, ct);
+    private Task SweepAsync(CancellationToken ct) => RetentionTestOps.PurgeAsync(Services, NamespaceId, 365, 100, 5, ct);
 }

@@ -8,11 +8,11 @@ namespace Acta.Tests.Conformance.Operations.Maintenance;
 
 /// <summary>
 /// Conformance for <c>sys.retention</c>'s sweep sections (<c>purge_expired_data</c>):
-/// terminal jobs past <c>retention_until_utc</c> (with CASCADE), <c>events</c> rows past the events
-/// window (the sys namespace's tenant events included), <c>alerts</c> rows past the alert window whether or not
-/// delivery settled, terminal (Stopped or Dead) <c>workers</c> rows past both the worker and the events window, and
-/// expired <c>locks</c> rows. Event/alert/worker windows are driven to deterministic boundaries by passing a window
-/// wide enough to exclude everything (large positive) or a cutoff in the future (negative), so no
+/// terminal jobs past <c>retention_until_utc</c> (with CASCADE), and past the one retention window, <c>events</c>
+/// rows (the sys namespace's tenant events included), <c>alerts</c> rows whether or not delivery settled, and
+/// terminal (Stopped or Dead) <c>workers</c> rows; and expired <c>locks</c> rows. The window is driven to
+/// deterministic boundaries by passing one wide enough to exclude everything (large positive), a cutoff in the
+/// future (negative), or a window rows are aged a day inside or a day past, so no
 /// real-time wait is needed; deletable terminal jobs are produced through the real
 /// enqueue/execute/complete path via the zero-retention <c>purge-now</c> probe.
 /// </summary>
@@ -25,11 +25,12 @@ namespace Acta.Tests.Conformance.Operations.Maintenance;
 [Deploys("add-numbers", "purge-now")]
 public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PurgeExpiredDataSpec>>
 {
-    // Window args that make a section a no-op for the rows produced in these tests: a huge positive
+    // A window that makes the dated sections a no-op for the rows produced in these tests: a huge positive
     // retention pushes the cutoff far into the past, so recent rows survive.
-    private const int NoEventPurgeDays = 100_000;
-    private const int NoAlertPurgeDays = 100_000;
-    private const int NoWorkerPurgeSeconds = 100_000_000;
+    private const int NoPurgeDays = 100_000;
+
+    // A window the boundary facts age their rows a day inside or a day past.
+    private const int WindowDays = 30;
 
     [Fact(DisplayName = "Job retention deletes the job's tags with the job")]
     public async Task Terminal_job_retention_cleans_the_job_tags()
@@ -68,9 +69,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var purged = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            NoPurgeDays,
             1000,
             50,
             async () => await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct) is null,
@@ -99,13 +98,11 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Keyed, as every automatic alert is: on SQL Server its identity row is locked before the row.
         await RaiseForJobAsync(told, AlertDeliveryStatusCode.Delivered, Unique("told"), ct);
 
-        // The alert window is not due, so the settled alert goes only because its job does.
+        // The retention window is not due, so the settled alert goes only because its job does.
         var purged = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            NoPurgeDays,
             1000,
             50,
             async () => await Db.From<JobEntity>().Where(j => j.Id == told).SingleOrDefaultAsync(ct) is null,
@@ -156,16 +153,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(job!.RetentionUntilUtc);
         Assert.InRange(job.RetentionUntilUtc!.Value, before.AddDays(89), after.AddDays(91));
 
-        var result = await RetentionTestOps.PurgeAsync(
-            Services,
-            ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
-            1000,
-            50,
-            ct
-        );
+        var result = await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);
 
         Assert.Equal(0, result.Jobs);
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
@@ -183,7 +171,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotEmpty(before);
 
         // A wide retention window leaves recent events untouched.
-        var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);
         Assert.Equal(0, keep.Events);
         Assert.NotEmpty(await Db.From<EventEntity>().Where(e => e.NamespaceId == ns).ToListAsync(ct));
 
@@ -193,8 +181,6 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             Services,
             ns,
             -1,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
             1000,
             50,
             async () => (await Db.From<EventEntity>().Where(e => e.NamespaceId == ns).ToListAsync(ct)).Count == 0,
@@ -207,7 +193,6 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     [Fact(DisplayName = "The automatic sweep also deletes the sys namespace's expired tenant events and keeps its recent ones")]
     public async Task Expired_sys_tenant_events_are_deleted_and_recent_ones_survive()
     {
-        const int eventsRetentionDays = 30;
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var tenants = Services.GetRequiredService<ITenants>();
@@ -220,7 +205,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == tenantId && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(1, aged!.NamespaceId);
-        var agedAt = DateTime.UtcNow.AddDays(-(eventsRetentionDays + 1));
+        var agedAt = DateTime.UtcNow.AddDays(-(WindowDays + 1));
         await Db.From<EventEntity>()
             .Where(e => e.WorkerId == aged.WorkerId && e.Id == aged.Id)
             .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = agedAt }, ct);
@@ -230,9 +215,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            eventsRetentionDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            WindowDays,
             1000,
             50,
             async () => await Db.From<EventEntity>().Where(e => e.Id == aged.Id).SingleOrDefaultAsync(ct) is null,
@@ -262,7 +245,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(WorkerStatusCode.Active, worker!.Status);
 
         // Active workers are never purged, even with the cutoff in the future.
-        var active = await RetentionTestOps.PurgeAsync(Services, ns, -1, NoAlertPurgeDays, -1, 1000, 50, ct);
+        var active = await RetentionTestOps.PurgeAsync(Services, ns, -1, 1000, 50, ct);
         Assert.Equal(0, active.Workers);
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct));
 
@@ -294,13 +277,11 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             (await Db.From<WorkerEntity>().Where(w => w.Id == stoppedId).SingleOrDefaultAsync(ct))!.Status
         );
 
-        // The sweep takes both terminal rows: the worker window applies to Stopped and Dead alike, and the events
-        // window is past too. Drained, because a single sweep passes over a row another transaction holds under READPAST.
+        // The sweep takes both terminal rows: the window applies to Stopped and Dead alike. Drained, because a single
+        // sweep passes over a row another transaction holds under READPAST.
         var purged = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            -1,
-            NoAlertPurgeDays,
             -1,
             1000,
             50,
@@ -324,20 +305,28 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Pending, ct);
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Retrying, ct);
 
-        // Inside the window nothing goes, and neither count moves - which is also the negative behind
+        // A day inside the window nothing goes, and neither count moves - which is also the negative behind
         // the maintenance pass's one warning: no undelivered row purged, nothing to warn about.
-        var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        await AgeAlertsAsync(ns, WindowDays - 1, ct);
+        var keep = await RetentionTestOps.PurgeAsync(Services, ns, WindowDays, 1000, 50, ct);
         Assert.Equal(0, keep.Alerts);
         Assert.Equal(0, keep.UndeliveredAlertsPurged);
         Assert.Equal(3, (await Db.From<AlertEntity>().Where(a => a.NamespaceId == ns).ToListAsync(ct)).Count);
 
-        // A future cutoff puts every row past the window: the settled row counts under the settled
+        // A day past the same window every row goes: the settled row counts under the settled
         // sweep, the two unsettled ones under the hard cap, and no row is counted by both. Drained,
         // because a single sweep passes over a row another transaction holds under READPAST.
-        var purged = await PurgeAlertsUntilGoneAsync(ns, ct);
+        await AgeAlertsAsync(ns, WindowDays + 1, ct);
+        var purged = await PurgeAlertsUntilGoneAsync(ns, ct, WindowDays);
         Assert.Equal(1, purged.Alerts);
         Assert.Equal(2, purged.UndeliveredAlertsPurged);
         Assert.Empty(await Db.From<AlertEntity>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+    }
+
+    private Task AgeAlertsAsync(int ns, int days, CancellationToken ct)
+    {
+        var agedAt = DateTime.UtcNow.AddDays(-days);
+        return Db.From<AlertEntity>().Where(a => a.NamespaceId == ns).UpdateOnlyAsync(() => new AlertEntity { CreatedAtUtc = agedAt }, ct);
     }
 
     [Fact(DisplayName = "A resolve-suppressed alert past the window is counted once, by the settled sweep")]
@@ -421,19 +410,17 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     }
 
     /// <summary>
-    /// Sweeps the alert window with the cutoff in the future until the namespace holds no alert row, and
-    /// returns the counts across the whole drain. Every alert fact here purges rows it has just written,
+    /// Sweeps with the cutoff in the future, or <paramref name="retentionDays"/> back, until the namespace holds no
+    /// alert row, and returns the counts across the whole drain. Every alert fact here purges rows it has just written,
     /// and a single sweep is allowed to pass one of them over - it stages its batch under READPAST /
     /// SKIP LOCKED, and a spec's own row can sit under a parallel spec's lock. Which sweep arm counted
     /// the row, which is what these facts are about, is settled either way.
     /// </summary>
-    private Task<RetentionSweepCounts> PurgeAlertsUntilGoneAsync(int ns, CancellationToken ct) =>
+    private Task<RetentionSweepCounts> PurgeAlertsUntilGoneAsync(int ns, CancellationToken ct, int retentionDays = -1) =>
         RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            NoEventPurgeDays,
-            -1,
-            NoWorkerPurgeSeconds,
+            retentionDays,
             1000,
             50,
             async () => (await Db.From<AlertEntity>().Where(a => a.NamespaceId == ns).ToListAsync(ct)).Count == 0,
@@ -503,9 +490,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             await RetentionTestOps.PurgeUntilAsync(
                 Services,
                 ns,
-                NoEventPurgeDays,
-                NoAlertPurgeDays,
-                NoWorkerPurgeSeconds,
+                NoPurgeDays,
                 1000,
                 50,
                 async () => await Db.From<Acta.LockEntity>().Where(l => l.LockKey == deadKey).SingleOrDefaultAsync(ct) is null,
@@ -532,7 +517,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Parent to terminal with zero retention; the child stays Ready (default 90-day window).
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
-        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);
 
         // The lineage guard keeps the expired parent until its descendant is deletable, so the
         // child's parent_job_id / lineage_root_job_id never dangle.
@@ -562,7 +547,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var deadline = DateTime.UtcNow + SpecWaits.Converge;
         for (var pass = 1; DateTime.UtcNow < deadline && (childGoneAfter < 0 || parentGoneAfter < 0); pass++)
         {
-            await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+            await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);
 
             var childAlive = await Db.From<JobEntity>().Where(j => j.Id == child.JobId).SingleOrDefaultAsync(ct) is not null;
             var parentAlive = await Db.From<JobEntity>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct) is not null;
@@ -635,32 +620,13 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         try
         {
-            var bounded = await RetentionTestOps.PurgeAsync(
-                Services,
-                ns,
-                NoEventPurgeDays,
-                NoAlertPurgeDays,
-                NoWorkerPurgeSeconds,
-                batchSize: 1,
-                maxIterations: 1,
-                ct
-            );
+            var bounded = await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, batchSize: 1, maxIterations: 1, ct);
             Assert.True(bounded.Locks <= 1, $"lock sweep deleted {bounded.Locks} rows under a 1x1 budget");
 
             // Full-budget runs clear this test's remaining dead rows.
             Task<IReadOnlyList<Acta.LockEntity>> DeadAsync() =>
                 Db.From<Acta.LockEntity>().Where(l => deadKeys.Contains(l.LockKey)).ToListAsync(ct);
-            await RetentionTestOps.PurgeUntilAsync(
-                Services,
-                ns,
-                NoEventPurgeDays,
-                NoAlertPurgeDays,
-                NoWorkerPurgeSeconds,
-                1000,
-                50,
-                async () => (await DeadAsync()).Count == 0,
-                ct
-            );
+            await RetentionTestOps.PurgeUntilAsync(Services, ns, NoPurgeDays, 1000, 50, async () => (await DeadAsync()).Count == 0, ct);
             Assert.Empty(await DeadAsync());
             Assert.NotNull(await Db.From<Acta.LockEntity>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
         }
@@ -687,9 +653,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var first = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            NoPurgeDays,
             batchSize: 1,
             maxIterations: 1,
             async () => (await Db.From<JobEntity>().Where(j => j.Id == a.JobId || j.Id == b.JobId).ToListAsync(ct)).Count == 1,
@@ -701,9 +665,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var rest = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            NoPurgeDays,
             batchSize: 1000,
             maxIterations: 50,
             async () => (await Db.From<JobEntity>().Where(j => j.Id == a.JobId || j.Id == b.JobId).ToListAsync(ct)).Count == 0,
@@ -756,7 +718,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             ("@p_id", slotId)
         );
 
-        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct));
         Assert.NotEmpty(await Db.From<ScheduleEntity>().Where(x => x.JobId == slotId).ToListAsync(ct));
 
@@ -769,9 +731,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var purged = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
+            NoPurgeDays,
             1000,
             50,
             async () => await Db.From<JobEntity>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct) is null,

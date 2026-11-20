@@ -57,7 +57,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
                     )
                 );
             }
-            racers.Add(Run(start, () => RetentionTestOps.PurgeAsync(Services, ns, 100_000, -1, 100_000_000, 25, 50, ct), ct));
+            racers.Add(Run(start, () => RetentionTestOps.PurgeAsync(Services, ns, -1, 25, 50, ct), ct));
 
             start.SetResult();
             await Task.WhenAll(racers);
@@ -173,9 +173,9 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         }
     }
 
-    // Only the job section deletes: the event and alert windows are far from due.
+    // Only the job section deletes: the window is far from due.
     private Task SweepJobsAsync(int ns, Func<Task<bool>> settled, CancellationToken ct) =>
-        RetentionTestOps.PurgeUntilAsync(Services, ns, 100_000, 100_000, 100_000_000, 25, 50, settled, ct);
+        RetentionTestOps.PurgeUntilAsync(Services, ns, 100_000, 25, 50, settled, ct);
 
     private static Task Run(TaskCompletionSource start, Func<Task> action, CancellationToken ct) =>
         Task.Run(

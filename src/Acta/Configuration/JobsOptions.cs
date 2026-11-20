@@ -11,27 +11,13 @@ namespace Acta;
 public sealed class JobsOptions
 {
     /// <summary>
-    /// Retention window in whole days for every <c>events</c> row, audit timeline and execution
-    /// ledger alike; a fractional day is rejected at startup because the purge works in days.
+    /// How long Acta keeps history, in whole days, a year by default: every <c>events</c> row, audit timeline and
+    /// execution ledger alike; every <c>alerts</c> row whatever its state, so a still-failing job whose open incident
+    /// ages out opens a fresh one on its next failure; and every terminal <c>workers</c> row, <c>Stopped</c> and
+    /// <c>Dead</c> alike, counted from its last heartbeat and its last event, and never while a job it leased is still
+    /// Executing. A fractional day is rejected at startup because the purge works in days.
     /// </summary>
     public TimeSpan Retention { get; set; } = TimeSpan.FromDays(365);
-
-    /// <summary>
-    /// Hard retention cap in whole days for <c>alerts</c> rows: past it, an alert is purged
-    /// whatever its state - settled, in-flight, even an open unresolved incident. A still-failing
-    /// job whose incident ages out simply opens a fresh one on its next failure. Default 90 days,
-    /// shorter than <see cref="Retention"/> because an alert is a projection of the
-    /// <c>events</c> ledger, which keeps the incident timeline for the full event window.
-    /// </summary>
-    public TimeSpan AlertRetention { get; set; } = TimeSpan.FromDays(90);
-
-    /// <summary>
-    /// How long terminal <c>workers</c> rows - both <c>Stopped</c> and <c>Dead</c> - are retained
-    /// past their last heartbeat and their last event before <c>sys.retention</c> sweeps them. Default 90 days.
-    /// A row is never swept before <see cref="Retention"/> has passed too, or while a job it leased is
-    /// still Executing, so every event that names the worker still resolves its ref.
-    /// </summary>
-    public TimeSpan WorkerRetention { get; set; } = TimeSpan.FromDays(90);
 
     /// <summary>
     /// Maximum number of concurrent in-flight executions per worker. Each <c>Run(...)</c> in a process is its own
@@ -104,7 +90,7 @@ public sealed class JobsOptions
     /// go without heartbeating before crash recovery flips its <c>workers</c> row from Active to Dead, measured
     /// against <c>last_seen_at_utc</c>. The margin past the lease keeps a worker whose leases just lapsed from being
     /// retired while it might still recover; crash recovery applies the running worker's value, the second reason
-    /// this is derived. The retention sweep deletes Dead rows per <see cref="WorkerRetention"/>. Default 315s.
+    /// this is derived. The retention sweep deletes Dead rows per <see cref="Retention"/>. Default 315s.
     /// </summary>
     public TimeSpan WorkerDeadAfter
     {

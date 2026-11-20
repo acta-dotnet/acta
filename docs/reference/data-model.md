@@ -679,7 +679,7 @@ The tenants a job can be about: an optional, validated scope on individual jobs,
 
 ### `acta.workers` <a id="entity-acta-workers"></a>
 
-Worker registration and liveness row. One row per worker process; every `WorkerRuntime.InitializeAsync` call INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned `Id`. A single host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The retention sweep deletes terminal workers - `Stopped` and `Dead` alike - that lease no Executing job and whose last heartbeat and last write are older than the longer of `JobsOptions.WorkerRetention` and `JobsOptions.Retention`.
+Worker registration and liveness row. One row per worker process; every `WorkerRuntime.InitializeAsync` call INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned `Id`. A single host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The retention sweep deletes terminal workers - `Stopped` and `Dead` alike - that lease no Executing job and whose last heartbeat and last write are older than `JobsOptions.Retention`.
 
 **CLR type** `Acta.WorkerEntity` · **Primary key** `pk_workers` (`worker_id`)
 

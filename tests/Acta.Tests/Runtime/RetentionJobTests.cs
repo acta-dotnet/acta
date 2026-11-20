@@ -8,7 +8,7 @@ namespace Acta.Tests.Runtime;
 public sealed class RetentionJobTests
 {
     private static readonly DateTime Now = new(2026, 9, 6, 12, 0, 0, DateTimeKind.Utc);
-    private static readonly RetentionSweep Sweep = new(42, 2, 3, 4, 10, 2, TimeSpan.MaxValue);
+    private static readonly RetentionSweep Sweep = new(42, 2, 10, 2, TimeSpan.MaxValue);
 
     [Fact]
     public async Task Sections_are_ordered_bounded_and_share_one_database_clock_read()
@@ -30,16 +30,8 @@ public sealed class RetentionJobTests
             Assert.Equal(first with { Before = null }, store.Calls[index * 2 + 1] with { Before = null });
             Assert.Equal(42, first.NamespaceId);
             Assert.Equal(10, first.BatchSize);
-            Assert.Equal(
-                index switch
-                {
-                    1 => Now.AddDays(-2),
-                    2 or 3 => Now.AddDays(-3),
-                    4 => Now.AddDays(-2),
-                    _ => Now,
-                },
-                first.CutoffUtc
-            );
+            // Events, both alert sections and workers share the one window; jobs, locks and lanes are judged at now.
+            Assert.Equal(index is >= 1 and <= 4 ? Now.AddDays(-2) : Now, first.CutoffUtc);
         }
     }
 
@@ -68,16 +60,25 @@ public sealed class RetentionJobTests
         Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, null, BudgetSpent: true), result);
     }
 
-    [Theory]
-    [InlineData(4, 2 * 86_400)]
-    [InlineData(3 * 86_400, 3 * 86_400)]
-    public async Task Terminal_workers_are_kept_for_the_longer_of_their_window_and_the_events_window(int workerSeconds, int keptSeconds)
+    [Fact]
+    public async Task The_retention_option_sets_the_events_alerts_and_workers_cutoff()
     {
-        var store = new Store(static _ => 0);
-        await Job(store.Handler, new Clock())
-            .PurgeExpiredDataAsync(Sweep with { WorkerRetentionSeconds = workerSeconds }, null, TestContext.Current.CancellationToken);
+        var store = new Store(static _ => 0, static _ => null);
+        var options = new JobsOptions { Retention = TimeSpan.FromDays(7) };
 
-        Assert.Equal(Now.AddSeconds(-keptSeconds), store.Calls.Single(c => c.Section == RetentionSection.Workers).CutoffUtc);
+        await Job(store.Handler, new Clock(), options).Handle(new RecordingJobContext(), TestContext.Current.CancellationToken);
+
+        // The events section runs twice, for the namespace and for sys.
+        Assert.Equal(
+            [
+                RetentionSection.Events,
+                RetentionSection.Events,
+                RetentionSection.SettledAlerts,
+                RetentionSection.UndeliveredAlerts,
+                RetentionSection.Workers,
+            ],
+            store.Calls.Where(c => c.CutoffUtc == Now.AddDays(-7)).Select(c => c.Section)
+        );
     }
 
     [Fact]
@@ -251,8 +252,8 @@ public sealed class RetentionJobTests
     // A walk that never reaches the namespace's oldest job.
     private static RetentionCursor? Older(PurgeExpiredDataCommand command) => new((command.Before?.Utc ?? Now).AddDays(-1).Ticks, 7);
 
-    private static RetentionJob Job(MaintenanceOperations maintenance, IClockOperations clock) =>
-        new(maintenance, clock, Options.Create(new JobsOptions()));
+    private static RetentionJob Job(MaintenanceOperations maintenance, IClockOperations clock, JobsOptions? options = null) =>
+        new(maintenance, clock, Options.Create(options ?? new JobsOptions()));
 
     private sealed class Clock : IClockOperations
     {

@@ -253,9 +253,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         await RetentionTestOps.PurgeUntilAsync(
             Services,
             NamespaceId,
-            eventsRetentionDays: 3650,
-            alertRetentionDays: 3650,
-            workerRetentionSeconds: int.MaxValue,
+            retentionDays: 3650,
             batchSize: 500,
             maxIterations: 20,
             async () => await ReadLockAsync(reservation, ct) is null,
@@ -601,16 +599,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
     }
 
     private Task PurgeAsync(CancellationToken ct) =>
-        RetentionTestOps.PurgeAsync(
-            Services,
-            NamespaceId,
-            eventsRetentionDays: 3650,
-            alertRetentionDays: 3650,
-            workerRetentionSeconds: int.MaxValue,
-            batchSize: 500,
-            maxIterations: 20,
-            ct
-        );
+        RetentionTestOps.PurgeAsync(Services, NamespaceId, retentionDays: 3650, batchSize: 500, maxIterations: 20, ct);
 
     private Task<Acta.LockEntity?> ReadLockAsync(string lockKey, CancellationToken ct) =>
         Db.From<Acta.LockEntity>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);

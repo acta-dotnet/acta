@@ -781,7 +781,7 @@ argument, `Acta:Provider`, `ACTA_LOCAL_PROVIDER`, then SQLite as the zero-setup 
 
 ### Worker And Cluster Options
 
-`JobsOptions` is validated at startup. Invalid retention windows, executor counts, payload caps,
+`JobsOptions` is validated at startup. Invalid retention, executor counts, payload caps,
 alert settings, or lease/heartbeat relationships fail fast.
 
 | Option | Default | Scope | Notes |
@@ -791,9 +791,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
 | `LeaseTtl` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
 | `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before crash recovery marks a worker Dead. |
-| `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. A row also stays until `Retention` has passed, so events keep their worker. Must be at least one day. |
-| `Retention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
-| `AlertRetention` | 90 | cluster data | Hard cap on alert rows, settled or not. |
+| `Retention` | 365 | cluster data | How long history is kept: every event row, both audit timeline and execution ledger; every alert row, settled or not; and terminal worker rows, `Stopped` and `Dead` alike. |
 | `RunSystemJobs` | `true` | per process | Declares `sys.alerts` and `sys.retention` in the namespace and runs crash recovery. Deploy with the value the workers run with. **Off disables crash recovery**, so a dead worker's jobs stay `Executing`; the runtime warns. |
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The cap on what a caller sends, for inline writes and the HTTP request body. A handler's or a step's result past it is stored with a warning, up to 16 MiB or this cap where it is set higher. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |

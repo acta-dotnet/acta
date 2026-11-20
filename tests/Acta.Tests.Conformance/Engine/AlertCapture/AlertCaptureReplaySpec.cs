@@ -56,7 +56,7 @@ public sealed class AlertCaptureReplaySpec : ActaRuntimeTestBase<ConformanceFixt
         await Db.From<CheckpointEntity>()
             .Where(c => c.JobId == projector && c.CheckpointName == skipName)
             .UpdateOnlyAsync(() => new CheckpointEntity { ModifiedAtUtc = aged, CreatedAtUtc = aged }, ct);
-        await RetentionTestOps.PurgeAsync(Services, NamespaceId, AlertCaptureOps.EventsRetentionDays, 30, 100_000_000, 1000, 50, ct);
+        await RetentionTestOps.PurgeAsync(Services, NamespaceId, AlertCaptureOps.RetentionDays, 1000, 50, ct);
         Assert.NotNull(await Jobs.GetAsync(job, ct));
         Assert.Contains(await AlertCaptureOps.JobEventsAsync(Db, job.JobId, ct), e => e.Id == failed.Id);
         Assert.Equal(1, await CountVariableAsync(projector, AlertTestOps.SkipVariableName(failed.Id), ct));

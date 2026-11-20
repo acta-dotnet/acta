@@ -16,9 +16,7 @@ namespace Acta.Tests.Conformance.Engine.Retention;
 [Deploys("add-numbers")]
 public sealed class AlertSkipVariableRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertSkipVariableRetentionSpec>>
 {
-    private const int NoEventPurgeDays = 100_000;
-    private const int NoAlertPurgeDays = 100_000;
-    private const int NoWorkerPurgeSeconds = 100_000_000;
+    private const int NoPurgeDays = 100_000;
 
     // The projector's slot owns the skip records.
     protected override bool RunSystemJobs => true;
@@ -34,12 +32,12 @@ public sealed class AlertSkipVariableRetentionSpec : ActaRuntimeTestBase<Conform
         await AlertTestOps.RecordProjectionSkipAsync(Services, TestNamespace, ns, projector, eventId: 4142, ct);
         await AlertTestOps.RewindAlertsCursorAsync(Services, TestNamespace, ns, projector, cursorEventId: 4142, ct);
 
-        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);
         Assert.Equal(1, await CountVariableAsync(projector, AlertTestOps.SkipVariableName(4141), ct));
         Assert.Equal(1, await CountVariableAsync(projector, AlertTestOps.SkipVariableName(4142), ct));
 
         // A future cutoff puts every checkpoint past the alert window.
-        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        await RetentionTestOps.PurgeAsync(Services, ns, -1, 1000, 50, ct);
         Assert.Equal(1, await CountVariableAsync(projector, AlertTestOps.SkipVariableName(4141), ct));
         Assert.Equal(1, await CountVariableAsync(projector, AlertTestOps.SkipVariableName(4142), ct));
         Assert.Equal(1, await CountVariableAsync(projector, AlertsJob.CursorVariableName, ct));
@@ -56,7 +54,7 @@ public sealed class AlertSkipVariableRetentionSpec : ActaRuntimeTestBase<Conform
         await AlertTestOps.RecordProjectionSkipAsync(Services, TestNamespace, ns, projector, eventId: 5150, ct);
         await AlertTestOps.RecordProjectionSkipAsync(Services, TestNamespace, ns, other, eventId: 5150, ct);
 
-        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        await RetentionTestOps.PurgeAsync(Services, ns, -1, 1000, 50, ct);
 
         Assert.Equal(1, await CountVariableAsync(projector, AlertTestOps.SkipVariableName(5150), ct));
         Assert.Equal(1, await CountVariableAsync(other, AlertTestOps.SkipVariableName(5150), ct));
