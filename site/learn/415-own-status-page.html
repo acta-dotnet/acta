@@ -185,7 +185,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <span class="k">await</span> UntilAsync(job =&gt; job.Status == JobStatusCode.Suspended);
 <span class="k">await</span> ShowAsync();
 
-<span class="k">await</span> jobs.RaiseSignalAsync(order, <span class="s">&quot;packed&quot;</span>, JobPayload.None);
+<span class="k">await</span> jobs.RaiseSignalAsync(order, <span class="s">&quot;packed&quot;</span>);
 <span class="k">await</span> order.WaitAsync();
 <span class="k">await</span> ShowAsync();
 

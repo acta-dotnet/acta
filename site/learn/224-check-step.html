@@ -247,7 +247,7 @@ Console.WriteLine(
 <span class="c">// A repeated recover finds the order already shipped.</span>
 <span class="k">if</span> (status == JobStatusCode.Suspended)
 {
-    <span class="k">await</span> jobs.RaiseSignalAsync(jobRef, <span class="s">&quot;packed&quot;</span>, JobPayload.None, ct: timeout.Token);
+    <span class="k">await</span> jobs.RaiseSignalAsync(jobRef, <span class="s">&quot;packed&quot;</span>, timeout.Token);
 }
 <span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(jobRef, timeout.Token))?.Status.IsFinished != <span class="k">true</span>)
 {

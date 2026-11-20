@@ -512,6 +512,14 @@ public interface IJobs
         RaiseSignalAsync(job, name, value, actor: null, ct);
 
     /// <summary>
+    /// Raises the signal with no value, for a wait that only needs to hear that something happened: the short form of
+    /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/> with
+    /// <see cref="JobPayload.None"/> and no <c>actor</c>.
+    /// </summary>
+    Task<RaiseJobSignalResponse> RaiseSignalAsync(JobLookup job, string name, CancellationToken ct = default) =>
+        RaiseSignalAsync(job, name, JobPayload.None, actor: null, ct);
+
+    /// <summary>
     /// Clears the signal <paramref name="name"/> from a finished job, or from a permanent job between firings, so its
     /// next wait for the signal waits again. To give a finished job's signal a new value, clear it, restart the job, then
     /// raise it. A system job keeps its signals: the clear answers Rejected with reason <c>system-job</c>.

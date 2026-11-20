@@ -105,7 +105,7 @@ while (status != JobStatusCode.Suspended && status?.IsFinished != true)
 // A repeated recover finds the order already shipped.
 if (status == JobStatusCode.Suspended)
 {
-    await jobs.RaiseSignalAsync(jobRef, "packed", JobPayload.None, ct: timeout.Token);
+    await jobs.RaiseSignalAsync(jobRef, "packed", timeout.Token);
 }
 while ((await jobs.GetAsync(jobRef, timeout.Token))?.Status.IsFinished != true)
 {

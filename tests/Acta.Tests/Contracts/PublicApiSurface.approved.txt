@@ -1178,6 +1178,7 @@ interface Acta.IJobs
     System.Threading.Tasks.Task<Acta.PurgeJobResponse> PurgeAsync(Acta.JobLookup job, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.RaiseJobSignalResponse> RaiseSignalAsync(Acta.JobLookup job, System.String name, Acta.JobPayload value, System.String? actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.RaiseJobSignalResponse> RaiseSignalAsync(Acta.JobLookup job, System.String name, Acta.JobPayload value, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.Task<Acta.RaiseJobSignalResponse> RaiseSignalAsync(Acta.JobLookup job, System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.RaiseJobSignalResponse> RaiseSignalAsync<T>(Acta.JobLookup job, System.String name, T value, System.String? actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.RaiseJobSignalResponse> RaiseSignalAsync<T>(Acta.JobLookup job, System.String name, T value, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task<Acta.ReprioritizeJobResponse> ReprioritizeAsync(Acta.JobLookup job, Acta.JobPriorityCode priority, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
