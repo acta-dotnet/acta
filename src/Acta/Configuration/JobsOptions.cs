@@ -14,13 +14,13 @@ public sealed class JobsOptions
     /// Retention window in whole days for every <c>events</c> row, audit timeline and execution
     /// ledger alike; a fractional day is rejected at startup because the purge works in days.
     /// </summary>
-    public TimeSpan JobEventsRetention { get; set; } = TimeSpan.FromDays(365);
+    public TimeSpan Retention { get; set; } = TimeSpan.FromDays(365);
 
     /// <summary>
     /// Hard retention cap in whole days for <c>alerts</c> rows: past it, an alert is purged
     /// whatever its state - settled, in-flight, even an open unresolved incident. A still-failing
     /// job whose incident ages out simply opens a fresh one on its next failure. Default 90 days,
-    /// shorter than <see cref="JobEventsRetention"/> because an alert is a projection of the
+    /// shorter than <see cref="Retention"/> because an alert is a projection of the
     /// <c>events</c> ledger, which keeps the incident timeline for the full event window.
     /// </summary>
     public TimeSpan AlertRetention { get; set; } = TimeSpan.FromDays(90);
@@ -28,7 +28,7 @@ public sealed class JobsOptions
     /// <summary>
     /// How long terminal <c>workers</c> rows - both <c>Stopped</c> and <c>Dead</c> - are retained
     /// past their last heartbeat and their last event before <c>sys.retention</c> sweeps them. Default 90 days.
-    /// A row is never swept before <see cref="JobEventsRetention"/> has passed too, or while a job it leased is
+    /// A row is never swept before <see cref="Retention"/> has passed too, or while a job it leased is
     /// still Executing, so every event that names the worker still resolves its ref.
     /// </summary>
     public TimeSpan WorkerRetention { get; set; } = TimeSpan.FromDays(90);

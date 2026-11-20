@@ -6,7 +6,7 @@ namespace Acta;
 /// host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The
 /// retention sweep deletes terminal workers - <c>Stopped</c> and <c>Dead</c> alike - that lease no Executing job and
 /// whose last heartbeat and last write are older than the longer of <c>JobsOptions.WorkerRetention</c> and
-/// <c>JobsOptions.JobEventsRetention</c>.
+/// <c>JobsOptions.Retention</c>.
 /// </summary>
 [DbTable("workers")]
 [DbPrimaryKey(Name = "pk_workers", Columns = ["worker_id"])]

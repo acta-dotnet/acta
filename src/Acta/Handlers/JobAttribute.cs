@@ -6,7 +6,7 @@ namespace Acta;
 /// are absent on purpose: no <c>LeaseTtl</c>, since the lease window is one worker-wide value
 /// (<c>JobsOptions.LeaseTtlSeconds</c>) the heartbeat refreshes while a handler runs and a per-definition policy
 /// would re-add a JOIN on the hot claim path; and no per-definition <c>ExecutionRetention</c>, since every event row
-/// honors the single cluster knob <c>JobsOptions.JobEventsRetention</c>.
+/// honors the single cluster knob <c>JobsOptions.Retention</c>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class JobAttribute(string name) : Attribute

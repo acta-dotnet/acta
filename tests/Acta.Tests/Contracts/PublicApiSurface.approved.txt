@@ -1680,8 +1680,8 @@ sealed class Acta.JobsOptions
     System.TimeSpan AlertReminderInterval { get;set; }
     System.TimeSpan AlertRetention { get;set; }
     System.TimeSpan HeartbeatInterval { get;set; }
-    System.TimeSpan JobEventsRetention { get;set; }
     System.TimeSpan LeaseTtl { get; }
+    System.TimeSpan Retention { get;set; }
     System.TimeSpan SafetyPollInterval { get;set; }
     System.TimeSpan WorkerDeadAfter { get; }
     System.TimeSpan WorkerRetention { get;set; }

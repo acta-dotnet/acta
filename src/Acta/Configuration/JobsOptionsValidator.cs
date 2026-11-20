@@ -30,9 +30,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
     /// <summary>The retention windows: at least a day, whole days where the purge counts days, alerts within events.</summary>
     private static void CheckRetention(JobsOptions options, List<string> failures)
     {
-        if (options.JobEventsRetention < TimeSpan.FromDays(1))
+        if (options.Retention < TimeSpan.FromDays(1))
         {
-            failures.Add("JobsOptions.JobEventsRetention must be >= 1 day: retention is destructive.");
+            failures.Add("JobsOptions.Retention must be >= 1 day: retention is destructive.");
         }
 
         if (options.AlertRetention < TimeSpan.FromDays(1))
@@ -49,9 +49,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         // be truncated on the way there and delete earlier than configured: 47 hours would purge at 24.
         // Rejected rather than rounded, because either direction silently moves a destructive boundary
         // the operator wrote down in their own units. WorkerRetention is exempt: it converts to seconds.
-        if (options.JobEventsRetention.Ticks % TimeSpan.TicksPerDay != 0)
+        if (options.Retention.Ticks % TimeSpan.TicksPerDay != 0)
         {
-            failures.Add("JobsOptions.JobEventsRetention must be a whole number of days: retention is applied in day granularity.");
+            failures.Add("JobsOptions.Retention must be a whole number of days: retention is applied in day granularity.");
         }
 
         if (options.AlertRetention.Ticks % TimeSpan.TicksPerDay != 0)
@@ -62,11 +62,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         // A success closes an incident only by answering the failure event that opened it, so the alert
         // window must not outlast the events window. This bounds the two settings; an incident that
         // stays open longer than the events window still needs an operator.
-        if (options.AlertRetention > options.JobEventsRetention)
+        if (options.AlertRetention > options.Retention)
         {
-            failures.Add(
-                "JobsOptions.AlertRetention must not exceed JobEventsRetention: an incident is closed by the events that explain it."
-            );
+            failures.Add("JobsOptions.AlertRetention must not exceed Retention: an incident is closed by the events that explain it.");
         }
     }
 
@@ -182,9 +180,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         // Upper bounds. Generous plausibility ceilings, not policy: they catch unit mistakes
         // (milliseconds bound where seconds were meant, ticks, ms-vs-days) before a huge value
         // overflows an int-second conversion or parks data for decades.
-        if (options.JobEventsRetention > TimeSpan.FromDays(3650))
+        if (options.Retention > TimeSpan.FromDays(3650))
         {
-            failures.Add("JobsOptions.JobEventsRetention must be <= 3650 days (10 years).");
+            failures.Add("JobsOptions.Retention must be <= 3650 days (10 years).");
         }
 
         if (options.AlertRetention > TimeSpan.FromDays(3650))

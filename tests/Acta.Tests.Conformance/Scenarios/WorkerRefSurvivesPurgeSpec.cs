@@ -160,7 +160,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         return RetentionTestOps.PurgeAsync(
             Services,
             ns,
-            (int)defaults.JobEventsRetention.TotalDays,
+            (int)defaults.Retention.TotalDays,
             (int)defaults.AlertRetention.TotalDays,
             (int)defaults.WorkerRetention.TotalSeconds,
             1000,

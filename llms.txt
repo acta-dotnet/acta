@@ -512,7 +512,7 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
   deleted with its steps and checkpoints once its definition's `JobRetention` has passed, 90 days by
   default (`[Job("release-payment", JobRetention = "365d")]`). A job that waits is never deleted,
   however long it waits, and a finished child stays until its parent has finished and the parent's own retention is due. Events go by age
-  alone, a year by default (`JobsOptions.JobEventsRetention`): a job still waiting after that keeps
+  alone, a year by default (`JobsOptions.Retention`): a job still waiting after that keeps
   everything it needs to resume and loses the oldest lines of its timeline. A record the business
   must keep for good belongs in the application's own table, written in a step.
 - Deduplication keys keep their case (printable ASCII, no whitespace, surrounding whitespace

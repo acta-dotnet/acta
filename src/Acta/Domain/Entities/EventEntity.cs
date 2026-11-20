@@ -4,7 +4,7 @@ namespace Acta;
 /// The append-only ledger: what happened to an entity, named by <see cref="EventCode"/> and the
 /// <see cref="EntityCode"/>/<see cref="EntityId"/> subject pair, with a human <see cref="EventMessage"/> and a small
 /// encoded <see cref="Details"/> payload for the facts the code does not imply. Rows age out by
-/// <c>JobsOptions.JobEventsRetention</c> against <see cref="CreatedAtUtc"/>; no foreign key binds the subject, because
+/// <c>JobsOptions.Retention</c> against <see cref="CreatedAtUtc"/>; no foreign key binds the subject, because
 /// events outlive it, so the operations that write them keep them consistent.
 /// </summary>
 [DbTable("events", PageCompression = true)]

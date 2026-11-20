@@ -27,15 +27,15 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
-    public void AlertRetention_longer_than_JobEventsRetention_fails()
+    public void AlertRetention_longer_than_Retention_fails()
     {
         var result = Validate(o =>
         {
-            o.JobEventsRetention = TimeSpan.FromDays(30);
+            o.Retention = TimeSpan.FromDays(30);
             o.AlertRetention = TimeSpan.FromDays(31);
         });
         Assert.True(result.Failed);
-        Assert.Contains("AlertRetention must not exceed JobEventsRetention", result.FailureMessage);
+        Assert.Contains("AlertRetention must not exceed Retention", result.FailureMessage);
     }
 
     [Fact]
@@ -206,11 +206,11 @@ public sealed class JobsOptionsValidatorTests
     {
         var result = Validate(o =>
         {
-            o.JobEventsRetention = TimeSpan.FromDays(40_000);
+            o.Retention = TimeSpan.FromDays(40_000);
             o.AlertRetention = TimeSpan.FromDays(40_000);
         });
         Assert.True(result.Failed);
-        Assert.Contains("JobEventsRetention", result.FailureMessage);
+        Assert.Contains("JobsOptions.Retention", result.FailureMessage);
         Assert.Contains("AlertRetention", result.FailureMessage);
     }
 
@@ -221,12 +221,12 @@ public sealed class JobsOptionsValidatorTests
         // day and deleted a day early. These values passed validation before and now do not, on purpose.
         var result = Validate(o =>
         {
-            o.JobEventsRetention = TimeSpan.FromHours(47);
+            o.Retention = TimeSpan.FromHours(47);
             o.AlertRetention = TimeSpan.FromDays(90.5);
         });
 
         Assert.True(result.Failed);
-        Assert.Contains("JobEventsRetention must be a whole number of days", result.FailureMessage);
+        Assert.Contains("JobsOptions.Retention must be a whole number of days", result.FailureMessage);
         Assert.Contains("AlertRetention must be a whole number of days", result.FailureMessage);
     }
 
@@ -237,7 +237,7 @@ public sealed class JobsOptionsValidatorTests
         // nothing and stays legal; pinning it here keeps the new rule from quietly widening.
         var result = Validate(o =>
         {
-            o.JobEventsRetention = TimeSpan.FromDays(30);
+            o.Retention = TimeSpan.FromDays(30);
             o.AlertRetention = TimeSpan.FromDays(7);
             o.WorkerRetention = TimeSpan.FromHours(36);
         });

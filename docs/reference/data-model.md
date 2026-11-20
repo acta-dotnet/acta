@@ -278,7 +278,7 @@ One app version that has deployed its jobs in a namespace, one row per `(Namespa
 
 ### `acta.events` <a id="entity-acta-events"></a>
 
-The append-only ledger: what happened to an entity, named by `EventCode` and the `EntityCode`/`EntityId` subject pair, with a human `EventMessage` and a small encoded `Details` payload for the facts the code does not imply. Rows age out by `JobsOptions.JobEventsRetention` against `CreatedAtUtc`; no foreign key binds the subject, because events outlive it, so the operations that write them keep them consistent.
+The append-only ledger: what happened to an entity, named by `EventCode` and the `EntityCode`/`EntityId` subject pair, with a human `EventMessage` and a small encoded `Details` payload for the facts the code does not imply. Rows age out by `JobsOptions.Retention` against `CreatedAtUtc`; no foreign key binds the subject, because events outlive it, so the operations that write them keep them consistent.
 
 **CLR type** `Acta.EventEntity` · **Primary key** `pk_events` (`worker_id`, `event_id`)
 
@@ -679,7 +679,7 @@ The tenants a job can be about: an optional, validated scope on individual jobs,
 
 ### `acta.workers` <a id="entity-acta-workers"></a>
 
-Worker registration and liveness row. One row per worker process; every `WorkerRuntime.InitializeAsync` call INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned `Id`. A single host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The retention sweep deletes terminal workers - `Stopped` and `Dead` alike - that lease no Executing job and whose last heartbeat and last write are older than the longer of `JobsOptions.WorkerRetention` and `JobsOptions.JobEventsRetention`.
+Worker registration and liveness row. One row per worker process; every `WorkerRuntime.InitializeAsync` call INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned `Id`. A single host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The retention sweep deletes terminal workers - `Stopped` and `Dead` alike - that lease no Executing job and whose last heartbeat and last write are older than the longer of `JobsOptions.WorkerRetention` and `JobsOptions.Retention`.
 
 **CLR type** `Acta.WorkerEntity` · **Primary key** `pk_workers` (`worker_id`)
 

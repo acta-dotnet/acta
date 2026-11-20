@@ -39,7 +39,7 @@ internal sealed class RetentionJob(
     /// window that is not a whole number of days. Without that rule a 47-hour alert window would
     /// have purged at 24 hours, deleting a day earlier than the deployment asked for.
     /// </summary>
-    private readonly int _eventsRetentionDays = (int)options.Value.JobEventsRetention.TotalDays;
+    private readonly int _eventsRetentionDays = (int)options.Value.Retention.TotalDays;
     private readonly int _alertRetentionDays = (int)options.Value.AlertRetention.TotalDays;
 
     /// <summary>
