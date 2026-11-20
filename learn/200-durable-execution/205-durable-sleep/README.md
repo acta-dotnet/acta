@@ -80,6 +80,9 @@ condition rather than merely wait for an instant.
 - Bare code before the sleep runs again when the job wakes. Put work that must not repeat in a step.
 - The job wakes as precisely as the database clock and the worker's polling allow, not to the millisecond.
 - To start a whole job later, instead of pausing inside one, see [run a job once, later](../../000-fundamentals/011-delayed-job/).
+- `"cool-down"` names the timer a follow-up sleeps on. A renamed timer is a different timer, so let the sleeping jobs finish before you rename it.
+- A job that waits for a signal or a timer can stay stored for days. The name in `[Job("send-follow-up")]` is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `SendFollowUp` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `send-follow-up-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).
 
 ## Check yourself
 

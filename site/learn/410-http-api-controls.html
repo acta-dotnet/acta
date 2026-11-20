@@ -121,8 +121,8 @@ Console.WriteLine(<span class="s">$&quot;  job status after pause: {snapshot!.St
   -&gt; 200 OK
 job status after pause: Paused</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The name in <code>[Job(&quot;sample-task&quot;)]</code> and the namespace in <code>Run&lt;HttpApiControlsJobs&gt;(&quot;http-api-controls&quot;)</code> are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>SampleTask</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>sample-task-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/410-http-api-controls"><code>learn/400-observability-and-alerts/410-http-api-controls</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>

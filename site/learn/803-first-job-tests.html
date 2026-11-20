@@ -128,8 +128,8 @@
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet test learn/800-testing/803-first-job-tests</code></pre></figure>
 <p class="proof checked"><b>Runs as a test.</b> This program is a test project: it passes or fails with the test suite.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The namespace in <code>Run&lt;ShippingJobs&gt;(&quot;shipping&quot;)</code> and the job names this test drives are the same strings the app stores with every job. Treat them as permanent once jobs exist under them: renaming one in the app and in the test together keeps the test green, and leaves the jobs already stored with no handler to run them.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/803-first-job-tests"><code>learn/800-testing/803-first-job-tests</code></a>, as it is compiled.</p>
 <details class="source-file"><summary><span class="file-name">ShippingTests.cs</span><span class="file-size">118 lines</span></summary><figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: ShippingTests.cs</span>

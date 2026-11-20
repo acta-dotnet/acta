@@ -83,6 +83,9 @@ human-centric processes.
 - A raise that comes before the handler reaches its wait is stored, and the wait reads it without parking.
 - The typed value is null when the signal was raised without one. A value binds leniently, so give an enum a first value that grants nothing.
 - A signal keeps the value of its first raise. Keep timestamps and per-attempt ids out of it, so a repeated raise answers `AlreadyInState`.
+- `"approval"` names the signal an expense waits on, and the approver raises it by that name. A renamed signal is a different signal, so let the waiting expenses finish before you rename it.
+- A job that waits for a signal or a timer can stay stored for days. The name in `[Job("approve-expense")]` is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `ApproveExpense` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `approve-expense-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).
 
 ## Check yourself
 
@@ -107,5 +110,17 @@ No worker. The wait is a row. The job reads `suspended` with no worker and no le
 <details><summary>Answer</summary>
 
 Execution 2, from the first line of the handler. Acta does not resume in the middle of a method. It runs the handler again, and the wait answers from its stored value.
+
+</details>
+
+**You rename the signal `"approval"` while expenses are waiting. What is the new name to those jobs?**
+
+- The same signal under a new label
+- A different signal
+- An error at startup
+
+<details><summary>Answer</summary>
+
+A different signal. The name is the key to what the job has stored, so let the waiting jobs finish before you rename it.
 
 </details>

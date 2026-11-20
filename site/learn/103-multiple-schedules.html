@@ -112,8 +112,8 @@
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>fired by [faster]
 fired by [fast, faster]</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A job on a schedule runs across every deploy, for as long as the application lives. The name in <code>[Job(&quot;report&quot;)]</code> and the namespace in <code>Run&lt;MultipleSchedulesJobs&gt;(&quot;multiple-schedules&quot;)</code> are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li></ul></div>
 <details class="step lab-notes"><summary>The lab behind it: one permanent job, moving cursors</summary>
 <p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
 <h3>The problem</h3>

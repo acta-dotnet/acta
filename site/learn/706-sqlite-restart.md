@@ -115,6 +115,8 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 - The handler runs again from its first line. Work that finished before the crash and must not repeat belongs in a step.
 - The lost attempt shows as `job.execution-orphaned` on the job's timeline, and Explain counts it as a lost lease.
 - A job that is waiting or sleeping holds no lease and needs no recovery.
+- The name in `[Job("export")]` and the namespace in `Run<SqliteRestartJobs>("sqlite-restart")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `Export` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `export-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Check yourself
 

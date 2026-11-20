@@ -5,7 +5,7 @@ Keep a big file in blob storage and enqueue a reference to it, with its checksum
 - Section: Start jobs, step 17
 - Program: `learn/000-fundamentals/025-large-payload-reference` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
-- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
 - Page for people: /learn/025-large-payload-reference
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
@@ -104,6 +104,11 @@ enqueued with a reference to a 21-byte file (not the bytes).
 ```
 
 Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+
+## Remember
+
+- The name in `[Job("process-export")]` and the namespace in `Run<LargePayloadReferenceJobs>("large-payload-reference")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `ProcessExport` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `process-export-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 

@@ -71,3 +71,22 @@ data before choosing compression.
 - [`ScalarV1Serializer.cs`](./Serializers/ScalarV1Serializer.cs)
 - [`JobPayloadSerializerRegistry.cs`](../../../src/Acta/Payloads/JobPayloadSerializerRegistry.cs)
 - [`ActaManifestGenerator.cs`](../../../src/Acta.Generators/Jobs/ActaManifestGenerator.cs)
+
+## Remember
+
+- The names in `[Job("echo-scalar")]`, `[Job("echo-gzip")]` and `[Job("echo-json")]`, and the namespace in `Run<PayloadFormatsJobs>("payload-formats")`, are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `EchoGzip` is stored with each job as its input and as its result. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `echo-gzip-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).
+
+## Check yourself
+
+**Jobs are stored in one payload format and you change the handler to another. What do the stored jobs need?**
+
+- Nothing, the format is read from the new code
+- A new versioned job name, with the old handler kept until its jobs have finished
+- A change to the database
+
+<details><summary>Answer</summary>
+
+A new versioned job name, with the old handler kept until its jobs have finished. The format is stored with each job, so a handler that reads another format is another job.
+
+</details>

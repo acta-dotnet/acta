@@ -272,6 +272,7 @@
   "705-worker-crash-recovery": {
     "skip": "Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour."
   },
+  "502-job-versions": ["sent INV-1 in EUR", "sent INV-2 in EUR (note: thanks)", "sent INV-3 in USD"],
   "706-sqlite-restart": [
     "[first run] export of orders started, execution 1",
     "[restarted] export of orders started, execution 2",

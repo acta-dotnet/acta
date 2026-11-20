@@ -128,8 +128,8 @@ of them (at most the latest); the rest were skipped
 catch-up-once-report   ran 1 firing, covering
 one per missed occurrence, in order: True</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A job on a schedule runs across every deploy, for as long as the application lives. The names in <code>[Job(&quot;skip-report&quot;)]</code>, <code>[Job(&quot;catch-up-once-report&quot;)]</code> and <code>[Job(&quot;catch-up-all-report&quot;)]</code> are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li></ul></div>
 <details class="step lab-notes"><summary>The lab behind it: a missed schedule is a business decision</summary>
 <p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
 <h3>The problem</h3>

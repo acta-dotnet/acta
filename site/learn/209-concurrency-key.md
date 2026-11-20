@@ -106,6 +106,8 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 - A key is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy. For one at a time in order, use a lane.
 - A job that finds its key full is handed back and re-armed a couple of seconds out. Each such bounce is an execution of its own and adds rows to the timeline.
 - A slot is held while an attempt runs, not while the job sleeps or waits. A slot held by a worker that died frees when that worker's lease lapses; recovery reclaims the job after that.
+- The names in `[Job("ping-endpoint")]`, `[Job("reindex-shard")]` and `[Job("rebuild-index")]`, and the namespace in `Run<ConcurrencyKeyJobs>("concurrency-key")`, are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `PingEndpoint` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `ping-endpoint-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 

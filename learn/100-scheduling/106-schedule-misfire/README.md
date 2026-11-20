@@ -78,3 +78,7 @@ financial occurrences that must never coalesce.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`schedule-misfire.cs`](./schedule-misfire.cs)
 - [`ScheduleEvaluator.cs`](../../../src/Acta/Domain/Schedules/ScheduleEvaluator.cs)
+
+## Remember
+
+- A job on a schedule runs across every deploy, for as long as the application lives. The names in `[Job("skip-report")]`, `[Job("catch-up-once-report")]` and `[Job("catch-up-all-report")]` are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.

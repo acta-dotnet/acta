@@ -74,6 +74,9 @@ determinism makes the stored result worthwhile.
 - Only work inside a step is skipped. Every bare line between steps runs again each time the handler is entered.
 - A step is recorded when it finishes. A crash after the outside call but before the record runs the body again, so give the outside system a stable key taken from the job, never from the attempt.
 - When one more attempt would be worse than not knowing, such as capturing a payment, use an at-most-once step: [Refuse to repeat a side effect after a crash](../220-at-most-once-step/).
+- `"start-freeze-cycle"` is the key to the step's stored result. Rename it and the step runs again for every box that already ran it.
+- The name in `[Job("freeze-box")]` and the namespace in `Run<DurableStepJobs>("durable-step")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `FreezeBox` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `freeze-box-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).
 
 ## Check yourself
 
@@ -86,5 +89,17 @@ determinism makes the stored result worthwhile.
 <details><summary>Answer</summary>
 
 Once. Execution two starts at the first line, reaches `RunStepAsync`, finds the recorded outcome, and returns it without calling the body.
+
+</details>
+
+**You rename the step `"start-freeze-cycle"` and deploy. A box whose cycle already ran is retried. What happens?**
+
+- The stored result is found under the old name
+- The step runs again, since the new name has no stored result
+- The job fails
+
+<details><summary>Answer</summary>
+
+The step runs again, since the new name has no stored result. Renaming migrates nothing: the name is the key to the stored result.
 
 </details>

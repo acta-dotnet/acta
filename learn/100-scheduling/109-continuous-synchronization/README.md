@@ -268,6 +268,8 @@ batch: an older change overwrites a newer order, which is what the clause is for
 - Firings that came due while no worker ran are skipped, not queued. The next firing reads the watermark and catches up by itself.
 - With the default heartbeat, a killed worker's firing comes back three to about seven minutes after its last heartbeat; on SQLite a restart brings it back at once. The lab shortens the heartbeat so you can watch.
 - A sync that writes back to the other system needs that system's idempotency key, so a repeated batch does not act twice there.
+- `"watermark"` is the key to how far `sync-orders` has read. A renamed variable reads as absent, as if the job had never synchronized.
+- A job on a schedule runs across every deploy, for as long as the application lives. The name in `[Job("sync-orders")]` is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.
 
 ## Check yourself
 

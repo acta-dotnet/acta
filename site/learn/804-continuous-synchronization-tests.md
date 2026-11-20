@@ -5,7 +5,7 @@ Tests for the permanent synchronization job of [109-continuous-synchronization](
 - Section: Test without sleeps or polling, step 4
 - Program: `learn/800-testing/804-continuous-synchronization-tests` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Runs as a test. This program is a test project: it passes or fails with the test suite.
-- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
 - Page for people: /learn/804-continuous-synchronization-tests
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
@@ -76,6 +76,10 @@ dotnet test learn/800-testing/804-continuous-synchronization-tests
 ```
 
 Runs as a test. This program is a test project: it passes or fails with the test suite.
+
+## Remember
+
+- `"sync-orders"` and the variable `"watermark"` are the strings the job stores its work under, and this test reads them by name. They are permanent once jobs exist under them. A renamed variable reads as absent, so renaming it in the job and in the test together keeps the test green while the stored job no longer knows how far it had read.
 
 ## Next
 

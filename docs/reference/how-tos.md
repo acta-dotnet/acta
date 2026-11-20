@@ -124,6 +124,7 @@ This file is generated. Regenerate it with `dotnet run --project tools/Acta.Emit
 | Number | Program | How to | What it shows |
 | --- | --- | --- | --- |
 | 501 | [payload-formats](../../learn/500-payloads/501-payload-formats/) | [Store a job's payload in a custom format](https://useacta.net/learn/501-payload-formats) | **Engineering Lab.** A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each |
+| 502 | [job-versions](../../learn/500-payloads/502-job-versions/) | [Change a job's input without breaking the jobs already stored](https://useacta.net/learn/502-job-versions) | A job enqueued before a deploy can run after it, so the new code has to read the input the old code stored. Keep the job's name for a change old rows survive, and give the job a new versioned name for a change they cannot |
 
 ## 600-job-composition
 

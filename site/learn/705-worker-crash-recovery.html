@@ -124,7 +124,7 @@
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery</code></pre></figure>
 <p class="proof proven"><b>Proven by other suites.</b> The release check does not run this program. Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour.</p>
 </div>
-<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>Run it in four terminals against one PostgreSQL or SQL Server database, each with <code>dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- &lt;mode&gt;</code>: <code>worker-a</code>, <code>enqueue</code>, <code>inspect</code>, then <code>worker-b</code>. With no mode the program prints these commands and exits.</li><li>On SQLite a restart brings a lost attempt back at once: a starting worker releases the work of processes on the same machine that have ended. A server database waits out the lease: three to about seven minutes with the default heartbeat.</li><li>The reclaim is <code>job.execution-orphaned</code> on the timeline, with the reason <code>lease-expired</code>, or <code>process-ended</code> after a SQLite restart.</li><li>A crash counts against the retry budget, and a reclaimed job is due again at once, without the backoff.</li><li>A job that is waiting or sleeping holds no lease and needs no recovery.</li></ul></div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>Run it in four terminals against one PostgreSQL or SQL Server database, each with <code>dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- &lt;mode&gt;</code>: <code>worker-a</code>, <code>enqueue</code>, <code>inspect</code>, then <code>worker-b</code>. With no mode the program prints these commands and exits.</li><li>On SQLite a restart brings a lost attempt back at once: a starting worker releases the work of processes on the same machine that have ended. A server database waits out the lease: three to about seven minutes with the default heartbeat.</li><li>The reclaim is <code>job.execution-orphaned</code> on the timeline, with the reason <code>lease-expired</code>, or <code>process-ended</code> after a SQLite restart.</li><li>A crash counts against the retry budget, and a reclaimed job is due again at once, without the backoff.</li><li>A job that is waiting or sleeping holds no lease and needs no recovery.</li><li>The name in <code>[Job(&quot;crash-recovery-probe&quot;)]</code> is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>CrashRecoveryProbe</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>crash-recovery-probe-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
 <details class="step lab-notes"><summary>The lab behind it: SQL-backed crash recovery without a leader</summary>
 <p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
 <h3>The problem</h3>
@@ -380,7 +380,7 @@ Console.WriteLine(<span class="s">&quot;Worker B is live. Waiting for A's short 
     }
 }</code></pre></figure>
 </details></div>
-<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/901-native-aot-json">How to give Acta a JSON context for Native AOT</a><span>Deploy and scale</span></li></ul></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/502-job-versions">How to change a job's input without breaking the jobs already stored</a><span>Deploy and scale</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
         <figure class="listing agent"><figcaption><span class="file">/learn/705-worker-crash-recovery.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/705-worker-crash-recovery.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
@@ -393,12 +393,13 @@ Console.WriteLine(<span class="s">&quot;Worker B is live. Waiting for A's short 
             <li><a href="/learn/703-namespaces-in-one-process" data-id="703"><span class="rail-n">2</span>Run two namespaces in one process</a></li>
             <li><a href="/learn/706-sqlite-restart" data-id="706"><span class="rail-n">3</span>Restart a crashed app on SQLite and get its work back</a></li>
             <li aria-current="page"><a href="/learn/705-worker-crash-recovery" data-id="705"><span class="rail-n">4</span>Recover the work of a killed worker</a></li>
-            <li><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">5</span>Give Acta a JSON context for Native AOT</a></li>
-            <li><a href="/learn/903-redis-wakeup" data-id="903"><span class="rail-n">6</span>Wake workers across processes with Redis</a></li>
-            <li><a href="/learn/904-worker-tuning" data-id="904"><span class="rail-n">7</span>Set how many jobs a worker runs at once</a></li>
+            <li><a href="/learn/502-job-versions" data-id="502"><span class="rail-n">5</span>Change a job's input without breaking the jobs already stored</a></li>
+            <li><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">6</span>Give Acta a JSON context for Native AOT</a></li>
+            <li><a href="/learn/903-redis-wakeup" data-id="903"><span class="rail-n">7</span>Wake workers across processes with Redis</a></li>
+            <li><a href="/learn/904-worker-tuning" data-id="904"><span class="rail-n">8</span>Set how many jobs a worker runs at once</a></li>
         </ol>
         <button class="button done-toggle" type="button" data-done-toggle="705" aria-pressed="false">Mark as done</button>
-        <p class="rail-turn"><a href="/learn/706-sqlite-restart" rel="prev">Previous</a><a href="/learn/901-native-aot-json" rel="next">Next</a></p>
+        <p class="rail-turn"><a href="/learn/706-sqlite-restart" rel="prev">Previous</a><a href="/learn/502-job-versions" rel="next">Next</a></p>
       </aside>
     </div>
     <section class="wrap newcomer" aria-labelledby="newcomer-title">

@@ -95,6 +95,8 @@ Proven by other suites. The release check does not run this program. Needs Postg
 - The reclaim is `job.execution-orphaned` on the timeline, with the reason `lease-expired`, or `process-ended` after a SQLite restart.
 - A crash counts against the retry budget, and a reclaimed job is due again at once, without the backoff.
 - A job that is waiting or sleeping holds no lease and needs no recovery.
+- The name in `[Job("crash-recovery-probe")]` is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `CrashRecoveryProbe` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `crash-recovery-probe-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 
@@ -102,7 +104,7 @@ Proven by other suites. The release check does not run this program. Needs Postg
 
 ## Next
 
-- [How to give Acta a JSON context for Native AOT](/learn/901-native-aot-json.md)
+- [How to change a job's input without breaking the jobs already stored](/learn/502-job-versions.md)
 
 ## More
 

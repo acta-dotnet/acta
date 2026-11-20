@@ -5,7 +5,7 @@ A parent starts a child in another worker's namespace and waits across the bound
 - Section: Split work across child jobs, step 7
 - Program: `learn/700-topology-and-deployment/704-cross-namespace-child` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
-- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
 - Page for people: /learn/704-cross-namespace-child
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
@@ -117,6 +117,12 @@ order finished: OrderConfirmation { OrderId = order-7, TransactionId = tx-order-
 ```
 
 Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+
+## Remember
+
+- `"charge"` is how `place-order` finds the payment it already started in the other namespace. A renamed child is new work: the payment is charged again.
+- A parent and its children are each stored under their own job name. The names in `[Job("place-order")]` and `[Job("charge-payment")]` and the namespaces `"storefront"` and `"billing"` are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `PlaceOrder` is stored with each job as its input, and `OrderConfirmation` as its result. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `place-order-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 

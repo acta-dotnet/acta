@@ -67,6 +67,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 - When each night is its own piece of business, with its own retries and result, [make every occurrence its own job](/learn/110-per-occurrence-delivery.md).
 - `Cron.Hourly`, `Cron.DailyAt9`, `Cron.EveryMonday`, and `Cron.Every15Minutes` name common crons, so the usual cases need no cron string.
 - The line the release check reads comes from `demo-tick`, the interval schedule. The 08:00 schedule would take a day to show.
+- A job on a schedule runs across every deploy, for as long as the application lives. The name in `[Job("daily-digest")]` and the namespace in `Run<TimezoneScheduleJobs>("timezone-schedule")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
 
 ## Check yourself
 

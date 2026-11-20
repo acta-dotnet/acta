@@ -5,7 +5,7 @@ The test of the first-job app ([026-first-job](/learn/026-first-job.md)), as the
 - Section: Test without sleeps or polling, step 3
 - Program: `learn/800-testing/803-first-job-tests` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Runs as a test. This program is a test project: it passes or fails with the test suite.
-- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
 - Page for people: /learn/803-first-job-tests
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
@@ -119,6 +119,10 @@ dotnet test learn/800-testing/803-first-job-tests
 ```
 
 Runs as a test. This program is a test project: it passes or fails with the test suite.
+
+## Remember
+
+- The namespace in `Run<ShippingJobs>("shipping")` and the job names this test drives are the same strings the app stores with every job. Treat them as permanent once jobs exist under them: renaming one in the app and in the test together keeps the test green, and leaves the jobs already stored with no handler to run them.
 
 ## Next
 

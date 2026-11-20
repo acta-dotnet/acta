@@ -5,7 +5,7 @@ With `DeadlineBehavior = Advisory` an overdue job still runs. The handler reads 
 - Section: Decide what happens when work fails, step 9
 - Program: `learn/300-failure-and-recovery/308-deadline-advisory` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
-- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
 - Page for people: /learn/308-deadline-advisory
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
@@ -96,6 +96,11 @@ emitting a quick q3 summary.
 ```
 
 Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+
+## Remember
+
+- The name in `[Job("generate-report")]` and the namespace in `Run<DeadlineAdvisoryJobs>("deadline-advisory")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `GenerateReport` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `generate-report-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 

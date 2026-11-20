@@ -127,8 +127,8 @@ processed US-1
 processed US-2
 processed US-3</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The name in <code>[Job(&quot;process-order&quot;)]</code> and the namespaces <code>&quot;orders-eu&quot;</code> and <code>&quot;orders-us&quot;</code> are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>ProcessOrder</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>process-order-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/700-topology-and-deployment/703-namespaces-in-one-process"><code>learn/700-topology-and-deployment/703-namespaces-in-one-process</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
@@ -206,9 +206,10 @@ Console.WriteLine(<span class="s">&quot;Enqueued 3 orders into each region. Both
             <li aria-current="page"><a href="/learn/703-namespaces-in-one-process" data-id="703"><span class="rail-n">2</span>Run two namespaces in one process</a></li>
             <li><a href="/learn/706-sqlite-restart" data-id="706"><span class="rail-n">3</span>Restart a crashed app on SQLite and get its work back</a></li>
             <li><a href="/learn/705-worker-crash-recovery" data-id="705"><span class="rail-n">4</span>Recover the work of a killed worker</a></li>
-            <li><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">5</span>Give Acta a JSON context for Native AOT</a></li>
-            <li><a href="/learn/903-redis-wakeup" data-id="903"><span class="rail-n">6</span>Wake workers across processes with Redis</a></li>
-            <li><a href="/learn/904-worker-tuning" data-id="904"><span class="rail-n">7</span>Set how many jobs a worker runs at once</a></li>
+            <li><a href="/learn/502-job-versions" data-id="502"><span class="rail-n">5</span>Change a job's input without breaking the jobs already stored</a></li>
+            <li><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">6</span>Give Acta a JSON context for Native AOT</a></li>
+            <li><a href="/learn/903-redis-wakeup" data-id="903"><span class="rail-n">7</span>Wake workers across processes with Redis</a></li>
+            <li><a href="/learn/904-worker-tuning" data-id="904"><span class="rail-n">8</span>Set how many jobs a worker runs at once</a></li>
         </ol>
         <button class="button done-toggle" type="button" data-done-toggle="703" aria-pressed="false">Mark as done</button>
         <p class="rail-turn"><a href="/learn/701-enqueue-only-reference" rel="prev">Previous</a><a href="/learn/706-sqlite-restart" rel="next">Next</a></p>

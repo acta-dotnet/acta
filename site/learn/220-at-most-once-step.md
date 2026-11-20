@@ -96,6 +96,9 @@ Proven by other suites. The release check does not run this program. Needs two p
 
 - Run it in two processes, in order, against the same database: `dotnet run --project learn/200-durable-execution/220-at-most-once-step -- crash`, which dies inside the step, then the same command with `-- recover`. With no argument the program prints these two commands and exits.
 - A body that cannot tell whether its effect happened, such as a call that timed out after the request left, throws `OutcomeUnknownException`: the step then ends as a crash ends it, and the handler reconciles.
+- `"charge-card"` is the key to the step's record. Rename it and it is a new step: the card is charged again.
+- The name in `[Job("charge-card")]` is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `ChargeCard` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `charge-card-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 

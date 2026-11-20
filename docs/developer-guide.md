@@ -905,7 +905,7 @@ Recurring work has its own page: [Scheduling and calendars](./scheduling.md) cov
 A job enqueued before a deploy can run after it, so a new handler must process the payloads already stored. The `[Job]` name, `TIn`, `TResult`, and the payload formats are durable contract fields.
 
 - **Keep the job name** for changes old payloads survive: an optional, nullable, or defaulted field, a result field old readers tolerate, or new behavior that keeps the meaning of existing fields.
-- **Use a new versioned name** (`send-invoice-v2`) when old payloads would be misread or rejected: a renamed, removed, or retyped field, a changed meaning, another input type or payload format, or required data old rows cannot supply. Keep the old handler registered until none of its rows can still run, wait, or be restarted. Dropping a handler cancels nothing: its rows stay Ready until a build carries it again or an operator retires the definition.
+- **Use a new versioned name** (`send-invoice-v2`) when old payloads would be misread or rejected: a renamed, removed, or retyped field, a changed meaning, another input type or payload format, or required data old rows cannot supply. Put the new version right under the old one: from then on there are two handlers to maintain, until the old one's rows have finished. Keep the old handler registered until none of its rows can still run, wait, or be restarted. Dropping a handler cancels nothing: its rows stay Ready until a build carries it again or an operator retires the definition.
 
 `PayloadContractDriftMode` compares only the stored input and result type names and payload formats when a deploy runs; it is not a JSON schema check. Set it to `Fail` where a deploy should stop on such a change.
 

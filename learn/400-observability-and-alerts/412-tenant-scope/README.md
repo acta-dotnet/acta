@@ -71,3 +71,9 @@ enough when the label needs no validation or lifecycle.
 - [`tenant-scope.cs`](./tenant-scope.cs)
 - [`ITenants.cs`](../../../src/Acta/Operations/Tenants/ITenants.cs)
 - [`EnqueueJobTenantSpec.cs`](../../../tests/Acta.Tests.Conformance/Operations/Jobs/EnqueueJobTenantSpec.cs)
+
+## Remember
+
+- `"write-export"` is how `export-account` finds the child it already started. A renamed child is new work.
+- The names in `[Job("export-account")]`, `[Job("write-export")]` and `[Job("tenant-lifecycle-probe")]` are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `ExportAccount` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `export-account-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).

@@ -134,6 +134,10 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 - Make `create-user` safe to repeat: insert only when the address is absent. A crash right after the insert runs the step again, and two submits of the form end as one account.
 - A finished job is kept with its input for its retention period: ninety days by default, seven here, through `[Job("register-user", JobRetention = "7d")]`. Keep the input to what the work needs when it holds personal data.
 - In a web app the confirm link opens a page with a Confirm button that posts: mail scanners fetch the links they see, and a fetch must not confirm anything.
+- `"send-confirmation"` and `"create-user"` are the keys to each step's stored result. Rename `"send-confirmation"` and a sign-up that already sent its email sends it again.
+- `"email-confirmed"` names the signal a sign-up waits on. A renamed signal is a different signal, so let the waiting sign-ups finish before you rename it.
+- A job that waits for a signal or a timer can stay stored for days. The name in `[Job("register-user")]` and the namespace in `Run<PendingSignupJobs>("pending-signup")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `RegisterUser` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `register-user-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Check yourself
 

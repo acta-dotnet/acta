@@ -105,8 +105,8 @@
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet test learn/800-testing/804-continuous-synchronization-tests</code></pre></figure>
 <p class="proof checked"><b>Runs as a test.</b> This program is a test project: it passes or fails with the test suite.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>&quot;sync-orders&quot;</code> and the variable <code>&quot;watermark&quot;</code> are the strings the job stores its work under, and this test reads them by name. They are permanent once jobs exist under them. A renamed variable reads as absent, so renaming it in the job and in the test together keeps the test green while the stored job no longer knows how far it had read.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/804-continuous-synchronization-tests"><code>learn/800-testing/804-continuous-synchronization-tests</code></a>, as it is compiled.</p>
 <details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">316 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a recurring synchronization job</span>

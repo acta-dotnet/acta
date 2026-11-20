@@ -2,10 +2,10 @@
 
 `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within milliseconds instead of at its next poll.
 
-- Section: Deploy and scale, step 6
+- Section: Deploy and scale, step 7
 - Program: `learn/900-runtime-and-tuning/903-redis-wakeup` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Proven by other suites. The release check does not run this program. Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour.
-- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
 - Page for people: /learn/903-redis-wakeup
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
@@ -50,6 +50,11 @@ dotnet run --project learn/900-runtime-and-tuning/903-redis-wakeup
 ```
 
 Proven by other suites. The release check does not run this program. Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour.
+
+## Remember
+
+- The name in `[Job("ping")]` and the namespace in `Reference<RedisWakeupJobs>("redis-wakeup")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `Ping` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `ping-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 

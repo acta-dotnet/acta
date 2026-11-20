@@ -76,3 +76,10 @@ Build a custom UI when operators need domain-specific workflows rather than gene
 - [`Program.cs`](./Program.cs)
 - [`ActaEndpointOptions.cs`](../../../src/Acta.AspNetCore/Configuration/ActaEndpointOptions.cs)
 - [`JobsEndpoints.cs`](../../../src/Acta.AspNetCore/Operations/Jobs/JobsEndpoints.cs)
+
+## Remember
+
+- `"approval"` names the signal a job waits on, and the dashboard raises it by that name. A renamed signal is a different signal, so let the waiting jobs finish before you rename it.
+- `"thumbnail"` is how a parent that runs again finds the child it already started. A renamed child is new work.
+- The name in each `[Job(...)]`, such as `[Job("greet-visitor")]`,, and the namespace in `Run<DashboardSampleJobs>("dashboard-sample")`, are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `GreetVisitor` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `greet-visitor-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).

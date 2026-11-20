@@ -82,3 +82,6 @@ artifacts. Prefer the dashboard for broad visual triage and automation APIs for 
 
 - The command runs against the app's own database and exits without starting a worker. Code before `app.Run` still runs, so guard host-only startup work with `if (!args.Contains("jobs"))`.
 - Start with `explain` for anything stuck, waiting, or failed.
+- `"legal-approval"` names the signal a review waits on, and the command line raises it by that name. A renamed signal is a different signal, so let the waiting jobs finish before you rename it.
+- A job that waits for a signal or a timer can stay stored for days. The name in `[Job("review-document")]` and the namespace in `Run<JobsCliJobs>("jobs-cli")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `ReviewDocument` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `review-document-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).

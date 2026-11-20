@@ -93,8 +93,8 @@
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/900-runtime-and-tuning/903-redis-wakeup</code></pre></figure>
 <p class="proof proven"><b>Proven by other suites.</b> The release check does not run this program. Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The name in <code>[Job(&quot;ping&quot;)]</code> and the namespace in <code>Reference&lt;RedisWakeupJobs&gt;(&quot;redis-wakeup&quot;)</code> are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>Ping</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>ping-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/900-runtime-and-tuning/903-redis-wakeup"><code>learn/900-runtime-and-tuning/903-redis-wakeup</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
@@ -187,9 +187,10 @@ Console.WriteLine(<span class="s">&quot;It shows up here almost instantly - that
             <li><a href="/learn/703-namespaces-in-one-process" data-id="703"><span class="rail-n">2</span>Run two namespaces in one process</a></li>
             <li><a href="/learn/706-sqlite-restart" data-id="706"><span class="rail-n">3</span>Restart a crashed app on SQLite and get its work back</a></li>
             <li><a href="/learn/705-worker-crash-recovery" data-id="705"><span class="rail-n">4</span>Recover the work of a killed worker</a></li>
-            <li><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">5</span>Give Acta a JSON context for Native AOT</a></li>
-            <li aria-current="page"><a href="/learn/903-redis-wakeup" data-id="903"><span class="rail-n">6</span>Wake workers across processes with Redis</a></li>
-            <li><a href="/learn/904-worker-tuning" data-id="904"><span class="rail-n">7</span>Set how many jobs a worker runs at once</a></li>
+            <li><a href="/learn/502-job-versions" data-id="502"><span class="rail-n">5</span>Change a job's input without breaking the jobs already stored</a></li>
+            <li><a href="/learn/901-native-aot-json" data-id="901"><span class="rail-n">6</span>Give Acta a JSON context for Native AOT</a></li>
+            <li aria-current="page"><a href="/learn/903-redis-wakeup" data-id="903"><span class="rail-n">7</span>Wake workers across processes with Redis</a></li>
+            <li><a href="/learn/904-worker-tuning" data-id="904"><span class="rail-n">8</span>Set how many jobs a worker runs at once</a></li>
         </ol>
         <button class="button done-toggle" type="button" data-done-toggle="903" aria-pressed="false">Mark as done</button>
         <p class="rail-turn"><a href="/learn/901-native-aot-json" rel="prev">Previous</a><a href="/learn/904-worker-tuning" rel="next">Next</a></p>

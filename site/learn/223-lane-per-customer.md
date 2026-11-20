@@ -84,6 +84,8 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 - A lane is order, not a condition: the next job runs after a failed or a cancelled head too.
 - `[Job("sync-orders", Lane = "orders")]` on a definition puts every job of that definition in one lane.
 - A concurrency key keeps jobs from overlapping and promises no order: an older job can be overtaken while the key is busy. [Limit how many jobs run at once for one key](/learn/209-concurrency-key.md) shows it.
+- The name in `[Job("apply-command")]` and the namespace in `Run<LanePerCustomerJobs>("lane-per-customer")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `ApplyCommand` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `apply-command-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Check yourself
 

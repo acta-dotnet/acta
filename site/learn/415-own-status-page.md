@@ -144,6 +144,10 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 - The text of a status is `job.Status.Code`, such as `suspended`. `ToString()` gives the C# name, `Suspended`.
 - Write the screen's value inside a step. A bare write before a wait runs again when the handler is entered again, and the page would step back for a moment.
 - These calls read one job. To find many, [list and page through jobs](/learn/409-operator-queries.md).
+- `"charge"` and `"hand-to-warehouse"` are the keys to each step's stored result. Rename `"charge"` and an order that was already charged is charged again.
+- `"packed"` names the signal an order waits on, and `"stage"` is the key the status page reads. A renamed signal is a different signal, and a renamed variable reads as absent.
+- A job that waits for a signal or a timer can stay stored for days. The name in `[Job("prepare-order")]` and the namespace in `Run<OwnStatusPageJobs>("own-status-page")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `PrepareOrder` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `prepare-order-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Check yourself
 

@@ -89,6 +89,9 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 - A restart keeps every succeeded step: those steps return what they computed before.
 - A parent that failed on a child fails again when it is restarted alone. Restart the child, then the parent once the child has succeeded.
+- `"prepare-report"` is the key to the step's stored result, which is why a restart does not prepare the report again. Rename the step and it does.
+- An operator can pause, resume or restart a job long after it was enqueued, and the job asks for its handler by name. The name in `[Job("flaky-report")]` and the namespace in `Run<OperatorRestartJobs>("operator-restart")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `FlakyReport` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `flaky-report-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
 

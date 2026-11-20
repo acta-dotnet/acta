@@ -101,6 +101,7 @@
   </Folder>
   <Folder Name="/500-payloads/">
     <Project Path="500-payloads/501-payload-formats/501-payload-formats.csproj" />
+    <Project Path="500-payloads/502-job-versions/502-job-versions.csproj" />
   </Folder>
   <Folder Name="/600-job-composition/">
     <Project Path="600-job-composition/601-fan-out/601-fan-out.csproj" />

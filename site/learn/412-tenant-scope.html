@@ -138,8 +138,8 @@ returned 2 current-run Acme job(s): parent and inherited child.
 enqueue for 'missing-customer' rejected: TenantUnknown
 enqueue for 'held-customer' rejected: TenantSuspended</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
-<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>&quot;write-export&quot;</code> is how <code>export-account</code> finds the child it already started. A renamed child is new work.</li><li>The names in <code>[Job(&quot;export-account&quot;)]</code>, <code>[Job(&quot;write-export&quot;)]</code> and <code>[Job(&quot;tenant-lifecycle-probe&quot;)]</code> are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>ExportAccount</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>export-account-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
 <details class="step lab-notes"><summary>The lab behind it: tenant is who the work is about</summary>
 <p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
 <h3>The problem</h3>

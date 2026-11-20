@@ -108,3 +108,11 @@ versioned processes or cross-system orchestration is itself the product.
 - [`JobStateEntity.cs`](../../../src/Acta/Domain/Entities/JobStateEntity.cs)
 - [`CheckpointEntity.cs`](../../../src/Acta/Domain/Entities/CheckpointEntity.cs)
 - [`StepEntity.cs`](../../../src/Acta/Domain/Entities/StepEntity.cs)
+
+## Remember
+
+- `"reserve-inventory"`, `"charge-card"` and `"send-receipt"` are the keys to each step's stored result. Rename `"charge-card"` and a checkout that already charged the card charges it again.
+- `"fraud-review"` and `"settlement-delay"` name the signal and the timer a checkout waits on. A renamed one is a different signal or timer, so let the waiting checkouts finish first.
+- `"charge-id"` is the key to a stored value. A renamed variable reads as absent.
+- A job that waits for a signal or a timer can stay stored for days. The name in `[Job("checkout")]` is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- `Checkout` is stored with each job as its input, and `CheckoutResult` as its result. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `checkout-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](../../500-payloads/502-job-versions/).

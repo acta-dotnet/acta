@@ -5,7 +5,7 @@
 - Section: Run work on a schedule, step 11
 - Program: `learn/100-scheduling/110-per-occurrence-delivery` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
-- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
 - Page for people: /learn/110-per-occurrence-delivery
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
@@ -70,6 +70,10 @@ were skipped while full, each audited as schedule.skipped with the reason capaci
 ```
 
 Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+
+## Remember
+
+- A job on a schedule runs across every deploy, for as long as the application lives. The name in `[Job("import-files")]` is stored with every job. Treat it as permanent once jobs exist under it: a job stored under a name no handler carries stays Ready, and nothing runs it.
 
 ## Not in the packages
 
