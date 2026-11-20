@@ -20,6 +20,7 @@ Not yet released.
 
 ### Additions
 
+- PostgreSQL 17 is supported. Nothing in Acta's SQL needed 18; the conformance suite now runs on 17 and 18 in CI, and it passes on PostgreSQL 19 RC2 as well. The release validation and the benchmark stay on 18.
 - A result that may be absent is declared on the handler, `Task<Customer?>` or `Task<int?>`, and read with `TryGetResultAsync` or `TryGetValue`. `Task<int?>` used to declare a nullable result type and warn at build; it now declares an `int` result, as `Task<Customer?>` declares a `Customer`. A job already declared `Task<int?>` reads as changed on its next deploy, since its stored result type name moves to `int`.
 - `JobOutcome<TResult>` and `SignalWaitOutcome<T>` gain `HasValue`, and `SignalWaitOutcome<T>` gains `TryGetValue` and `ThrowIfTimedOut()`. `HasValue` is true exactly when `TryGetValue` is, so a handler can tell a stored `0` from no value, and a raise that carried a value from one that did not.
 - A result that serializes to JSON `null`, from a custom converter or a null `JsonElement`, stores nothing, as a CLR `null` does. The same holds for a variable set through the typed `SetVariableAsync`.

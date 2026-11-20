@@ -224,6 +224,63 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  # The oldest supported PostgreSQL major passes the PostgreSQL suite; build-test covers 18, the compose default.
+  postgres-majors:
+    name: PostgreSQL ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [quality, dashboard]
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['17']
+    env:
+      ACTA_PG_IMAGE: postgres:${{ matrix.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dashboard-dist
+          path: src/Acta.Dashboard/DashboardApp/dist
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'Directory.Build.props', 'global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - name: Start PostgreSQL
+        run: docker compose up -d --wait --wait-timeout 300 postgres
+      # A leg that ran on the compose default would pass and prove nothing about this major.
+      - name: Confirm the server's major
+        run: docker compose exec -T postgres postgres --version | grep -F ' ${{ matrix.version }}.'
+      - name: Build
+        run: dotnet build tests/Acta.Tests.Conformance.Postgres -c Release /p:ActaDashboardSkipNpm=true
+      - name: Test
+        run: dotnet test tests/Acta.Tests.Conformance.Postgres -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
+      - name: Deadlock report
+        if: always()
+        run: bash .github/scripts/deadlock-report.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: db-logs-postgres-${{ matrix.version }}
+          path: db-logs.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: test-results-postgres-${{ matrix.version }}
+          path: '**/*.trx'
+          if-no-files-found: warn
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker compose down -v
+
   # Acta ships net10.0 only. This job holds the claim that those packages run on .NET 11: the suites again with every
   # test host rolled forward to the 11 runtime, then a net11.0 consumer built by the 11 SDK from the packed feed.
   # build-test keeps the axes that do not change with the runtime: RCSI off, the how-tos.
