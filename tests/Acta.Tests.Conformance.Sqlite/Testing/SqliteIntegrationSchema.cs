@@ -6,9 +6,10 @@ namespace Acta.Tests.Conformance.Sqlite.Testing;
 
 /// <summary>
 /// SQLite-backed handle to the conformance database. Unlike the server providers, SQLite has no
-/// schema container and no external service: the database is a single temp file created once per
-/// process, with the migrations applied via <see cref="SqliteSchemaMigrator"/>. The schema name is always
-/// <c>main</c> (the attached database). Embedded, so it never skips for a missing connection string.
+/// schemas and no external service: the database is a single temp file created once per process, with
+/// the migrations applied via <see cref="SqliteSchemaMigrator"/>. The schema is the suite's own,
+/// <c>acta_test</c>, the prefix of every Acta name in the file. Embedded, so it never skips for a missing
+/// connection string.
 /// </summary>
 public sealed class SqliteIntegrationSchema : IIntegrationSchema
 {
@@ -21,7 +22,11 @@ public sealed class SqliteIntegrationSchema : IIntegrationSchema
         ConnectionString = connectionString;
     }
 
-    public string SchemaName => "main";
+    public string SchemaName => IntegrationConfig.TestSchemaName;
+
+    /// <summary>The name an Acta table, index or view has in the suite's file: the schema's prefix before the model's.</summary>
+    public static string InFile(string name) =>
+        SchemaQualifier.Render($"{SchemaQualifier.Token}_{name}", "sqlite", IntegrationConfig.TestSchemaName);
 
     public string ConnectionString { get; }
 
@@ -41,7 +46,7 @@ public sealed class SqliteIntegrationSchema : IIntegrationSchema
         var dbPath = Path.Combine(Path.GetTempPath(), $"acta-conformance-{Guid.NewGuid():N}.db");
         var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ConnectionString;
 
-        await SqliteMigrations.ApplyAsync(connectionString, CancellationToken.None);
+        await SqliteMigrations.ApplyAsync(connectionString, IntegrationConfig.TestSchemaName, CancellationToken.None);
         await UpsertFrameworkNamespaceAsync(connectionString);
 
         return connectionString;
@@ -52,8 +57,9 @@ public sealed class SqliteIntegrationSchema : IIntegrationSchema
         await using var conn = new SqliteConnection(connectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            INSERT INTO main.namespaces (namespace_name, owner_team, description, namespace_status_code, version)
+        var namespaces = SchemaQualifier.Qualify("sqlite", IntegrationConfig.TestSchemaName, "namespaces");
+        cmd.CommandText = $"""
+            INSERT INTO {namespaces} (namespace_name, owner_team, description, namespace_status_code, version)
             VALUES (@name, NULL, NULL, 10, 0)
             ON CONFLICT (namespace_name) DO NOTHING;
             """;

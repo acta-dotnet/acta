@@ -13,8 +13,12 @@ test('calendarsListSql scopes a namespace with the shared sys families and order
 
 test('calendarsListSql filters on the latest version status by keeping each family its newest row', () => {
   assert.equal(
-    calendarsListSql({ latestStatus: 'draft' }, { provider: 'sqlite', schema: 'main' }),
-    "SELECT * FROM main.calendars_view WHERE calendar_status = 'draft' AND version = (SELECT MAX(v.version) FROM main.calendars_view v WHERE v.namespace_name = calendars_view.namespace_name AND v.calendar_name = calendars_view.calendar_name) ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;"
+    calendarsListSql({ latestStatus: 'draft' }, { provider: 'sqlite', schema: 'acta' }),
+    "SELECT * FROM main.acta_calendars_view WHERE calendar_status = 'draft' AND version = (SELECT MAX(v.version) FROM main.acta_calendars_view v WHERE v.namespace_name = acta_calendars_view.namespace_name AND v.calendar_name = acta_calendars_view.calendar_name) ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;"
+  );
+  assert.equal(
+    calendarsListSql({ latestStatus: 'draft' }, { provider: 'pg', schema: 'acta' }),
+    "SELECT * FROM acta.calendars_view WHERE calendar_status = 'draft' AND version = (SELECT MAX(v.version) FROM acta.calendars_view v WHERE v.namespace_name = calendars_view.namespace_name AND v.calendar_name = calendars_view.calendar_name) ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;"
   );
 });
 
@@ -124,10 +128,14 @@ test('jobsListSql emits the LIMIT form for pg', () => {
   );
 });
 
-test('jobsListSql qualifies the view with the configured schema (sqlite: the attached database)', () => {
+test('jobsListSql qualifies the view with the configured schema (sqlite: the prefix of its name in main)', () => {
   assert.equal(
-    jobsListSql({}, { provider: 'sqlite', schema: 'main' }),
-    'SELECT * FROM main.jobs_view ORDER BY created_at_utc DESC LIMIT 100;'
+    jobsListSql({}, { provider: 'sqlite', schema: 'acta' }),
+    'SELECT * FROM main.acta_jobs_view ORDER BY created_at_utc DESC LIMIT 100;'
+  );
+  assert.equal(
+    jobsListSql({}, { provider: 'sqlite', schema: 'billing' }),
+    'SELECT * FROM main.billing_jobs_view ORDER BY created_at_utc DESC LIMIT 100;'
   );
   assert.equal(
     jobsListSql({}, { provider: 'pg', schema: 'ops' }),

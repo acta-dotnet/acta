@@ -101,8 +101,8 @@ public sealed class SqliteNullCatchAllTests
     public void The_events_page_keeps_exactly_the_namespace_filter_it_was_given()
     {
         const string namespaceFilter =
-            "e.namespace_id = (SELECT n.namespace_id FROM main.namespaces n WHERE n.namespace_name = @p_namespace_name)";
-        var sql = new SqlResourceCatalog("sqlite", "main").Load("ListEvents");
+            "e.namespace_id = (SELECT n.namespace_id FROM main.acta_namespaces n WHERE n.namespace_name = @p_namespace_name)";
+        var sql = new SqlResourceCatalog("sqlite", "acta").Load("ListEvents");
 
         // The handler binds every filter, null when unset; only the namespace carries a value here.
         var unset = Regex.Matches(sql, @"@p_\w+").Select(m => m.Value).Distinct().Where(n => n != "@p_namespace_name");

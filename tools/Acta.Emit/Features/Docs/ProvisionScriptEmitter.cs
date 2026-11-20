@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Sql;
+using Acta.Sqlite;
 using Acta.SqlServer;
 
 namespace Acta.Emit.Features.Docs;
@@ -48,8 +49,11 @@ internal static partial class ProvisionScriptEmitter
         }
         if (sqlite)
         {
+            script.AppendLine("-- SQLite has no schemas, so the schema is the prefix of every table, index and view the script");
+            script.AppendLine(CultureInfo.InvariantCulture, $"-- creates in main ({schema}_jobs).");
             script.AppendLine("-- It also puts the database in WAL journal mode, the way the runtime's own bootstrap does:");
-            script.AppendLine("-- the first line, ahead of the transaction, and a no-op on a database already in WAL.");
+            script.AppendLine("-- ahead of the transaction, and a no-op on a database already in WAL. Ahead of that, it stops");
+            script.AppendLine("-- on a file that holds the unprefixed tables of an earlier release candidate and none of its own.");
         }
         script.AppendLine("--");
         script.AppendLine("-- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already");
@@ -124,6 +128,11 @@ internal static partial class ProvisionScriptEmitter
         }
         if (sqlite)
         {
+            // Ahead of everything, so a refused file is left exactly as it was.
+            Append(
+                "-- ===== refuse a file an earlier candidate provisioned without the prefix =====\n"
+                    + Render(EarlierCandidateGuard(SqliteSchemaMigrator.EarlierCandidateProbe))
+            );
             // The one PRAGMA SqliteSchemaMigrator stamps once at provision time. The rest
             // (foreign_keys, busy_timeout, synchronous) are per-connection settings SqliteDialect
             // applies on every open, so they would be theatre in a file that runs once.
@@ -258,6 +267,20 @@ internal static partial class ProvisionScriptEmitter
                 """,
         };
     }
+
+    /// <summary>
+    /// Stops the SQLite script on a file an earlier release candidate provisioned without the prefix, the refusal the
+    /// runtime makes on <paramref name="probe"/>, through a failing CHECK as <see cref="NoDowngradeGuard"/> does.
+    /// </summary>
+    internal static string EarlierCandidateGuard(string probe) =>
+        $"""
+            CREATE TEMP TABLE IF NOT EXISTS candidate_guard (
+                earlier INTEGER CONSTRAINT earlier_acta_candidate_tables_remove_them_per_the_release_notes CHECK (earlier = 0)
+            );
+            INSERT INTO candidate_guard
+            {probe.ReplaceLineEndings("\n")};
+            DROP TABLE candidate_guard;
+            """;
 
     private static string Indent(string text, int spaces) =>
         string.Join("\n", text.Split('\n').Select(line => new string(' ', spaces) + line));

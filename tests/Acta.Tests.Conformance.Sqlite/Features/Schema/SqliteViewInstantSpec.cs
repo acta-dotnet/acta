@@ -25,7 +25,7 @@ public sealed class SqliteViewInstantSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         await using var conn = await OpenAsync(ct);
         var views = await ListAsync(conn, "SELECT name FROM sqlite_master WHERE type = 'view' ORDER BY name", ct);
-        Assert.Contains("jobs_view", views);
+        Assert.Contains(Db.Qualify("jobs_view"), views.Select(view => "main." + view));
         var offenders = new List<string>();
         var filled = 0;
         foreach (var view in views)
@@ -66,7 +66,7 @@ public sealed class SqliteViewInstantSpec : ActaRuntimeTestBase<ConformanceFixtu
         }
 
         await using var conn = await OpenAsync(ct);
-        var mine = $"FROM jobs_view WHERE job_id IN ({string.Join(", ", ids)})";
+        var mine = $"FROM {Db.Qualify("jobs_view")} WHERE job_id IN ({string.Join(", ", ids)})";
         Assert.Equal(
             ["2029-12-31T23:59:59.999Z", "2030-01-01T00:00:00.000Z", "2030-01-01T00:00:00.001Z"],
             await ListAsync(conn, $"SELECT next_run_at_utc {mine} ORDER BY next_run_at_utc", ct)

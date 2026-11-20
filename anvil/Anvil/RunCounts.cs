@@ -14,7 +14,8 @@ public sealed class RunCounts(AnvilDatabase database, string schema, string name
 {
     private static readonly TimeSpan Reuse = TimeSpan.FromSeconds(2);
 
-    private readonly string _prefix = LocalDatabase.IsSqlite(database.Provider) ? "" : schema + ".";
+    private string Table(string name) => LocalDatabase.Qualify(database.Provider, schema, name);
+
     private readonly Lock _gate = new();
     private long _lastIdBeforeRun;
     private int? _namespaceId;
@@ -26,7 +27,7 @@ public sealed class RunCounts(AnvilDatabase database, string schema, string name
     public async Task MarkStartAsync(CancellationToken ct)
     {
         await using var connection = await database.OpenAsync(ct);
-        await using var command = Command(connection, $"SELECT COALESCE(MAX(job_id), 0) FROM {_prefix}jobs");
+        await using var command = Command(connection, $"SELECT COALESCE(MAX(job_id), 0) FROM {Table("jobs")}");
         _lastIdBeforeRun = Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
 
@@ -60,9 +61,9 @@ public sealed class RunCounts(AnvilDatabase database, string schema, string name
                 connection,
                 // A recurring slot is one reused row per schedule, not work the run enqueued.
                 $"""
-                SELECT r.job_status_code, COUNT(*) FROM {_prefix}jobs_state r
+                SELECT r.job_status_code, COUNT(*) FROM {Table("jobs_state")} r
                 WHERE r.job_id > @after AND r.namespace_id = @ns
-                    AND NOT EXISTS (SELECT 1 FROM {_prefix}schedules s WHERE s.job_id = r.job_id)
+                    AND NOT EXISTS (SELECT 1 FROM {Table("schedules")} s WHERE s.job_id = r.job_id)
                 GROUP BY r.job_status_code
                 """,
                 ("@after", _lastIdBeforeRun),
@@ -116,7 +117,7 @@ public sealed class RunCounts(AnvilDatabase database, string schema, string name
     {
         await using var command = Command(
             connection,
-            $"SELECT namespace_id FROM {_prefix}namespaces WHERE namespace_name = @name",
+            $"SELECT namespace_id FROM {Table("namespaces")} WHERE namespace_name = @name",
             ("@name", namespaceName)
         );
         return await command.ExecuteScalarAsync(ct) is { } id and not DBNull ? Convert.ToInt32(id, CultureInfo.InvariantCulture) : null;

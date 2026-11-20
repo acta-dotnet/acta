@@ -26,7 +26,7 @@ public sealed class GetOutboxTableSpec : IntegrationSpec<ConformanceFixture>
         await using var probe = await Fixture.CreateHistoryProbeAsync(history: null);
 
         Assert.False(await FindAsync(probe, ct));
-        await ExecuteAsync(probe, $"CREATE TABLE {probe.SchemaName}.{Table} (id integer NOT NULL);", ct);
+        await ExecuteAsync(probe, $"CREATE TABLE {OutboxIdentifier.Qualify(Table, OutboxSchema(probe))} (id integer NOT NULL);", ct);
         Assert.True(await FindAsync(probe, ct));
     }
 
@@ -36,7 +36,7 @@ public sealed class GetOutboxTableSpec : IntegrationSpec<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         await using var probe = await Fixture.CreateHistoryProbeAsync(history: null);
 
-        await ExecuteAsync(probe, $"CREATE VIEW {probe.SchemaName}.{Table} AS SELECT 1 AS id;", ct);
+        await ExecuteAsync(probe, $"CREATE VIEW {OutboxIdentifier.Qualify(Table, OutboxSchema(probe))} AS SELECT 1 AS id;", ct);
         Assert.False(await FindAsync(probe, ct));
     }
 
@@ -45,10 +45,13 @@ public sealed class GetOutboxTableSpec : IntegrationSpec<ConformanceFixture>
         {
             await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);
             await using var tx = await connection.BeginTransactionAsync(ct);
-            var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName, Table);
+            var sql = new SqlResourceCatalog(Fixture.DialectToken, OutboxSchema(probe), Table);
             var found = await new GetOutboxTableHandler(connection, sql, TimeoutSeconds).HandleAsync(new GetOutboxTableQuery(tx), ct);
             return found.Exists;
         });
+
+    /// <summary>The schema a producer's table is in: the probe's on a server, and on SQLite <c>main</c>, outside the ledger's prefix.</summary>
+    private string OutboxSchema(IMigrationHistoryProbe probe) => Fixture.DialectToken == "sqlite" ? "main" : probe.SchemaName;
 
     private Task ExecuteAsync(IMigrationHistoryProbe probe, string ddl, CancellationToken ct) =>
         TestDdl.RunAsync(async () =>

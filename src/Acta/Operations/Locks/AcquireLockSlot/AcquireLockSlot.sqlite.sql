@@ -32,5 +32,5 @@ SET
     job_id = excluded.job_id,
     expires_at_utc = excluded.expires_at_utc,
     hold_token = excluded.hold_token
-WHERE locks.expires_at_utc <= {{now}}
+WHERE {{schema}}_locks.expires_at_utc <= {{now}}
 RETURNING lock_key AS slot_key;

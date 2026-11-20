@@ -32,7 +32,7 @@ ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     value_format_id = excluded.value_format_id,
     value = excluded.value,
     modified_at_utc = {{now}},
-    version = checkpoints.version + 1;
+    version = {{schema}}_checkpoints.version + 1;
 
 INSERT INTO {{schema}}.checkpoints (
     job_id, checkpoint_kind_code, checkpoint_name,

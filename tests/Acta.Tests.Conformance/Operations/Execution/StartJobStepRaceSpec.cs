@@ -45,9 +45,9 @@ public sealed class StartJobStepRaceSpec : ActaRuntimeTestBase<ConformanceFixtur
             cmd.Transaction = holder;
             cmd.CommandText =
                 Db.Provider == DbProvider.SqlServer
-                    ? $"EXEC {Db.Schema}.start_job_step @p_job_id = {job.JobId}, @p_execution_number = {job.ExecutionNumber}, "
+                    ? $"EXEC {Db.Qualify("start_job_step")} @p_job_id = {job.JobId}, @p_execution_number = {job.ExecutionNumber}, "
                         + $"@p_leased_by_worker_id = {job.WorkerId}, @p_step_name = '{StepName}', @p_at_most_once = 0"
-                    : $"SELECT outcome_code FROM {Db.Schema}.start_job_step({job.JobId}::bigint, {job.ExecutionNumber}::bigint, "
+                    : $"SELECT outcome_code FROM {Db.Qualify("start_job_step")}({job.JobId}::bigint, {job.ExecutionNumber}::bigint, "
                         + $"{job.WorkerId}, '{StepName}'::varchar, false)";
             Assert.Equal((short)StartJobStepOutcomeCode.Invoke, Convert.ToInt16(await cmd.ExecuteScalarAsync(ct)));
         }

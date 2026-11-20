@@ -380,7 +380,7 @@
         <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(_connectionString);
         <span class="k">await</span> connection.OpenAsync(Ct);
         <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
-        command.CommandText = <span class="s">&quot;SELECT value_text FROM checkpoints_view WHERE job_id = @job AND checkpoint_kind = 'firing'&quot;</span>;
+        command.CommandText = <span class="s">&quot;SELECT value_text FROM main.acta_checkpoints_view WHERE job_id = @job AND checkpoint_kind = 'firing'&quot;</span>;
         command.Parameters.AddWithValue(<span class="s">&quot;@job&quot;</span>, (<span class="k">await</span> JobAsync()).JobId);
         <span class="k">var</span> envelope = JsonDocument.Parse((<span class="k">string</span>)(<span class="k">await</span> command.ExecuteScalarAsync(Ct))!);
         <span class="k">return</span> envelope.RootElement.GetProperty(<span class="s">&quot;firingId&quot;</span>).GetGuid();

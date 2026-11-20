@@ -24,6 +24,8 @@
     <!-- The one mixed-provider case (a SQLite outbox source relayed into a Postgres ledger) builds the
          SQLite source connection over the internal SqliteOutboxDialect. -->
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
+    <!-- The published script carries the migrator's earlier-candidate probe. -->
+    <InternalsVisibleTo Include="Acta.Emit" />
   </ItemGroup>
 
   <ItemGroup>

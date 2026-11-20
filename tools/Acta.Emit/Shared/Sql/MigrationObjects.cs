@@ -31,8 +31,8 @@ internal static class MigrationObjects
     }
 
     /// <summary>
-    /// Expands decode and <c>{{now}}</c> tokens, and substitutes <c>{{schema}}</c> too when <paramref name="schema"/> is
-    /// given. Full-line comments keep both placeholders verbatim, so prose about a token stays true.
+    /// Expands decode and <c>{{now}}</c> tokens, and renders <c>{{schema}}</c> too, through <see cref="SchemaQualifier"/>, when
+    /// <paramref name="schema"/> is given. Full-line comments keep both placeholders verbatim, so prose about a token stays true.
     /// </summary>
     internal static string Render(string sql, SqlDdlDialect dialect, string? schema = null)
     {
@@ -50,8 +50,11 @@ internal static class MigrationObjects
             .Select(line =>
                 line.TrimStart().StartsWith("--", StringComparison.Ordinal)
                     ? line
-                    : line.Replace(SqlDdlDialect.SchemaPlaceholder, schema ?? SqlDdlDialect.SchemaPlaceholder, StringComparison.Ordinal)
-                        .Replace("{{now}}", dialect.NowExpression ?? "{{now}}", StringComparison.Ordinal)
+                    : (schema is null ? line : SchemaQualifier.Render(line, dialect.ProviderToolName, schema)).Replace(
+                        "{{now}}",
+                        dialect.NowExpression ?? "{{now}}",
+                        StringComparison.Ordinal
+                    )
             );
         return CodeDecodeSql.RenderDecodeTokens(string.Join("\n", lines));
     }

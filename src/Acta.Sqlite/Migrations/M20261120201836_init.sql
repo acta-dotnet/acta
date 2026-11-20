@@ -1,4 +1,4 @@
--- SQLite has no schema container; tables are created in the attached database ({{schema}}).
+-- SQLite has no schemas; every name in main takes the prefix {{schema}}_.
 
 -- alerts
 CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
@@ -26,13 +26,13 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_deduplication_key_identity ON alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_delivery_due ON alerts (namespace_id, delivery_status_code, retry_after_utc, alert_id);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_created ON alerts (namespace_id, created_at_utc DESC, alert_id DESC);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_unresolved ON alerts (namespace_id, created_at_utc DESC, alert_id DESC) WHERE resolved_at_utc IS NULL;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_job ON alerts (job_id, alert_id) WHERE job_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_ref ON alerts (alert_ref);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_deduplication_key ON alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_deduplication_key_identity ON {{schema}}_alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_delivery_due ON {{schema}}_alerts (namespace_id, delivery_status_code, retry_after_utc, alert_id);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_created ON {{schema}}_alerts (namespace_id, created_at_utc DESC, alert_id DESC);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_unresolved ON {{schema}}_alerts (namespace_id, created_at_utc DESC, alert_id DESC) WHERE resolved_at_utc IS NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_job ON {{schema}}_alerts (job_id, alert_id) WHERE job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_ref ON {{schema}}_alerts (alert_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_deduplication_key ON {{schema}}_alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
 
 -- checkpoints
 CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     , CONSTRAINT ck_checkpoints_kind_shape CHECK ((checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_checkpoints_pending_latches ON checkpoints (job_id, checkpoint_name) WHERE checkpoint_kind_code = 50 AND checkpoint_status_code = 10;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_checkpoints_pending_latches ON {{schema}}_checkpoints (job_id, checkpoint_name) WHERE checkpoint_kind_code = 50 AND checkpoint_status_code = 10;
 
 -- definitions
 CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     , CONSTRAINT ck_definitions_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT ck_definitions_default_input_format_id_byte CHECK (default_input_format_id BETWEEN 0 AND 255)
 ) STRICT;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_definitions_namespace_name ON definitions (namespace_id, definition_name);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_definitions_namespace_name ON {{schema}}_definitions (namespace_id, definition_name);
 
 -- deployments
 CREATE TABLE IF NOT EXISTS {{schema}}.deployments (
@@ -165,11 +165,11 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     , CONSTRAINT ck_events_details_pair CHECK ((details_format_id = 0 AND details IS NULL) OR (details_format_id <> 0 AND details IS NOT NULL))
     , CONSTRAINT ck_events_details_format_id_byte CHECK (details_format_id BETWEEN 0 AND 255)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_lineage_timeline ON events (lineage_root_job_id, created_at_utc, event_id) WHERE lineage_root_job_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_namespace_timeline ON events (namespace_id, event_code, created_at_utc, event_id);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_entity_timeline ON events (entity_code, entity_id, created_at_utc, event_id);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_namespace_created ON events (namespace_id, created_at_utc DESC, event_id DESC);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_duration ON events (namespace_id, definition_id, created_at_utc) WHERE event_code IN (9, 11, 13) AND duration_ms IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_lineage_timeline ON {{schema}}_events (lineage_root_job_id, created_at_utc, event_id) WHERE lineage_root_job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_namespace_timeline ON {{schema}}_events (namespace_id, event_code, created_at_utc, event_id);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_entity_timeline ON {{schema}}_events (entity_code, entity_id, created_at_utc, event_id);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_namespace_created ON {{schema}}_events (namespace_id, created_at_utc DESC, event_id DESC);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_duration ON {{schema}}_events (namespace_id, definition_id, created_at_utc) WHERE event_code IN (9, 11, 13) AND duration_ms IS NOT NULL;
 
 -- jobs
 CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
@@ -192,12 +192,12 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
     , CONSTRAINT ck_jobs_input_pair CHECK ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))
     , CONSTRAINT ck_jobs_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_parent ON jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_namespace_created ON jobs (namespace_id, created_at_utc DESC, job_id DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_ref ON jobs (job_ref);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_root ON jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_child ON jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_slot ON jobs (definition_id) WHERE job_kind_code = 20;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_parent ON {{schema}}_jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_namespace_created ON {{schema}}_jobs (namespace_id, created_at_utc DESC, job_id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_ref ON {{schema}}_jobs (job_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_root ON {{schema}}_jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_child ON {{schema}}_jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_slot ON {{schema}}_jobs (definition_id) WHERE job_kind_code = 20;
 
 -- lanes
 CREATE TABLE IF NOT EXISTS {{schema}}.lanes (
@@ -206,8 +206,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.lanes (
     lane_name text NOT NULL,
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_lanes_namespace ON lanes (namespace_id, lane_id);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_lanes_namespace_name ON lanes (namespace_id, lane_name);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_lanes_namespace ON {{schema}}_lanes (namespace_id, lane_id);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_lanes_namespace_name ON {{schema}}_lanes (namespace_id, lane_name);
 
 -- jobs_state
 CREATE TABLE IF NOT EXISTS {{schema}}.jobs_state (
@@ -237,13 +237,13 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs_state (
     , CONSTRAINT ck_jobs_state_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_jobs_state_result_idle CHECK (result_format_id = 0 OR job_status_code <> 50)
     , CONSTRAINT ck_jobs_state_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES lanes (lane_id)
+    , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}_lanes (lane_id)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_claim_ready ON jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_worker_inflight ON jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_lane ON jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_failed ON jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_lane_member ON jobs_state (lane_id) WHERE lane_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_claim_ready ON {{schema}}_jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_worker_inflight ON {{schema}}_jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_lane ON {{schema}}_jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_failed ON {{schema}}_jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_state_lane_member ON {{schema}}_jobs_state (lane_id) WHERE lane_id IS NOT NULL;
 
 -- locks
 CREATE TABLE IF NOT EXISTS {{schema}}.locks (
@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.locks (
     hold_token text NOT NULL
     , CONSTRAINT pk_locks PRIMARY KEY (lock_key)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_locks_reclaim_expired ON locks (expires_at_utc);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_locks_reclaim_expired ON {{schema}}_locks (expires_at_utc);
 
 -- namespaces
 CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
@@ -268,7 +268,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
     version integer DEFAULT 0 NOT NULL,
     recovery_due_at_utc integer NULL
 ) STRICT;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_namespaces_name ON namespaces (namespace_name);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_namespaces_name ON {{schema}}_namespaces (namespace_name);
 
 -- Seed: reserved system namespace (namespace_id=1, 'sys') for cross-namespace audit events. Collation-neutral.
 INSERT OR IGNORE INTO {{schema}}.namespaces (namespace_id, namespace_name, namespace_status_code, description, created_at_utc, modified_at_utc)
@@ -290,10 +290,10 @@ CREATE TABLE IF NOT EXISTS {{schema}}.calendars (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
     , CONSTRAINT ck_calendars_version CHECK (version > 0)
     , CONSTRAINT ck_calendars_definition_format_id_byte CHECK (definition_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_calendars_namespaces FOREIGN KEY (namespace_id) REFERENCES namespaces (namespace_id)
+    , CONSTRAINT fk_calendars_namespaces FOREIGN KEY (namespace_id) REFERENCES {{schema}}_namespaces (namespace_id)
 ) STRICT;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_calendars_namespace_name_version ON calendars (namespace_id, calendar_name, version);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_calendars_current ON calendars (namespace_id, calendar_name) WHERE calendar_status_code = 20;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_calendars_namespace_name_version ON {{schema}}_calendars (namespace_id, calendar_name, version);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_calendars_current ON {{schema}}_calendars (namespace_id, calendar_name) WHERE calendar_status_code = 20;
 
 -- schedules
 CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
@@ -327,10 +327,10 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
     , CONSTRAINT ck_schedules_bounds CHECK (start_at_utc IS NULL OR end_before_utc IS NULL OR start_at_utc < end_before_utc)
-    , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (definition_id)
+    , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES {{schema}}_definitions (definition_id)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_job ON schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_schedules_definition_name ON schedules (definition_id, schedule_name);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_job ON {{schema}}_schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_schedules_definition_name ON {{schema}}_schedules (definition_id, schedule_name);
 
 -- schedules_state
 CREATE TABLE IF NOT EXISTS {{schema}}.schedules_state (
@@ -345,8 +345,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules_state (
     , CONSTRAINT pk_schedules_state PRIMARY KEY (schedule_id)
     , CONSTRAINT ck_schedules_state_outstanding_count CHECK (outstanding_count >= 0)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_state_namespace_next ON schedules_state (namespace_id, next_occurrence_at_utc, schedule_id) WHERE next_occurrence_at_utc IS NOT NULL;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_state_due ON schedules_state (namespace_id, next_evaluation_at_utc, schedule_id) WHERE next_evaluation_at_utc IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_state_namespace_next ON {{schema}}_schedules_state (namespace_id, next_occurrence_at_utc, schedule_id) WHERE next_occurrence_at_utc IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_state_due ON {{schema}}_schedules_state (namespace_id, next_evaluation_at_utc, schedule_id) WHERE next_evaluation_at_utc IS NOT NULL;
 
 -- steps
 CREATE TABLE IF NOT EXISTS {{schema}}.steps (
@@ -388,7 +388,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.tenants (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
 ) STRICT;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_tenants_name ON tenants (tenant_name);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_tenants_name ON {{schema}}_tenants (tenant_name);
 
 -- workers
 CREATE TABLE IF NOT EXISTS {{schema}}.workers (
@@ -407,12 +407,12 @@ CREATE TABLE IF NOT EXISTS {{schema}}.workers (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT ck_workers_max_concurrent_executors CHECK (max_concurrent_executors > 0)
-    , CONSTRAINT fk_workers_namespaces FOREIGN KEY (namespace_id) REFERENCES namespaces (namespace_id)
+    , CONSTRAINT fk_workers_namespaces FOREIGN KEY (namespace_id) REFERENCES {{schema}}_namespaces (namespace_id)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_status_last_seen ON workers (namespace_id, worker_status_code, last_seen_at_utc);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_status_last_seen ON workers (worker_status_code, last_seen_at_utc);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_last_seen ON workers (namespace_id, last_seen_at_utc DESC, worker_id DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_workers_ref ON workers (worker_ref);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_status_last_seen ON {{schema}}_workers (namespace_id, worker_status_code, last_seen_at_utc);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_status_last_seen ON {{schema}}_workers (worker_status_code, last_seen_at_utc);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_last_seen ON {{schema}}_workers (namespace_id, last_seen_at_utc DESC, worker_id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_workers_ref ON {{schema}}_workers (worker_ref);
 
 DROP VIEW IF EXISTS {{schema}}.alerts_view;
 CREATE VIEW {{schema}}.alerts_view AS
@@ -771,5 +771,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120124658_init')
+VALUES ('M20261120201836_init')
 ON CONFLICT (name) DO NOTHING;

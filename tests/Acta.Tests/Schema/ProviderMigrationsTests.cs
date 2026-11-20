@@ -50,10 +50,41 @@ public sealed class ProviderMigrationsTests
     public async Task Sqlite_refuses_a_missing_file_or_a_bad_table_before_opening()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Assert.ThrowsAnyAsync<ArgumentException>(() => SqliteMigrations.ApplyAsync("Data Source=", ct));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => SqliteMigrations.ApplyAsync("Data Source=", cancellationToken: ct));
         await Assert.ThrowsAnyAsync<ArgumentException>(() => SqliteMigrations.ApplyOutboxAsync("Data Source=", cancellationToken: ct));
         await Assert.ThrowsAnyAsync<ArgumentException>(() => SqliteMigrations.ApplyOutboxAsync("Data Source=never.db", "Orders", ct));
         Assert.False(File.Exists("never.db"));
+    }
+
+    [Fact]
+    public async Task Sqlite_names_everything_it_creates_with_the_schema_as_its_prefix()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var path = Path.Combine(Path.GetTempPath(), $"acta-prefix-{Guid.NewGuid():N}.db");
+        try
+        {
+            await SqliteMigrations.ApplyAsync($"Data Source={path}", "billing", ct);
+
+            await using var connection = new SqliteConnection($"Data Source={path}");
+            await connection.OpenAsync(ct);
+            await using var command = connection.CreateCommand();
+            // SQLite's own names (sqlite_sequence, the autoindexes of key constraints) are the only others in the file.
+            command.CommandText =
+                "SELECT name FROM main.sqlite_master WHERE substr(name, 1, 8) <> 'billing_' AND substr(name, 1, 7) <> 'sqlite_'";
+            List<string> unprefixed = [];
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                unprefixed.Add(reader.GetString(0));
+            }
+
+            Assert.Empty(unprefixed);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(path);
+        }
     }
 
     [Fact]
@@ -65,8 +96,8 @@ public sealed class ProviderMigrationsTests
         try
         {
             var shipped = SchemaMigrations.Discover(typeof(SqliteMigrations).Assembly).Select(m => m.Name);
-            Assert.Equal(shipped, await SqliteMigrations.ApplyAsync(connectionString, ct));
-            Assert.Empty(await SqliteMigrations.ApplyAsync(connectionString, ct));
+            Assert.Equal(shipped, await SqliteMigrations.ApplyAsync(connectionString, cancellationToken: ct));
+            Assert.Empty(await SqliteMigrations.ApplyAsync(connectionString, cancellationToken: ct));
 
             Assert.True(await SqliteMigrations.ApplyOutboxAsync(connectionString, cancellationToken: ct));
             Assert.False(await SqliteMigrations.ApplyOutboxAsync(connectionString, cancellationToken: ct));

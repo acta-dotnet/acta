@@ -765,13 +765,13 @@ run handlers.
 
 ### Provider Options
 
-SQL Server, Postgres, and SQLite all take the one `SqlProviderOptions` type. SQLite is embedded and
-uses schema `main`; SQL Server and Postgres default to schema `acta`.
+SQL Server, Postgres, and SQLite all take the one `SqlProviderOptions` type, and all three default to schema
+`acta`. SQLite is embedded and has no schemas, so there the schema is the prefix of every Acta name (`acta_jobs`).
 
 | Option | Default | Use |
 | --- | --- | --- |
 | `ConnectionString` | empty | Provider connection string. Required unless a local helper supplies one. |
-| `Schema` | `acta` (`main` on SQLite) | Schema/container for Acta tables, views, indexes, routines, and migration history. |
+| `Schema` | `acta` | Schema/container for Acta tables, views, indexes, routines, and migration history; on SQLite the prefix of their names. |
 | `CommandTimeout` | 30 seconds | Runtime operation timeout applied by the store. |
 | `DeadlockRetryAttempts` | 5 | Store-level retry count for database deadlock victims. Set `1` to disable retry. |
 | `MigrateOnStartup` | `false` | Development only: startup creates the database if it is missing and applies. Production runs `<app> jobs migrate` from its deploy step ([Migration ownership](operator-guide.md#migration-ownership)). Either way, startup verifies the migration history and refuses an unprovisioned or mismatched database. |
@@ -1086,8 +1086,8 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 ```
 
 - The callback receives the schema name. Pass it to the provider's `opts.Schema` and set
-  `MigrateOnStartup = true`; the host owns a fresh schema per test class. SQLite has one schema, `main`, so it
-  takes no name, and `host.Schema` reports the schema the runtime actually uses.
+  `MigrateOnStartup = true`; the host owns a fresh schema per test class. On SQLite the schema is the prefix of
+  every Acta name in the file, and `host.Schema` reports the schema the runtime actually uses.
 - `Run<TManifest>(...)` makes it a worker host. Without it the host is enqueue-only (for testing
   enqueue-side code such as HTTP handlers); `RunOnceAsync` then throws.
 - `enqueued` is a `JobHandle`, so its reads address the job directly, and it converts implicitly to `JobLookup` for every
@@ -1101,8 +1101,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 
 ### On SQLite
 
-SQLite has no schema to hand out, so each host takes a database file of its own, and the file is what keeps
-parallel tests apart:
+On SQLite each host takes a database file of its own, and the file is what keeps parallel tests apart:
 
 ```csharp
 private readonly string _file = $"acta-test-{Guid.NewGuid():N}.db";   // in the test's output folder
@@ -1275,7 +1274,7 @@ from `host.Services` or query the schema directly: `host.Schema` names it, and
 
 A test runner may run test classes at once, and the tests of one class share whatever its host holds. A test stays independent when everything it drives and reads is something it created.
 
-- **A host is the unit of isolation.** Each `ActaTestHost.StartAsync` gets a schema of its own, so classes that start their own host never see each other's rows. SQLite has one schema, so give each host its own database file.
+- **A host is the unit of isolation.** Each `ActaTestHost.StartAsync` gets a schema of its own, so classes that start their own host never see each other's rows. On SQLite, give each host its own database file, since the hosts of one file take turns at its one write lock.
 - **Tests that share a host share its tables.** That is the facts of a class behind one fixture, and every class on a pinned `ActaTestHostOptions.Schema`. Give each test its own deduplication, correlation, concurrency and lock keys, built from a value made in the test such as a new `Guid`, and on a pinned schema its own namespace as well.
 - **Drive the job you enqueued.** `RunOnceAsync(enqueued)` runs that job. `RunOnceAsync("users")` runs whichever job of the namespace is due, which on a shared host may be another test's.
 - **Take identity from the answer.** The `JobHandle` the enqueue returned addresses the job for every read and every verb. A job something else enqueued is found by `JobLookup.ByDeduplicationKey(...)` with the test's own key. A numeric id written into a test is some other row.

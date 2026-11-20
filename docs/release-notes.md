@@ -6,7 +6,47 @@ Not yet released.
 
 ### What a consumer must change
 
-**Drop and reprovision every database an earlier candidate provisioned**: the baseline is re-cut. No table, column, index or constraint changes in it so far; the retention routine's rule for children and the step-start routine's answer do (below). A database stamped by rc.14 is refused at startup with the drop-and-provision message.
+**Drop and reprovision every database an earlier candidate provisioned**: the baseline is re-cut. On PostgreSQL and SQL Server no table, column, index or constraint changes in it; the retention routine's rule for children and the step-start routine's answer do (below). On SQLite every table, index and view takes a prefix (next). A database stamped by rc.14 is refused at startup with the drop-and-provision message.
+
+**On SQLite, read Acta's tables under the `acta_` prefix, and remove an earlier candidate's tables from the file**: SQLite has no schemas, so Acta's tables sat unprefixed in the application's file, where `jobs` or `migrations` could collide with the application's own. The schema name is now a prefix on every table, index and view Acta creates there: `acta_jobs`, `acta_migrations`, `acta_jobs_view`. Change SQL of your own that reads the file, such as `SELECT * FROM acta_jobs_view`. `Schema` is no longer refused on SQLite: the default is `acta`, another value is another prefix, and a name beginning `sqlite` is refused. A host that wrote `Schema = "main"`, the only value an earlier candidate took, removes the setting, or its tables are named `main_jobs`. `SqliteMigrations.ApplyAsync` takes the schema as its second parameter, `ApplyAsync(connectionString, schema, cancellationToken)`, so pass the token by name. A producer's outbox table keeps its name, `acta_outbox` by default.
+
+A file an earlier candidate provisioned is refused at startup and by the published script, and nothing is created beside the old tables. Start from a new file, or, where the file also holds the application's data, remove the earlier candidate's objects with the statements below and provision again. They remove tables by name, so run them only on a file an earlier candidate provisioned, where `jobs`, `migrations` and the rest are Acta's:
+
+```sql
+PRAGMA foreign_keys = OFF;
+BEGIN IMMEDIATE;
+DROP VIEW IF EXISTS main.alerts_view;
+DROP VIEW IF EXISTS main.calendars_view;
+DROP VIEW IF EXISTS main.checkpoints_view;
+DROP VIEW IF EXISTS main.definitions_view;
+DROP VIEW IF EXISTS main.deployments_view;
+DROP VIEW IF EXISTS main.events_view;
+DROP VIEW IF EXISTS main.jobs_view;
+DROP VIEW IF EXISTS main.schedules_view;
+DROP VIEW IF EXISTS main.steps_view;
+DROP VIEW IF EXISTS main.tags_view;
+DROP VIEW IF EXISTS main.workers_view;
+DROP TABLE IF EXISTS main.alerts;
+DROP TABLE IF EXISTS main.calendars;
+DROP TABLE IF EXISTS main.checkpoints;
+DROP TABLE IF EXISTS main.definitions;
+DROP TABLE IF EXISTS main.deployments;
+DROP TABLE IF EXISTS main.events;
+DROP TABLE IF EXISTS main.jobs;
+DROP TABLE IF EXISTS main.jobs_state;
+DROP TABLE IF EXISTS main.lanes;
+DROP TABLE IF EXISTS main.locks;
+DROP TABLE IF EXISTS main.migrations;
+DROP TABLE IF EXISTS main.namespaces;
+DROP TABLE IF EXISTS main.schedules;
+DROP TABLE IF EXISTS main.schedules_state;
+DROP TABLE IF EXISTS main.steps;
+DROP TABLE IF EXISTS main.tags;
+DROP TABLE IF EXISTS main.tenants;
+DROP TABLE IF EXISTS main.workers;
+COMMIT;
+PRAGMA foreign_keys = ON;
+```
 
 **Recreate a producer's outbox table, and name its rows by `jobRefs`**: the table's uuid column `outbox_id` is `job_ref`, and its names follow: the constraint `uq_{table}_outbox_id` is `uq_{table}_job_ref`, and on SQLite the check `ck_{table}_outbox_id_uuid` is `ck_{table}_job_ref_uuid` and the index `ux_{table}_outbox_id` is `ux_{table}_job_ref`. Drain the outbox, drop the table and create it again from the provider's `CreateOutboxScript`: `ApplyOutboxAsync` leaves an existing table as it is, and the relay fails on a table that still has the old column. Change any SQL of your own that reads the table. `IOutbox.RequeueAsync` and `DiscardAsync` take `jobRefs`, a list of `JobRef`, where they took `outboxIds`; the bodies of `POST /outbox/{jobNamespace}/requeue` and `/discard` take `jobRefs`, each a `job_...` handle, and a quarantined row in the listing states `jobRef` where it stated `outboxId`. A cursor an earlier candidate issued for that listing is refused. The recreated table also takes a row without a key: `deduplication_key` is nullable.
 

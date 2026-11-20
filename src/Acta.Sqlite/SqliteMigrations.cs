@@ -6,12 +6,16 @@ namespace Acta.Sqlite;
 public static class SqliteMigrations
 {
     /// <summary>
-    /// Applies every Acta migration the database file lacks, in one transaction, and returns their names in order; an empty
-    /// list means it is up to date. Opening the file creates it, as on every SQLite path, and puts it in WAL mode. The code
-    /// form of <c>&lt;app&gt; jobs migrate</c>, for a separate tool.
+    /// Applies every Acta migration the database file lacks under <paramref name="schema"/>, the prefix of every name Acta
+    /// creates in the file (<c>acta_jobs</c>), in one transaction, and returns their names in order; an empty list means it
+    /// is up to date. Opening the file creates it, as on every SQLite path, and puts it in WAL mode. The code form of
+    /// <c>&lt;app&gt; jobs migrate</c>, for a separate tool.
     /// </summary>
-    public static Task<IReadOnlyList<string>> ApplyAsync(string connectionString, CancellationToken cancellationToken = default) =>
-        SqliteSchemaMigrator.ApplyToDatabaseAsync(connectionString, "main", cancellationToken);
+    public static Task<IReadOnlyList<string>> ApplyAsync(
+        string connectionString,
+        string schema = "acta",
+        CancellationToken cancellationToken = default
+    ) => SqliteSchemaMigrator.ApplyToDatabaseAsync(connectionString, schema, cancellationToken);
 
     /// <summary>
     /// Creates the outbox table in the producer's database file when it is missing and returns whether it did; an existing

@@ -7,8 +7,8 @@ Day-2 operations. The operator surface is the `IJobs` facade for per-job control
 read-only list APIs (optionally surfaced by the embedded dashboard package), and plain SQL against
 the ledger for everything else diagnostic. Queries below are
 Postgres-flavored against the `acta` schema; on SQL Server bracket the identifiers and swap the
-interval arithmetic (`DATEADD`), and on SQLite drop the `acta.` prefix, since the views live in the
-database file itself. A SQLite view shows its `_utc` columns as ISO 8601 UTC text (`2026-11-08T09:30:00.123Z`),
+interval arithmetic (`DATEADD`), and on SQLite write `acta_` for `acta.`, since SQLite has no schemas and the
+schema is the prefix of each view's name in the database file. A SQLite view shows its `_utc` columns as ISO 8601 UTC text (`2026-11-08T09:30:00.123Z`),
 which sorts in time order and compares against `strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')`; the ledger
 tables keep Unix epoch milliseconds. A stored instant holds microseconds on PostgreSQL and milliseconds on SQL
 Server and SQLite.
@@ -520,8 +520,8 @@ Use SQLite when the database is embedded in one process. SQLite is useful for ho
 exploration, tests, and small single-process tools. Several processes can share one SQLite file on one
 machine, as the demos do, but it is discouraged: they take turns at its one write lock, and an enqueue
 wakes only its own process. On SQLite, Acta's tables
-share `main` with the application's, so keep its table names free in that file; [known
-limitations](./known-limitations.md#storage-and-providers) lists what a clash does.
+share `main` with the application's under the schema's prefix (`acta_jobs`), so keep those names free in that file;
+[known limitations](./known-limitations.md#storage-and-providers) lists what a clash does.
 
 Redis wakeup is optional. SQL polling is the correctness baseline; a wakeup transport only lowers
 pickup latency.
@@ -540,7 +540,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261120124658_init to schema acta
+applied M20261120201836_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1279,8 +1279,8 @@ error then means the attribute is missing, not the `using`.
 ## SQL recipes
 
 These recipes are Postgres-flavored against the default `acta` schema; on SQL Server, bracket
-identifiers as needed and replace interval arithmetic with `DATEADD`; on SQLite, drop the `acta.`
-prefix and write `now()` as `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`, with an interval as its modifier
+identifiers as needed and replace interval arithmetic with `DATEADD`; on SQLite, write `acta_` for `acta.`
+(the view is `acta_jobs_view`) and write `now()` as `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`, with an interval as its modifier
 (`strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')`): a SQLite view shows its `_utc` columns as ISO 8601 UTC text,
 which compares in time order, while the ledger tables keep Unix epoch milliseconds. The first recipe enqueues a job
 (a write, through the installed routine) and the outbox recipes repair the producer's table; the rest

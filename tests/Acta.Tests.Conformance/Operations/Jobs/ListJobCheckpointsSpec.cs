@@ -144,7 +144,7 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
             {
                 await using var cmd = connection.CreateCommand();
                 cmd.CommandText =
-                    $"INSERT INTO {Db.Schema}.checkpoints (job_id, checkpoint_kind_code, checkpoint_name, value_format_id) VALUES ({enqueued.JobId}, 70, '{name}', 0)";
+                    $"INSERT INTO {Db.Qualify("checkpoints")} (job_id, checkpoint_kind_code, checkpoint_name, value_format_id) VALUES ({enqueued.JobId}, 70, '{name}', 0)";
                 Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
             }
         }

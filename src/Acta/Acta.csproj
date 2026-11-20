@@ -58,6 +58,8 @@
     <InternalsVisibleTo Include="Acta.Emit" />
     <!-- Acta Verify wraps IDbSession to inject faults after a store command commits. -->
     <InternalsVisibleTo Include="Acta.Verify" />
+    <!-- The how-tos' lab and Anvil name Acta's views and tables the way SchemaQualifier does. -->
+    <InternalsVisibleTo Include="Acta.LocalHost" />
   </ItemGroup>
 
   <ItemGroup>

@@ -129,8 +129,8 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
             var row = $"job_id = @id AND checkpoint_kind_code = {(byte)CheckpointKindCode.Signal} AND checkpoint_name = 's.test'";
             lockRow.CommandText =
                 Db.Provider == DbProvider.SqlServer
-                    ? $"SELECT checkpoint_name FROM {Db.Schema}.checkpoints WITH (UPDLOCK, ROWLOCK) WHERE {row}"
-                    : $"SELECT checkpoint_name FROM {Db.Schema}.checkpoints WHERE {row} FOR UPDATE";
+                    ? $"SELECT checkpoint_name FROM {Db.Qualify("checkpoints")} WITH (UPDLOCK, ROWLOCK) WHERE {row}"
+                    : $"SELECT checkpoint_name FROM {Db.Qualify("checkpoints")} WHERE {row} FOR UPDATE";
             var p = lockRow.CreateParameter();
             p.ParameterName = "@id";
             p.Value = job.JobId;

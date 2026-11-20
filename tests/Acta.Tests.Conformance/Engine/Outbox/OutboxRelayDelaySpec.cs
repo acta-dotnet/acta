@@ -45,7 +45,9 @@ public sealed class OutboxRelayDelaySpec : OutboxRelayHostBase
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                $"UPDATE {{schema}}.{SourceTable} SET delay_seconds = @p_delay WHERE deduplication_key = @p_key",
+                // The producer's table, named in the schema its relay source reads: main on SQLite, outside the ledger's prefix.
+                $"UPDATE {OutboxIdentifier.Qualify(SourceTable, Fixture.DialectToken == "sqlite" ? "main" : Schema.SchemaName)} "
+                    + "SET delay_seconds = @p_delay WHERE deduplication_key = @p_key",
                 ct,
                 ("@p_delay", DelaySeconds),
                 ("@p_key", key)

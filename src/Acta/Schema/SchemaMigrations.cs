@@ -41,7 +41,7 @@ internal static partial class SchemaMigrations
         var pending = migrations.Where(m => !applied.Contains(m.Name)).ToList();
         foreach (var migration in pending)
         {
-            foreach (var batch in SplitOnGo(migration.Template.Replace("{{schema}}", schemaName, StringComparison.Ordinal)))
+            foreach (var batch in SplitOnGo(SchemaQualifier.Render(migration.Template, dialectToken, schemaName)))
             {
                 await using var cmd = conn.CreateCommand();
                 cmd.Transaction = tx;

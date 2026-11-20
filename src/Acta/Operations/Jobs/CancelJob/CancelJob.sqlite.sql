@@ -121,7 +121,7 @@ SET
     retention_until_utc = {{now}} + (
         SELECT jd.retention_seconds_effective
         FROM {{schema}}.definitions jd
-        JOIN {{schema}}.jobs j2 ON j2.job_id = jobs_state.job_id
+        JOIN {{schema}}.jobs j2 ON j2.job_id = {{schema}}_jobs_state.job_id
         WHERE jd.definition_id = j2.definition_id
     ) * 1000,
     modified_at_utc = {{now}},
@@ -185,7 +185,7 @@ WHERE
         SELECT 1
         FROM {{schema}}.jobs_state o
         WHERE
-            o.lane_id = jobs_state.lane_id
+            o.lane_id = {{schema}}_jobs_state.lane_id
             AND o.lane_id IS NOT NULL
             AND o.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,

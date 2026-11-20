@@ -93,7 +93,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         {
             cmd.Transaction = move;
             cmd.CommandText =
-                $"UPDATE {Db.Schema}.alerts SET job_id = {kept.JobId}, job_ref = '{kept.JobRef.Value}', "
+                $"UPDATE {Db.Qualify("alerts")} SET job_id = {kept.JobId}, job_ref = '{kept.JobRef.Value}', "
                 + $"occurrence_count = occurrence_count + 1 WHERE alert_id = {alert.Id}";
             Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
         }

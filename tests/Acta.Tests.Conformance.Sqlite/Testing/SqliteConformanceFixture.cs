@@ -29,7 +29,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         // table_xinfo (not table_info) so STORED generated columns are included; hidden=1 excludes
         // only truly-hidden columns (none in this schema), keeping normal (0) and generated (2/3).
         cmd.CommandText = "SELECT name, \"notnull\" FROM pragma_table_xinfo(@t) WHERE hidden <> 1 ORDER BY name;";
-        cmd.Parameters.AddWithValue("@t", tableName);
+        cmd.Parameters.AddWithValue("@t", Physical(schemaName, tableName));
         // SQLite drops declared text/blob lengths entirely, so it reports no width to compare.
         var cols = new List<(string, bool, int?)>();
         await using var r = await cmd.ExecuteReaderAsync();
@@ -53,12 +53,12 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
             WHERE ii.cid >= 0
             ORDER BY il.name, ii.seqno;
             """;
-        cmd.Parameters.AddWithValue("@t", tableName);
+        cmd.Parameters.AddWithValue("@t", Physical(schemaName, tableName));
         var dict = new Dictionary<string, (bool IsUnique, List<string> Columns)>(StringComparer.Ordinal);
         await using var r = await cmd.ExecuteReaderAsync();
         while (await r.ReadAsync())
         {
-            var name = r.GetString(0);
+            var name = Unprefixed(schemaName, r.GetString(0));
             var isUnique = r.GetInt64(1) != 0;
             var col = r.GetString(2);
             if (!dict.TryGetValue(name, out var entry))
@@ -80,7 +80,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
             FROM pragma_foreign_key_list(@t)
             ORDER BY id, seq;
             """;
-        cmd.Parameters.AddWithValue("@t", tableName);
+        cmd.Parameters.AddWithValue("@t", Physical(schemaName, tableName));
         var fks = new List<DbForeignKeyInfo>();
         await using var r = await cmd.ExecuteReaderAsync();
         while (await r.ReadAsync())
@@ -91,7 +91,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
                 "SET NULL" => "set_null",
                 _ => "no_action",
             };
-            fks.Add(new DbForeignKeyInfo(r.GetString(0), r.GetString(1), r.GetString(2), onDelete));
+            fks.Add(new DbForeignKeyInfo(r.GetString(0), Unprefixed(schemaName, r.GetString(1)), r.GetString(2), onDelete));
         }
         return fks;
     }
@@ -102,7 +102,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name=@t;";
-        cmd.Parameters.AddWithValue("@t", tableName);
+        cmd.Parameters.AddWithValue("@t", Physical(schemaName, tableName));
         var ddl = (string?)await cmd.ExecuteScalarAsync() ?? "";
         return CheckConstraintRegex().Matches(ddl).Select(m => new DbCheckInfo(m.Groups[1].Value)).ToList();
     }
@@ -116,7 +116,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = @t;";
-        cmd.Parameters.AddWithValue("@t", tableName);
+        cmd.Parameters.AddWithValue("@t", Physical(schemaName, tableName));
         var ddl = (string?)await cmd.ExecuteScalarAsync() ?? "";
         return Regex.IsMatch(ddl, @"\bCOLLATE\b", RegexOptions.IgnoreCase) ? [("(CREATE TABLE)", "COLLATE")] : [];
     }
@@ -128,12 +128,14 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name;";
+        // The schema's tables are those its prefix names; the application's and the outbox's are not among them.
+        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND substr(name, 1, length(@p)) = @p ORDER BY name;";
+        cmd.Parameters.AddWithValue("@p", Physical(schemaName, ""));
         var names = new List<string>();
         await using var r = await cmd.ExecuteReaderAsync();
         while (await r.ReadAsync())
         {
-            names.Add(r.GetString(0));
+            names.Add(Unprefixed(schemaName, r.GetString(0)));
         }
 
         return names;
@@ -144,7 +146,8 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%';";
+        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND substr(name, 1, length(@p)) = @p;";
+        cmd.Parameters.AddWithValue("@p", Physical(schemaName, ""));
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
@@ -157,7 +160,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         });
     }
 
-    // SQLite has no schema container (everything lives in main); the table is unqualified.
+    // SQLite has no schemas: an application's table is its bare name in main, outside every Acta prefix.
     public async ValueTask<string> EnsureBusinessProbeTableAsync(
         System.Data.Common.DbConnection connection,
         string schemaName,
@@ -169,6 +172,14 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         await cmd.ExecuteNonQueryAsync();
         return tableName;
     }
+
+    /// <summary>The name an Acta table or index has in the file: the model's name after the schema's prefix.</summary>
+    private static string Physical(string schemaName, string name) =>
+        SchemaQualifier.Render($"{SchemaQualifier.Token}_{name}", "sqlite", schemaName);
+
+    /// <summary>The model's name for a name in the file, which SQLite's own names and the application's keep as they are.</summary>
+    private static string Unprefixed(string schemaName, string name) =>
+        name.StartsWith(Physical(schemaName, ""), StringComparison.Ordinal) ? name[Physical(schemaName, "").Length..] : name;
 
     // Anchored on the CONSTRAINT keyword: a bare ck_ scan also matches inside column names
     // such as locks.lock_key.

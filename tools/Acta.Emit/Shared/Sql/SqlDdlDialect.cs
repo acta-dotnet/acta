@@ -9,7 +9,7 @@ namespace Acta.Emit.Shared.Sql;
 /// </summary>
 internal abstract class SqlDdlDialect
 {
-    public const string SchemaPlaceholder = "{{schema}}";
+    public const string SchemaPlaceholder = SchemaQualifier.Token;
 
     public abstract string ProviderToolName { get; }
 
@@ -57,14 +57,14 @@ internal abstract class SqlDdlDialect
 
     /// <summary>
     /// The <c>index-name ON table</c> fragment of a CREATE INDEX. SQL Server / PostgreSQL qualify the
-    /// table (<c>idx ON schema.table</c>); SQLite qualifies the index name instead and leaves the
-    /// table bare (<c>schema.idx ON table</c>), per its grammar.
+    /// table (<c>idx ON schema.table</c>); SQLite qualifies the index name instead and gives the
+    /// table its prefixed name alone (<c>schema.idx ON schema_table</c>), per its grammar.
     /// </summary>
     public virtual string IndexNameAndTable(string indexName, string tableName) => $"{indexName} ON {SchemaPlaceholder}.{tableName}";
 
     /// <summary>
     /// The foreign-key target table reference. SQL Server / PostgreSQL qualify it with the schema;
-    /// SQLite forbids a schema qualifier in a <c>REFERENCES</c> clause, so it returns the bare table.
+    /// SQLite forbids a qualifier in a <c>REFERENCES</c> clause, so it returns the prefixed name alone.
     /// </summary>
     public virtual string ForeignKeyTargetTable(string tableName) => $"{SchemaPlaceholder}.{tableName}";
 

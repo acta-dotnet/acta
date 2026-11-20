@@ -11,7 +11,7 @@
 -- busy worker, and [MEASURED] checks report their row and never fail. A check whose shape a trial did
 -- not seed returns zero rows.
 --
--- `{s}` is the schema prefix: the trial's schema on PostgreSQL and SQL Server, `main.` on SQLite.
+-- `{s}` is the schema prefix: the trial's schema on PostgreSQL and SQL Server, `main.acta_` on SQLite.
 -- `{now}` is the database clock in the dialect's instant encoding. The runner substitutes both.
 --
 -- Every code literal names its member, `4 /* EntityCode.Job */`, and CertificationTests checks each value

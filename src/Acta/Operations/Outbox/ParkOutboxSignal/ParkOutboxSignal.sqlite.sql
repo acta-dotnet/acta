@@ -16,8 +16,8 @@ ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     value = excluded.value,
     checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
     modified_at_utc = {{now}},
-    version = checkpoints.version + 1
-WHERE checkpoints.modified_at_utc <= @p_stale_before_utc AND checkpoints.value = @p_replaceable_value;
+    version = {{schema}}_checkpoints.version + 1
+WHERE {{schema}}_checkpoints.modified_at_utc <= @p_stale_before_utc AND {{schema}}_checkpoints.value = @p_replaceable_value;
 
 -- The minted command id inside @p_value makes the payload unique, so value equality is the
 -- "my write landed" test; a losing park reads the incumbent's park instant as the rejection age.

@@ -7,8 +7,8 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Schema;
 /// <summary>
 /// The published provisioning script (docs/reference/schema-sqlite.sql) must provision a working
 /// database when run verbatim, mirroring the pg/mssql provision-script specs so all three published
-/// files are execution-proven. SQLite targets <c>main</c>, so a fresh in-memory database stands in
-/// for the fresh schema.
+/// files are execution-proven. The script prefixes every name with the default schema, <c>acta</c>, in
+/// <c>main</c>, so a fresh in-memory database stands in for the fresh schema.
 /// </summary>
 [Deploys("add-numbers")]
 public sealed class SqliteProvisionScriptSpec
@@ -36,7 +36,7 @@ public sealed class SqliteProvisionScriptSpec
         Assert.True(migrations > 0, "the published script contains no migration banners");
 
         await using var probe = conn.CreateCommand();
-        probe.CommandText = "SELECT (SELECT COUNT(*) FROM main.migrations), (SELECT COUNT(*) FROM main.jobs)";
+        probe.CommandText = "SELECT (SELECT COUNT(*) FROM main.acta_migrations), (SELECT COUNT(*) FROM main.acta_jobs)";
         await using var reader = await probe.ExecuteReaderAsync(ct);
         Assert.True(await reader.ReadAsync(ct));
         Assert.Equal(migrations, reader.GetInt64(0));
@@ -62,9 +62,9 @@ public sealed class SqliteProvisionScriptSpec
         try
         {
             await RunScriptAsync(connectionString, script, ct);
-            var job = await ScriptProvisionedRuntime.RunJobAsync<SqliteProvisionScriptSpec>(ApplyProvider, "main", 2, 3, ct);
+            var job = await ScriptProvisionedRuntime.RunJobAsync<SqliteProvisionScriptSpec>(ApplyProvider, "acta", 2, 3, ct);
             await RunScriptAsync(connectionString, script, ct);
-            await ScriptProvisionedRuntime.AssertSucceededAsync<SqliteProvisionScriptSpec>(ApplyProvider, "main", job, 5, ct);
+            await ScriptProvisionedRuntime.AssertSucceededAsync<SqliteProvisionScriptSpec>(ApplyProvider, "acta", job, 5, ct);
         }
         finally
         {

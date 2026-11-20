@@ -263,7 +263,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         await using var connection = await session.GetConnectionAsync(ct);
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = $"SELECT {cast} FROM {session.Schema}.checkpoints WHERE job_id = @p_job_id AND checkpoint_name = @p_name";
+        cmd.CommandText = $"SELECT {cast} FROM {session.Qualify("checkpoints")} WHERE job_id = @p_job_id AND checkpoint_name = @p_name";
         Add(cmd, "@p_job_id", jobId);
         Add(cmd, "@p_name", name);
 

@@ -7,8 +7,8 @@ namespace Acta.Tests.Testing;
 
 /// <summary>
 /// The test host names the schema its runtime actually uses, so direct SQL through <see cref="IActaTestHost.Schema"/>
-/// reaches its tables: on SQLite that is <c>main</c>, whatever schema name the host offered the start callback. It
-/// stays readable after the host is disposed, where cleanup reads it.
+/// reaches its tables: on SQLite that is the provider's default, <c>acta</c>, the prefix of its tables, whatever schema name
+/// the host offered the start callback. It stays readable after the host is disposed, where cleanup reads it.
 /// </summary>
 public sealed class ActaTestHostSchemaTests
 {
@@ -35,7 +35,7 @@ public sealed class ActaTestHostSchemaTests
             );
             try
             {
-                Assert.Equal("main", host.Schema);
+                Assert.Equal("acta", host.Schema);
                 var job = await host.Jobs.EnqueueAsync(
                     new EnqueueJobRequest("host-schema", "add-numbers", JobPayload.Json(new TestJobs.AddNumbers(1, 2))),
                     ct
@@ -44,7 +44,8 @@ public sealed class ActaTestHostSchemaTests
                 await using var connection = new SqliteConnection(connectionString);
                 await connection.OpenAsync(ct);
                 await using var count = connection.CreateCommand();
-                count.CommandText = $"SELECT count(*) FROM {host.Schema}.jobs WHERE job_id = {job.JobId}";
+                count.CommandText =
+                    $"SELECT count(*) FROM {SchemaQualifier.Qualify("sqlite", host.Schema, "jobs")} WHERE job_id = {job.JobId}";
                 Assert.Equal(1L, await count.ExecuteScalarAsync(ct));
             }
             finally
@@ -52,7 +53,7 @@ public sealed class ActaTestHostSchemaTests
                 await host.DisposeAsync();
             }
 
-            Assert.Equal("main", host.Schema);
+            Assert.Equal("acta", host.Schema);
         }
         finally
         {

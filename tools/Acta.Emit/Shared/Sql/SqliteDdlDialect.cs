@@ -16,10 +16,9 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
 
     public override bool InlineIntegerPrimaryKey => true;
 
-    // SQLite has no CREATE SCHEMA; everything lives in the attached database. The emitted statement is
-    // an empty placeholder so the migration script stays structurally uniform across providers.
-    public override string CreateSchemaStatement =>
-        "-- SQLite has no schema container; tables are created in the attached database ({{schema}}).";
+    // SQLite has no CREATE SCHEMA; the schema is the prefix of every name in main. The emitted statement is
+    // a comment so the migration script stays structurally uniform across providers.
+    public override string CreateSchemaStatement => $"-- SQLite has no schemas; every name in main takes the prefix {SchemaPlaceholder}_.";
 
     public override string? Terminator => null;
 
@@ -33,11 +32,12 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
 
     public override bool SupportsIncludedColumns => false;
 
-    // SQLite puts the schema qualifier on the index name; the table is referenced bare (same schema).
-    public override string IndexNameAndTable(string indexName, string tableName) => $"{SchemaPlaceholder}.{indexName} ON {tableName}";
+    // SQLite qualifies the index name and forbids a qualifier on its table, which takes the prefix alone.
+    public override string IndexNameAndTable(string indexName, string tableName) =>
+        $"{SchemaPlaceholder}.{indexName} ON {SchemaPlaceholder}_{tableName}";
 
-    // SQLite forbids a schema qualifier in a REFERENCES clause; the target is always the bare table.
-    public override string ForeignKeyTargetTable(string tableName) => tableName;
+    // SQLite forbids a qualifier in a REFERENCES clause; the target takes the prefix alone.
+    public override string ForeignKeyTargetTable(string tableName) => $"{SchemaPlaceholder}_{tableName}";
 
     // STRICT tables require a datatype on every column, generated ones included; STORED materializes it.
     public override string RenderGeneratedColumn(ColumnModel c) => $"{c.Name} {RenderType(c)} AS ({c.Generated}) STORED";

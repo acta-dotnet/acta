@@ -44,7 +44,7 @@ internal sealed class DurableReader(OwnedProvider provider)
         "cs.job_status_code = 50 /* JobStatusCode.Executing */ AND cs.leased_by_worker_id IS NOT NULL",
     ];
 
-    private string Table(string name) => provider.Provider == "sqlite" ? $"main.{name}" : $"{provider.Schema}.{name}";
+    private string Table(string name) => provider.Table(name);
 
     /// <summary>
     /// Every non-system job above <paramref name="afterJobId"/> up to <paramref name="throughJobId"/>, or those of

@@ -373,9 +373,8 @@ internal static class StorageCases
     {
         await using var connection = await state.OpenAsync(ct);
         await using var command = connection.CreateCommand();
-        var prefix = state.Provider == "sqlite" ? "main" : state.Schema;
         command.CommandText =
-            $"SELECT COUNT(*) FROM {prefix}.jobs j JOIN {prefix}.jobs_state r ON r.job_id=j.job_id WHERE j.deduplication_key LIKE 'history-%' AND r.job_status_code={status}";
+            $"SELECT COUNT(*) FROM {state.Table("jobs")} j JOIN {state.Table("jobs_state")} r ON r.job_id=j.job_id WHERE j.deduplication_key LIKE 'history-%' AND r.job_status_code={status}";
         return Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
 }

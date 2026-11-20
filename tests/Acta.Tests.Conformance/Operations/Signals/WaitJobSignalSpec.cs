@@ -190,7 +190,7 @@ public sealed class WaitJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, 
             // The wait, armed at an instant already past, inserts its checkpoint Expired and holds the job row to commit.
             cmd.Transaction = waiter;
             cmd.CommandText =
-                $"SELECT outcome_code FROM {Db.Schema}.wait_job_signal({jobId}::bigint, 1, {JobStateStaging.StagedWorkerId}, "
+                $"SELECT outcome_code FROM {Db.Qualify("wait_job_signal")}({jobId}::bigint, 1, {JobStateStaging.StagedWorkerId}, "
                 + "20 /* CheckpointKindCode.Signal */::smallint, 'go'::varchar, NULL::int, now() - interval '1 minute')";
             Assert.Equal((short)WaitJobSignalOutcomeCode.TimedOut, Convert.ToInt16(await cmd.ExecuteScalarAsync(ct)));
         }

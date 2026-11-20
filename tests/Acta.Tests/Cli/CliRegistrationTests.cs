@@ -36,7 +36,7 @@ public sealed class CliRegistrationTests
         var path = Path.Combine(Path.GetTempPath(), $"acta-cli-migrate-{Guid.NewGuid():N}.db");
         try
         {
-            var shipped = SchemaMigrations.Discover(typeof(SqliteMigrations).Assembly).Select(m => $"applied {m.Name} to schema main");
+            var shipped = SchemaMigrations.Discover(typeof(SqliteMigrations).Assembly).Select(m => $"applied {m.Name} to schema acta");
 
             // The manifest declares no job, so the deploy that follows the schema writes the system jobs alone.
             var (first, firstOutput) = await MigrateAsync(path);
@@ -54,7 +54,7 @@ public sealed class CliRegistrationTests
 
             var (second, secondOutput) = await MigrateAsync(path);
             Assert.Equal(0, second);
-            Assert.Equal(["schema main is up to date", "namespace payments: 1.4.0 (Staging)", "  2 jobs unchanged"], Lines(secondOutput));
+            Assert.Equal(["schema acta is up to date", "namespace payments: 1.4.0 (Staging)", "  2 jobs unchanged"], Lines(secondOutput));
         }
         finally
         {

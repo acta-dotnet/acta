@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -70,9 +71,7 @@ public class BaselineCodeChecksTests
         // baseline does not resurrect the dead column, and that every hold carries its CAS token.
         foreach (var baseline in new[] { SqlServerBaseline, PgBaseline, SqliteBaseline })
         {
-            var locksTable = baseline
-                .Split("CREATE TABLE", StringSplitOptions.None)
-                .First(t => t.Contains(".locks (", StringComparison.Ordinal));
+            var locksTable = baseline.Split("CREATE TABLE", StringSplitOptions.None).First(t => IsTable(t, "locks"));
             Assert.DoesNotContain("kind_code", locksTable, StringComparison.Ordinal);
             Assert.Contains("hold_token", locksTable, StringComparison.Ordinal);
         }
@@ -125,9 +124,10 @@ public class BaselineCodeChecksTests
     }
 
     private static string EventsTable(string baseline) =>
-        baseline.Split("CREATE TABLE", StringSplitOptions.None).First(t => t.Contains(".events (", StringComparison.Ordinal)).Split(");")[
-            0
-        ];
+        baseline.Split("CREATE TABLE", StringSplitOptions.None).First(t => IsTable(t, "events")).Split(");")[0];
+
+    /// <summary>Whether a <c>CREATE TABLE</c> chunk creates <paramref name="table"/>: <c>acta.events</c>, or <c>main.acta_events</c> on SQLite.</summary>
+    private static bool IsTable(string chunk, string table) => Regex.IsMatch(chunk.Split('\n')[0], $@"[._]{table} \(\s*$");
 
     [Fact]
     public void PgAndSqliteBaseline_NeverEmitOptimizeForSequentialKey()

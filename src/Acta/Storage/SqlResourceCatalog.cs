@@ -69,10 +69,10 @@ internal sealed class SqlResourceCatalog
         // The single home of the outbox schema/table concatenation (also validates the identifiers,
         // already-validated upstream so it never throws here for a ledger catalog).
         var tableRef = OutboxIdentifier.Qualify(table, _schema);
+        var text = reader.ReadToEnd();
+        // An outbox catalog may carry no schema, and its SQL names none: the token is a ledger resource's.
         return CodeDecodeSql.RenderDecodeTokens(
-            reader
-                .ReadToEnd()
-                .Replace("{{schema}}", _schema ?? "", StringComparison.Ordinal)
+            (_schema is null ? text : SchemaQualifier.Render(text, _dialect, _schema))
                 .Replace("{{table_ref}}", tableRef, StringComparison.Ordinal)
                 .Replace("{{table}}", table, StringComparison.Ordinal)
                 .Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)", StringComparison.Ordinal)

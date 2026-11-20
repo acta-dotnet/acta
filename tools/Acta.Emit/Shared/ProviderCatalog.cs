@@ -8,7 +8,7 @@ internal static class ProviderCatalog
     [
         new ProviderInfo("mssql", new SqlServerDdlDialect(), "Acta.SqlServer", "acta"),
         new ProviderInfo("pg", new PostgresDdlDialect(), "Acta.Postgres", "acta"),
-        new ProviderInfo("sqlite", new SqliteDdlDialect(), "Acta.Sqlite", "main"),
+        new ProviderInfo("sqlite", new SqliteDdlDialect(), "Acta.Sqlite", "acta"),
     ];
 
     /// <summary>The provider for a dialect token, which every caller of a provider folder needs.</summary>

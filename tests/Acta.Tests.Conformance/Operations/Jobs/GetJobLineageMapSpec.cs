@@ -101,11 +101,11 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
         {
             await using var link = connection.CreateCommand();
             link.CommandText =
-                $"UPDATE {Db.Schema}.jobs SET parent_job_id = CASE job_id {parents} END WHERE job_id IN ({string.Join(", ", chain.Skip(1))})";
+                $"UPDATE {Db.Qualify("jobs")} SET parent_job_id = CASE job_id {parents} END WHERE job_id IN ({string.Join(", ", chain.Skip(1))})";
             Assert.Equal(chain.Count - 1, await link.ExecuteNonQueryAsync(ct));
             await using var insert = connection.CreateCommand();
             insert.CommandText =
-                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, result_format_id) VALUES {string.Join(", ", steps)}";
+                $"INSERT INTO {Db.Qualify("steps")} (job_id, step_name, step_status_code, result_format_id) VALUES {string.Join(", ", steps)}";
             await insert.ExecuteNonQueryAsync(ct);
         }
 

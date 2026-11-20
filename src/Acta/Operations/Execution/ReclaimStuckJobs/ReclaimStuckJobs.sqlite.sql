@@ -225,24 +225,24 @@ UPDATE {{schema}}.jobs_state
 SET
     job_status_code = rj.to_status,
     failure_count = CASE WHEN rj.wait_resolved = 1
-        THEN jobs_state.failure_count
+        THEN {{schema}}_jobs_state.failure_count
         ELSE rj.new_failure_count END,
     next_run_at_utc = CASE
         WHEN rj.to_status = 10 /* JobStatusCode.Ready */ THEN {{now}}
         WHEN rj.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */) THEN NULL
-        ELSE jobs_state.next_run_at_utc END,
+        ELSE {{schema}}_jobs_state.next_run_at_utc END,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
     retention_until_utc = CASE WHEN rj.to_status = 200 /* JobStatusCode.Failed */
         THEN {{now}} + (jd.retention_seconds_effective) * 1000
-        ELSE jobs_state.retention_until_utc END,
+        ELSE {{schema}}_jobs_state.retention_until_utc END,
     modified_at_utc = {{now}},
-    version = jobs_state.version + 1
+    version = {{schema}}_jobs_state.version + 1
 FROM {{schema}}.jobs j
 JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 JOIN temp._reclaim_jobs rj ON rj.job_id = j.job_id
 WHERE
-    j.job_id = jobs_state.job_id;
+    j.job_id = {{schema}}_jobs_state.job_id;
 
 -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on the slot,
 -- or a charged root's, which releases its schedule's capacity. The one writer makes the Pending envelopes read here
@@ -363,7 +363,7 @@ WHERE
         SELECT 1
         FROM {{schema}}.jobs_state o
         WHERE
-            o.lane_id = jobs_state.lane_id
+            o.lane_id = {{schema}}_jobs_state.lane_id
             AND o.lane_id IS NOT NULL
             AND o.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,

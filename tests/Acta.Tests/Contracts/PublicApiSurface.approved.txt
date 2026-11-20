@@ -77,7 +77,7 @@ static class Acta.Sqlite.SqliteActaExtensions
 static class Acta.Sqlite.SqliteMigrations
     static System.String CreateOutboxScript(System.String table = "acta_outbox")
     static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
-    static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.String schema = "acta", System.Threading.CancellationToken cancellationToken = default)
 static class Acta.Sqlite.SqliteOutboxStagingExtensions
     static System.Threading.Tasks.Task<Acta.JobRef> AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
 

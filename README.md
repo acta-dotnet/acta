@@ -77,7 +77,7 @@ The job was a row in `acta-local.db` before the handler ran, and it is still one
 
 ```sql
 SELECT job_ref, definition_name, job_status, failure_count
-FROM   jobs_view
+FROM   acta_jobs_view
 WHERE  namespace_name = 'shipping'
 ORDER  BY created_at_utc DESC;
 ```

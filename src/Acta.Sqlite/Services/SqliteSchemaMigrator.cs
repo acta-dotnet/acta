@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using System.Reflection;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -7,8 +8,8 @@ namespace Acta.Sqlite;
 
 /// <summary>
 /// Applies this package's migrations on SQLite, each file as a single multi-statement command. SQLite has no stored
-/// routines and no schema container, so a migration is tables, indexes, and views only, and the schema name is always
-/// <c>main</c> (the connection's attached database).
+/// routines and no schemas, so a migration is tables, indexes, and views only, created in <c>main</c> with the schema name
+/// as the prefix of each (<see cref="SchemaQualifier"/>).
 /// </summary>
 internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<SqliteSchemaMigrator>? log = null)
     : SchemaBootstrap(options, log)
@@ -28,6 +29,22 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
     internal static readonly Version MinimumEngineVersion = new(3, 51, 0);
 
     internal const string DialectToken = "sqlite";
+
+    /// <summary>
+    /// One when the file holds the tables every release candidate before the prefix left unprefixed, by name alone, and no
+    /// history under this schema's prefix: a migrations table of that name may be the application's own, so its columns are
+    /// never read. The published script refuses on the same probe.
+    /// </summary>
+    internal const string EarlierCandidateProbe = """
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM main.sqlite_master
+                WHERE type = 'table' AND name IN ('checkpoints', 'jobs', 'migrations', 'namespaces')
+            ) = 4
+            AND NOT EXISTS (SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = '{{schema}}_migrations')
+        """;
+
     private static readonly Assembly ProviderAssembly = typeof(SqliteSchemaMigrator).Assembly;
 
     protected override Assembly DriverAssembly => typeof(SqliteConnection).Assembly;
@@ -43,27 +60,72 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
     public static async Task<IReadOnlyList<string>> ApplyAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        ValidateSchema(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);
         }
 
         EnsureSupportedEngine(await ReadEngineVersionAsync(connection, ct));
+        await RefuseEarlierCandidateAsync(connection, schemaName, ct);
         return await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
+
+    /// <summary>
+    /// Validates the schema, the prefix of every name Acta creates in the file: a bare identifier that does not begin with
+    /// <c>sqlite</c>, since SQLite reserves names beginning <c>sqlite_</c> for its own tables.
+    /// </summary>
+    internal static void ValidateSchema(string schema, string paramName)
+    {
+        SqlIdentifierSyntax.ValidateBareIdentifier(schema, paramName);
+        if (schema.StartsWith("sqlite", StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"Schema '{schema}' begins with 'sqlite'. On SQLite the schema is the prefix of every Acta table name "
+                    + $"('{schema}_jobs'), and SQLite reserves names beginning 'sqlite_' for its own tables.",
+                paramName
+            );
+        }
+    }
+
+    /// <summary>Stops before anything is written when <see cref="EarlierCandidateProbe"/> finds an earlier candidate's tables.</summary>
+    private static async Task RefuseEarlierCandidateAsync(SqliteConnection connection, string schema, CancellationToken ct)
+    {
+        await using var probe = connection.CreateCommand();
+        probe.CommandText = SchemaQualifier.Render(EarlierCandidateProbe, DialectToken, schema);
+        if (Convert.ToInt64(await probe.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture) != 0)
+        {
+            throw EarlierCandidate(schema);
+        }
+    }
+
+    /// <summary>
+    /// The file holds the unprefixed tables of a release candidate that named them without the schema, and none of this
+    /// build's. Dropping the database would take the application's tables with it, so the way out is the release notes'.
+    /// </summary>
+    internal static InvalidOperationException EarlierCandidate(string schema) =>
+        new(
+            "This database file holds the unprefixed tables an Acta release candidate before 1.0.0-rc.15 provisioned "
+                + $"(migrations, jobs, namespaces, checkpoints and the rest), and no history under the prefix '{schema}_' this "
+                + "build of Acta names its tables with. Nothing translates one into the other: remove that candidate's tables, "
+                + "indexes and views with the statements in the 1.0.0-rc.15 release notes (docs/release-notes.md), or start "
+                + $"from a new file, and provision it again: {SchemaMigrations.HowToApply(DialectToken)}."
+        );
 
     /// <summary>
     /// The one apply, for the development flag and the deploy step alike, since SQLite has no server to create a database on:
     /// opens the connection, which creates the file, puts the database in WAL for concurrent readers, then applies.
     /// </summary>
-    internal static async Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schemaName, CancellationToken ct)
+    internal static async Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schema, CancellationToken ct)
     {
         RequireDataSource(connectionString);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        ValidateSchema(schema, nameof(schema));
 
         await using var conn = new SqliteConnection(connectionString);
         await conn.OpenAsync(ct);
+
+        // Refused before the journal mode is set, so a refused file is left exactly as it was.
+        await RefuseEarlierCandidateAsync(conn, schema, ct);
 
         // WAL gives concurrent readers alongside the single writer; it persists in the file header,
         // so this runs once. No-op (and harmless) for in-memory databases.
@@ -73,7 +135,7 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
             await wal.ExecuteNonQueryAsync(ct);
         }
 
-        return await ApplyAsync(conn, schemaName, ct);
+        return await ApplyAsync(conn, schema, ct);
     }
 
     /// <summary>Refuses a connection string with no database file before anything opens.</summary>
@@ -97,7 +159,7 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
     public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        ValidateSchema(schemaName, nameof(schemaName));
 
         // The one place in this package that reads the connection string, and the reason is the whole
         // point of the check: opening a SqliteConnection creates the file, so a typo'd Data Source
@@ -115,6 +177,7 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
         await using var conn = new SqliteConnection(connectionString);
         await conn.OpenAsync(ct);
         EnsureSupportedEngine(await ReadEngineVersionAsync(conn, ct));
+        await RefuseEarlierCandidateAsync(conn, schemaName, ct);
         await SchemaMigrations.PreflightAsync(conn, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
@@ -152,7 +215,7 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
     public static async Task ResetSchemaAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        ValidateSchema(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);

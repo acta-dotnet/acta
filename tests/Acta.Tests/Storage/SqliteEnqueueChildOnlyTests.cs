@@ -13,7 +13,7 @@ public sealed class SqliteEnqueueChildOnlyTests
     [Fact]
     public void An_unparented_enqueue_loses_exactly_the_parent_checks()
     {
-        var sql = new SqlResourceCatalog("sqlite", "main").Load("EnqueueJob");
+        var sql = new SqlResourceCatalog("sqlite", "acta").Load("EnqueueJob");
         Assert.Equal(3, sql.Split("-- begin child-only").Length);
         Assert.Contains("ACTA:EXECUTION_FENCED", sql, StringComparison.Ordinal);
         Assert.Contains("ACTA:ENQ_ANCESTOR_LANE", sql, StringComparison.Ordinal);
@@ -23,7 +23,7 @@ public sealed class SqliteEnqueueChildOnlyTests
         Assert.DoesNotContain("ACTA:EXECUTION_FENCED", cut, StringComparison.Ordinal);
         Assert.DoesNotContain("ACTA:ENQ_ANCESTOR_LANE", cut, StringComparison.Ordinal);
         Assert.DoesNotContain("child-only", cut, StringComparison.Ordinal);
-        Assert.Contains("INSERT INTO main.lanes", cut, StringComparison.Ordinal);
-        Assert.Contains("INSERT INTO main.jobs", cut, StringComparison.Ordinal);
+        Assert.Contains("INSERT INTO main.acta_lanes", cut, StringComparison.Ordinal);
+        Assert.Contains("INSERT INTO main.acta_jobs", cut, StringComparison.Ordinal);
     }
 }

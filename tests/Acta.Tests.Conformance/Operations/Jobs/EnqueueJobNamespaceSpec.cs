@@ -113,12 +113,12 @@ public sealed class EnqueueJobNamespaceSpec : ActaRuntimeTestBase<ConformanceFix
         {
             // By its key, as the batch locks it: a lock taken through the name index alone would not stop it.
             cmd.Transaction = blocker;
-            cmd.CommandText = $"SELECT lane_id FROM {Db.Schema}.lanes WHERE namespace_id = {namespaceId} AND lane_name = '{lane}'";
+            cmd.CommandText = $"SELECT lane_id FROM {Db.Qualify("lanes")} WHERE namespace_id = {namespaceId} AND lane_name = '{lane}'";
             var laneId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct), System.Globalization.CultureInfo.InvariantCulture);
             cmd.CommandText =
                 Db.Provider == DbProvider.SqlServer
-                    ? $"SELECT lane_id FROM {Db.Schema}.lanes WITH (UPDLOCK, ROWLOCK) WHERE lane_id = {laneId}"
-                    : $"SELECT lane_id FROM {Db.Schema}.lanes WHERE lane_id = {laneId} FOR UPDATE";
+                    ? $"SELECT lane_id FROM {Db.Qualify("lanes")} WITH (UPDLOCK, ROWLOCK) WHERE lane_id = {laneId}"
+                    : $"SELECT lane_id FROM {Db.Qualify("lanes")} WHERE lane_id = {laneId} FOR UPDATE";
             Assert.NotNull(await cmd.ExecuteScalarAsync(ct));
         }
 

@@ -59,8 +59,8 @@ public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture
                 lockRow.Transaction = transaction;
                 lockRow.CommandText =
                     Db.Provider == DbProvider.SqlServer
-                        ? $"SELECT lock_key FROM {Db.Schema}.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @k"
-                        : $"SELECT lock_key FROM {Db.Schema}.locks WHERE lock_key = @k FOR UPDATE";
+                        ? $"SELECT lock_key FROM {Db.Qualify("locks")} WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @k"
+                        : $"SELECT lock_key FROM {Db.Qualify("locks")} WHERE lock_key = @k FOR UPDATE";
                 var p = lockRow.CreateParameter();
                 p.ParameterName = "@k";
                 p.Value = key;

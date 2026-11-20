@@ -26,8 +26,8 @@ internal sealed class ClassSchema(string schemaName, string connectionString) : 
         SchemaMigrations.Discover(Assembly.Load(ProviderSqlResources.ProviderAssemblyName(dialectToken)))[0].Name[1..15];
 
     /// <summary>
-    /// The schema of <paramref name="spec"/>, beside <paramref name="shared"/>. On SQLite it is the shared file itself:
-    /// one writer forms no deadlock, and a schema there is a database file of its own.
+    /// The schema of <paramref name="spec"/>, beside <paramref name="shared"/>. On SQLite it is the shared schema itself:
+    /// one writer forms no deadlock.
     /// </summary>
     public static async ValueTask<IIntegrationSchema> EnsureReadyAsync(IConformanceFixture fixture, IIntegrationSchema shared, Type spec)
     {

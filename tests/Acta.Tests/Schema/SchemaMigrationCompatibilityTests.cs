@@ -14,15 +14,15 @@ public sealed class SchemaMigrationCompatibilityTests
         var ct = TestContext.Current.CancellationToken;
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync(ct);
-        await SqliteSchemaMigrator.ApplyAsync(connection, "main", ct);
+        await SqliteSchemaMigrator.ApplyAsync(connection, "acta", ct);
 
         // Stands in for a later release: a migration this build lacks, which added a table.
         await Execute(
             connection,
             """
-            INSERT INTO main.migrations (name) VALUES ('M99991231235959_future');
-            CREATE TABLE main.future_marker (marker INTEGER NOT NULL) STRICT;
-            INSERT INTO main.future_marker (marker) VALUES (1);
+            INSERT INTO main.acta_migrations (name) VALUES ('M99991231235959_future');
+            CREATE TABLE main.acta_future_marker (marker INTEGER NOT NULL) STRICT;
+            INSERT INTO main.acta_future_marker (marker) VALUES (1);
             """,
             ct
         );
@@ -35,7 +35,7 @@ public sealed class SchemaMigrationCompatibilityTests
 
         Assert.Equal(history, await History(connection, ct));
         await using var probe = connection.CreateCommand();
-        probe.CommandText = "SELECT marker FROM main.future_marker";
+        probe.CommandText = "SELECT marker FROM main.acta_future_marker";
         Assert.Equal(1L, await probe.ExecuteScalarAsync(ct));
     }
 
@@ -43,7 +43,7 @@ public sealed class SchemaMigrationCompatibilityTests
     {
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
-        // Stepped by hand: the script opens with a PRAGMA that returns a row, and a reader disposed
+        // Stepped by hand: the script runs a PRAGMA that returns a row, and a reader disposed
         // there runs the remaining statements without raising their errors.
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.NextResultAsync(ct)) { }
@@ -52,7 +52,7 @@ public sealed class SchemaMigrationCompatibilityTests
     private static async Task<string> History(SqliteConnection connection, CancellationToken ct)
     {
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT group_concat(name, ';') FROM (SELECT name FROM main.migrations ORDER BY name)";
+        command.CommandText = "SELECT group_concat(name, ';') FROM (SELECT name FROM main.acta_migrations ORDER BY name)";
         return (string)(await command.ExecuteScalarAsync(ct))!;
     }
 }

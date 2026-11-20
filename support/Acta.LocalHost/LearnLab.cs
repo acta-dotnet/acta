@@ -158,25 +158,16 @@ public sealed partial class LearnLab
     private string QualifyCuratedViews(string sql)
     {
         sql = BytesExpression().Replace(sql, match => ByteLength(match.Groups["expression"].Value));
-        if (LocalDatabase.IsSqlite(_provider))
-        {
-            return sql.Replace("{{schema}}.", "", StringComparison.Ordinal).Replace("{{schema}}", "main", StringComparison.Ordinal);
-        }
-
-        var qualifiedSchema = LocalDatabase.IsSqlServer(_provider) ? $"[{_schema}]" : $"\"{_schema}\"";
-        var qualified = sql.Replace("{{schema}}.", qualifiedSchema + ".", StringComparison.Ordinal)
-            .Replace("{{schema}}", qualifiedSchema, StringComparison.Ordinal);
         foreach (var view in CuratedViews)
         {
-            var qualifiedView = LocalDatabase.IsSqlServer(_provider) ? $"{qualifiedSchema}.[{view}]" : $"{qualifiedSchema}.\"{view}\"";
-            qualified = Regex.Replace(
-                qualified,
+            sql = Regex.Replace(
+                sql,
                 $@"(?<![\w.]){Regex.Escape(view)}(?!\w)",
-                qualifiedView,
+                $"{SchemaQualifier.Token}.{view}",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
             );
         }
-        return qualified;
+        return SchemaQualifier.Render(sql, LocalDatabase.DialectToken(_provider), _schema);
     }
 
     private string ByteLength(string expression) =>

@@ -80,6 +80,9 @@ public sealed class CommandTextCompositionTests
         // Migration apply. The text is an embedded DDL resource (a provider's migration script), split
         // into GO batches on SQL Server; the only substitution is {{schema}}.
         ["Acta/Schema/SchemaMigrations.cs::ApplyAsync"] = (1, "embedded migration DDL, {{schema}} only"),
+        // The earlier-candidate probe. The text is a constant whose only substitution is {{schema}}, a bare identifier the
+        // migrator validates before anything opens.
+        ["Acta.Sqlite/Services/SqliteSchemaMigrator.cs::RefuseEarlierCandidateAsync"] = (1, "constant probe, {{schema}} only"),
         // The outbox install. The script is CreateOutboxScript's, built over OutboxIdentifier.Qualify; the lock and the
         // existence probe are catalog SQL.
         ["Acta/Schema/SchemaMigrations.cs::ApplyOutboxAsync"] = (1, "CreateOutboxScript, OutboxIdentifier-validated names"),
@@ -213,6 +216,8 @@ public sealed class CommandTextCompositionTests
             // The database name the bootstrap DDL interpolates into quoted and bracketed contexts.
             ("src/Acta.Postgres/Services/PostgresSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
             ("src/Acta.SqlServer/Services/SqlServerSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
+            // The schema the SQLite earlier-candidate probe renders, validated before the file opens.
+            ("src/Acta.Sqlite/Services/SqliteSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateBareIdentifier(schema, paramName)"),
         ];
 
         var failures = new List<string>();

@@ -76,7 +76,7 @@ public static class ActaTestHost
                 runtime.AttachClaimabilityProbe(provider);
             }
 
-            // The schema the session resolved, so a provider that fixes its own (SQLite's main) is named as it is.
+            // The schema the session resolved, so a callback that left the provider's default in place is named as it is.
             return new HostImpl(provider, runtimes, provider.GetRequiredService<IDbSession>().Schema);
         }
         catch
@@ -357,8 +357,8 @@ public static class ActaTestHost
 public sealed class ActaTestHostOptions
 {
     /// <summary>
-    /// The schema offered to the <c>configureJobs</c> callback for the provider call to bind; SQLite, which has only
-    /// <c>main</c>, ignores it. Defaults to a unique throwaway name (<c>acta_test_{n}</c>).
+    /// The schema offered to the <c>configureJobs</c> callback for the provider call to bind, on SQLite the prefix of
+    /// Acta's names. Defaults to a unique throwaway name (<c>acta_test_{n}</c>).
     /// </summary>
     public string? Schema { get; set; }
 

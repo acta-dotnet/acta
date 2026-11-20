@@ -7,7 +7,10 @@ namespace Acta.Testing;
 /// </summary>
 public interface IActaTestHost : IAsyncDisposable
 {
-    /// <summary>The schema this host's runtime targets.</summary>
+    /// <summary>
+    /// The schema this host's runtime targets. On SQLite, which has no schemas, it is the prefix of every Acta table name
+    /// (<c>acta_jobs</c> in <c>main</c>), not a qualifier.
+    /// </summary>
     string Schema { get; }
 
     /// <summary>The built service provider: escape hatch for resolving anything the runtime registered.</summary>

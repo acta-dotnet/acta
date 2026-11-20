@@ -357,7 +357,7 @@ public sealed class ChildRestartSpec : ActaRuntimeTestBase<ConformanceFixture, J
         {
             cmd.Transaction = raise;
             cmd.CommandText =
-                $"UPDATE {Db.Schema}.checkpoints SET checkpoint_status_code = 110 /* CheckpointStatusCode.Set */, "
+                $"UPDATE {Db.Qualify("checkpoints")} SET checkpoint_status_code = 110 /* CheckpointStatusCode.Set */, "
                 + "value_format_id = 1 /* JobPayloadFormat.Json */, value = @p_value "
                 + "WHERE job_id = @p_parent AND checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND checkpoint_name = @p_name";
             AddParameter(cmd, "@p_value", ChildOutcomeEnvelope.Write(child, JobStatusCode.Cancelled, executionNumber: null));

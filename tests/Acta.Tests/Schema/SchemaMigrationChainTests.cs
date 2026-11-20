@@ -18,7 +18,7 @@ public sealed class SchemaMigrationChainTests
     private static Task Apply(SqliteConnection conn) =>
         SchemaMigrations.ApplyAsync(
             conn,
-            "main",
+            "acta",
             "sqlite",
             typeof(SchemaMigrationChainTests).Assembly,
             TestContext.Current.CancellationToken
@@ -35,7 +35,7 @@ public sealed class SchemaMigrationChainTests
     {
         var rows = new List<string>();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT name FROM main.migrations ORDER BY name;";
+        cmd.CommandText = "SELECT name FROM main.acta_migrations ORDER BY name;";
         await using var reader = await cmd.ExecuteReaderAsync(TestContext.Current.CancellationToken);
         while (await reader.ReadAsync(TestContext.Current.CancellationToken))
         {
@@ -67,8 +67,8 @@ public sealed class SchemaMigrationChainTests
         await Apply(conn);
 
         Assert.Equal([Init, AddWidgets], await HistoryAsync(conn));
-        Assert.True(await TableExistsAsync(conn, "gadgets"));
-        Assert.True(await TableExistsAsync(conn, "widgets"));
+        Assert.True(await TableExistsAsync(conn, "acta_gadgets"));
+        Assert.True(await TableExistsAsync(conn, "acta_widgets"));
     }
 
     [Fact]
@@ -87,11 +87,11 @@ public sealed class SchemaMigrationChainTests
         await using var conn = await OpenFreshAsync();
         await Apply(conn);
         // Rewind to the baseline-only shape a database upgraded from an older build would present.
-        await ExecAsync(conn, $"DROP TABLE main.widgets; DELETE FROM main.migrations WHERE name = '{AddWidgets}';");
+        await ExecAsync(conn, $"DROP TABLE main.acta_widgets; DELETE FROM main.acta_migrations WHERE name = '{AddWidgets}';");
 
         await Apply(conn);
 
-        Assert.True(await TableExistsAsync(conn, "widgets"));
+        Assert.True(await TableExistsAsync(conn, "acta_widgets"));
         Assert.Equal([Init, AddWidgets], await HistoryAsync(conn));
     }
 
@@ -102,7 +102,7 @@ public sealed class SchemaMigrationChainTests
         await Apply(conn);
         // A database already carrying a migration this build does not ship (older worker, newer
         // database) boots normally: unknown rows are simply not this build's to verify.
-        await ExecAsync(conn, "INSERT INTO main.migrations (name) VALUES ('M20260103000000_add_sprockets');");
+        await ExecAsync(conn, "INSERT INTO main.acta_migrations (name) VALUES ('M20260103000000_add_sprockets');");
 
         await Apply(conn);
 
@@ -117,14 +117,14 @@ public sealed class SchemaMigrationChainTests
         // An earlier release candidate's cut: its baseline row under another name, and no widgets table yet.
         await ExecAsync(
             conn,
-            $"DROP TABLE main.widgets; DELETE FROM main.migrations WHERE name = '{AddWidgets}'; "
-                + $"UPDATE main.migrations SET name = 'M20251201000000_init' WHERE name = '{Init}';"
+            $"DROP TABLE main.acta_widgets; DELETE FROM main.acta_migrations WHERE name = '{AddWidgets}'; "
+                + $"UPDATE main.acta_migrations SET name = 'M20251201000000_init' WHERE name = '{Init}';"
         );
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Apply(conn));
 
         Assert.Contains("M20251201000000_init", exception.Message, StringComparison.Ordinal);
         Assert.Equal(["M20251201000000_init"], await HistoryAsync(conn));
-        Assert.False(await TableExistsAsync(conn, "widgets"));
+        Assert.False(await TableExistsAsync(conn, "acta_widgets"));
     }
 }

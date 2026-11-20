@@ -14,6 +14,6 @@ public interface IMigrationHistoryProbe : IAsyncDisposable
     /// <summary>Connection string a provider bootstrap can be pointed at.</summary>
     string ConnectionString { get; }
 
-    /// <summary>Schema name the ledger lives in; <c>main</c> on SQLite.</summary>
+    /// <summary>Schema name the ledger lives in; on SQLite the prefix of its names.</summary>
     string SchemaName { get; }
 }

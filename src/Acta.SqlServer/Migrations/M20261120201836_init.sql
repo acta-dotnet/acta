@@ -5201,7 +5201,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261120124658_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261120201836_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120124658_init');
+VALUES ('M20261120201836_init');
 GO

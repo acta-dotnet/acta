@@ -11,12 +11,22 @@ const ROW_LIMIT = 100;
 
 // The SQL flavor the emitted statement targets. Provider and schema come from the /capabilities read;
 // both default to a pg-shaped statement in the `acta` schema so a Copy fired before capabilities loads
-// still yields a runnable starting point. Every provider installs its operator views schema-qualified
-// (on SQLite `schema` is the attached database, normally `main`), so one `{schema}.{view}` form is
-// correct across all three; only the row-cap syntax differs (SQL Server has no LIMIT).
+// still yields a runnable starting point. PostgreSQL and SQL Server qualify a view with the schema,
+// `acta.jobs_view`; SQLite has no schemas, so there the schema is the prefix of the view's own name in
+// the main database, `main.acta_jobs_view`. The row-cap syntax differs too (SQL Server has no LIMIT).
 export interface SqlDialect {
   provider?: string;
   schema?: string;
+}
+
+// A view's own name, which a column reference names it by: the prefixed name on SQLite.
+function viewName(dialect: SqlDialect, view: string): string {
+  return dialect.provider === 'sqlite' ? `${dialect.schema ?? 'acta'}_${view}` : view;
+}
+
+// The name a statement gives a view, as SchemaQualifier renders it on the server.
+function qualifiedView(dialect: SqlDialect, view: string): string {
+  return dialect.provider === 'sqlite' ? `main.${viewName(dialect, view)}` : `${dialect.schema ?? 'acta'}.${view}`;
 }
 
 // The button is icon-only, so this hint carries the whole feature: what it copies.
@@ -47,7 +57,7 @@ function select(dialect: SqlDialect, view: string, predicates: Predicate[], orde
       ? ''
       : ' WHERE ' +
         predicates.map((p) => ('raw' in p ? p.raw : `${p.column} ${p.op} ${sqlLiteral(p.value)}`)).join(' AND ');
-  const from = `${dialect.schema ?? 'acta'}.${view}`;
+  const from = qualifiedView(dialect, view);
   // SQL Server has no trailing LIMIT; the row cap rides in the projection as TOP. pg / sqlite / unknown
   // all take LIMIT.
   return dialect.provider === 'mssql'
@@ -96,14 +106,13 @@ export interface EventsSqlFilters {
 
 export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
-  const schema = dialect.schema ?? 'acta';
   if (text(filters.namespace)) predicates.push({ column: 'namespace_name', op: '=', value: name(filters.namespace) });
   if (text(filters.eventCode)) predicates.push({ column: 'event', op: '=', value: text(filters.eventCode) });
   if (text(filters.entity)) predicates.push({ column: 'entity', op: '=', value: text(filters.entity) });
   // events_view stores no job ref: a job's events are the job subject's, its id looked up by ref.
   if (text(filters.jobRef)) {
     predicates.push({
-      raw: `entity = 'job' AND entity_id = (SELECT job_id FROM ${schema}.jobs_view WHERE job_ref = ${sqlLiteral(storedJobRef(text(filters.jobRef)))})`
+      raw: `entity = 'job' AND entity_id = (SELECT job_id FROM ${qualifiedView(dialect, 'jobs_view')} WHERE job_ref = ${sqlLiteral(storedJobRef(text(filters.jobRef)))})`
     });
   }
   if (text(filters.tenantName)) predicates.push({ column: 'tenant_name', op: '=', value: name(filters.tenantName) });
@@ -138,10 +147,10 @@ export function calendarsListSql(filters: CalendarsSqlFilters, dialect: SqlDiale
   if (text(filters.role)) predicates.push({ column: 'calendar_role', op: '=', value: text(filters.role) });
   if (text(filters.nameContains)) predicates.push({ raw: `calendar_name LIKE ${sqlLiteral('%' + name(filters.nameContains) + '%')}` });
   if (text(filters.latestStatus)) {
-    const view = `${dialect.schema ?? 'acta'}.calendars_view`;
+    const outer = viewName(dialect, 'calendars_view');
     predicates.push({ column: 'calendar_status', op: '=', value: text(filters.latestStatus) });
     predicates.push({
-      raw: `version = (SELECT MAX(v.version) FROM ${view} v WHERE v.namespace_name = calendars_view.namespace_name AND v.calendar_name = calendars_view.calendar_name)`
+      raw: `version = (SELECT MAX(v.version) FROM ${qualifiedView(dialect, 'calendars_view')} v WHERE v.namespace_name = ${outer}.namespace_name AND v.calendar_name = ${outer}.calendar_name)`
     });
   }
   return select(dialect, 'calendars_view', predicates, 'namespace_name, calendar_name, version DESC');

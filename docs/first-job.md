@@ -286,11 +286,11 @@ caller giving up on waiting, never the job giving up on the work.
 
 ## Inspect the row
 
-The state is rows, so SQL reads it. In SQL a ref is the UUID itself; [Common queries](./operator-guide.md#common-queries) shows the form a lookup by ref takes on each provider. Open `acta-local.db` in any SQLite client; on PostgreSQL or SQL Server the views sit in the configured schema, so the same query reads `acta.jobs_view`:
+The state is rows, so SQL reads it. In SQL a ref is the UUID itself; [Common queries](./operator-guide.md#common-queries) shows the form a lookup by ref takes on each provider. Open `acta-local.db` in any SQLite client, where the schema is the prefix of each name; on PostgreSQL or SQL Server the views sit in the configured schema, so the same query reads `acta.jobs_view`:
 
 ```sql
 SELECT job_ref, definition_name, job_status, failure_count, created_at_utc
-FROM   jobs_view
+FROM   acta_jobs_view
 WHERE  namespace_name = 'shipping'
 ORDER  BY created_at_utc DESC;
 ```

@@ -89,7 +89,7 @@ public sealed class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var ct = TestContext.Current.CancellationToken;
         await using var connection = await Db.OpenConnectionAsync(ct);
         await using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT * FROM {Db.Schema}.{view} WHERE 1 = 0";
+        command.CommandText = $"SELECT * FROM {Db.Qualify(view)} WHERE 1 = 0";
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var actual = string.Join(' ', Enumerable.Range(0, reader.FieldCount).Select(reader.GetName));

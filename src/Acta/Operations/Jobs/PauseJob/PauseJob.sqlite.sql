@@ -71,13 +71,13 @@ WHERE
             s.from_status IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
             AND paused.job_status_code = 30 /* JobStatusCode.Paused */
-            AND paused.lane_id = jobs_state.lane_id
+            AND paused.lane_id = {{schema}}_jobs_state.lane_id
     )
     AND NOT EXISTS (
         SELECT 1
         FROM {{schema}}.jobs_state o
         WHERE
-            o.lane_id = jobs_state.lane_id
+            o.lane_id = {{schema}}_jobs_state.lane_id
             AND o.lane_id IS NOT NULL
             AND o.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
@@ -88,7 +88,7 @@ WHERE
         SELECT m.job_id
         FROM {{schema}}.jobs_state m
         WHERE
-            m.lane_id = jobs_state.lane_id
+            m.lane_id = {{schema}}_jobs_state.lane_id
             AND m.lane_id IS NOT NULL
             AND m.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,

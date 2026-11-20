@@ -305,7 +305,7 @@ internal sealed class DbFrom<TEntity>
         }
     }
 
-    private string QualifyTable() => $"{_session.Schema}.{_entity.TableName}";
+    private string QualifyTable() => SchemaQualifier.Qualify(_session.Provider, _session.Schema, _entity.TableName);
 
     private static string QuoteCol(string col) => col;
 }

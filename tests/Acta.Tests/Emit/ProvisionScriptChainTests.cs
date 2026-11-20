@@ -81,9 +81,9 @@ public sealed class ProvisionScriptChainTests : IDisposable
 
         await using var probe = conn.CreateCommand();
         probe.CommandText =
-            "SELECT (SELECT COUNT(*) FROM main.migrations), "
-            + "(SELECT COUNT(*) FROM main.widgets), "
-            + "(SELECT COUNT(*) FROM main.jobs)";
+            "SELECT (SELECT COUNT(*) FROM main.acta_migrations), "
+            + "(SELECT COUNT(*) FROM main.acta_widgets), "
+            + "(SELECT COUNT(*) FROM main.acta_jobs)";
         await using var reader = await probe.ExecuteReaderAsync(ct);
         Assert.True(await reader.ReadAsync(ct));
         Assert.Equal(shipped.Count + 1, reader.GetInt64(0));

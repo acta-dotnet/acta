@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Operations.Execution;
 using Acta.Tests.Conformance.Sqlite.Testing;
+using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -23,7 +24,12 @@ public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
         var plan = (await PlansAsync(ns, ct, "CREATE TEMP TABLE _reclaim_jobs")).Single();
 
         var text = "Reclaim plan:\n" + string.Join("\n", plan);
-        Assert.True(plan.Any(row => row.Contains("INDEX ix_jobs_state_worker_inflight", StringComparison.Ordinal)), text);
+        Assert.True(
+            plan.Any(row =>
+                row.Contains($"INDEX {SqliteIntegrationSchema.InFile("ix_jobs_state_worker_inflight")}", StringComparison.Ordinal)
+            ),
+            text
+        );
         Assert.False(plan.Any(row => row.StartsWith("SCAN r", StringComparison.Ordinal)), text);
     }
 
@@ -43,7 +49,10 @@ public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
             Assert.True(
                 plan.Any(row =>
                     row.StartsWith("SEARCH l USING", StringComparison.Ordinal)
-                    && row.Contains("INDEX ix_lanes_namespace (namespace_id=? AND lane_id", StringComparison.Ordinal)
+                    && row.Contains(
+                        $"INDEX {SqliteIntegrationSchema.InFile("ix_lanes_namespace")} (namespace_id=? AND lane_id",
+                        StringComparison.Ordinal
+                    )
                 ),
                 text
             );
@@ -87,7 +96,7 @@ public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
 
     private static IEnumerable<string> Statements()
     {
-        var sql = new SqlResourceCatalog("sqlite", "main").Load("ReclaimStuckJobs");
+        var sql = new SqlResourceCatalog("sqlite", IntegrationConfig.TestSchemaName).Load("ReclaimStuckJobs");
 
         // A statement ends at a semicolon that ends its line; a comment may carry one mid-line.
         return Regex.Split(sql, @";[ \t]*\r?\n").Select(StripLeadingComments).Where(s => s.Length > 0);

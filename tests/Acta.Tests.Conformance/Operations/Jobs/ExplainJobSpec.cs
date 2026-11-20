@@ -59,7 +59,7 @@ public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         // One statement stamps every row with the same created_at_utc, so the name orders them, the highest the newest.
         var rows = Enumerable.Range(0, ExplainJobHandler.StepLimit + 2).Select(i => $"({job.JobId}, 's{i:D3}', 10, 0)");
         await WriteAsync(
-            [$"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, result_format_id) VALUES {string.Join(", ", rows)}"],
+            [$"INSERT INTO {Db.Qualify("steps")} (job_id, step_name, step_status_code, result_format_id) VALUES {string.Join(", ", rows)}"],
             ct
         );
 
@@ -85,8 +85,8 @@ public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
         await WriteAsync(
             [
-                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, result_format_id) VALUES ({job.JobId}, 'charge', 10, 0)",
-                $"INSERT INTO {Db.Schema}.checkpoints (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code) VALUES ({job.JobId}, 20, 'approval', 10)",
+                $"INSERT INTO {Db.Qualify("steps")} (job_id, step_name, step_status_code, result_format_id) VALUES ({job.JobId}, 'charge', 10, 0)",
+                $"INSERT INTO {Db.Qualify("checkpoints")} (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code) VALUES ({job.JobId}, 20, 'approval', 10)",
             ],
             ct
         );
@@ -108,8 +108,8 @@ public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, Job
                             : ((byte)StepStatusCode.Pending, (byte)CheckpointStatusCode.Pending);
                     await WriteAsync(
                         [
-                            $"UPDATE {Db.Schema}.steps SET step_status_code = {step} WHERE job_id = {job.JobId}",
-                            $"UPDATE {Db.Schema}.checkpoints SET checkpoint_status_code = {checkpoint} WHERE job_id = {job.JobId}",
+                            $"UPDATE {Db.Qualify("steps")} SET step_status_code = {step} WHERE job_id = {job.JobId}",
+                            $"UPDATE {Db.Qualify("checkpoints")} SET checkpoint_status_code = {checkpoint} WHERE job_id = {job.JobId}",
                         ],
                         ct
                     );

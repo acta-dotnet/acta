@@ -64,6 +64,14 @@ public sealed class DropSchemaSpec : IntegrationSpec<ConformanceFixture>
                 listed.Add(reader.GetString(0));
             }
         });
-        return [.. objects.Where(listed.Contains)];
+        // SQLite lists an object by its own name, the schema's prefix before the model's.
+        return
+        [
+            .. objects.Where(o =>
+                listed.Contains(
+                    Fixture.DialectToken == "sqlite" ? SchemaQualifier.Render($"{SchemaQualifier.Token}_{o}", "sqlite", schema) : o
+                )
+            ),
+        ];
     }
 }

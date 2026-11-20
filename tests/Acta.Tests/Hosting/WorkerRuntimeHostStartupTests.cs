@@ -76,7 +76,7 @@ public sealed class WorkerRuntimeHostStartupTests
 
         try
         {
-            await SqliteMigrations.ApplyAsync(connectionString, ct);
+            await SqliteMigrations.ApplyAsync(connectionString, cancellationToken: ct);
             var services = new ServiceCollection();
             services.UseActa(j =>
             {
@@ -178,7 +178,7 @@ public sealed class WorkerRuntimeHostStartupTests
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            $"SELECT COUNT(*) FROM main.{table} t JOIN main.namespaces n ON n.namespace_id = t.namespace_id WHERE n.namespace_name = @namespace;";
+            $"SELECT COUNT(*) FROM main.acta_{table} t JOIN main.acta_namespaces n ON n.namespace_id = t.namespace_id WHERE n.namespace_name = @namespace;";
         command.Parameters.AddWithValue("@namespace", WorkerNamespace);
         return Convert.ToInt32(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
@@ -189,7 +189,7 @@ public sealed class WorkerRuntimeHostStartupTests
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            "SELECT w.worker_status_code FROM main.workers w JOIN main.namespaces n ON n.namespace_id = w.namespace_id"
+            "SELECT w.worker_status_code FROM main.acta_workers w JOIN main.acta_namespaces n ON n.namespace_id = w.namespace_id"
             + " WHERE n.namespace_name = @namespace;";
         command.Parameters.AddWithValue("@namespace", WorkerNamespace);
         var status = await command.ExecuteScalarAsync(ct);

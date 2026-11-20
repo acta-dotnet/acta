@@ -6,8 +6,8 @@ using Microsoft.Data.Sqlite;
 namespace Acta.Tests.Conformance.Sqlite.Testing;
 
 /// <summary>
-/// SQLite side of the schema bootstrap hooks. SQLite has no schema container, so a probe is its own
-/// temp database file rather than a schema inside the shared one.
+/// SQLite side of the schema bootstrap hooks. A probe is its own temp database file rather than a
+/// prefix inside the shared one, so it starts empty.
 /// </summary>
 public sealed partial class SqliteConformanceFixture
 {
@@ -23,9 +23,8 @@ public sealed partial class SqliteConformanceFixture
         return connection;
     }
 
-    // SQLite has one schema, main, which every apply targets.
     public Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        SqliteMigrations.ApplyAsync(connectionString, ct);
+        SqliteMigrations.ApplyAsync(connectionString, schemaName, ct);
 
     public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history)
     {
@@ -42,14 +41,15 @@ public sealed partial class SqliteConformanceFixture
             // table the real migration runner creates.
             await using (var ledger = conn.CreateCommand())
             {
-                ledger.CommandText = MigrationLedgerDdl.For(DialectToken, "main");
+                ledger.CommandText = MigrationLedgerDdl.For(DialectToken, IntegrationConfig.TestSchemaName);
                 await ledger.ExecuteNonQueryAsync();
             }
 
             foreach (var name in history)
             {
                 await using var insert = conn.CreateCommand();
-                insert.CommandText = "INSERT INTO main.migrations (name) VALUES (@name);";
+                insert.CommandText =
+                    $"INSERT INTO {SchemaQualifier.Qualify(DialectToken, IntegrationConfig.TestSchemaName, "migrations")} (name) VALUES (@name);";
                 insert.Parameters.AddWithValue("@name", name);
                 await insert.ExecuteNonQueryAsync();
             }
@@ -62,7 +62,7 @@ public sealed partial class SqliteConformanceFixture
     {
         public string ConnectionString => connectionString;
 
-        public string SchemaName => "main";
+        public string SchemaName => IntegrationConfig.TestSchemaName;
 
         public ValueTask DisposeAsync()
         {

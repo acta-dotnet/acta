@@ -119,7 +119,8 @@ internal static partial class LedgerValidation
     private static async Task<TrialLedger> RunAsync(OwnedProvider trial, bool quiesced, bool faultMustLand, CancellationToken ct)
     {
         await using var connection = await trial.OpenAsync(ct);
-        var prefix = trial.Provider == "sqlite" ? "main." : trial.Schema + ".";
+        // {s} stands where a table's name follows, so it is the qualifier rendered without the name.
+        var prefix = trial.Table("");
         var now = trial.Provider switch
         {
             "sqlite" => "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)",

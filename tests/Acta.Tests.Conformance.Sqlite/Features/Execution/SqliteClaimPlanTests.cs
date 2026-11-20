@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Operations.Execution;
 using Acta.Tests.Conformance.Sqlite.Testing;
+using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -14,7 +15,8 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Execution;
 /// </summary>
 public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
 {
-    private const string BandSeek = "USING COVERING INDEX ix_jobs_state_claim_ready (namespace_id=? AND job_priority_code=?";
+    private static readonly string BandSeek =
+        $"USING COVERING INDEX {SqliteIntegrationSchema.InFile("ix_jobs_state_claim_ready")} (namespace_id=? AND job_priority_code=?";
 
     [Fact(
         DisplayName = "ClaimJobs searches ix_jobs_state_claim_ready per priority band without a sort, and its horizon searches each band's head"
@@ -64,7 +66,7 @@ public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
 
     private static IEnumerable<string> Statements()
     {
-        var sql = new SqlResourceCatalog("sqlite", "main").Load("ClaimJobs");
+        var sql = new SqlResourceCatalog("sqlite", IntegrationConfig.TestSchemaName).Load("ClaimJobs");
 
         // A statement ends at a semicolon that ends its line; a comment may carry one mid-line.
         return Regex.Split(sql, @";[ \t]*\r?\n").Select(StripLeadingComments).Where(s => s.Length > 0);

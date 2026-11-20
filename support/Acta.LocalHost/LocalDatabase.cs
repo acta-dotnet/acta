@@ -47,6 +47,10 @@ public static class LocalDatabase
             jobs.UseSqlite(sqlite =>
             {
                 sqlite.ConnectionString = connectionString;
+                if (schema is not null)
+                {
+                    sqlite.Schema = schema;
+                }
                 sqlite.MigrateOnStartup = applyMigrations;
             });
         }
@@ -120,6 +124,19 @@ public static class LocalDatabase
         static InvalidOperationException NoConnection(string label, string envVar) =>
             new($"No {label} connection configured. Set the {envVar} environment variable.");
     }
+
+    /// <summary>
+    /// The name a statement gives Acta's table or view <paramref name="name"/> in <paramref name="schema"/>:
+    /// <c>acta.jobs_view</c> on the servers, <c>main.acta_jobs_view</c> on SQLite, where the schema is a prefix.
+    /// </summary>
+    public static string Qualify(string provider, string schema, string name) =>
+        SchemaQualifier.Qualify(DialectToken(provider), schema, name);
+
+    /// <summary>The dialect token of <paramref name="provider"/>, whichever alias names it.</summary>
+    internal static string DialectToken(string provider) =>
+        IsSqlite(provider) ? "sqlite"
+        : IsSqlServer(provider) ? "mssql"
+        : "pg";
 
     /// <summary>True for the SQLite provider aliases.</summary>
     public static bool IsSqlite(string provider) =>

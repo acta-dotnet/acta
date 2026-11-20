@@ -8,20 +8,21 @@ public static class SqliteActaExtensions
 {
     /// <summary>
     /// Selects SQLite as Acta's durable provider. SQLite has no stored routines, so every command runs as inline SQL
-    /// and bulk shapes are bound as JSON. The schema is always <c>main</c>, the connection's own database; a
-    /// <paramref name="configure"/> that sets another schema fails at startup.
+    /// and bulk shapes are bound as JSON. SQLite has no schemas either, so the schema is the prefix of every table, index
+    /// and view Acta creates in the connection's own database: <c>acta_jobs</c> by default, <c>billing_jobs</c> for a
+    /// schema of <c>billing</c>. A schema that begins with <c>sqlite</c> fails at startup, since SQLite reserves the prefix.
     /// </summary>
     public static IActaBuilder UseSqlite(this IActaBuilder builder, Action<SqlProviderOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
         return ActaProviderRegistration.Use<SqliteDialect, SqliteSchemaMigrator>(builder, DbProvider.Sqlite, o =>
         {
-            o.Schema = "main";
             configure(o);
-            if (!string.Equals(o.Schema, "main", StringComparison.Ordinal))
+            if (o.Schema.StartsWith("sqlite", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
-                    "SqlProviderOptions.Schema must be 'main' on SQLite; attached databases are not supported."
+                    $"SqlProviderOptions.Schema must not begin with 'sqlite' on SQLite: the schema is the prefix of every Acta "
+                        + $"table name ('{o.Schema}_jobs'), and SQLite reserves names beginning 'sqlite_' for its own tables."
                 );
             }
         });

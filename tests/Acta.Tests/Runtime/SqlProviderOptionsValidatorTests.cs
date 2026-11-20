@@ -116,19 +116,27 @@ public sealed class SqlProviderOptionsValidatorTests
     }
 
     [Fact]
-    public void UseSqlite_rejects_a_schema_other_than_main()
+    public void UseSqlite_rejects_a_schema_that_begins_with_sqlite()
     {
-        using var provider = SqliteHost(static o => o.Schema = "x");
+        using var provider = SqliteHost(static o => o.Schema = "sqlite_jobs");
 
         var ex = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<IOptions<SqlProviderOptions>>().Value);
-        Assert.Contains("main", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("sqlite_", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void UseSqlite_defaults_the_schema_to_main()
+    public void UseSqlite_takes_another_schema_as_another_prefix()
+    {
+        using var provider = SqliteHost(static o => o.Schema = "billing");
+
+        Assert.Equal("billing", provider.GetRequiredService<SqlProviderOptions>().Schema);
+    }
+
+    [Fact]
+    public void UseSqlite_defaults_the_schema_to_acta()
     {
         using var provider = SqliteHost(static _ => { });
 
-        Assert.Equal("main", provider.GetRequiredService<SqlProviderOptions>().Schema);
+        Assert.Equal("acta", provider.GetRequiredService<SqlProviderOptions>().Schema);
     }
 }

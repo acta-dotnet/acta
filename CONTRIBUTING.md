@@ -654,7 +654,7 @@ The boundary has three sides, and only two of them are inside it:
   - **The `int`/`long` filter members left on the `List*Query` records**, which the HTTP edge resolves refs
     into and never binds from the wire; a job or worker filter takes a `JobLookup` or a `WorkerRef` instead.
 - **The SQL operator views are outside.** `acta.jobs_view`, `acta.events_view`, `acta.workers_view`,
-  `acta.alerts_view` and their peers (`main.*` on SQLite) exist so a DBA can join the schema in a query
+  `acta.alerts_view` and their peers (`main.acta_*` on SQLite) exist so a DBA can join the schema in a query
   window; they keep the internal integer columns because joining on them is the point. They project the
   ref columns alongside, so a view can answer both questions, but they are not a wire surface and no
   gate treats them as one.

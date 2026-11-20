@@ -36,10 +36,10 @@ WHERE
         SELECT 1
         FROM {{schema}}.jobs_state r
         WHERE
-            r.job_id = locks.job_id
+            r.job_id = {{schema}}_locks.job_id
             AND r.leased_by_worker_id IN (SELECT g.value FROM json_each(@p_worker_ids) g)
             AND r.job_status_code = 50 /* JobStatusCode.Executing */
-            AND (locks.lock_key LIKE r.namespace_id || '.lock.%' OR locks.lock_key LIKE r.namespace_id || '.sem.%')
+            AND ({{schema}}_locks.lock_key LIKE r.namespace_id || '.lock.%' OR {{schema}}_locks.lock_key LIKE r.namespace_id || '.sem.%')
     );
 
 -- Its leases lapse now, so the recovery pass that follows reclaims the jobs. A lease write bumps no version.

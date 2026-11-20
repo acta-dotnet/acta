@@ -103,16 +103,11 @@ A short-lived process beside the host is fine: the control CLI's verbs
 (`<app> jobs status`, `explain`, `signal`, `cancel`, ...) and a SQL client. A control verb is one short write
 transaction the host's writes wait for, and the host sees its effect on its next poll.
 
-On SQLite, Acta's tables share `main` with the application's: the schema must be `main`, so there is no
-`acta` schema to keep them apart. The provisioning script creates each table only if it is missing, so an
-application table that already holds one of Acta's names (`migrations`, `jobs`, `events`, `tags`,
-`tenants`, ...) stays in place, and what follows depends on its columns. A `tenants` table without Acta's
-columns stops provisioning at the first index on them. A `tags` table without them lets provisioning
-succeed, and Acta's first tag write fails. An ORM's `migrations` table, such as TypeORM's, fails the
-script, and once it holds rows the refusal claims a newer Acta release upgraded the database. A table whose
-columns happen to match is shared with no error at all. Keep Acta's table names free in that file. A separate
-database file for Acta avoids the clash, but then an enqueue can no longer share a transaction with the
-application's writes.
+On SQLite, Acta's tables share `main` with the application's. SQLite has no schemas, so the schema is the
+prefix of every table, index and view Acta creates there (`acta_jobs`, `acta_migrations`), and another schema
+is another prefix. The provisioning script creates each table only if it is missing, so an application table
+that already holds one of those names stays in place, and what follows depends on its columns. Keep them free
+in that file.
 
 On SQLite, a `JobId` returned by a transactional enqueue that then rolls back is handed out again.
 `sqlite_sequence`, which backs `AUTOINCREMENT`, is an ordinary table, so the counter is rolled back with

@@ -227,7 +227,7 @@ WHERE
         SELECT 1
         FROM {{schema}}.jobs_state o
         WHERE
-            o.lane_id = jobs_state.lane_id
+            o.lane_id = {{schema}}_jobs_state.lane_id
             AND o.lane_id IS NOT NULL
             AND o.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,

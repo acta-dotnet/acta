@@ -66,7 +66,7 @@ public sealed class ListJobStepsSpec : ActaRuntimeTestBase<ConformanceFixture, J
         {
             await using var cmd = connection.CreateCommand();
             cmd.CommandText =
-                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, result_format_id) VALUES ({jobId}, 'a', 10, 0), ({jobId}, 'b', 10, 0), ({jobId}, 'c', 10, 0)";
+                $"INSERT INTO {Db.Qualify("steps")} (job_id, step_name, step_status_code, result_format_id) VALUES ({jobId}, 'a', 10, 0), ({jobId}, 'b', 10, 0), ({jobId}, 'c', 10, 0)";
             Assert.Equal(3, await cmd.ExecuteNonQueryAsync(ct));
         }
 

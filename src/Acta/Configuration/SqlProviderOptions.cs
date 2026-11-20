@@ -13,7 +13,8 @@ public sealed class SqlProviderOptions
 
     /// <summary>
     /// Schema name in which Acta tables, indexes, views, and sequences live. Default <c>acta</c>;
-    /// override pre-install for co-deployment-per-DB scenarios.
+    /// override pre-install for co-deployment-per-DB scenarios. SQLite has no schemas, so there it is the prefix of
+    /// every name Acta creates in the database file (<c>acta_jobs</c>).
     /// </summary>
     public string Schema { get; set; } = "acta";
 

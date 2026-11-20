@@ -15,6 +15,16 @@ internal sealed class OwnedProvider : IAsyncDisposable
     public string Provider { get; }
     public string ConnectionString { get; private set; } = "";
     public string Schema { get; } = "b_" + Guid.NewGuid().ToString("N");
+
+    /// <summary>
+    /// The schema the trial's ledger is in: <see cref="Schema"/> on a server, and on SQLite, where a trial has a file of its
+    /// own, the default prefix the runtime host leaves in place.
+    /// </summary>
+    public string LedgerSchema => Provider == "sqlite" ? new SqlProviderOptions().Schema : Schema;
+
+    /// <summary>Acta's table or view <paramref name="name"/> as a statement on this trial names it.</summary>
+    public string Table(string name) => SchemaQualifier.Qualify(Provider, LedgerSchema, name);
+
     public string? ContainerId { get; private set; }
     public string Ownership { get; } = Guid.NewGuid().ToString("N");
     public bool SettingsVerified { get; private set; }
@@ -624,11 +634,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
     public async Task<Dictionary<string, string>> CaptureSettingsAsync(CancellationToken ct)
     {
         await using var c = await OpenAsync(ct);
-        var settings = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["provider"] = Provider,
-            ["schema"] = Provider == "sqlite" ? "main" : Schema,
-        };
+        var settings = new Dictionary<string, string>(StringComparer.Ordinal) { ["provider"] = Provider, ["schema"] = LedgerSchema };
         settings["provisioning"] =
             ContainerId is null ? "owned_sqlite_file"
             : UsesComposeServer ? "existing_acta_docker_owned_database"

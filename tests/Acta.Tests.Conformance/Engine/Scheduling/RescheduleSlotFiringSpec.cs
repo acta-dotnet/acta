@@ -209,7 +209,7 @@ public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFi
         {
             cmd.Transaction = suspension;
             cmd.CommandText =
-                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = 20 /* NamespaceStatusCode.Suspended */ WHERE namespace_id = {TestNamespaceId}";
+                $"UPDATE {Db.Qualify("namespaces")} SET namespace_status_code = 20 /* NamespaceStatusCode.Suspended */ WHERE namespace_id = {TestNamespaceId}";
             Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
         }
 
@@ -237,8 +237,8 @@ public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFi
             cmd.Transaction = blocker;
             cmd.CommandText =
                 Db.Provider == DbProvider.SqlServer
-                    ? $"SELECT job_id FROM {Db.Schema}.jobs_state WITH (UPDLOCK, ROWLOCK) WHERE job_id = {slotId}"
-                    : $"SELECT job_id FROM {Db.Schema}.jobs_state WHERE job_id = {slotId} FOR UPDATE";
+                    ? $"SELECT job_id FROM {Db.Qualify("jobs_state")} WITH (UPDLOCK, ROWLOCK) WHERE job_id = {slotId}"
+                    : $"SELECT job_id FROM {Db.Qualify("jobs_state")} WHERE job_id = {slotId} FOR UPDATE";
             Assert.NotNull(await cmd.ExecuteScalarAsync(ct));
         }
 
