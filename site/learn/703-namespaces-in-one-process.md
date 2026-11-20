@@ -42,7 +42,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 ## 2. Name the namespace when you enqueue
 
-A request by name targets one namespace. An enqueue by type could not tell two namespaces with the same job apart.
+A request by name targets one namespace. An enqueue by type has to name the namespace in its options when two namespaces run the same job.
 
 The lines that matter:
 
@@ -58,8 +58,8 @@ In `namespaces-in-one-process.cs` (excerpt):
 ```csharp
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// A raw request targets a namespace directly; typed enqueue can't disambiguate two namespaces that
-// share the same job.
+// A raw request targets a namespace directly. A typed enqueue of a job that two namespaces share has to name
+// the namespace in its options.
 for (var i = 1; i <= 3; i++)
 {
     await jobs.EnqueueAsync(

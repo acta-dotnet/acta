@@ -603,7 +603,7 @@ Minimum guaranteed surface categories:
 * Transition helpers.
 * Alerts.
 
-A child is started from its input, `ctx.CallChildAsync("ship", order, ct)`, which finds the job by the input's type, or from the manifest's generated call, `ctx.CallChildAsync("ship", ShippingJobs.Ship(order), ct)`, which names the job and, for a job with a result, answers `JobOutcome<TResult>` with no type argument. `EnqueueChildAsync` takes both forms too. Use the call when two jobs share an input type.
+A child is started from its input, `ctx.CallChildAsync("ship", order, ct)`, which finds the job by the input's type, or from the manifest's generated call, `ctx.CallChildAsync("ship", ShippingJobs.Ship(order), ct)`, which names the job and, for a job with a result, answers `JobOutcome<TResult>` with no type argument. `EnqueueChildAsync` takes both forms too. Use the call when two jobs share an input type, and name the namespace as well when one job is registered in several.
 
 ### Child-job groups: Map and WaitChildren
 

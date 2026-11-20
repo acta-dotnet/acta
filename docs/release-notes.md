@@ -32,6 +32,7 @@ Not yet released.
 
 ### Fixes
 
+- The error for an input type that several jobs share names the fix that works: the job's generated call, or the namespace when one job is registered in several. It advised the namespace even where every candidate was in the same one.
 - SQLite's migration history stores when a migration was applied as an integer, as every other instant on SQLite is stored. It was text.
 - Restarting a child no longer costs its parent retry attempts. The restart puts the parent's wait for that child back to pending, so the parent's next replay waits for the child to land again, uncharged, where it read a result the restart had cleared, threw, and was retried on its budget; a parent declared with `MaxAttempts = 1` failed for good. An expired wait stays expired, and a bounded wait keeps its deadline: a child restarted after that deadline has passed is timed out and cancelled when the parent next runs, as an unfinished child past its deadline always was.
 - Retention keeps a finished child until its parent is due. A child used to expire on its own date once its parent had finished, and children finish first, so a parent that waited a month on an approval lost its children a month before it went: its page showed none, and a restart ran them again. A child is now kept until its parent has finished and the parent's own retention is due, and a tree drains from the leaves up as before. A child declared with a shorter retention than its parent stays as long as the parent. The rule reads the direct parent only.

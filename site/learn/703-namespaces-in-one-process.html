@@ -93,11 +93,11 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Name the namespace when you enqueue</h2>
-<p>A request by name targets one namespace. An enqueue by type could not tell two namespaces with the same job apart.</p>
+<p>A request by name targets one namespace. An enqueue by type has to name the namespace in its options when two namespaces run the same job.</p>
 <figure class="listing"><figcaption><span class="file">namespaces-in-one-process.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
-<span class="c">// A raw request targets a namespace directly; typed enqueue can't disambiguate two namespaces that</span>
-<span class="c">// share the same job.</span>
+<span class="c">// A raw request targets a namespace directly. A typed enqueue of a job that two namespaces share has to name</span>
+<span class="c">// the namespace in its options.</span>
 <span class="k">for</span> (<span class="k">var</span> i = 1; i &lt;= 3; i++)
 {
 <span class="hl">    <span class="k">await</span> jobs.EnqueueAsync(</span>
@@ -159,13 +159,13 @@ builder.Services.UseActa(j =&gt;
 
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
-<span class="c">// A raw request targets a namespace directly; typed enqueue can't disambiguate two namespaces that</span>
-<span class="c">// share the same job.</span>
+<span class="c">// A raw request targets a namespace directly. A typed enqueue of a job that two namespaces share has to name</span>
+<span class="c">// the namespace in its options.</span>
 <span class="k">for</span> (<span class="k">var</span> i = 1; i &lt;= 3; i++)
 {
     <span class="c">// learn: 2. Name the namespace when you enqueue</span>
-    <span class="c">// A request by name targets one namespace. An enqueue by type could not tell two namespaces with the same job</span>
-    <span class="c">// apart.</span>
+    <span class="c">// A request by name targets one namespace. An enqueue by type has to name the namespace in its options when</span>
+    <span class="c">// two namespaces run the same job.</span>
 <span class="hl">    <span class="k">await</span> jobs.EnqueueAsync(</span>
 <span class="hl">        <span class="k">new</span> EnqueueJobRequest(<span class="s">&quot;orders-eu&quot;</span>, <span class="s">&quot;process-order&quot;</span>, JobPayload.Json(<span class="k">new</span> ProcessOrder(<span class="s">$&quot;EU-{i}&quot;</span>))),</span>
 <span class="hl">        CancellationToken.None</span>

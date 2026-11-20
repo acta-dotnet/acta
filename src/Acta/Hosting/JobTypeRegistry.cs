@@ -5,8 +5,8 @@ namespace Acta;
 /// <see cref="IJobs.EnqueueAsync{TInput}(TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> and
 /// <see cref="IJobs.CallAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/> facade. Built once at <see cref="ActaServiceCollectionExtensions.UseActa"/>
 /// from the declared catalogs (Reference and Run); the raw <see cref="EnqueueJobRequest"/> path carries the namespace
-/// and name and needs no index. When one type is registered under several namespaces or appears as <c>NoInput</c> for
-/// several jobs in one, <see cref="Resolve"/> reports the ambiguity and points the caller at the namespace option or the raw path.
+/// and name and needs no index. When one type is the input of several registered jobs, <see cref="Resolve"/> reports the
+/// ambiguity and points the caller at the job's generated call, which names the job.
 /// </summary>
 internal sealed class JobTypeRegistry
 {
@@ -80,10 +80,24 @@ internal sealed class JobTypeRegistry
 
         if (routes.Count > 1)
         {
+            var ns = routes[0].Namespace;
+            if (routes.All(r => string.Equals(r.Namespace, ns, StringComparison.Ordinal)))
+            {
+                throw AmbiguousWithinNamespace(inputType, ns, routes);
+            }
+
             var candidates = string.Join(", ", routes.Select(r => $"{r.Namespace}/{r.JobName}"));
+            // A job registered in several namespaces is not picked by its generated call alone: only the namespace picks it.
+            var oneJobInSeveral = routes.GroupBy(r => r.JobName, StringComparer.Ordinal).Any(g => g.Count() > 1);
             throw new InvalidOperationException(
-                $"Input type '{inputType.FullName}' maps to multiple jobs ({candidates}). Set "
-                    + "JobEnqueueOptions.JobNamespace to disambiguate, or use the raw EnqueueJobRequest path."
+                $"Input type '{inputType.FullName}' maps to multiple jobs ({candidates}). "
+                    + (
+                        oneJobInSeveral
+                            ? "Set JobEnqueueOptions.JobNamespace to pick one namespace, with the input or with the job's generated "
+                                + "call, or use the raw EnqueueJobRequest path."
+                            : "Enqueue with the job's generated call, which names the job. Otherwise set "
+                                + "JobEnqueueOptions.JobNamespace to pick one namespace, or use the raw EnqueueJobRequest path."
+                    )
             );
         }
 
@@ -93,7 +107,8 @@ internal sealed class JobTypeRegistry
     private static InvalidOperationException AmbiguousWithinNamespace(Type inputType, string ns, IReadOnlyList<JobRoute> scoped) =>
         new(
             $"Input type '{inputType.FullName}' maps to multiple jobs in namespace '{ns}' "
-                + $"({string.Join(", ", scoped.Select(r => r.JobName))}): typically several no-input jobs sharing "
-                + "NoInput. Enqueue these via the raw EnqueueJobRequest path, which names the job."
+                + $"({string.Join(", ", scoped.Select(r => r.JobName))})"
+                + (inputType == typeof(NoInput) ? ": several no-input jobs share NoInput" : "")
+                + ". Enqueue with the job's generated call, which names the job, or use the raw EnqueueJobRequest path."
         );
 }
