@@ -66,7 +66,7 @@ public static class SqliteMigrations
                 job_name TEXT NOT NULL,
                 input_format_id INTEGER NOT NULL,
                 input BLOB NULL,
-                deduplication_key TEXT NOT NULL,
+                deduplication_key TEXT NULL,
                 correlation_key TEXT NULL,
                 concurrency_key TEXT NULL,
                 lane_name TEXT NULL,

@@ -33,7 +33,8 @@ internal sealed class JobsOperations(
     PurgeJobHandler purgeJob,
     RaiseJobSignalHandler raiseJobSignal,
     ClearJobSignalHandler clearJobSignal,
-    ResetJobStateHandler resetJobState
+    ResetJobStateHandler resetJobState,
+    ListJobsByRefHandler listJobsByRef
 ) : IJobs
 {
     public Task<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
@@ -328,6 +329,16 @@ internal sealed class JobsOperations(
     /// <summary>A child enqueue of an explicit route, under its parent's fence like the typed one.</summary>
     internal Task<EnqueueJobResponse> EnqueueChildAsync(EnqueueJobRequest request, ExecutionFence parent, CancellationToken ct) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request, ParentFence: parent), ct);
+
+    /// <summary>The batch enqueue under the ref given at each request's position instead of a fresh one.</summary>
+    internal Task<EnqueueJobsResponse> EnqueueJobsAsync(
+        IReadOnlyList<EnqueueJobRequest> requests,
+        IReadOnlyList<Guid> jobRefs,
+        CancellationToken ct
+    ) => enqueueJobs.HandleAsync(new EnqueueJobsCommand(requests, JobRefs: jobRefs), ct);
+
+    internal Task<ListJobsByRefResponse> ListJobsByRefAsync(IReadOnlyList<Guid> jobRefs, CancellationToken ct) =>
+        listJobsByRef.HandleAsync(new ListJobsByRefQuery(jobRefs), ct);
 
     // A typed enqueue's handle carries the committed id, so each of its verbs is one round trip.
     private async Task<JobHandle> HandleAsync(EnqueueJobRequest request, CancellationToken ct)

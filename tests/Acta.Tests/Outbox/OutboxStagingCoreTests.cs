@@ -102,12 +102,12 @@ public sealed class OutboxStagingCoreTests
     }
 
     [Fact]
-    public void Stage_requires_a_deduplication_key()
+    public void Stage_takes_a_record_without_a_deduplication_key_and_mints_its_job_ref()
     {
-        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: null);
+        var row = OutboxStaging.Stage(new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: null));
 
-        var ex = Assert.Throws<ArgumentException>(() => OutboxStaging.Stage(request));
-        Assert.Contains("DeduplicationKey", ex.Message, StringComparison.Ordinal);
+        Assert.Null(row.DeduplicationKey);
+        Assert.Equal(7, row.JobRef.Version);
     }
 
     [Fact]

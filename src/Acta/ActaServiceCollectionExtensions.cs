@@ -149,6 +149,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResetJobStateHandler>();
         services.TryAddSingleton<GetJobIdByDeduplicationKeyHandler>();
         services.TryAddSingleton<GetJobIdByRefHandler>();
+        services.TryAddSingleton<ListJobsByRefHandler>();
         services.TryAddSingleton<GetJobIdBySlotHandler>();
         services.TryAddSingleton<RestartJobHandler>();
         services.TryAddSingleton<ResumeJobHandler>();

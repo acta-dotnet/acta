@@ -14,7 +14,7 @@ public readonly record struct OutboxSeed(
     string JobName,
     byte InputFormatId,
     byte[]? Input,
-    string DeduplicationKey,
+    string? DeduplicationKey,
     byte? PriorityCode,
     DateTime CreatedAtUtc,
     DateTime NextAttemptAtUtc,
@@ -37,10 +37,11 @@ public readonly record struct OutboxRowState(
 );
 
 /// <summary>A producer transaction a spec holds open, staging through the provider's extension until it ends.</summary>
-public sealed class OutboxProducer(DbConnection connection, DbTransaction transaction, Func<Acta.EnqueueJobRequest, Task> stage)
+public sealed class OutboxProducer(DbConnection connection, DbTransaction transaction, Func<Acta.EnqueueJobRequest, Task<JobRef>> stage)
     : IAsyncDisposable
 {
-    public Task StageAsync(Acta.EnqueueJobRequest request) => stage(request);
+    /// <summary>Stages one record and answers its job's ref, which the staging call returns before the transaction ends.</summary>
+    public Task<JobRef> StageAsync(Acta.EnqueueJobRequest request) => stage(request);
 
     public Task CommitAsync() => transaction.CommitAsync();
 
@@ -97,8 +98,13 @@ internal sealed class HookedJobSubmission
     public HookedJobSubmission(IServiceProvider services)
     {
         var session = new HookedSession(services.GetRequiredService<IDbSession>(), stem =>
-            FailInstead is { } make && stem.StartsWith("Enqueue", StringComparison.Ordinal) ? throw make() : Task.CompletedTask
-        );
+        {
+            if (stem == "ListJobsByRef")
+            {
+                HeldRefReads++;
+            }
+            return FailInstead is { } make && stem.StartsWith("Enqueue", StringComparison.Ordinal) ? throw make() : Task.CompletedTask;
+        });
         var dialect = services.GetRequiredService<ISqlDialect>();
         var wakeup = services.GetRequiredService<WorkerWakeupPublisher>();
         var options = services.GetRequiredService<IOptions<JobsOptions>>();
@@ -106,12 +112,16 @@ internal sealed class HookedJobSubmission
         Jobs = ActivatorUtilities.CreateInstance<JobsOperations>(
             services,
             enqueueJob,
-            new EnqueueJobsHandler(enqueueJob, session, dialect, wakeup, options)
+            new EnqueueJobsHandler(enqueueJob, session, dialect, wakeup, options),
+            new ListJobsByRefHandler(session, dialect)
         );
     }
 
     /// <summary>When set, invoked to obtain an exception to throw before the real enqueue runs.</summary>
     public Func<Exception>? FailInstead { get; set; }
+
+    /// <summary>How many times the relay read which of its refs the ledger holds, which it does only after a failed enqueue.</summary>
+    public int HeldRefReads { get; private set; }
 
     public JobsOperations Jobs { get; }
 }

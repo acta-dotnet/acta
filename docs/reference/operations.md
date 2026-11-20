@@ -114,6 +114,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetJobVariableOrDefault` | `IJobs.GetVariableOrDefaultAsync` | · | · | inline | · | `GetJobVariableOrDefaultSpec` |
 | `ListJobCheckpoints` | `IJobs.ListCheckpointsAsync` | `GET /jobs/{jobRef}/checkpoints` (`listJobCheckpoints`, `acta.read`) | · | inline | · | `ListJobCheckpointsSpec` |
 | `ListJobSteps` | `IJobs.ListStepsAsync` | `GET /jobs/{jobRef}/steps` (`listJobSteps`, `acta.read`) | · | inline | · | `ListJobStepsSpec` |
+| `ListJobsByRef` | · | · | · | inline | · | `ListJobsByRefSpec` |
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` (`pauseJob`, `acta.control`) | `pause` | inline | `events`, `jobs_state` | `PauseJobSpec` |
 | `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` (`purgeJob`, `acta.admin`) | · | inline | `alerts`, `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state`, `steps`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` (`reprioritizeJob`, `acta.control`) | · | inline | `events`, `jobs_state` | `ReprioritizeJobSpec` |

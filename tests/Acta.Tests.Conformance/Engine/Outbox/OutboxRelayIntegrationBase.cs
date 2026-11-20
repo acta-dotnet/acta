@@ -45,7 +45,7 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
     // A due producer row targeting the registered echo route in this test's namespace, staged in the past
     // so the claim predicate is satisfied without waiting.
     private protected OutboxSeed EchoRow(
-        string dedup,
+        string? dedup,
         string? jobName = null,
         string? jobNamespace = null,
         byte status = 10,

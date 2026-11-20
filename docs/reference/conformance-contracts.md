@@ -1007,6 +1007,11 @@
   - A no-input call schedules its own job, not the call as an input
   - A result call's schedule answers a typed handle
 
+### Each held ref answers its job's namespace and name, and an unheld ref is absent
+- **Contract:** ListJobsByRef answers one item per given ref a job holds, with that job's namespace and definition name, and none for a ref no job holds.
+- **Guarantees:**
+  - Held refs answer their job's namespace and name, and an unheld ref is absent
+
 ### Relative delay resolves on the DB clock; absolute run-at is preserved
 - **Contract:** Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant.
 - **Guarantees:**
@@ -1667,6 +1672,22 @@
   - A finalize failure after the target commit still leaves exactly one target job and cleans the source on retry
   - A retry after the source row is deleted never recreates it
   - Duplicate source rows for one key coalesce to a single target job and all delete
+
+### A staged record's ref is its job's ref, and a redelivery settles onto that job
+- **Contract:** The relay enqueues a staged record under its ref, and a record whose ref a job holds is removed as delivered or, for another job, quarantined.
+- **Guarantees:**
+  - The staging call returns the ref before the commit, and the relay enqueues the job under it
+  - A record delivered before the relay stopped short of removing it is delivered again as the same job
+  - A batch that mixes a delivered record with new ones settles the first and delivers the rest
+  - A record whose ref another job holds is quarantined with the reason, and the others are delivered
+  - A quarantined record keeps its ref through a requeue and is delivered under it
+  - A producer's own uuid of any version is accepted as the job's ref
+  - Records sharing a deduplication key become one job, and a later record's ref names no job
+  - A record whose first job was purged is enqueued again as a new job under the same ref
+  - A keyed record with tags delivered before a stop is answered deduplicated by its key, alone or in a batch
+  - A record carrying one job's key and another job's ref is deduplicated onto the first and leaves the second as it was
+  - Three keyed records delivered before a stop are answered deduplicated by their keys in one batch
+  - A batch of delivered and new records, keyed and keyless, settles the delivered and enqueues the new under their refs
 
 ### Threshold and contract failures quarantine in a tick that succeeds
 - **Contract:** The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately.
@@ -3115,6 +3136,7 @@
 | `ListJobCheckpoints` | yes | yes | yes |
 | `ListJobSteps` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
+| `ListJobsByRef` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
 | `ListPoisonAlertEvents` | yes | yes | yes |
 | `ListQuarantinedOutboxIds` | yes | yes | yes |

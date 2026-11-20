@@ -15,11 +15,13 @@ namespace Acta.Sqlite;
 public static class SqliteOutboxStagingExtensions
 {
     /// <summary>
-    /// Stages <paramref name="request"/> as one outbox row on this transaction, committed or rolled back with it. The
-    /// request needs a <see cref="EnqueueJobRequest.DeduplicationKey"/>, which names the job the relay enqueues, and no
-    /// parent; <paramref name="table"/> is the table the relay's source reads.
+    /// Stages <paramref name="request"/> as one outbox row on this transaction, committed or rolled back with it, and
+    /// returns the ref of the job the relay enqueues for it. The request takes no parent. A
+    /// <see cref="EnqueueJobRequest.DeduplicationKey"/> is optional and works as on a direct enqueue: when another job
+    /// holds the key, the record is deduplicated onto that job and the returned ref names no job.
+    /// <paramref name="table"/> is the table the relay's source reads.
     /// </summary>
-    public static Task AddToActaOutboxAsync(
+    public static Task<JobRef> AddToActaOutboxAsync(
         this SqliteTransaction transaction,
         EnqueueJobRequest request,
         string table = "acta_outbox",
@@ -33,7 +35,7 @@ public static class SqliteOutboxStagingExtensions
         return InsertAsync(transaction, connection, row, sql, cancellationToken);
     }
 
-    private static async Task InsertAsync(
+    private static async Task<JobRef> InsertAsync(
         DbTransaction transaction,
         DbConnection connection,
         OutboxStagingValues row,
@@ -53,7 +55,7 @@ public static class SqliteOutboxStagingExtensions
         p.Add(new SqliteParameter("@job_name", SqliteType.Text) { Value = row.JobName });
         p.Add(new SqliteParameter("@input_format_id", SqliteType.Integer) { Value = (long)row.InputFormatId });
         p.Add(new SqliteParameter("@input", SqliteType.Blob) { Value = (object?)row.Input ?? DBNull.Value });
-        p.Add(new SqliteParameter("@deduplication_key", SqliteType.Text) { Value = row.DeduplicationKey });
+        p.Add(new SqliteParameter("@deduplication_key", SqliteType.Text) { Value = (object?)row.DeduplicationKey ?? DBNull.Value });
         p.Add(new SqliteParameter("@correlation_key", SqliteType.Text) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new SqliteParameter("@concurrency_key", SqliteType.Text) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
         p.Add(new SqliteParameter("@lane_name", SqliteType.Text) { Value = (object?)row.Lane ?? DBNull.Value });
@@ -78,5 +80,6 @@ public static class SqliteOutboxStagingExtensions
         p.Add(new SqliteParameter("@meta", SqliteType.Text) { Value = (object?)row.Meta ?? DBNull.Value });
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+        return new JobRef(row.JobRef);
     }
 }

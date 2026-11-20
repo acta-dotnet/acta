@@ -132,7 +132,9 @@ public sealed partial class SqlServerConformanceFixture
         cmd.Parameters.Add(new SqlParameter("@name", System.Data.SqlDbType.VarChar, 128) { Value = seed.JobName });
         cmd.Parameters.Add(new SqlParameter("@fmt", System.Data.SqlDbType.TinyInt) { Value = seed.InputFormatId });
         cmd.Parameters.Add(new SqlParameter("@data", System.Data.SqlDbType.VarBinary) { Value = (object?)seed.Input ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@dedup", System.Data.SqlDbType.VarChar, 128) { Value = seed.DeduplicationKey });
+        cmd.Parameters.Add(
+            new SqlParameter("@dedup", System.Data.SqlDbType.VarChar, 128) { Value = (object?)seed.DeduplicationKey ?? DBNull.Value }
+        );
         cmd.Parameters.Add(new SqlParameter("@meta", System.Data.SqlDbType.NVarChar, -1) { Value = (object?)seed.Meta ?? DBNull.Value });
         cmd.Parameters.Add(
             new SqlParameter("@prio", System.Data.SqlDbType.TinyInt) { Value = seed.PriorityCode is { } p ? p : DBNull.Value }

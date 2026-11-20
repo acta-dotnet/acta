@@ -15,11 +15,13 @@ namespace Acta.SqlServer;
 public static class SqlServerOutboxStagingExtensions
 {
     /// <summary>
-    /// Stages <paramref name="request"/> as one outbox row on this transaction, committed or rolled back with it. The
-    /// request needs a <see cref="EnqueueJobRequest.DeduplicationKey"/>, which names the job the relay enqueues, and no
-    /// parent; <paramref name="table"/> and <paramref name="schema"/> are the ones the relay's source reads.
+    /// Stages <paramref name="request"/> as one outbox row on this transaction, committed or rolled back with it, and
+    /// returns the ref of the job the relay enqueues for it. The request takes no parent. A
+    /// <see cref="EnqueueJobRequest.DeduplicationKey"/> is optional and works as on a direct enqueue: when another job
+    /// holds the key, the record is deduplicated onto that job and the returned ref names no job.
+    /// <paramref name="table"/> and <paramref name="schema"/> are the ones the relay's source reads.
     /// </summary>
-    public static Task AddToActaOutboxAsync(
+    public static Task<JobRef> AddToActaOutboxAsync(
         this SqlTransaction transaction,
         EnqueueJobRequest request,
         string table = "acta_outbox",
@@ -33,7 +35,7 @@ public static class SqlServerOutboxStagingExtensions
         return InsertAsync(transaction, connection, row, sql, cancellationToken);
     }
 
-    private static async Task InsertAsync(
+    private static async Task<JobRef> InsertAsync(
         DbTransaction transaction,
         DbConnection connection,
         OutboxStagingValues row,
@@ -51,7 +53,7 @@ public static class SqlServerOutboxStagingExtensions
         p.Add(new SqlParameter("@job_name", SqlDbType.VarChar, 128) { Value = row.JobName });
         p.Add(new SqlParameter("@input_format_id", SqlDbType.TinyInt) { Value = row.InputFormatId });
         p.Add(new SqlParameter("@input", SqlDbType.VarBinary, -1) { Value = (object?)row.Input ?? DBNull.Value });
-        p.Add(new SqlParameter("@deduplication_key", SqlDbType.VarChar, 128) { Value = row.DeduplicationKey });
+        p.Add(new SqlParameter("@deduplication_key", SqlDbType.VarChar, 128) { Value = (object?)row.DeduplicationKey ?? DBNull.Value });
         p.Add(new SqlParameter("@correlation_key", SqlDbType.VarChar, 64) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new SqlParameter("@concurrency_key", SqlDbType.VarChar, 128) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
         p.Add(new SqlParameter("@lane_name", SqlDbType.VarChar, 128) { Value = (object?)row.Lane ?? DBNull.Value });
@@ -62,5 +64,6 @@ public static class SqlServerOutboxStagingExtensions
         p.Add(new SqlParameter("@meta", SqlDbType.NVarChar, -1) { Value = (object?)row.Meta ?? DBNull.Value });
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+        return new JobRef(row.JobRef);
     }
 }

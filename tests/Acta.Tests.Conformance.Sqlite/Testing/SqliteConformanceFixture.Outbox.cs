@@ -130,7 +130,7 @@ public sealed partial class SqliteConformanceFixture
         cmd.Parameters.AddWithValue("@name", seed.JobName);
         cmd.Parameters.AddWithValue("@fmt", (long)seed.InputFormatId);
         cmd.Parameters.AddWithValue("@data", (object?)seed.Input ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@dedup", seed.DeduplicationKey);
+        cmd.Parameters.AddWithValue("@dedup", (object?)seed.DeduplicationKey ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@meta", (object?)seed.Meta ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@prio", seed.PriorityCode is { } p ? (long)p : DBNull.Value);
         cmd.Parameters.AddWithValue("@created", seed.CreatedAtUtc.ToString(IsoFormat, CultureInfo.InvariantCulture));

@@ -36,17 +36,19 @@ internal sealed class EnqueueJobsHandler(
         // One row dispatches to the scalar path; the outcomes are contractually identical.
         if (requests.Count == 1)
         {
-            return new EnqueueJobsResponse([await enqueueJob.HandleAsync(new EnqueueJobCommand(requests[0], command.Transaction), ct)]);
+            return new EnqueueJobsResponse([
+                await enqueueJob.HandleAsync(new EnqueueJobCommand(requests[0], command.Transaction, JobRef: command.JobRefs?[0]), ct),
+            ]);
         }
 
         var (prepared, rows) = Prepare(requests, _maxInlinePayloadBytes);
 
-        // The public ref is allocated here, never by the database; the routine writes it onto the inserted row
-        // and echoes it back, or returns the existing ref of a deduplicated row.
+        // The public ref is allocated here, never by the database, unless the caller gives it; the routine writes it onto
+        // the inserted row and echoes it back, or returns the existing ref of a deduplicated row.
         var jobRefs = new Guid[rows.Length];
         for (var i = 0; i < jobRefs.Length; i++)
         {
-            jobRefs[i] = JobRef.New().Value;
+            jobRefs[i] = command.JobRefs?[i] ?? JobRef.New().Value;
         }
 
         var outcomeRows = await JobEnqueue.ExecuteAsync(() => InsertAsync(rows, jobRefs, command.Transaction, ct));

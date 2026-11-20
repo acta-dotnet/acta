@@ -6,9 +6,9 @@ namespace Acta;
 /// <summary>
 /// The EF-free staging core the provider packages consume: normalizes and validates a raw
 /// <see cref="EnqueueJobRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK (identifiers, tags,
-/// schedule mutual exclusion, priority, payload pair) and layers the two stricter outbox-only rules on top, a
-/// required deduplication key and no parent id, projecting a valid request into an <see cref="OutboxStagingValues"/>
-/// with a client-generated <c>job_ref</c>. <see cref="Prepare"/> runs the whole provider-neutral prologue
+/// schedule mutual exclusion, priority, payload pair) and layers the one stricter outbox-only rule on top, no parent
+/// id, projecting a valid request into an <see cref="OutboxStagingValues"/> with the <c>job_ref</c> of the job the
+/// relay enqueues. <see cref="Prepare"/> runs the whole provider-neutral prologue
 /// (identifier qualification, projection, transaction guard, INSERT text), leaving each provider its binding and execution.
 /// </summary>
 internal static class OutboxStaging
@@ -50,21 +50,13 @@ internal static class OutboxStaging
 
         var normalized = JobEnqueueRequestValidation.NormalizeAndValidate(request, nameof(request));
 
-        if (normalized.DeduplicationKey is null)
-        {
-            throw new ArgumentException(
-                "An outbox record requires a non-null DeduplicationKey.",
-                $"{nameof(request)}.{nameof(EnqueueJobRequest.DeduplicationKey)}"
-            );
-        }
-
         return normalized.ParentJobId is not null
             ? throw new ArgumentException(
                 "An outbox record cannot carry a ParentJobId; external records request root jobs only.",
                 $"{nameof(request)}.{nameof(EnqueueJobRequest.ParentJobId)}"
             )
             : new OutboxStagingValues(
-                JobRef: Guid.NewGuid(),
+                JobRef: JobRef.New().Value,
                 JobNamespace: normalized.JobNamespace,
                 JobName: normalized.JobName,
                 InputFormatId: normalized.Input.Format.Id,

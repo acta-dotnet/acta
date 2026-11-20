@@ -21,7 +21,7 @@ internal sealed class EnqueueJobHandler(
     {
         var request = command.Request;
         (request, var row) = JobEnqueue.Prepare(request, nameof(request), 0, _maxInlinePayloadBytes);
-        var jobRef = JobRef.New().Value;
+        var jobRef = command.JobRef ?? JobRef.New().Value;
 
         var rows = await JobEnqueue.ExecuteAsync(() => InsertAsync(row, jobRef, command.Transaction, command.ParentFence, ct));
         if (rows.Count != 1)

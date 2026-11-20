@@ -330,6 +330,68 @@ public sealed class OutboxRelayTests
     }
 
     [Fact]
+    public async Task A_representative_whose_ref_another_job_holds_quarantines_alone_and_its_members_wait()
+    {
+        // A keyed group goes to the target under its earliest row's ref. When another job holds that ref the row is a
+        // contract error and quarantines alone, and the rest of its group is released for a later tick to send.
+        var representative = Row("k1", id: Guid.NewGuid());
+        var member = Row("k1", id: Guid.NewGuid());
+        var store = new FakeStore(representative, member);
+        var target = new FakeSubmission
+        {
+            OnEnqueue = () => throw new InvalidOperationException("the ref is taken"),
+            Held = [new ListJobsByRefItem(representative.JobRef, "orders", "another-job")],
+        };
+        var svc = new OutboxRelay(store.Source(), target.Jobs());
+
+        var (_, quarantined) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+
+        Assert.Equal([representative.JobRef], quarantined);
+        Assert.Equal([representative.JobRef], store.Quarantined);
+        Assert.Equal([member.JobRef], store.Released);
+        Assert.Empty(store.Deleted);
+        Assert.Equal(1, target.Calls);
+    }
+
+    [Fact]
+    public async Task A_read_that_fails_after_a_target_fault_reports_the_target_fault_with_its_stack()
+    {
+        var store = new FakeStore(Row("k1"));
+        var target = new FakeSubmission
+        {
+            OnEnqueue = () => throw new InvalidOperationException("target unavailable"),
+            HeldReadFails = () => new TimeoutException("ledger read timed out"),
+        };
+        var svc = new OutboxRelay(store.Source(), target.Jobs());
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.RunTickAsync(Options(), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal("target unavailable", thrown.Message);
+        Assert.Contains($"{nameof(FakeSubmission)}.Answer", thrown.StackTrace, StringComparison.Ordinal);
+        Assert.Empty(store.Deleted);
+    }
+
+    [Fact]
+    public async Task A_read_that_fails_after_a_rejection_reports_the_read()
+    {
+        // A rejection is an answer, not a fault, so the failed read is the tick's only failure.
+        var store = new FakeStore(Row("k1"));
+        var target = new FakeSubmission
+        {
+            RejectWhen = static _ => true,
+            HeldReadFails = () => new TimeoutException("ledger read timed out"),
+        };
+        var svc = new OutboxRelay(store.Source(), target.Jobs());
+
+        await Assert.ThrowsAsync<TimeoutException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
+
+        Assert.Empty(store.Deleted);
+        Assert.Empty(store.Rescheduled);
+    }
+
+    [Fact]
     public async Task A_transient_target_failure_is_infrastructure_releases_the_claim_and_fails_the_tick()
     {
         var row = Row("k1");
@@ -370,6 +432,13 @@ public sealed class OutboxRelayTests
         public EnqueueJobAction Action { get; init; } = EnqueueJobAction.Inserted;
         public Func<IReadOnlyList<Enqueued>, bool>? RejectWhen { get; init; }
         public Action? OnEnqueue { get; init; }
+
+        /// <summary>The jobs the ledger holds under the refs a failed enqueue sent; none unless a test names them.</summary>
+        public IReadOnlyList<ListJobsByRefItem> Held { get; init; } = [];
+
+        /// <summary>When set, the read of held refs throws what it makes instead of answering.</summary>
+        public Func<Exception>? HeldReadFails { get; init; }
+
         public List<IReadOnlyList<Enqueued>> Batches { get; } = [];
         public int Calls { get; private set; }
 
@@ -378,6 +447,11 @@ public sealed class OutboxRelayTests
         // Each enqueue routine answers its own row: one for a single request, one per ordinal for a batch.
         private object Answer(BoundCall call)
         {
+            if (call.Stem == "ListJobsByRef")
+            {
+                return HeldReadFails is { } fail ? throw fail() : Held.ToArray();
+            }
+
             Calls++;
             OnEnqueue?.Invoke();
             var requests = Requests(call);

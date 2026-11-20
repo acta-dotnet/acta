@@ -15,7 +15,7 @@ internal sealed record ClaimOutboxRow(
     string JobName,
     byte InputFormatId,
     byte[]? Input,
-    string DeduplicationKey,
+    string? DeduplicationKey,
     string? CorrelationKey,
     string? ConcurrencyKey,
     string? Lane,

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -220,7 +221,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         {
             // Infrastructure/target-availability failure: release the claimed batch best-effort and fail
             // the tick without consuming any row's quarantine budget. Partially-enqueued rows are safe;
-            // the next tick re-enqueues them and the target deduplicates.
+            // the next tick finds them delivered, by their key or by their ref.
             await ReleaseBestEffortAsync(token, claimed.Select(r => r.JobRef).ToList());
             ActaLog.OutboxTargetEnqueueFailed(_log, ex, options.SourceName);
             throw;
@@ -275,7 +276,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                     {
                         var detail =
                             $"{groupQuarantined} row(s) quarantined, {group.Rows.Count - groupQuarantined} rescheduled, "
-                            + $"source '{options.SourceName}', dedup key '{group.Representative.DeduplicationKey}'";
+                            + $"source '{options.SourceName}', job ref '{new JobRef(group.Representative.JobRef)}'";
                         ActaLog.OutboxRowGroupRejected(_log, group.Representative.JobNamespace, detail);
                     }
                     break;
@@ -311,15 +312,17 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     }
 
     /// <summary>
-    /// The whole batch goes to the target in one round trip; a deterministic batch rejection falls back to one target
-    /// call per group so a single offending group is isolated while the rest still ingest. Every attempt draws down the
-    /// shared tick budget, and once it is spent every remaining group is Deferred. Answers one verdict per group, in
-    /// order; infrastructure exceptions propagate.
+    /// The whole batch goes to the target in one round trip. The first failure of a batch is read against the ledger: a
+    /// group whose ref a job holds is settled, and the rest go to the target once more. Otherwise a deterministic batch
+    /// rejection falls back to one target call per group so a single offending group is isolated while the rest still
+    /// ingest, and an infrastructure fault propagates. Every attempt draws down the shared tick budget, and once it is
+    /// spent every remaining group is Deferred. Answers one verdict per group.
     /// </summary>
     private async Task<List<GroupVerdict>> EnqueueGroupsAsync(
         IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
         TickBudget budget,
-        CancellationToken ct
+        CancellationToken ct,
+        bool settleHeld = true
     )
     {
         if (groups.Count == 0)
@@ -327,9 +330,51 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             return [];
         }
 
+        var verdicts = new List<GroupVerdict>();
+        Exception? fault = null;
+        try
+        {
+            verdicts = await TryEnqueueAsync(groups, budget, ct);
+            if (verdicts[0].Kind != GroupVerdictKind.Rejected)
+            {
+                return verdicts;
+            }
+        }
+        catch (Exception ex) when (settleHeld && !ct.IsCancellationRequested)
+        {
+            fault = ex;
+        }
+
+        if (settleHeld)
+        {
+            // A record the relay enqueued and then stopped before removing fails the batch on its held ref, whatever the
+            // provider calls the error, so any failure pays for this read and a delivered batch never does.
+            List<GroupVerdict> settled;
+            List<(EnqueueJobRequest Request, OutboxGroup Group)> remaining;
+            try
+            {
+                (settled, remaining) = await SettleHeldRefsAsync(groups, ct);
+            }
+            catch (Exception) when (fault is not null && !ct.IsCancellationRequested)
+            {
+                // The target's fault failed the batch, so a read that fails after it reports that fault, not its own.
+                ExceptionDispatchInfo.Throw(fault);
+                throw;
+            }
+
+            if (settled.Count > 0)
+            {
+                return [.. settled, .. await EnqueueGroupsAsync(remaining, budget, ct, settleHeld: false)];
+            }
+
+            if (fault is not null)
+            {
+                ExceptionDispatchInfo.Throw(fault);
+            }
+        }
+
         // A single group cannot be isolated further: a rejection of it is its own.
-        var verdicts = await TryEnqueueAsync(groups, budget, ct);
-        if (groups.Count == 1 || verdicts[0].Kind != GroupVerdictKind.Rejected)
+        if (groups.Count == 1)
         {
             return verdicts;
         }
@@ -341,6 +386,50 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         }
         return verdicts;
     }
+
+    /// <summary>
+    /// Reads which representatives' refs the ledger holds. A ref held by a job of the record's own namespace and name was
+    /// delivered before and is settled as deduplicated. A ref another job holds quarantines its record, a contract error,
+    /// and the record's coalesced members wait for the next tick. Answers the settled verdicts and the groups to send again.
+    /// </summary>
+    private async Task<(List<GroupVerdict> Settled, List<(EnqueueJobRequest Request, OutboxGroup Group)> Remaining)> SettleHeldRefsAsync(
+        IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
+        CancellationToken ct
+    )
+    {
+        var held = (await jobs.ListJobsByRefAsync([.. groups.Select(static g => g.Group.Representative.JobRef)], ct)).Jobs.ToDictionary(
+            static job => job.JobRef
+        );
+        var settled = new List<GroupVerdict>();
+        var remaining = new List<(EnqueueJobRequest Request, OutboxGroup Group)>();
+        foreach (var (request, group) in groups)
+        {
+            var record = group.Representative;
+            if (!held.TryGetValue(record.JobRef, out var job))
+            {
+                remaining.Add((request, group));
+            }
+            else if (IsNamed(job.JobNamespace, request.JobNamespace) && IsNamed(job.JobName, request.JobName))
+            {
+                settled.Add(new GroupVerdict(group, GroupVerdictKind.Deduplicated));
+            }
+            else
+            {
+                var error =
+                    $"Its job_ref {new JobRef(record.JobRef)} already names a job of {job.JobNamespace}/{job.JobName}, "
+                    + $"not of {request.JobNamespace}/{request.JobName}.";
+                settled.Add(new GroupVerdict(new OutboxGroup(record, [record]), GroupVerdictKind.Malformed, error));
+                if (group.Rows.Count > 1)
+                {
+                    settled.Add(new GroupVerdict(new OutboxGroup(group.Rows[1], [.. group.Rows.Skip(1)]), GroupVerdictKind.Deferred));
+                }
+            }
+        }
+        return (settled, remaining);
+    }
+
+    /// <summary>Whether a stored name is the name a record gives, which the enqueue trims and lowercases.</summary>
+    private static bool IsNamed(string stored, string given) => string.Equals(stored, given.Trim(), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// One target round trip drawing a single unit of the shared budget, answering one verdict per group: all Deferred
@@ -360,8 +449,9 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
 
         try
         {
-            // Outcomes align with request order.
-            var outcomes = (await jobs.EnqueueJobsAsync(groups.Select(g => g.Request).ToList(), ct)).Jobs;
+            // Each job takes its record's ref, and outcomes align with request order.
+            var requests = groups.Select(static g => g.Request).ToList();
+            var outcomes = (await jobs.EnqueueJobsAsync(requests, [.. groups.Select(static g => g.Group.Representative.JobRef)], ct)).Jobs;
             var verdicts = new List<GroupVerdict>(groups.Count);
             for (var index = 0; index < groups.Count; index++)
             {
@@ -381,12 +471,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// target, avoiding the ledger's same-batch duplicate-key rejection. Groups keep the claim order.
     /// The group keeps every member row so retry/quarantine can advance each row's own failure
     /// count. The grouping key matches the target's dedup: the namespace folded like every name, the
-    /// deduplication key exact, so two handoffs whose keys differ only by case are two jobs.
+    /// deduplication key exact, so two handoffs whose keys differ only by case are two jobs. A row with no key is a job
+    /// of its own and groups alone.
     /// </summary>
     private static List<OutboxGroup> Coalesce(IReadOnlyList<ClaimOutboxRow> claimed) =>
         [
             .. claimed
-                .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey))
+                .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey, r.DeduplicationKey is null ? r.Id : 0))
                 .Select(g =>
                 {
                     var ordered = g.OrderBy(static r => r.Id).ToList();

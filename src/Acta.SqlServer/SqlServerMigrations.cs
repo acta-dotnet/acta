@@ -63,7 +63,7 @@ public static class SqlServerMigrations
                 job_name varchar(128) NOT NULL,
                 input_format_id tinyint NOT NULL,
                 input varbinary(max) NULL,
-                deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+                deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 correlation_key varchar(64) NULL,
                 concurrency_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 lane_name varchar(128) NULL,

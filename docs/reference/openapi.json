@@ -20594,7 +20594,7 @@
         "type": "object",
         "properties": {
           "jobRef": {
-            "description": "The quarantined row's job ref.",
+            "description": "The ref of the job the row would enqueue.",
             "$ref": "#/components/schemas/JobRef"
           },
           "jobNamespace": {
@@ -20606,8 +20606,11 @@
             "description": "The name of the definition the row would enqueue."
           },
           "deduplicationKey": {
-            "type": "string",
-            "description": "The deduplication key the row would enqueue with."
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The deduplication key the row would enqueue with, when it has one."
           },
           "correlationKey": {
             "type": [

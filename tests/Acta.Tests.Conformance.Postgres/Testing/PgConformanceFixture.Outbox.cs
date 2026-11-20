@@ -141,7 +141,7 @@ public sealed partial class PgConformanceFixture
         cmd.Parameters.Add(new NpgsqlParameter("@name", NpgsqlDbType.Varchar) { Value = seed.JobName });
         cmd.Parameters.Add(new NpgsqlParameter("@fmt", NpgsqlDbType.Smallint) { Value = (short)seed.InputFormatId });
         cmd.Parameters.Add(new NpgsqlParameter("@data", NpgsqlDbType.Bytea) { Value = (object?)seed.Input ?? DBNull.Value });
-        cmd.Parameters.Add(new NpgsqlParameter("@dedup", NpgsqlDbType.Varchar) { Value = seed.DeduplicationKey });
+        cmd.Parameters.Add(new NpgsqlParameter("@dedup", NpgsqlDbType.Varchar) { Value = (object?)seed.DeduplicationKey ?? DBNull.Value });
         cmd.Parameters.Add(new NpgsqlParameter("@meta", NpgsqlDbType.Jsonb) { Value = (object?)seed.Meta ?? DBNull.Value });
         cmd.Parameters.Add(
             new NpgsqlParameter("@prio", NpgsqlDbType.Smallint) { Value = seed.PriorityCode is { } p ? (short)p : DBNull.Value }

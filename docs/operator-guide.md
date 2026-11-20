@@ -1215,12 +1215,14 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
   sends `"all": true`, exactly one, and answers 400 for neither or both, so leaving the refs out never
   deletes every row; `IOutbox.DiscardAsync` takes the same choice, `jobRefs` or `all: true`, and
   throws `ArgumentException` otherwise. Recoverable rejections (for example
-  an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once.
+  an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once, and
+  so does a row whose `job_ref` already names a different job.
   A pass applies parked requeues before parked discards, so a discard parked beside a requeue of the same
   row finds it pending again and deletes nothing; its event says `0 row(s)`.
-- Resolve the resulting job by `(namespace, deduplication key)` with
-  `IJobs.GetAsync(JobLookup.ByDeduplicationKey(ns, key))`, which answers its `JobRef`; a null
-  result means the request has not been relayed yet, not that it was lost.
+- Resolve the resulting job by the row's `job_ref`, which is the job's ref: `IJobs.GetAsync` with it answers
+  the job, and a null result means the request has not been relayed yet, not that it was lost. A row staged
+  with a deduplication key that a job already holds is deduplicated onto that job, found with
+  `JobLookup.ByDeduplicationKey(ns, key)`.
 
 Background: [Transactional enqueue and the external outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox).
 

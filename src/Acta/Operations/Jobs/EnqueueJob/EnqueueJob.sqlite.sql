@@ -241,6 +241,55 @@ WHERE
     AND @p_parent_job_id IS NOT NULL
 ON CONFLICT (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL DO NOTHING;
 
+-- Until the state insert, which comes last, the job this call inserted is the only one under its ref with no state row. A
+-- ref the caller supplied may name a job that already exists, and the tags and the answer leave that job as it is.
+INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
+SELECT
+    4 /* EntityCode.Job */,
+    j.job_id,
+    JSON_EXTRACT(t.value, '$.tag_name'),
+    JSON_EXTRACT(t.value, '$.tag_value'),
+    JSON_EXTRACT(t.value, '$.tag_value_search')
+FROM JSON_EACH(@p_tags) t
+JOIN {{schema}}.jobs j ON j.job_ref = @p_job_ref
+WHERE NOT EXISTS (
+    SELECT 1 FROM {{schema}}.jobs_state x
+    WHERE x.job_id = j.job_id
+);
+
+SELECT
+    0 AS ordinal,
+    COALESCE(ins.job_id, ex.job_id, exc.job_id) AS job_id,
+    COALESCE(ins.job_ref, ex.job_ref, exc.job_ref) AS job_ref,
+    CASE
+        WHEN ins.job_id IS NOT NULL
+            THEN 1 /* EnqueueJobAction.Inserted */
+        ELSE 2 /* EnqueueJobAction.Deduplicated */
+    END AS action
+FROM (SELECT 1) one
+LEFT JOIN {{schema}}.jobs ins
+    ON
+        ins.job_ref = @p_job_ref
+        AND NOT EXISTS (
+            SELECT 1 FROM {{schema}}.jobs_state x
+            WHERE x.job_id = ins.job_id
+        )
+LEFT JOIN {{schema}}.jobs ex
+    ON
+        @p_deduplication_key IS NOT NULL
+        AND @p_parent_job_id IS NULL
+        AND ex.parent_job_id IS NULL
+        AND ex.deduplication_key = @p_deduplication_key
+        AND ex.namespace_id = (
+            SELECT ns.namespace_id FROM {{schema}}.namespaces ns
+            WHERE ns.namespace_name = @p_namespace_name
+        )
+LEFT JOIN {{schema}}.jobs
+    exc ON @p_deduplication_key IS NOT NULL
+AND @p_parent_job_id IS NOT NULL
+AND exc.parent_job_id = @p_parent_job_id
+AND exc.deduplication_key = @p_deduplication_key;
+
 -- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits as
 -- Blocked, keeping its due instant for when the settle ahead of it promotes it.
 INSERT INTO {{schema}}.jobs_state (
@@ -293,40 +342,3 @@ WHERE
         SELECT 1 FROM {{schema}}.jobs_state x
         WHERE x.job_id = j.job_id
     );
-
-INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-SELECT
-    4 /* EntityCode.Job */,
-    j.job_id,
-    JSON_EXTRACT(t.value, '$.tag_name'),
-    JSON_EXTRACT(t.value, '$.tag_value'),
-    JSON_EXTRACT(t.value, '$.tag_value_search')
-FROM JSON_EACH(@p_tags) t
-JOIN {{schema}}.jobs j ON j.job_ref = @p_job_ref;
-
-SELECT
-    0 AS ordinal,
-    COALESCE(ins.job_id, ex.job_id, exc.job_id) AS job_id,
-    COALESCE(ins.job_ref, ex.job_ref, exc.job_ref) AS job_ref,
-    CASE
-        WHEN ins.job_id IS NOT NULL
-            THEN 1 /* EnqueueJobAction.Inserted */
-        ELSE 2 /* EnqueueJobAction.Deduplicated */
-    END AS action
-FROM (SELECT 1) one
-LEFT JOIN {{schema}}.jobs ins ON ins.job_ref = @p_job_ref
-LEFT JOIN {{schema}}.jobs ex
-    ON
-        @p_deduplication_key IS NOT NULL
-        AND @p_parent_job_id IS NULL
-        AND ex.parent_job_id IS NULL
-        AND ex.deduplication_key = @p_deduplication_key
-        AND ex.namespace_id = (
-            SELECT ns.namespace_id FROM {{schema}}.namespaces ns
-            WHERE ns.namespace_name = @p_namespace_name
-        )
-LEFT JOIN {{schema}}.jobs
-    exc ON @p_deduplication_key IS NOT NULL
-AND @p_parent_job_id IS NOT NULL
-AND exc.parent_job_id = @p_parent_job_id
-AND exc.deduplication_key = @p_deduplication_key;

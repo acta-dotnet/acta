@@ -45,7 +45,7 @@ static class Acta.Postgres.PostgresMigrations
     static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.String? schema = null, System.Threading.CancellationToken cancellationToken = default)
     static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.String schema = "acta", System.Threading.CancellationToken cancellationToken = default)
 static class Acta.Postgres.PostgresOutboxStagingExtensions
-    static System.Threading.Tasks.Task AddToActaOutboxAsync(this Npgsql.NpgsqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String? schema = null, System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task<Acta.JobRef> AddToActaOutboxAsync(this Npgsql.NpgsqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String? schema = null, System.Threading.CancellationToken cancellationToken = default)
 
 ## Acta.Redis
 static class Acta.Redis.RedisActaBuilderExtensions
@@ -67,7 +67,7 @@ static class Acta.SqlServer.SqlServerMigrations
     static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.String? schema = null, System.Threading.CancellationToken cancellationToken = default)
     static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.String schema = "acta", System.Threading.CancellationToken cancellationToken = default)
 static class Acta.SqlServer.SqlServerOutboxStagingExtensions
-    static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.SqlClient.SqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String? schema = null, System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task<Acta.JobRef> AddToActaOutboxAsync(this Microsoft.Data.SqlClient.SqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String? schema = null, System.Threading.CancellationToken cancellationToken = default)
 
 ## Acta.Sqlite
 static class Acta.Sqlite.SqliteActaExtensions
@@ -79,7 +79,7 @@ static class Acta.Sqlite.SqliteMigrations
     static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
     static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.Threading.CancellationToken cancellationToken = default)
 static class Acta.Sqlite.SqliteOutboxStagingExtensions
-    static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task<Acta.JobRef> AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
 
 ## Acta.Testing
 sealed record Acta.Testing.ActaAdmissionReport
@@ -2031,14 +2031,14 @@ sealed record Acta.ListOutboxSourcesResponse : Acta.IPagedResponse<Acta.ListOutb
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
 sealed record Acta.ListQuarantinedOutboxItem
-    .ctor(Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.String DeduplicationKey, System.String? CorrelationKey, System.String? TenantName, System.Int32 FailureCount, System.String? LastError, System.DateTime CreatedAtUtc)
+    .ctor(Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.String? DeduplicationKey, System.String? CorrelationKey, System.String? TenantName, System.Int32 FailureCount, System.String? LastError, System.DateTime CreatedAtUtc)
     Acta.JobRef JobRef { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
     System.Int32 FailureCount { get;init; }
-    System.String DeduplicationKey { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String? CorrelationKey { get;init; }
+    System.String? DeduplicationKey { get;init; }
     System.String? LastError { get;init; }
     System.String? TenantName { get;init; }
 sealed record Acta.ListQuarantinedOutboxQuery

@@ -211,6 +211,57 @@ ORDER BY JSON_EXTRACT(r.value, '$.ordinal')
 ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL DO NOTHING
 ON CONFLICT (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL DO NOTHING;
 
+-- Until the state insert, which comes last, the jobs this call inserted are the only ones under their refs with no state
+-- row. A ref the caller supplied may name a job that already exists, and the tags and the answers leave that job as it is.
+INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
+SELECT
+    4 /* EntityCode.Job */,
+    j.job_id,
+    JSON_EXTRACT(t.value, '$.tag_name'),
+    JSON_EXTRACT(t.value, '$.tag_value'),
+    JSON_EXTRACT(t.value, '$.tag_value_search')
+FROM JSON_EACH(@p_tags) t
+JOIN {{schema}}.jobs j ON j.job_ref = JSON_EXTRACT(t.value, '$.job_ref')
+WHERE NOT EXISTS (
+    SELECT 1 FROM {{schema}}.jobs_state x
+    WHERE x.job_id = j.job_id
+);
+
+SELECT
+    JSON_EXTRACT(r.value, '$.ordinal') AS ordinal,
+    COALESCE(ins.job_id, ex.job_id, exc.job_id) AS job_id,
+    COALESCE(ins.job_ref, ex.job_ref, exc.job_ref) AS job_ref,
+    CASE
+        WHEN ins.job_id IS NOT NULL
+            THEN 1 /* EnqueueJobAction.Inserted */
+        ELSE 2 /* EnqueueJobAction.Deduplicated */
+    END AS action
+FROM JSON_EACH(@p_rows) r
+LEFT JOIN {{schema}}.jobs ins
+    ON
+        ins.job_ref = JSON_EXTRACT(r.value, '$.job_ref')
+        AND NOT EXISTS (
+            SELECT 1 FROM {{schema}}.jobs_state x
+            WHERE x.job_id = ins.job_id
+        )
+LEFT JOIN {{schema}}.jobs ex
+    ON
+        JSON_EXTRACT(r.value, '$.deduplication_key') IS NOT NULL
+        AND JSON_EXTRACT(r.value, '$.parent_job_id') IS NULL
+        AND ex.parent_job_id IS NULL
+        AND ex.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
+        AND ex.namespace_id = (
+            SELECT ns.namespace_id FROM {{schema}}.namespaces ns
+            WHERE ns.namespace_name = JSON_EXTRACT(r.value, '$.namespace_name')
+        )
+LEFT JOIN {{schema}}.jobs exc
+    ON
+        JSON_EXTRACT(r.value, '$.deduplication_key') IS NOT NULL
+        AND JSON_EXTRACT(r.value, '$.parent_job_id') IS NOT NULL
+        AND exc.parent_job_id = JSON_EXTRACT(r.value, '$.parent_job_id')
+        AND exc.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
+ORDER BY JSON_EXTRACT(r.value, '$.ordinal');
+
 -- A laned row enters Ready only as the first inserted row of its lane with no unfinished member
 -- already there; every later one waits as Blocked. The existence probe reads the table before this
 -- statement's own rows land, so the batch's rows are ranked by the window instead.
@@ -272,42 +323,3 @@ WHERE NOT EXISTS (
     SELECT 1 FROM {{schema}}.jobs_state x
     WHERE x.job_id = j.job_id
 );
-
-INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-SELECT
-    4 /* EntityCode.Job */,
-    j.job_id,
-    JSON_EXTRACT(t.value, '$.tag_name'),
-    JSON_EXTRACT(t.value, '$.tag_value'),
-    JSON_EXTRACT(t.value, '$.tag_value_search')
-FROM JSON_EACH(@p_tags) t
-JOIN {{schema}}.jobs j ON j.job_ref = JSON_EXTRACT(t.value, '$.job_ref');
-
-SELECT
-    JSON_EXTRACT(r.value, '$.ordinal') AS ordinal,
-    COALESCE(ins.job_id, ex.job_id, exc.job_id) AS job_id,
-    COALESCE(ins.job_ref, ex.job_ref, exc.job_ref) AS job_ref,
-    CASE
-        WHEN ins.job_id IS NOT NULL
-            THEN 1 /* EnqueueJobAction.Inserted */
-        ELSE 2 /* EnqueueJobAction.Deduplicated */
-    END AS action
-FROM JSON_EACH(@p_rows) r
-LEFT JOIN {{schema}}.jobs ins ON ins.job_ref = JSON_EXTRACT(r.value, '$.job_ref')
-LEFT JOIN {{schema}}.jobs ex
-    ON
-        JSON_EXTRACT(r.value, '$.deduplication_key') IS NOT NULL
-        AND JSON_EXTRACT(r.value, '$.parent_job_id') IS NULL
-        AND ex.parent_job_id IS NULL
-        AND ex.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
-        AND ex.namespace_id = (
-            SELECT ns.namespace_id FROM {{schema}}.namespaces ns
-            WHERE ns.namespace_name = JSON_EXTRACT(r.value, '$.namespace_name')
-        )
-LEFT JOIN {{schema}}.jobs exc
-    ON
-        JSON_EXTRACT(r.value, '$.deduplication_key') IS NOT NULL
-        AND JSON_EXTRACT(r.value, '$.parent_job_id') IS NOT NULL
-        AND exc.parent_job_id = JSON_EXTRACT(r.value, '$.parent_job_id')
-        AND exc.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
-ORDER BY JSON_EXTRACT(r.value, '$.ordinal');
