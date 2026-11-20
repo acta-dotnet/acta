@@ -697,6 +697,213 @@ public class ManifestGeneratorDiagnosticTests
             }
             """;
 
+    // ACTA0108: a schedule faster than once a minute on a job that does not state what Acta keeps of it
+
+    [Theory]
+    [InlineData("5s", "6,307,200")]
+    [InlineData("PT5S", "6,307,200")]
+    [InlineData("1500ms", "21,024,000")]
+    [InlineData("0.5m", "1,051,200")]
+    [InlineData("PT59.999S", "525,608")]
+    public void An_interval_under_a_minute_warns_ACTA0108_with_its_yearly_count_and_keeps_the_job(string interval, string count)
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", $"[Schedule(\"tick\", \"{interval}\")]"));
+
+        var warning = Assert.Single(Of(result, "ACTA0108"));
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal(
+            $"`[Schedule(\"tick\")]` on `[Job(\"sync\")]` fires every `{interval}`, {count} times a year, and every firing writes "
+                + "events, kept for `JobsOptions.Retention`. State `EventRecording` on the job to say which events to keep, "
+                + "for example `EventRecording = EventRecordingCode.Failures`.",
+            warning.GetMessage()
+        );
+        AssertEmitted(result, "sync");
+    }
+
+    [Theory]
+    [InlineData("1m")]
+    [InlineData("PT1M")]
+    [InlineData("60s")]
+    [InlineData("60000ms")]
+    [InlineData("1h")]
+    public void An_interval_of_a_minute_or_more_is_silent(string interval)
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", $"[Schedule(\"tick\", \"{interval}\")]"));
+
+        Assert.Empty(result.Diagnostics);
+        AssertEmitted(result, "sync");
+    }
+
+    [Theory]
+    [InlineData("\"* * * * * *\"")]
+    [InlineData("\"*/5 * * * * *\"")]
+    [InlineData("\"0,30 * * * * *\"")]
+    [InlineData("\"0-5 0 * * * *\"")]
+    [InlineData("\"@every_second\"")]
+    [InlineData("\"@EVERY_SECOND\"")]
+    [InlineData("Cron.Every5Seconds")]
+    [InlineData("Cron.Every30Seconds")]
+    public void A_cron_that_can_fire_more_than_once_a_minute_warns_ACTA0108_and_keeps_the_job(string cron)
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", $"[Schedule(\"tick\", {cron})]"));
+
+        var warning = Assert.Single(Of(result, "ACTA0108"));
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.StartsWith("`[Schedule(\"tick\")]` on `[Job(\"sync\")]` has the cron `", warning.GetMessage());
+        AssertEmitted(result, "sync");
+    }
+
+    [Fact]
+    public void The_cron_warning_names_the_expression_and_says_it_has_no_count()
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", "[Schedule(\"tick\", \"*/5 * * * * *\")]"));
+
+        Assert.Equal(
+            "`[Schedule(\"tick\")]` on `[Job(\"sync\")]` has the cron `*/5 * * * * *`, which can fire more than once a minute, and "
+                + "every firing writes events, kept for `JobsOptions.Retention`. State `EventRecording` on the job to say which "
+                + "events to keep, for example `EventRecording = EventRecordingCode.Failures`.",
+            Assert.Single(Of(result, "ACTA0108")).GetMessage()
+        );
+        AssertEmitted(result, "sync");
+    }
+
+    // A five-field cron fires at most once a minute, and so does a seconds field that is one plain number.
+    [Theory]
+    [InlineData("\"* * * * *\"")]
+    [InlineData("\"*/5 * * * *\"")]
+    [InlineData("\"0 * * * * *\"")]
+    [InlineData("\"0 */5 * * * *\"")]
+    [InlineData("\"30 0 * * * *\"")]
+    [InlineData("\"@every_minute\"")]
+    [InlineData("\"@hourly\"")]
+    [InlineData("Cron.EveryMinute")]
+    public void A_cron_that_fires_at_most_once_a_minute_is_silent(string cron)
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", $"[Schedule(\"tick\", {cron})]"));
+
+        Assert.Empty(result.Diagnostics);
+        AssertEmitted(result, "sync");
+    }
+
+    // A permanent job reuses one job row, so its events are what a firing adds: stating EventRecording, whatever its value,
+    // silences the warning.
+    [Theory]
+    [InlineData("[Job(\"sync\", EventRecording = EventRecordingCode.Failures)]")]
+    [InlineData("[Job(\"sync\", EventRecording = EventRecordingCode.Audit)]")]
+    [InlineData("[Job(\"sync\", EventRecording = EventRecordingCode.Audit, ScheduledDelivery = ScheduledDeliveryCode.Permanent)]")]
+    public void A_permanent_job_that_states_its_event_recording_is_silent(string job)
+    {
+        var result = RunGenerator(FrequentSource(job, "[Schedule(\"tick\", \"PT5S\")]", "[Schedule(\"tock\", Cron.Every5Seconds)]"));
+
+        Assert.Empty(result.Diagnostics);
+        AssertEmitted(result, "sync");
+    }
+
+    [Fact]
+    public void A_per_occurrence_job_that_states_only_its_event_recording_warns_ACTA0108_for_its_job_rows_too()
+    {
+        var result = RunGenerator(
+            FrequentSource(
+                "[Job(\"sync\", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence, EventRecording = EventRecordingCode.Failures)]",
+                "[Schedule(\"tick\", \"PT5S\")]"
+            )
+        );
+
+        Assert.Equal(
+            "`[Schedule(\"tick\")]` on `[Job(\"sync\")]` fires every `PT5S`, 6,307,200 times a year, and every firing makes a new "
+                + "job, kept for its `JobRetention`, and writes events, kept for `JobsOptions.Retention`. State both on the job, "
+                + "for example `EventRecording = EventRecordingCode.Failures, JobRetention = \"1d\"`.",
+            Assert.Single(Of(result, "ACTA0108")).GetMessage()
+        );
+        AssertEmitted(result, "sync");
+    }
+
+    [Theory]
+    [InlineData("JobRetention = \"1d\"", 1)]
+    [InlineData("EventRecording = EventRecordingCode.Audit, JobRetention = \"90d\"", 0)]
+    [InlineData("EventRecording = EventRecordingCode.Failures, JobRetention = null", 0)]
+    public void A_per_occurrence_job_is_silent_only_when_it_states_both(string arguments, int warnings)
+    {
+        var result = RunGenerator(
+            FrequentSource(
+                $"[Job(\"sync\", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence, {arguments})]",
+                "[Schedule(\"tick\", \"PT5S\", MaxOutstanding = 2)]"
+            )
+        );
+
+        Assert.Equal(warnings, Of(result, "ACTA0108").Length);
+        Assert.Equal(warnings, result.Diagnostics.Length);
+        AssertEmitted(result, "sync");
+    }
+
+    // An interval states its rate and a cron's is not computed, so the shortest interval is named ahead of any cron.
+    [Theory]
+    [InlineData(
+        "[Schedule(\"fast\", \"PT10S\")]",
+        "[Schedule(\"faster\", \"PT5S\")]",
+        "`[Schedule(\"faster\")]` on `[Job(\"sync\")]` fires every `PT5S`"
+    )]
+    [InlineData(
+        "[Schedule(\"faster\", \"5s\")]",
+        "[Schedule(\"fast\", \"10s\")]",
+        "`[Schedule(\"faster\")]` on `[Job(\"sync\")]` fires every `5s`"
+    )]
+    [InlineData(
+        "[Schedule(\"cron\", Cron.Every5Seconds)]",
+        "[Schedule(\"fast\", \"PT30S\")]",
+        "`[Schedule(\"fast\")]` on `[Job(\"sync\")]` fires every `PT30S`"
+    )]
+    [InlineData(
+        "[Schedule(\"first\", \"*/5 * * * * *\")]",
+        "[Schedule(\"second\", \"* * * * * *\")]",
+        "`[Schedule(\"first\")]` on `[Job(\"sync\")]` has the cron `*/5 * * * * *`"
+    )]
+    public void A_job_with_several_fast_schedules_warns_once_naming_the_fastest(string first, string second, string named)
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", first, second, "[Schedule(\"slow\", \"1h\")]"));
+
+        Assert.StartsWith(named, Assert.Single(Of(result, "ACTA0108")).GetMessage());
+        AssertEmitted(result, "sync");
+    }
+
+    // The warning speaks to the declared rate: windows, bounds and environments do not lower it.
+    [Theory]
+    [InlineData("Availability = \"office-hours\"")]
+    [InlineData("StartAtUtc = \"2027-01-01T00:00:00Z\", EndBeforeUtc = \"2027-01-02T00:00:00Z\"")]
+    [InlineData("Environments = new[] { \"staging\" }")]
+    public void Windows_bounds_and_environments_do_not_silence_ACTA0108(string arguments)
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", $"[Schedule(\"tick\", \"PT5S\", {arguments})]"));
+
+        Assert.Single(Of(result, "ACTA0108"));
+        AssertEmitted(result, "sync");
+    }
+
+    [Fact]
+    public void A_calendar_schedule_is_silent()
+    {
+        var result = RunGenerator(FrequentSource("[Job(\"sync\")]", "[Schedule(\"pay-day\", Calendar = \"pay-days\")]"));
+
+        Assert.Empty(result.Diagnostics);
+        AssertEmitted(result, "sync");
+    }
+
+    private static string FrequentSource(string job, params string[] schedules) =>
+        $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                {{job}}
+                {{string.Join(" ", schedules)}}
+                public static void Run() { }
+            }
+            """;
+
+    private static void AssertEmitted(GeneratorDriverRunResult result, string jobName) =>
+        Assert.Contains($"JobName: \"{jobName}\"", Assert.Single(result.GeneratedTrees).ToString());
+
     // ACTA0105: invalid policy value
 
     [Fact]
@@ -1749,7 +1956,8 @@ public class ManifestGeneratorDiagnosticTests
             """
         );
 
-        Assert.Empty(result.Diagnostics);
+        // A valid expression faster than once a minute still warns ACTA0108, which speaks to its rate.
+        Assert.Empty(result.Diagnostics.Where(d => d.Id != "ACTA0108"));
     }
 
     [Fact]
@@ -1793,10 +2001,9 @@ public class ManifestGeneratorDiagnosticTests
                 """
             );
 
-            Assert.True(
-                result.Diagnostics.IsEmpty,
-                $"Cron.{field.Name} (\"{expression}\") raised {string.Join(", ", result.Diagnostics.Select(d => d.Id))}"
-            );
+            // The seconds constants still warn ACTA0108, which speaks to their rate.
+            var raised = result.Diagnostics.Where(d => d.Id != "ACTA0108").ToArray();
+            Assert.True(raised.Length == 0, $"Cron.{field.Name} (\"{expression}\") raised {string.Join(", ", raised.Select(d => d.Id))}");
         }
     }
 

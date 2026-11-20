@@ -17,7 +17,12 @@ Each occurrence is an ordinary root job with a ref, retries, and result of its o
 The lines that matter:
 
 ```csharp
-[Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+[Job(
+    "import-files",
+    ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence,
+    EventRecording = EventRecordingCode.Audit,
+    JobRetention = "1d"
+)]
 [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]
 ```
 
@@ -30,7 +35,12 @@ public static int MostAtOnce => Volatile.Read(ref _mostAtOnce);
 
 public static void Release() => Gate.TrySetResult();
 
-[Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+[Job(
+    "import-files",
+    ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence,
+    EventRecording = EventRecordingCode.Audit,
+    JobRetention = "1d"
+)]
 [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]
 public async Task Import(JobContext ctx, CancellationToken ct)
 {
@@ -85,4 +95,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/110-per-occurrence-delivery.program.md): every file as compiled, 144 lines.
+- [The whole program](/learn/110-per-occurrence-delivery.program.md): every file as compiled, 149 lines.

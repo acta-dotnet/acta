@@ -17,7 +17,7 @@ The schedule fires the one permanent job every five seconds. A firing does one b
 The lines that matter:
 
 ```csharp
-[Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+[Job("sync-orders", MaxAttempts = 3, Backoff = "2s", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-5s", "PT5S")]
 ```
 
@@ -26,7 +26,7 @@ In `SyncOrdersJob.cs` (excerpt):
 ```csharp
 public const int BatchSize = 40;
 
-[Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+[Job("sync-orders", MaxAttempts = 3, Backoff = "2s", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-5s", "PT5S")]
 public async Task Sync(JobContext ctx, CancellationToken ct)
 {
@@ -99,7 +99,7 @@ await ctx.SetVariableAsync("watermark", head, ct);
 In `SyncOrdersJob.cs` (excerpt):
 
 ```csharp
-[Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+[Job("sync-orders", MaxAttempts = 3, Backoff = "2s", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-5s", "PT5S")]
 public async Task Sync(JobContext ctx, CancellationToken ct)
 {

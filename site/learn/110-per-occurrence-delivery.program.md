@@ -131,7 +131,12 @@ namespace Acta.Learn.PerOccurrenceDelivery
         // occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and
         // `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how
         // many run at once; a job of your own does the occurrence's work there.
-        [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+        [Job(
+            "import-files",
+            ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence,
+            EventRecording = EventRecordingCode.Audit,
+            JobRetention = "1d"
+        )]
         [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]
         // learn: end
         public async Task Import(JobContext ctx, CancellationToken ct)

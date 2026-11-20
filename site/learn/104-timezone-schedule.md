@@ -25,7 +25,7 @@ In `timezone-schedule.cs` (excerpt):
 ```csharp
 public sealed class DailyDigestJob
 {
-    [Job("daily-digest")]
+    [Job("daily-digest", EventRecording = EventRecordingCode.Failures)]
     [Schedule("morning-ljubljana", "0 8 * * *", TimeZoneId = "Europe/Ljubljana")]
     // The second schedule is here so the program prints while you watch. Intervals are absolute gaps and take no timezone.
     [Schedule("demo-tick", "PT15S")]

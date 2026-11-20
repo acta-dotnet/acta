@@ -79,7 +79,7 @@ once deployed: a changed mode fails the deploy, so a new mode takes a new job na
 | `PerOccurrence` | A fresh ordinary root per occurrence, with its own state, retries, result, and retention | Work where each period or event is distinct: a billing run, an import, a notification |
 
 ```csharp
-[Job("sync-orders")]                                                              // Permanent: one job, fired again and again
+[Job("sync-orders", EventRecording = EventRecordingCode.Failures)]                // Permanent: one job, fired again and again
 [Schedule("every-5s", "PT5S")]
 public Task Sync(JobContext ctx, CancellationToken ct) => ...;
 

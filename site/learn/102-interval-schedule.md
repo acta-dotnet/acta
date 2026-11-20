@@ -25,7 +25,7 @@ In `interval-schedule.cs` (excerpt):
 ```csharp
 public sealed class HeartbeatJob
 {
-    [Job("heartbeat")]
+    [Job("heartbeat", EventRecording = EventRecordingCode.Failures)]
     [Schedule("every-10-seconds", "10s")]
     public void Handle(Heartbeat input) => Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss} UTC heartbeat");
 }

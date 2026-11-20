@@ -17,7 +17,13 @@ A firing retries under the job's budget like any attempt. The policy applies onc
 The lines that matter:
 
 ```csharp
-[Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.Pause)]
+[Job(
+    "sync-prices-pausing",
+    MaxAttempts = 2,
+    Backoff = "1s",
+    FiringFailurePolicy = FiringFailurePolicyCode.Pause,
+    EventRecording = EventRecordingCode.Audit
+)]
 ```
 
 In `firing-failure-policy.cs` (excerpt):
@@ -28,11 +34,17 @@ private static readonly ConcurrentDictionary<string, int> FailedAttempts = new()
 /// <summary>Firings of <paramref name="job"/> that spent their budget here: two failed attempts each.</summary>
 public static int SpentFirings(string job) => FailedAttempts.GetValueOrDefault(job) / 2;
 
-[Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.Pause)]
+[Job(
+    "sync-prices-pausing",
+    MaxAttempts = 2,
+    Backoff = "1s",
+    FiringFailurePolicy = FiringFailurePolicyCode.Pause,
+    EventRecording = EventRecordingCode.Audit
+)]
 [Schedule("every-second", "PT1S")]
 public Task Pausing(CancellationToken ct) => FailAsync("sync-prices-pausing");
 
-[Job("sync-prices-continuing", MaxAttempts = 2, Backoff = "1s")]
+[Job("sync-prices-continuing", MaxAttempts = 2, Backoff = "1s", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-second", "PT1S")]
 public Task Continuing(CancellationToken ct) => FailAsync("sync-prices-continuing");
 ```
@@ -69,4 +81,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/111-firing-failure-policy.program.md): every file as compiled, 112 lines.
+- [The whole program](/learn/111-firing-failure-policy.program.md): every file as compiled, 118 lines.

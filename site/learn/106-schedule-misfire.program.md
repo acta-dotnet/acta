@@ -177,15 +177,15 @@ namespace Acta.Learn.ScheduleMisfire
         // learn: 1. Choose the misfire strategy on the schedule
         // `MisfireStrategy` says what the next admission pass does with the occurrences that came due while the
         // schedule could not fire.
-        [Job("skip-report")]
+        [Job("skip-report", EventRecording = EventRecordingCode.Audit)]
         [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.Skip)]
         public Task Skip(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 
-        [Job("catch-up-once-report")]
+        [Job("catch-up-once-report", EventRecording = EventRecordingCode.Audit)]
         [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
         public Task CatchUpOnce(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 
-        [Job("catch-up-all-report")]
+        [Job("catch-up-all-report", EventRecording = EventRecordingCode.Audit)]
         [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpAll)]
         public Task CatchUpAll(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 

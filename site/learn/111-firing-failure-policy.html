@@ -83,11 +83,17 @@
 <span class="c">/// &lt;summary&gt;Firings of &lt;paramref name=&quot;job&quot;/&gt; that spent their budget here: two failed attempts each.&lt;/summary&gt;</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> SpentFirings(<span class="k">string</span> job) =&gt; FailedAttempts.GetValueOrDefault(job) / 2;
 
-<span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
+<span class="hl"><span class="a">[Job(</span></span>
+<span class="hl"><span class="a">    <span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-pausing&quot;</span>,</span></span>
+<span class="hl"><span class="a">    MaxAttempts = 2,</span></span>
+<span class="hl"><span class="a">    Backoff = <span class="s">&quot;1s&quot;</span>,</span></span>
+<span class="hl"><span class="a">    FiringFailurePolicy = FiringFailurePolicyCode.Pause,</span></span>
+<span class="hl"><span class="a">    EventRecording = EventRecordingCode.Audit</span></span>
+<span class="hl"><span class="a">)]</span></span>
 <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
 <span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);
 
-<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
+<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
 <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
 <span class="k">public</span> Task Continuing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-continuing&quot;</span>);</code></pre></figure>
 </div>
@@ -103,7 +109,7 @@ sync-prices-continuing | active</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/111-firing-failure-policy"><code>learn/100-scheduling/111-firing-failure-policy</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">firing-failure-policy.cs</span><span class="file-size">112 lines</span></summary><figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what a failed firing does to its schedule</span>
+<details class="source-file"><summary><span class="file-name">firing-failure-policy.cs</span><span class="file-size">118 lines</span></summary><figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what a failed firing does to its schedule</span>
 <span class="c">// A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens</span>
 <span class="c">// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `Pause` pauses</span>
 <span class="c">// them, with the reason, until an operator resumes them.</span>
@@ -199,12 +205,18 @@ Console.WriteLine(<span class="s">$&quot;sync-prices-continuing  spent {PriceFee
         <span class="c">// A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the</span>
         <span class="c">// second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that</span>
         <span class="c">// throws, so each attempt fails and retries; it is not `ctx.FailAsync`.</span>
-<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
+<span class="hl">        <span class="a">[Job(</span></span>
+<span class="hl"><span class="a">            <span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-pausing&quot;</span>,</span></span>
+<span class="hl"><span class="a">            MaxAttempts = 2,</span></span>
+<span class="hl"><span class="a">            Backoff = <span class="s">&quot;1s&quot;</span>,</span></span>
+<span class="hl"><span class="a">            FiringFailurePolicy = FiringFailurePolicyCode.Pause,</span></span>
+<span class="hl"><span class="a">            EventRecording = EventRecordingCode.Audit</span></span>
+<span class="hl"><span class="a">        )]</span></span>
         <span class="c">// learn: end</span>
         <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
         <span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);
 
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
         <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
         <span class="k">public</span> Task Continuing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-continuing&quot;</span>);
 

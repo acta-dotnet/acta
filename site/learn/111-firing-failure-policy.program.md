@@ -107,12 +107,18 @@ namespace Acta.Learn.FiringFailurePolicy
         // A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the
         // second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that
         // throws, so each attempt fails and retries; it is not `ctx.FailAsync`.
-        [Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.Pause)]
+        [Job(
+            "sync-prices-pausing",
+            MaxAttempts = 2,
+            Backoff = "1s",
+            FiringFailurePolicy = FiringFailurePolicyCode.Pause,
+            EventRecording = EventRecordingCode.Audit
+        )]
         // learn: end
         [Schedule("every-second", "PT1S")]
         public Task Pausing(CancellationToken ct) => FailAsync("sync-prices-pausing");
 
-        [Job("sync-prices-continuing", MaxAttempts = 2, Backoff = "1s")]
+        [Job("sync-prices-continuing", MaxAttempts = 2, Backoff = "1s", EventRecording = EventRecordingCode.Audit)]
         [Schedule("every-second", "PT1S")]
         public Task Continuing(CancellationToken ct) => FailAsync("sync-prices-continuing");
 

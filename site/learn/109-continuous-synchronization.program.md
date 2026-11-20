@@ -534,7 +534,7 @@ public sealed class SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal c
     // learn: 1. Fire the job on a schedule
     // The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so
     // between firings the job is `Idle` and holds no thread.
-    [Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+    [Job("sync-orders", MaxAttempts = 3, Backoff = "2s", EventRecording = EventRecordingCode.Audit)]
     [Schedule("every-5s", "PT5S")]
     // learn: end
     public async Task Sync(JobContext ctx, CancellationToken ct)
@@ -593,7 +593,7 @@ One permanent job, `sync-orders`, with one schedule, `every-5s`, and one durable
 crash switch:
 
 ```csharp
-[Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+[Job("sync-orders", MaxAttempts = 3, Backoff = "2s", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-5s", "PT5S")]
 public async Task Sync(JobContext ctx, CancellationToken ct)
 {

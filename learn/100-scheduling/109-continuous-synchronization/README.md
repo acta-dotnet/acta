@@ -32,7 +32,7 @@ One permanent job, `sync-orders`, with one schedule, `every-5s`, and one durable
 crash switch:
 
 ```csharp
-[Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+[Job("sync-orders", MaxAttempts = 3, Backoff = "2s", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-5s", "PT5S")]
 public async Task Sync(JobContext ctx, CancellationToken ct)
 {

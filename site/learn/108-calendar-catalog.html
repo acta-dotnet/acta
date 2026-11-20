@@ -99,7 +99,7 @@
 <p><code>Availability</code> names the calendar. The schedule fires only inside the windows its current version opens.</p>
 <figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> TickJob
 {
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-10s-in-hours&quot;</span>, <span class="s">&quot;PT10S&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>)]</span></span>
     <span class="k">public</span> Task Handle(Tick input, CancellationToken ct)
     {
@@ -242,7 +242,7 @@ Console.WriteLine(<span class="s">&quot;Watching 15s for a tick that must not co
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> TickJob
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
         <span class="c">// learn: 2. Bind the schedule to the calendar by name</span>
         <span class="c">// `Availability` names the calendar. The schedule fires only inside the windows its current version opens.</span>
 <span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-10s-in-hours&quot;</span>, <span class="s">&quot;PT10S&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>)]</span></span>

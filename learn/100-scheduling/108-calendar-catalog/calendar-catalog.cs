@@ -108,7 +108,7 @@ namespace Acta.Learn.CalendarCatalog
 
     public sealed class TickJob
     {
-        [Job("tick")]
+        [Job("tick", EventRecording = EventRecordingCode.Failures)]
         // learn: 2. Bind the schedule to the calendar by name
         // `Availability` names the calendar. The schedule fires only inside the windows its current version opens.
         [Schedule("every-10s-in-hours", "PT10S", Availability = "office-hours")]

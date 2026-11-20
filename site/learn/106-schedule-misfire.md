@@ -17,15 +17,15 @@ Missed occurrences are a business decision, and `MisfireStrategy` on the schedul
 The lines that matter:
 
 ```csharp
-[Job("skip-report")]
+[Job("skip-report", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.Skip)]
 public Task Skip(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 
-[Job("catch-up-once-report")]
+[Job("catch-up-once-report", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
 public Task CatchUpOnce(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 
-[Job("catch-up-all-report")]
+[Job("catch-up-all-report", EventRecording = EventRecordingCode.Audit)]
 [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpAll)]
 public Task CatchUpAll(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 ```
@@ -35,15 +35,15 @@ In `schedule-misfire.cs` (excerpt):
 ```csharp
 public sealed class MisfireJobs
 {
-    [Job("skip-report")]
+    [Job("skip-report", EventRecording = EventRecordingCode.Audit)]
     [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.Skip)]
     public Task Skip(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 
-    [Job("catch-up-once-report")]
+    [Job("catch-up-once-report", EventRecording = EventRecordingCode.Audit)]
     [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
     public Task CatchUpOnce(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 
-    [Job("catch-up-all-report")]
+    [Job("catch-up-all-report", EventRecording = EventRecordingCode.Audit)]
     [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpAll)]
     public Task CatchUpAll(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 

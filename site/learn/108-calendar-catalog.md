@@ -58,7 +58,7 @@ In `calendar-catalog.cs` (excerpt):
 ```csharp
 public sealed class TickJob
 {
-    [Job("tick")]
+    [Job("tick", EventRecording = EventRecordingCode.Failures)]
     [Schedule("every-10s-in-hours", "PT10S", Availability = "office-hours")]
     public Task Handle(Tick input, CancellationToken ct)
     {

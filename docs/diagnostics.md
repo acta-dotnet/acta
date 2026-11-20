@@ -123,6 +123,23 @@ public sealed record SendInvoice(string Customer, decimal Amount);
 public static Task Handle(SendInvoice input, CancellationToken ct) => Task.CompletedTask;
 ```
 
+## ACTA0108 <a id="acta0108"></a>
+
+**A schedule faster than once a minute (warning).** Every firing writes events, which are kept for
+`JobsOptions.Retention`, a year by default, so a job on a five-second schedule keeps millions of event
+rows. The warning names the job's fastest such schedule: an interval under a minute, with how many times
+a year it fires, or a cron that can fire more than once a minute: `@every_second`, or one whose seconds
+field is more than one plain number. The job is still in the manifest.
+
+State what Acta keeps on the `[Job]`: a permanent job states `EventRecording`, and a per-occurrence job,
+which makes a new job per firing, states `EventRecording` and `JobRetention`. Any value clears the warning.
+
+```csharp
+[Job("sync-orders", EventRecording = EventRecordingCode.Failures)]
+[Schedule("every-5s", "PT5S")]
+public Task Sync(JobContext ctx, CancellationToken ct) => ...;
+```
+
 ## ACTA0121 <a id="acta0121"></a>
 
 **Invalid `[Schedule]` declaration.** The variants: a `[Schedule]` on a method without `[Job]`; a

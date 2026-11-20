@@ -81,7 +81,7 @@ namespace Acta.Learn.MultipleSchedules
 
     public sealed class ReportJob
     {
-        [Job("report")]
+        [Job("report", EventRecording = EventRecordingCode.Audit)]
         // learn: 1. Put several schedules on the one job
         // Several [Schedule]s share one permanent job; schedules due at the same instant coalesce
         // into ONE execution, and context.TriggeringSchedules reports which fired.

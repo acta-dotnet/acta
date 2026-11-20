@@ -150,7 +150,7 @@ namespace Acta.Learn.DashboardSample
 
     public sealed class HeartbeatJob
     {
-        [Job("heartbeat")]
+        [Job("heartbeat", EventRecording = EventRecordingCode.Audit)]
         [Schedule("every-15-seconds", Cron.Every15Seconds)]
         public Task Handle(HeartbeatTick input) => Task.Delay(50);
     }

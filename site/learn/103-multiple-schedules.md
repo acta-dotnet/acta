@@ -26,7 +26,7 @@ In `multiple-schedules.cs` (excerpt):
 ```csharp
 public sealed class ReportJob
 {
-    [Job("report")]
+    [Job("report", EventRecording = EventRecordingCode.Audit)]
     [Schedule("fast", "PT10S")]
     [Schedule("faster", "PT5S")]
     public Task Handle(Report input, JobContext context, CancellationToken ct)
@@ -54,7 +54,7 @@ In `multiple-schedules.cs` (excerpt):
 ```csharp
 public sealed class ReportJob
 {
-    [Job("report")]
+    [Job("report", EventRecording = EventRecordingCode.Audit)]
     [Schedule("fast", "PT10S")]
     [Schedule("faster", "PT5S")]
     public Task Handle(Report input, JobContext context, CancellationToken ct)

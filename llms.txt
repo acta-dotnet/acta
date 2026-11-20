@@ -370,7 +370,8 @@ until the job ends or the wait times out; a handler's wait parks the job and hol
 ## Recurring work
 
 `[Schedule("every-5s", "PT5S")]` on a `[Job]` makes a permanent job: one durable job the schedule
-fires again and again. The job sits `Idle` between firings and holds no thread; the admission
+fires again and again. A schedule faster than once a minute makes the build warn (ACTA0108) until the
+job states `EventRecording`, for example `EventRecording = EventRecordingCode.Failures`. The job sits `Idle` between firings and holds no thread; the admission
 engine makes it `Ready` when a schedule is due, a worker claims it like any job, and the handler
 returns when its bounded work is done. Never loop forever inside the handler and never poll from it:
 a firing that finds nothing to do returns, and the next firing comes on schedule. Acta's progress is

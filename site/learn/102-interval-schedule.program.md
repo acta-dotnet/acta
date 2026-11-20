@@ -35,7 +35,7 @@ namespace Acta.Learn.IntervalSchedule
 
     public sealed class HeartbeatJob
     {
-        [Job("heartbeat")]
+        [Job("heartbeat", EventRecording = EventRecordingCode.Failures)]
         // learn: Give the schedule an interval instead of a cron
         // A schedule can be cron or an interval duration - the human form ("10s") or ISO 8601 ("PT10S",
         // and calendar forms like "P1D"). An interval has no wall-clock anchor, so it ignores TimeZoneId.

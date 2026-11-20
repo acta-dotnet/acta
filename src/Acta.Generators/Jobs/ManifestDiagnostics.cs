@@ -10,7 +10,7 @@ namespace Acta.Generators;
 /// Factory methods for every <c>ACTAxxxx</c> diagnostic the generator can emit. One ID per fix
 /// category; message variants carry the specifics.
 /// </summary>
-internal static class ManifestDiagnostics
+internal static partial class ManifestDiagnostics
 {
     /// <summary>
     /// Prefix of every ACTA01xx help link: docs/diagnostics.md at the commit this generator was built
@@ -243,6 +243,7 @@ internal static class ManifestDiagnostics
             "ACTA0105" => InvalidPolicy,
             "ACTA0106" => ContractCollision,
             "ACTA0107" => GeneratedInputAot,
+            "ACTA0108" => FrequentSchedule,
             "ACTA0121" => InvalidSchedule,
             "ACTA0122" => InvalidScheduleExpr,
             "ACTA0123" => ScheduledInputCtor,

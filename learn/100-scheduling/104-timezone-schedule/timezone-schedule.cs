@@ -28,7 +28,7 @@ namespace Acta.Learn.TimezoneSchedule
 
     public sealed class DailyDigestJob
     {
-        [Job("daily-digest")]
+        [Job("daily-digest", EventRecording = EventRecordingCode.Failures)]
         // learn: Write the hour as a cron and pin it to your time zone
         // The cron has five fields: minute, hour, day of month, month, day of week. `0 8 * * *` is 08:00 every day, and
         // without a time zone that hour is read as UTC.

@@ -303,6 +303,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             RateName: policy.RateName,
             Lane: policy.Lane,
             EventRecordingName: eventRecordingName,
+            StatesEventRecording: attr.NamedArguments.Any(a => a.Key == "EventRecording"),
             AlertProfileName: policy.AlertProfileName,
             FiringFailurePolicyName: policy.FiringFailurePolicyName,
             ScheduledDeliveryName: policy.ScheduledDeliveryName,
@@ -313,6 +314,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             DeadlineSeconds: policy.DeadlineSeconds,
             DeadlineBehaviorId: policy.DeadlineBehaviorId,
             JobRetentionSeconds: policy.JobRetentionSeconds,
+            StatesJobRetention: attr.NamedArguments.Any(a => a.Key == "JobRetention"),
             AlertChannelName: policy.AlertChannelName,
             RunbookUrl: policy.RunbookUrl,
             DisplayName: policy.DisplayName,
@@ -453,6 +455,13 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             {
                 ReportDiagnostic(spc, ManifestDiagnostics.GeneratedInputUnderAot(job));
             }
+        }
+
+        // ACTA0108: a schedule faster than once a minute (warning). Reported apart from the job's own diagnostics, which
+        // would drop the job from the manifest.
+        foreach (var warning in valid.Select(ScheduleRate.Warning).OfType<DiagnosticRecord>())
+        {
+            ReportDiagnostic(spc, warning);
         }
 
         // ACTA0106: job names whose generated member names (the call factory, and the argument record of a
@@ -613,6 +622,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? RateName,
         string? Lane,
         string EventRecordingName,
+        // This and StatesJobRetention: whether the [Job] names the argument, whatever its value, which EventRecordingName
+        // cannot tell once it folds an omitted one into the default.
+        bool StatesEventRecording,
         string AlertProfileName,
         string FiringFailurePolicyName,
         string ScheduledDeliveryName,
@@ -623,6 +635,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         int? DeadlineSeconds,
         byte DeadlineBehaviorId,
         int? JobRetentionSeconds,
+        bool StatesJobRetention,
         string? AlertChannelName,
         string? RunbookUrl,
         string? DisplayName,
