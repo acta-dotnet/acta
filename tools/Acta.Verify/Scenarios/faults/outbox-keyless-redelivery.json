@@ -1,0 +1,5 @@
+{
+  "title": "Keyless outbox records delivered again",
+  "question": "When the outbox relay dies after enqueuing records staged without a key but before clearing them, does a new relay deliver each record again onto the job its staged ref names, so every record yields one job?",
+  "runner": "outbox"
+}

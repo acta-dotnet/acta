@@ -19,6 +19,8 @@ internal static class OutboxCase
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         var source = new SqliteConnectionStringBuilder { DataSource = bundle.Resolve($"repro/state/{tag}/producer.db") }.ToString();
         var input = Enumerable.Range(0, 12).Select(i => new WorkInput($"root-{i}")).ToArray();
+        var keyless = scenario.Id == "outbox-keyless-redelivery";
+        List<JobRef> refs = [];
         await using (var connection = new SqliteConnection(source))
         {
             await connection.OpenAsync(ct);
@@ -37,9 +39,16 @@ internal static class OutboxCase
                 domain.CommandText = "INSERT INTO domain_obligations VALUES(@key)";
                 domain.Parameters.AddWithValue("@key", work.Key);
                 await domain.ExecuteNonQueryAsync(ct);
-                await transaction.AddToActaOutboxAsync(
-                    new EnqueueJobRequest("verify", "work", JobPayload.Json(work, WorkJson.Default.WorkInput), IdempotencyKey: work.Key),
-                    cancellationToken: ct
+                refs.Add(
+                    await transaction.AddToActaOutboxAsync(
+                        new EnqueueJobRequest(
+                            "verify",
+                            "work",
+                            JobPayload.Json(work, WorkJson.Default.WorkInput),
+                            IdempotencyKey: keyless ? null : work.Key
+                        ),
+                        cancellationToken: ct
+                    )
                 );
             }
             await transaction.CommitAsync(ct);
@@ -60,7 +69,19 @@ internal static class OutboxCase
             );
         }
         var reader = new DurableReader(state);
-        var before = await reader.ReadAsync(null, ct);
+        var jobs = host.Services.GetRequiredService<IJobs>();
+        // Each job is named by the record whose staged ref finds it, keyed or not. A job no staged ref finds keeps the
+        // reader's name, so a second job for one record is an unexpected identity.
+        Dictionary<long, string> keys = [];
+        foreach (var (work, jobRef) in input.Zip(refs))
+        {
+            if (await jobs.GetIdAsync(jobRef, ct) is { } job)
+            {
+                keys[job.JobId] = work.Key;
+            }
+        }
+        var before = (await reader.ReadAsync(null, ct)).Select(Named).ToList();
+        var stagedAtKill = await StagedAsync();
         if (!original.Kill())
         {
             return CaseResult.Incomplete(scenario.Id, environment.Provider, "fault", "Owned relay termination was not acknowledged.");
@@ -73,19 +94,20 @@ internal static class OutboxCase
             ct
         );
         await FaultCaseRunner.WaitAsync(
-            async () =>
-            {
-                await using var connection = new SqliteConnection(source);
-                await connection.OpenAsync(ct);
-                await using var count = connection.CreateCommand();
-                count.CommandText = "SELECT COUNT(*) FROM acta_outbox";
-                return (long)(await count.ExecuteScalarAsync(ct))! == 0;
-            },
+            async () => await StagedAsync() == 0,
             plan.Deadline(input.Length, original.Settings!.LeaseSeconds, state.DrainRate),
             ct
         );
-        var actual = await reader.OutcomesAsync(ct);
+        var actual = DurableReader.Outcomes([.. (await reader.ReadAsync(null, ct)).Select(Named)], await reader.StepsAsync(null, ct));
         var checks = OutcomeCheck.Reconcile(WorkloadModel.Expected(input), actual).ToList();
+        checks.Add(
+            new(
+                "staged-at-relay-kill",
+                "outbox",
+                stagedAtKill == input.Length,
+                $"{stagedAtKill} of {input.Length} records were still staged when the relay was killed, so the new relay delivered each again."
+            )
+        );
         checks.Add(
             new(
                 "committed-before-relay-kill",
@@ -114,5 +136,16 @@ internal static class OutboxCase
             [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed, WorkloadModel.Expected(input), actual)],
             Instrumented: true
         );
+
+        DurableRow Named(DurableRow row) => keys.TryGetValue(row.JobId, out var key) ? row with { Key = key } : row;
+
+        async Task<long> StagedAsync()
+        {
+            await using var connection = new SqliteConnection(source);
+            await connection.OpenAsync(ct);
+            await using var count = connection.CreateCommand();
+            count.CommandText = "SELECT COUNT(*) FROM acta_outbox";
+            return (long)(await count.ExecuteScalarAsync(ct))!;
+        }
     }
 }

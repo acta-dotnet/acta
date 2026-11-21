@@ -74,7 +74,7 @@ every release, on all three databases unless a row says otherwise. Run one yours
 
 | Test | Scenarios | Not covered |
 |---|---|---|
-| A worker dies after an outside effect and before its step is recorded | `crash-after-effect`, `idempotent-sink-crash`, `non-idempotent-sink`, `at-most-once` | |
+| A worker dies after an outside effect and before its step is recorded | `crash-after-effect`, `check-step`, `idempotent-sink-crash`, `non-idempotent-sink`, `at-most-once` | |
 | Two workers and one job, with a lease that expires | `pause-beyond-lease`, `kill-busy-worker`, `timeout-late-attempt` | Database latency is not injected; the lease is made to expire by freezing or killing a worker |
 | The database goes away during a completion | `database-disconnect`, `database-crash`, `lost-completion-reply` | The first two run on the servers only: SQLite is embedded, with no connection to cut and no process to kill |
 | A rolling deployment with changed handlers | `rolling-restart`, `compatible-contract`, `incompatible-contract` | Two builds of one application side by side; the contract scenarios change a fixture's types inside one build |

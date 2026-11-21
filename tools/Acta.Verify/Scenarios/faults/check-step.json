@@ -1,0 +1,11 @@
+{
+  "title": "Crash inside a step with a check",
+  "question": "When a worker dies after a non-idempotent effect applies but before its step is recorded, does recovery ask the step's check, find the effect, and finish the job without applying it again?",
+  "runner": "fault",
+  "work": [
+    {
+      "effect_mode": "checked",
+      "boundary": "effect"
+    }
+  ]
+}

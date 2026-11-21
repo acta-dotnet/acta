@@ -57,15 +57,17 @@ internal sealed class EffectService : IDisposable
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<(long Requests, long Applications)> CountsAsync(CancellationToken ct)
+    /// <summary>The effect requests the sink received, the applications it holds, and the checks that asked it for one.</summary>
+    public async Task<(long Requests, long Applications, long Checks)> CountsAsync(CancellationToken ct)
     {
         await using var c = new SqliteConnection($"Data Source={StorePath};Mode=ReadOnly");
         await c.OpenAsync(ct);
         await using var command = c.CreateCommand();
-        command.CommandText = "SELECT (SELECT COUNT(*) FROM receipts WHERE kind='effect'), (SELECT COUNT(*) FROM applications)";
+        command.CommandText =
+            "SELECT (SELECT COUNT(*) FROM receipts WHERE kind='effect'), (SELECT COUNT(*) FROM applications), (SELECT COUNT(*) FROM receipts WHERE kind='check')";
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
-        return (reader.GetInt64(0), reader.GetInt64(1));
+        return (reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2));
     }
 
     public async Task<Check[]> CheckIdempotentKeysAsync(IEnumerable<string> expectedKeys, CancellationToken ct)
@@ -189,7 +191,13 @@ internal sealed class EffectService : IDisposable
                     return;
                 }
                 var key = context.Request.QueryString["key"] ?? throw new ArgumentException("Missing key.");
-                var kind = path == "/effect" ? "effect" : "barrier-" + (context.Request.QueryString["boundary"] ?? "claim");
+                var kind = path switch
+                {
+                    "/effect" => "effect",
+                    "/applied" => "check",
+                    _ => "barrier-" + (context.Request.QueryString["boundary"] ?? "claim"),
+                };
+                bool? applied = null;
                 var pid = int.Parse(context.Request.QueryString["pid"] ?? "0", CultureInfo.InvariantCulture);
                 await using var c = new SqliteConnection(connectionString);
                 await c.OpenAsync(ct);
@@ -217,6 +225,14 @@ internal sealed class EffectService : IDisposable
                         effect.Parameters.AddWithValue("@dedup", context.Request.QueryString["idempotent"] == "true" ? key : DBNull.Value);
                         await effect.ExecuteNonQueryAsync(ct);
                     }
+                    if (path == "/applied")
+                    {
+                        await using var find = c.CreateCommand();
+                        find.Transaction = (SqliteTransaction)transaction;
+                        find.CommandText = "SELECT EXISTS(SELECT 1 FROM applications WHERE business_key=@key)";
+                        find.Parameters.AddWithValue("@key", key);
+                        applied = (long)(await find.ExecuteScalarAsync(ct))! == 1;
+                    }
                     await transaction.CommitAsync(ct);
                 }
                 if (path == "/barrier")
@@ -229,6 +245,10 @@ internal sealed class EffectService : IDisposable
                     await Task.Delay(delay, ct);
                 }
                 context.Response.StatusCode = 200;
+                if (applied is { } found)
+                {
+                    await context.Response.OutputStream.WriteAsync(found ? "true"u8.ToArray() : "false"u8.ToArray(), ct);
+                }
             }
             catch (Exception)
             {

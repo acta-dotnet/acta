@@ -15,7 +15,10 @@ public sealed class EffectClient : IDisposable
         _client.DefaultRequestHeaders.Add("X-Verify-Token", token ?? "");
     }
 
-    public async Task CallAsync(string path, string key, string? boundary, bool idempotent, int delay, CancellationToken ct)
+    /// <summary>Whether the sink holds an application of <paramref name="key"/>. The sink records the question and changes nothing.</summary>
+    public async Task<bool> AppliedAsync(string key, CancellationToken ct) => await CallAsync("applied", key, null, false, 0, ct) == "true";
+
+    public async Task<string> CallAsync(string path, string key, string? boundary, bool idempotent, int delay, CancellationToken ct)
     {
         if (_endpoint is null)
         {
@@ -25,6 +28,7 @@ public sealed class EffectClient : IDisposable
             $"?key={Uri.EscapeDataString(key)}&pid={Environment.ProcessId}&idempotent={idempotent.ToString().ToLowerInvariant()}&delay={delay}&boundary={Uri.EscapeDataString(boundary ?? "")}";
         using var response = await _client.PostAsync(_endpoint + path + query, content: null, ct);
         response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(ct);
     }
 
     public void Dispose() => _client.Dispose();

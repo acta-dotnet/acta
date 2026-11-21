@@ -17,7 +17,8 @@ internal static class FaultCaseRunner
                 or "kill-busy-worker"
                 or "kill-all-workers"
                 or "non-idempotent-sink"
-                or "idempotent-sink-crash";
+                or "idempotent-sink-crash"
+                or "check-step";
 
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
@@ -337,10 +338,22 @@ internal static class FaultCaseRunner
                     new(
                         "external-effect-applications",
                         input.Key,
-                        input.AtMostOnce || input.Boundary == "completion" ? sink.Requests == 1 && sink.Applications == 1
+                        input.AtMostOnce || input.Boundary == "completion" || input.EffectMode == "checked"
+                                ? sink.Requests == 1 && sink.Applications == 1
                             : input.EffectMode == "idempotent" ? sink.Requests >= 2 && sink.Applications == 1
                             : sink.Requests >= 2 && sink.Applications == sink.Requests,
                         $"Independent sink: {sink.Requests} requests, {sink.Applications} applications. Idempotency belongs to the sink."
+                    )
+                );
+            }
+            if (input.EffectMode == "checked")
+            {
+                checks.Add(
+                    new(
+                        "effect-check-asked",
+                        input.Key,
+                        sink.Checks >= 1,
+                        $"Independent sink: the step's check asked {sink.Checks} times whether the effect was applied."
                     )
                 );
             }

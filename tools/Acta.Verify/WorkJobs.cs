@@ -74,18 +74,18 @@ public sealed class WorkHandler(EffectClient effects)
         long sum = 0;
         if (input.EffectMode is not null)
         {
-            await ctx.RunStepAsync(
-                "effect",
-                async token =>
+            Func<CancellationToken, Task> effect = async token =>
+            {
+                await effects.CallAsync("effect", input.Key, null, input.EffectMode == "idempotent", input.WorkMs, token);
+                if (input.Boundary == "effect" && ctx.ExecutionNumber == 1)
                 {
-                    await effects.CallAsync("effect", input.Key, null, input.EffectMode == "idempotent", input.WorkMs, token);
-                    if (input.Boundary == "effect" && ctx.ExecutionNumber == 1)
-                    {
-                        await effects.CallAsync("barrier", input.Key, "effect", false, 0, token);
-                    }
-                },
-                configure: input.AtMostOnce ? o => o.AtMostOnce() : null,
-                ct: ct
+                    await effects.CallAsync("barrier", input.Key, "effect", false, 0, token);
+                }
+            };
+            await (
+                input.EffectMode == "checked"
+                    ? ctx.RunStepWithCheckAsync("effect", effect, token => effects.AppliedAsync(input.Key, token), ct)
+                    : ctx.RunStepAsync("effect", effect, configure: input.AtMostOnce ? o => o.AtMostOnce() : null, ct: ct)
             );
             if (input.Boundary == "completion" && ctx.ExecutionNumber == 1)
             {
