@@ -480,6 +480,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_reasons", NpgsqlDbType.Varchar, completions.Select(c => c.Reason).ToArray());
         AddArray(postgres, "@p_event_messages", NpgsqlDbType.Varchar, completions.Select(c => c.EventMessage).ToArray());
         AddArray(postgres, "@p_duration_ms", NpgsqlDbType.Integer, completions.Select(c => c.DurationMs).ToArray());
+        AddArray(postgres, "@p_wait_ms", NpgsqlDbType.Integer, completions.Select(c => c.WaitMs).ToArray());
         AddArray(postgres, "@p_failure_counts", NpgsqlDbType.Integer, completions.Select(c => c.FailureCount).ToArray());
         AddArray(postgres, "@p_retention_seconds", NpgsqlDbType.Integer, completions.Select(c => c.RetentionSeconds).ToArray());
         AddArray(
@@ -512,7 +513,6 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_has_schedule", NpgsqlDbType.Boolean, completions.Select(c => c.HasSchedule).ToArray());
 
         AddScalar(postgres, "@p_plain", NpgsqlDbType.Boolean, completions.All(c => c.IsPlain));
-        AddArray(postgres, "@p_wait_ms", NpgsqlDbType.Integer, completions.Select(c => c.WaitMs).ToArray());
     }
 
     /// <summary>Npgsql parameter primitives the dialect's own binders use to shape command parameters.</summary>

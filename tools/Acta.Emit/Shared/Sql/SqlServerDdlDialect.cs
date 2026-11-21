@@ -167,6 +167,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 reason                   VARCHAR(64)    NULL,
                 event_message            NVARCHAR(512)  NULL,
                 duration_ms              INT            NULL,
+                wait_ms                  INT            NULL,
                 failure_count            INT            NULL,
                 retention_seconds        INT            NULL,
                 reschedule_event_code    TINYINT        NULL,
@@ -176,7 +177,6 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 handler_job_status_code  TINYINT        NULL,
                 final_job_status_code    TINYINT        NULL,
                 job_next_run_at_utc      DATETIME2(3)   NULL,
-                wait_ms                  INT            NULL,
                 PRIMARY KEY (job_id, execution_number)
             );');
             GO

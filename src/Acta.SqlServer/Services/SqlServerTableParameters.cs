@@ -117,6 +117,7 @@ internal static class SqlServerTableParameters
         new("reason", SqlDbType.VarChar, 64),
         new("event_message", SqlDbType.NVarChar, 512),
         new("duration_ms", SqlDbType.Int),
+        new("wait_ms", SqlDbType.Int),
         new("failure_count", SqlDbType.Int),
         new("retention_seconds", SqlDbType.Int),
         new("reschedule_event_code", SqlDbType.TinyInt),
@@ -126,7 +127,6 @@ internal static class SqlServerTableParameters
         new("handler_job_status_code", SqlDbType.TinyInt),
         new("final_job_status_code", SqlDbType.TinyInt),
         new("job_next_run_at_utc", SqlDbType.DateTime2),
-        new("wait_ms", SqlDbType.Int),
     ];
 
     internal static IEnumerable<SqlDataRecord> BuildCompleteExecutionsRecords(IReadOnlyList<CompleteExecutionsValues> completions)
@@ -145,16 +145,16 @@ internal static class SqlServerTableParameters
             SetNullableString(record, 6, completion.Reason);
             SetNullableString(record, 7, completion.EventMessage);
             SetNullableInt32(record, 8, completion.DurationMs);
-            SetNullableInt32(record, 9, completion.FailureCount);
-            SetNullableInt32(record, 10, completion.RetentionSeconds);
-            SetNullableByte(record, 11, (byte?)completion.RescheduleEventCode);
-            SetNullableInt32(record, 12, completion.RescheduleDelaySeconds);
-            SetNullableDateTime(record, 13, completion.RescheduleResumeAtUtc);
-            SetNullableString(record, 14, completion.WaitSignalName);
-            SetNullableByte(record, 15, completion.HandlerStatusCode);
-            SetNullableByte(record, 16, (byte?)completion.FinalStatus);
-            SetNullableDateTime(record, 17, completion.JobNextRunAtUtc);
-            SetNullableInt32(record, 18, completion.WaitMs);
+            SetNullableInt32(record, 9, completion.WaitMs);
+            SetNullableInt32(record, 10, completion.FailureCount);
+            SetNullableInt32(record, 11, completion.RetentionSeconds);
+            SetNullableByte(record, 12, (byte?)completion.RescheduleEventCode);
+            SetNullableInt32(record, 13, completion.RescheduleDelaySeconds);
+            SetNullableDateTime(record, 14, completion.RescheduleResumeAtUtc);
+            SetNullableString(record, 15, completion.WaitSignalName);
+            SetNullableByte(record, 16, completion.HandlerStatusCode);
+            SetNullableByte(record, 17, (byte?)completion.FinalStatus);
+            SetNullableDateTime(record, 18, completion.JobNextRunAtUtc);
             yield return record;
         }
     }

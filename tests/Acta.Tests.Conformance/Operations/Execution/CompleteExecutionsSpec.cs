@@ -221,13 +221,13 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
             null,
             null,
             5,
+            job.WaitMs,
             null,
             3600
         )
         {
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
-            WaitMs = job.WaitMs,
         };
 
     private async Task<Dictionary<long, CompleteExecutionsRow>> CompleteAsync(

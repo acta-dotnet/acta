@@ -224,6 +224,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
                     null,
                     null,
                     null,
+                    null,
                     0,
                     null
                 )

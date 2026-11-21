@@ -5,7 +5,8 @@ namespace Acta;
 /// <c>WaitSignalName</c> suspends on that signal (Ready when it already arrived), <c>RescheduleEventCode</c> re-arms
 /// Ready and names the event a re-arm records at Audit, <c>HandlerStatusCode</c> lands what the handler asked for, and
 /// <c>FinalStatus</c> is a recurring fire. <c>EventCode</c> is the attempt's own event, an attempt ending, with <c>Reason</c>
-/// its <see cref="EventReason"/>. <c>FailureCount</c> null keeps the row's; <c>RetentionSeconds</c> stamps a terminal landing.
+/// its <see cref="EventReason"/>. <c>WaitMs</c> is how long the attempt waited to be claimed, as its claim measured it, which the
+/// event stores beside the duration. <c>FailureCount</c> null keeps the row's; <c>RetentionSeconds</c> stamps a terminal landing.
 /// </summary>
 internal sealed record CompleteExecutionsValues(
     long JobId,
@@ -17,6 +18,7 @@ internal sealed record CompleteExecutionsValues(
     string? Reason,
     string? EventMessage,
     int? DurationMs,
+    int? WaitMs,
     int? FailureCount,
     int? RetentionSeconds
 )
@@ -34,9 +36,6 @@ internal sealed record CompleteExecutionsValues(
     public JobStatusCode? FinalStatus { get; init; }
 
     public DateTime? JobNextRunAtUtc { get; init; }
-
-    /// <summary>How long the attempt waited to be claimed, as its claim measured it; the event stores it beside the duration.</summary>
-    public int? WaitMs { get; init; }
 
     /// <summary>The job is in a lane, as its claim read it; lane_id never changes.</summary>
     public bool HasLane { get; init; }

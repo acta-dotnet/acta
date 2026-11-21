@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261121094230_init has no upgrade path: provision a new one.
+-- init migration other than M20261121141306_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -42,14 +42,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261121094230_init')
+        WHERE name NOT IN ('M20261121141306_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261121094230_init =====
+-- ===== BEGIN M20261121141306_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -919,6 +919,7 @@ CREATE OR REPLACE FUNCTION acta.complete_executions(
     p_reasons VARCHAR[],
     p_event_messages VARCHAR[],
     p_duration_ms INT[],
+    p_wait_ms INT[],
     p_failure_counts INT[],
     p_retention_seconds INT[],
     p_reschedule_event_codes SMALLINT[],
@@ -929,8 +930,7 @@ CREATE OR REPLACE FUNCTION acta.complete_executions(
     p_final_job_status_codes SMALLINT[],
     p_job_next_run_at_utc TIMESTAMPTZ[],
     p_has_schedule BOOLEAN[],
-    p_plain BOOLEAN,
-    p_wait_ms INT[] DEFAULT NULL
+    p_plain BOOLEAN
 )
 RETURNS TABLE (
     job_id BIGINT,
@@ -961,10 +961,10 @@ BEGIN
             SELECT *
             FROM unnest(
                 p_job_ids, p_execution_numbers, p_succeeded, p_result_format_ids, p_results,
-                p_event_codes, p_reasons, p_event_messages, p_duration_ms, p_failure_counts, p_retention_seconds, p_wait_ms
+                p_event_codes, p_reasons, p_event_messages, p_duration_ms, p_wait_ms, p_failure_counts, p_retention_seconds
             ) AS c (
                 job_id, execution_number, succeeded, result_format_id, result,
-                event_code, reason, event_message, duration_ms, failure_count, retention_seconds, wait_ms
+                event_code, reason, event_message, duration_ms, wait_ms, failure_count, retention_seconds
             )
         ),
         eligible AS (
@@ -1321,11 +1321,11 @@ BEGIN
         CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
         convert_to(x.details, 'UTF8')
     FROM unnest(
-        p_job_ids, p_execution_numbers, p_event_codes, p_reasons, p_event_messages, p_duration_ms,
-        p_reschedule_event_codes, p_handler_job_status_codes, p_final_job_status_codes, p_wait_ms
+        p_job_ids, p_execution_numbers, p_event_codes, p_reasons, p_event_messages, p_duration_ms, p_wait_ms,
+        p_reschedule_event_codes, p_handler_job_status_codes, p_final_job_status_codes
     ) AS c (
-        job_id, execution_number, event_code, reason, event_message, duration_ms,
-        reschedule_event_code, handler_job_status_code, final_job_status_code, wait_ms
+        job_id, execution_number, event_code, reason, event_message, duration_ms, wait_ms,
+        reschedule_event_code, handler_job_status_code, final_job_status_code
     )
     INNER JOIN acta.jobs_state r ON r.job_id = c.job_id AND r.execution_number = c.execution_number
     INNER JOIN acta.jobs j ON j.job_id = c.job_id
@@ -4322,10 +4322,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261121094230_init')
+VALUES ('M20261121141306_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261121094230_init =====
+-- ===== END M20261121141306_init =====
 
 COMMIT;
 

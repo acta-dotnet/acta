@@ -548,6 +548,7 @@ EXEC(N'CREATE TYPE {{schema}}.complete_executions AS TABLE (
     reason                   VARCHAR(64)    NULL,
     event_message            NVARCHAR(512)  NULL,
     duration_ms              INT            NULL,
+    wait_ms                  INT            NULL,
     failure_count            INT            NULL,
     retention_seconds        INT            NULL,
     reschedule_event_code    TINYINT        NULL,
@@ -557,7 +558,6 @@ EXEC(N'CREATE TYPE {{schema}}.complete_executions AS TABLE (
     handler_job_status_code  TINYINT        NULL,
     final_job_status_code    TINYINT        NULL,
     job_next_run_at_utc      DATETIME2(3)   NULL,
-    wait_ms                  INT            NULL,
     PRIMARY KEY (job_id, execution_number)
 );');
 GO
@@ -4792,7 +4792,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261121094230_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261121141306_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261121094230_init');
+VALUES ('M20261121141306_init');
 GO
