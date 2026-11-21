@@ -97,17 +97,18 @@ of the alert floor, so a job goes once its `retention_until_utc` is before that 
 before it. A namespace with no projector is judged at the cutoff alone. A delete runs in bounded batches, and an empty
 batch ends it. An events pass reads each batch on from the last `(created_at_utc, event_id)` the batch before it
 examined, so no batch reads again the index entries an earlier one deleted.
-The job delete is the exception: no index finds expired jobs, so each call walks its own namespace's
-jobs from newer to older through `ix_jobs_namespace_created`, from the cursor the previous pass stored
-on the slot (`p_before_created_utc` and `p_before_job_id`, the `retention-cursor` job variable), reads
-ten batches' worth of them, deletes a batch of the expired ones among them, and answers where it stopped:
-at its last delete when the batch was full, so the walk moves on past what it deleted. On SQL Server the batch is
-taken before its jobs' undelivered alerts are read ("Alert lock order"), so a full batch can delete fewer jobs than
-it holds, and it answers at its last job. A cycle starts at the newest
-job old enough to have expired, which is the cutoff less the shortest retention any definition of the
-namespace has, the framework's own `sys.` definitions aside, and ends at the namespace's oldest job. A
-pass walks until the cycle ends, a delete budget's worth of jobs is gone, or its time is spent, and
-stores its place then, before the later deletes run.
+The job delete is the exception: a batch its guards keep whole deletes nothing, so it walks the expired range and keeps
+its place between passes. Each call reads a batch of its own namespace's
+expired jobs through `ix_jobs_state_retention`, oldest `retention_until_utc` first, after the cursor
+the previous pass stored on the slot (`p_after_retention_utc` and `p_after_job_id`, the
+`retention-cursor` job variable), reading them without update locks and skipping a row another
+transaction holds. It then locks each candidate through its `jobs_state` row and then its `jobs` row,
+re-checks its status and deadline there, and deletes the ones its guards let go. A full batch answers
+its last candidate, so the next call reads on past the jobs the guards keep, such as the finished
+children of a parent that has not finished; a shorter batch reached the end of the expired range and
+answers no cursor, so the next pass starts at the oldest again and meets the rows it skipped or kept
+once more. A pass walks until the range ends, a delete budget's worth of jobs is gone, or its time is
+spent, and stores its place then, before the later deletes run.
 On PostgreSQL the job delete and the lane delete lock their batch in a statement of their own and delete in later
 statements of the same transaction, so each delete reads what committed before the lock was taken ("A read after a
 lock"); the other four lock and delete in one statement.
@@ -228,7 +229,7 @@ filter so the hint always compiles:
   namespace's row and deadlocked with deploys writing theirs.
 - A map's replay reads its children as `enqueue_jobs` probes, a join's inner side under the list it passes:
   `ListChildJobsByName` names both columns of `ux_jobs_idempotency_key_child`.
-- The job delete's staging read seeks `ix_jobs_namespace_created` from its cursor and then `jobs_state`
+- The job delete's candidate read seeks `ix_jobs_state_retention` from its cursor and its lock seeks `jobs_state`
   and `jobs` by key, and the event delete's read seeks `ix_events_namespace_created` from its pass's position.
 - The outbox claim, its lease recovery and lane check, the relay's finalizes, the backlog count, and the
   operator's quarantine reads, requeue, and discard seek without naming an index, because the producer owns that

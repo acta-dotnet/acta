@@ -83,15 +83,17 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
     public override string? TablePageLocks(string tableName, bool disabled) =>
         $"ALTER INDEX ALL ON {SchemaPlaceholder}.{tableName} SET (ALLOW_PAGE_LOCKS = {(disabled ? "OFF" : "ON")});";
 
-    // OPTIMIZE_FOR_SEQUENTIAL_KEY targets last-page insert contention on a monotonic clustered key,
-    // so it is opted in per-PK via [DbPrimaryKey(OptimizeForSequentialKey = true)]: only on the
-    // high-insert sequence-keyed tables (events, jobs, results, jobs_state), not blanket on every index.
+    // OPTIMIZE_FOR_SEQUENTIAL_KEY targets last-page insert contention on a monotonic key, so it is opted in per key via
+    // [DbPrimaryKey(OptimizeForSequentialKey = true)] or [DbIndex(OptimizeForSequentialKey = true)]: only on the
+    // high-insert sequence-keyed tables (events, jobs, jobs_state) and the retention index, where each landing inserts
+    // near one end, not blanket on every index.
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk, bool disablePageLocks) =>
         With(pk.OptimizeForSequentialKey ? "OPTIMIZE_FOR_SEQUENTIAL_KEY = ON" : null, disablePageLocks ? "ALLOW_PAGE_LOCKS = OFF" : null);
 
     // A locking read takes page locks when it scans many rows, and READPAST passes row locks only, so on a table whose
     // newest pages every writer changes such a read queues behind the writers and they behind it.
-    public override string IndexTrailingOptions(bool disablePageLocks) => With(disablePageLocks ? "ALLOW_PAGE_LOCKS = OFF" : null);
+    public override string IndexTrailingOptions(DbIndexSpec idx, bool disablePageLocks) =>
+        With(idx.OptimizeForSequentialKey ? "OPTIMIZE_FOR_SEQUENTIAL_KEY = ON" : null, disablePageLocks ? "ALLOW_PAGE_LOCKS = OFF" : null);
 
     private static string With(params string?[] options) =>
         options.OfType<string>().ToList() is { Count: > 0 } set ? $" WITH ({string.Join(", ", set)})" : "";

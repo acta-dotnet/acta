@@ -22,6 +22,12 @@ internal sealed class DbIndexAttribute : Attribute
     public string? Filter { get; init; }
 
     /// <summary>
+    /// Opts the index into SQL Server <c>OPTIMIZE_FOR_SEQUENTIAL_KEY = ON</c>; reserve for a key that every insert lands
+    /// at one end of. No-op on providers without the hint.
+    /// </summary>
+    public bool OptimizeForSequentialKey { get; init; }
+
+    /// <summary>
     /// Why the index exists: the access pattern it serves, rendered into the data-model docs.
     /// Vocabulary: claim_hot_path, claim_horizon, read_api, dashboard, dashboard_grid, maintenance,
     /// uniqueness, lock_reclaim, scheduler, checkpoint_timer, heartbeat, child_fanout, alert_raise, lane.

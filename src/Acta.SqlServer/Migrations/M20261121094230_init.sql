@@ -275,6 +275,7 @@ CREATE TABLE {{schema}}.jobs_state (
     , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}.lanes (lane_id)
 );
 CREATE INDEX ix_jobs_state_claim_ready ON {{schema}}.jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_retention ON {{schema}}.jobs_state (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON, ALLOW_PAGE_LOCKS = OFF);
 CREATE INDEX ix_jobs_state_worker_inflight ON {{schema}}.jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50 WITH (ALLOW_PAGE_LOCKS = OFF);
 CREATE INDEX ix_jobs_state_lane ON {{schema}}.jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50) WITH (ALLOW_PAGE_LOCKS = OFF);
 CREATE INDEX ix_jobs_state_failed ON {{schema}}.jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200 WITH (ALLOW_PAGE_LOCKS = OFF);
@@ -4791,7 +4792,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261120234904_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261121094230_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120234904_init');
+VALUES ('M20261121094230_init');
 GO

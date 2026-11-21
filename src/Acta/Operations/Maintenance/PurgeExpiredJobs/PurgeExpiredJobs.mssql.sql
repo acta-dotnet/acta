@@ -6,57 +6,45 @@ BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
-    DECLARE @next_created_utc DATETIME2(3) = NULL;
+    DECLARE @next_retention_utc DATETIME2(3) = NULL;
     DECLARE @next_job_id BIGINT = 0;
-    DECLARE @job_del TABLE (job_id BIGINT NOT NULL, created_at_utc DATETIME2(3) NOT NULL);
+    -- The index keys are DATETIME2(3), and a forced seek on them compiles only against values of that type.
+    DECLARE @cutoff_utc DATETIME2(3) = @p_cutoff_utc;
+    DECLARE @after_utc DATETIME2(3) = @p_after_retention_utc;
+    DECLARE @candidates TABLE (job_id BIGINT NOT NULL PRIMARY KEY, retention_until_utc DATETIME2(3) NOT NULL);
+    DECLARE @job_del TABLE (job_id BIGINT NOT NULL);
     DECLARE @alert_del TABLE (alert_id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
     DECLARE @alert_seen TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
 
-    /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten batches a
-       slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers no cursor; a
-       full batch ends the slice at its last job, so the walk moves on past what it took. */
-    DECLARE @below DATETIME2(3) = @p_before_created_utc;
-    DECLARE @below_id BIGINT = @p_before_job_id;
-    IF @below IS NULL
-        BEGIN
-            /* A cycle starts at the newest job old enough to have expired: none expires sooner than the shortest retention
-               any definition of the namespace has, a retired one included. The framework's own are left out: they run
-               only permanent jobs, and their default would hold a longer-keeping walk to it. */
-            SELECT @below = DATEADD(SECOND, -COALESCE(MIN(d.retention_seconds_effective), 0), @p_cutoff_utc)
-            FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
-            WHERE d.namespace_id = @p_namespace_id AND d.definition_name NOT LIKE 'sys.%';
-            SET @below_id = 9223372036854775807;
-        END;
+    /* This namespace's expired jobs from ix_jobs_state_retention after the cursor, read without update locks and skipping
+       a key another transaction holds. A full batch answers its last candidate, so the next call reads on past it; a
+       shorter one reached the end of the expired range and answers no cursor. */
+    INSERT INTO @candidates (job_id, retention_until_utc)
+    SELECT TOP (@p_batch_size) k.job_id, k.retention_until_utc
+    FROM {{schema}}.jobs_state k WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_state_retention (namespace_id, retention_until_utc)))
+    WHERE
+        k.namespace_id = @p_namespace_id
+        AND k.retention_until_utc IS NOT NULL
+        AND k.retention_until_utc < @cutoff_utc
+        AND k.retention_until_utc >= @after_utc
+        AND (k.retention_until_utc > @after_utc OR k.job_id > @p_after_job_id)
+    ORDER BY k.retention_until_utc, k.job_id;
 
-    -- The walk skips a row another transaction holds; the delete below locks and re-checks its own.
-    DECLARE @slice_end DATETIME2(3), @slice_end_id BIGINT;
-    SELECT TOP (1) @slice_end = s.created_at_utc, @slice_end_id = s.job_id
-    FROM (
-        SELECT TOP (@p_batch_size * 10) w.created_at_utc, w.job_id
-        FROM {{schema}}.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
-        WHERE
-            w.namespace_id = @p_namespace_id
-            AND w.created_at_utc <= @below
-            AND (w.created_at_utc < @below OR w.job_id < @below_id)
-        ORDER BY w.created_at_utc DESC, w.job_id DESC
-    ) s
-    ORDER BY s.created_at_utc, s.job_id;
+    IF (SELECT COUNT(*) FROM @candidates) = @p_batch_size
+        SELECT TOP (1) @next_retention_utc = c.retention_until_utc, @next_job_id = c.job_id
+        FROM @candidates c
+        ORDER BY c.retention_until_utc DESC, c.job_id DESC;
 
-    /* A locking read seeks (docs/sql-internals.md, "Locking reads seek"). The walk reads the index without update locks,
-       so a slice of live jobs holds none; a job is locked through its state row, where the status and the deadline are
-       read, and then its own row. */
-    INSERT INTO @job_del (job_id, created_at_utc)
-    SELECT TOP (@p_batch_size) j.job_id, w.created_at_utc
-    FROM {{schema}}.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
-    INNER JOIN {{schema}}.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK) ON r.job_id = w.job_id
+    /* A locking read seeks (docs/sql-internals.md, "Locking reads seek"). The candidates were read without update locks,
+       so the index holds none; a job is locked through its state row, where the status and the deadline are read
+       again, and then its own row. */
+    INSERT INTO @job_del (job_id)
+    SELECT j.job_id
+    FROM @candidates k
+    INNER JOIN {{schema}}.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK) ON r.job_id = k.job_id
     INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, READPAST, FORCESEEK) ON j.job_id = r.job_id
     WHERE
-        w.namespace_id = @p_namespace_id
-        AND w.created_at_utc <= @below
-        AND (w.created_at_utc < @below OR w.job_id < @below_id)
-        AND w.created_at_utc >= @slice_end
-        AND (w.created_at_utc > @slice_end OR w.job_id >= @slice_end_id)
-        AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         AND r.retention_until_utc IS NOT NULL
         AND r.retention_until_utc < @p_cutoff_utc
         -- Lineage guard: parent_job_id carries no FK, so purging a parent whose children still
@@ -88,15 +76,7 @@ BEGIN TRY
                 AND s.job_id IS NOT NULL
                 AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
         )
-    ORDER BY w.created_at_utc DESC, w.job_id DESC
     OPTION (FORCE ORDER, LOOP JOIN);
-
-    IF (SELECT COUNT(*) FROM @job_del) = @p_batch_size
-        SELECT TOP (1) @next_created_utc = d.created_at_utc, @next_job_id = d.job_id
-        FROM @job_del d
-        ORDER BY d.created_at_utc, d.job_id;
-    ELSE IF @slice_end IS NOT NULL
-        SELECT @next_created_utc = @slice_end, @next_job_id = @slice_end_id;
 
     /* A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet. The batch has given
        the walk its place, so a job kept here is passed. The batch's alert ids come from ix_alerts_job alone and their
@@ -149,7 +129,7 @@ BEGIN TRY
     DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
     DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = j.job_id;
 
-    SELECT (SELECT COUNT(*) FROM @job_del) AS deleted_count, @next_created_utc AS next_created_utc, @next_job_id AS next_job_id;
+    SELECT (SELECT COUNT(*) FROM @job_del) AS deleted_count, @next_retention_utc AS next_retention_utc, @next_job_id AS next_job_id;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

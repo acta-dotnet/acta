@@ -153,7 +153,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- |
 | `PurgeExpiredAlerts` | · | · | · | inline | `alerts` | `PurgeExpiredAlertsSpec` |
 | `PurgeExpiredEvents` | · | · | · | inline | `events` | `PurgeExpiredEventsSpec` |
-| `PurgeExpiredJobs` | · | · | · | inline | `alerts`, `checkpoints`, `jobs`, `jobs_state`, `schedules`, `schedules_state`, `steps`, `tags` | `PurgeExpiredJobsSpec`, `PurgeExpiredJobsWalkSpec` |
+| `PurgeExpiredJobs` | · | · | · | inline | `alerts`, `checkpoints`, `jobs`, `jobs_state`, `schedules`, `schedules_state`, `steps`, `tags` | `PurgeExpiredJobsRaceSpec`, `PurgeExpiredJobsSpec`, `PurgeExpiredJobsWalkSpec` |
 | `PurgeExpiredLocks` | · | · | · | inline | `locks` | `PurgeExpiredLocksSpec` |
 | `PurgeExpiredWorkers` | · | · | · | inline | `workers` | `PurgeExpiredWorkersSpec` |
 | `PurgeUnusedLanes` | · | · | · | inline | `lanes` | `PurgeUnusedLanesSpec` |

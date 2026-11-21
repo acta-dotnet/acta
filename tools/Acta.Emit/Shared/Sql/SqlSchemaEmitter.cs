@@ -162,7 +162,7 @@ internal static class SqlSchemaEmitter
             idx.Include is { Count: > 0 } && dialect.SupportsIncludedColumns ? $" INCLUDE ({string.Join(", ", idx.Include)})" : "";
         var filter = idx.Filter is null ? "" : $" WHERE {idx.Filter}";
         return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){include}{filter}"
-            + $"{dialect.IndexTrailingOptions(disablePageLocks)};";
+            + $"{dialect.IndexTrailingOptions(idx, disablePageLocks)};";
     }
 
     // True when the dialect folds this entity's identity column inline as its key (SQLite rowid alias).

@@ -22,8 +22,6 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "Retention keeps a finished child until its parent has finished and the parent's own retention is due, manual purge while the parent is live."
 )]
-// purge-now keeps its jobs no time at all, so a sweep walks the namespace from the cutoff and reaches a job that a
-// fact expires by hand.
 [Deploys("job-child-echo", "job-parent-one", "purge-now")]
 public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ChildRetentionSpec>>
 {

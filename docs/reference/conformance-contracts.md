@@ -2138,6 +2138,11 @@
   - The automatic sweep also deletes the sys namespace's expired tenant events and keeps its recent ones
   - A pass over more events than several batches deletes them all, each batch reading on from the last
 
+### The job delete races landings and restarts without a deadlock
+- **Contract:** Deleting expired jobs while other jobs land past their retention and finished jobs restart never deadlocks, and the delete deletes as it goes.
+- **Guarantees:**
+  - The job delete racing landings past retention and restarts of finished jobs never deadlocks
+
 ### Purge deletes expired jobs with what they own, within batches
 - **Contract:** Purge deletes terminal jobs past their retention with what they own, keeps the jobs its guards hold, and stays within its batch bounds.
 - **Guarantees:**
@@ -2149,16 +2154,14 @@
   - Batching caps a single call at max iterations and a full run clears the rest
   - A stopped recurring job outlives its retention while its definition is live, and drains once retired
 
-### Purge walks its namespace's jobs from the retention bound to the oldest
-- **Contract:** The jobs walk reads only its namespace's jobs, from the newest old enough to have expired to the oldest, and deletes the expired ones a batch at a time.
+### Purge walks its namespace's expired jobs from the oldest retention date
+- **Contract:** The jobs walk reads only its namespace's expired jobs, oldest retention date first, steps over the ones its guards keep, and deletes the rest a batch at a time.
 - **Guarantees:**
-  - A cycle passes the jobs still kept, deletes the expired ones behind them, and ends at its oldest job
-  - A full batch ends its slice at its last delete, and the next call reads on from there
-  - A cycle passes a job an undelivered alert keeps and deletes the expired one behind it
-  - Jobs created at one instant, more of them than a slice, are all deleted
-  - An expired job is deleted by the first slice however many newer jobs other namespaces hold
-  - A cycle starts at the shortest retention any definition has, a retired one included, and a younger job waits
-  - The framework's own definitions do not set where a cycle starts
+  - The walk examines only the expired jobs, oldest first, however many the namespace still keeps
+  - A full batch answers its last examined job, and a shorter one at the end answers no cursor
+  - The walk steps over the jobs its guards keep, and the next call deletes the expired job behind them
+  - Jobs that expire at one instant, more of them than a batch, are all deleted
+  - An expired job is deleted by the first batch however many expired jobs other namespaces hold
 
 ### Concurrent retention sweeps reap a shared lock backlog without a deadlock
 - **Contract:** Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock.

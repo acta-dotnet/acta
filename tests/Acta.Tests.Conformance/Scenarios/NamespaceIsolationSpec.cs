@@ -24,8 +24,6 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Namespaces",
     Contract = "With every row of another namespace held by an open transaction, each per-namespace operation completes without waiting on it."
 )]
-// purge-now keeps its jobs no time at all, so a sweep walks the namespace from the cutoff and reaches a job that a
-// fact expires by hand.
 [Deploys(
     "add-numbers",
     "concurrency-limit-probe",
@@ -41,7 +39,6 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lane-step",
     "lock-holder",
     "on-final-failure-probe",
-    "purge-now",
     "rate-limited-probe",
     "recurring-ping",
     "tenant-required-probe"

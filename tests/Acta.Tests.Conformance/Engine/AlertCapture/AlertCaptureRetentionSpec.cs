@@ -16,9 +16,7 @@ namespace Acta.Tests.Conformance.Engine.AlertCapture;
     Area = "Alerts",
     Contract = "Retention deletes no job or event the namespace's alert projector has not passed, and both age out normally once it passes them."
 )]
-// purge-now keeps its jobs no time at all, so a sweep walks the namespace from the cutoff and reaches a job that a
-// fact expires by hand.
-[Deploys("job-throw-not-implemented", "purge-now")]
+[Deploys("job-throw-not-implemented")]
 public sealed class AlertCaptureRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertCaptureRetentionSpec>>
 {
     // The floor is the namespace's own sys.alerts cursor, so the slot has to exist.

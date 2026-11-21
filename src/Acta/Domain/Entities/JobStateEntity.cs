@@ -34,7 +34,17 @@ namespace Acta;
     Filter = "job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL",
     Usage = "claim_hot_path"
 )]
-// No retention index: every completion appended to its tail, so PurgeExpiredJobs walks ix_jobs_namespace_created instead.
+// A namespace's finished jobs in the order they expire: PurgeExpiredJobs seeks the expired ones from the old end. A row
+// enters when a job lands Succeeded, Failed, or Cancelled, which stamps the date, and leaves when a restart clears it
+// or the job is deleted. A landing stamps the date from the clock, so the jobs a namespace keeps for one length
+// all insert at one end of the key, and on SQL Server the key is optimized for sequential inserts.
+[DbIndex(
+    Name = "ix_jobs_state_retention",
+    Columns = ["namespace_id", "retention_until_utc", "job_id"],
+    Filter = "retention_until_utc IS NOT NULL",
+    OptimizeForSequentialKey = true,
+    Usage = "maintenance"
+)]
 // job_status_code stays in the filter but out of the key, which is all the heartbeat needs.
 [DbIndex(
     Name = "ix_jobs_state_worker_inflight",

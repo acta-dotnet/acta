@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **17 entities**, **248 columns**, **40 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **248 columns**, **41 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -354,7 +354,7 @@ One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
 | `ix_jobs_parent` | `parent_job_id` | not unique | `parent_job_id IS NOT NULL` | `child_fanout` |
-| `ix_jobs_namespace_created` | `namespace_id`, `created_at_utc` DESC, `job_id` DESC | not unique | none | `dashboard_grid, maintenance` |
+| `ix_jobs_namespace_created` | `namespace_id`, `created_at_utc` DESC, `job_id` DESC | not unique | none | `dashboard_grid` |
 | `ux_jobs_ref` | `job_ref` | unique | none | `uniqueness` |
 | `ux_jobs_idempotency_key_root` | `namespace_id`, `idempotency_key` | unique | `idempotency_key IS NOT NULL AND parent_job_id IS NULL` | `uniqueness` |
 | `ux_jobs_idempotency_key_child` | `parent_job_id`, `idempotency_key` | unique | `idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL` | `uniqueness` |
@@ -399,6 +399,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
 | `ix_jobs_state_claim_ready` | `namespace_id`, `job_priority_code` DESC, `next_run_at_utc`, `job_id`, `job_status_code` | not unique | `job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL` | `claim_hot_path` |
+| `ix_jobs_state_retention` | `namespace_id`, `retention_until_utc`, `job_id` | not unique | `retention_until_utc IS NOT NULL` | `maintenance` |
 | `ix_jobs_state_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND job_status_code = 50` | `heartbeat` |
 | `ix_jobs_state_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50)` | `lane` |
 | `ix_jobs_state_failed` | `namespace_id`, `job_id` DESC | not unique | `job_status_code = 200` | `dashboard` |

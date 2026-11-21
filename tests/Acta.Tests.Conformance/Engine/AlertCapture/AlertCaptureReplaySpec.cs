@@ -17,9 +17,7 @@ namespace Acta.Tests.Conformance.Engine.AlertCapture;
     Area = "Alerts",
     Contract = "A poison alert event stays protected with its job after the cursor passes it, projects once fixed, and a newer success supersedes it."
 )]
-// purge-now keeps its jobs no time at all, so a sweep walks the namespace from the cutoff and reaches a job that a
-// fact expires by hand.
-[Deploys("flaky-recover", "job-throw-not-implemented", "purge-now")]
+[Deploys("flaky-recover", "job-throw-not-implemented")]
 public sealed class AlertCaptureReplaySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertCaptureReplaySpec>>
 {
     // A channel name canonicalization rejects, set on the definition after its job failed.

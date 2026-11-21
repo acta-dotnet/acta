@@ -113,8 +113,11 @@ internal abstract class SqlDdlDialect
     /// </summary>
     public abstract string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk, bool disablePageLocks);
 
-    /// <summary>Trailing <c>WITH (...)</c> clause for a <c>CREATE INDEX</c>, driven by the table's flags. Empty when none apply.</summary>
-    public virtual string IndexTrailingOptions(bool disablePageLocks) => "";
+    /// <summary>
+    /// Trailing <c>WITH (...)</c> clause for a <c>CREATE INDEX</c>, driven by the index's storage flags and the table's
+    /// <see cref="DbTableAttribute.DisablePageLocks"/>. Empty when none apply.
+    /// </summary>
+    public virtual string IndexTrailingOptions(DbIndexSpec idx, bool disablePageLocks) => "";
 
     /// <summary>
     /// Per-table CHECK constraints the dialect requires beyond the shared set (e.g. the Postgres byte

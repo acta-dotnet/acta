@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261120234904_init has no upgrade path: provision a new one.
+-- init migration other than M20261121094230_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261120234904_init')
+    WHERE name NOT IN ('M20261121094230_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261120234904_init =====
+-- ===== BEGIN M20261121094230_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -343,6 +343,7 @@ CREATE TABLE acta.jobs_state (
     , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES acta.lanes (lane_id)
 );
 CREATE INDEX ix_jobs_state_claim_ready ON acta.jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_retention ON acta.jobs_state (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON, ALLOW_PAGE_LOCKS = OFF);
 CREATE INDEX ix_jobs_state_worker_inflight ON acta.jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50 WITH (ALLOW_PAGE_LOCKS = OFF);
 CREATE INDEX ix_jobs_state_lane ON acta.jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50) WITH (ALLOW_PAGE_LOCKS = OFF);
 CREATE INDEX ix_jobs_state_failed ON acta.jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200 WITH (ALLOW_PAGE_LOCKS = OFF);
@@ -4859,11 +4860,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261120234904_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261121094230_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261120234904_init');
+VALUES ('M20261121094230_init');
 GO
--- ===== END M20261120234904_init =====
+-- ===== END M20261121094230_init =====
 GO
 COMMIT TRANSACTION;
 GO

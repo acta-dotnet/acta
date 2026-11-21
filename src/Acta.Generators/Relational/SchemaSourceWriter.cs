@@ -257,7 +257,12 @@ internal static class SchemaSourceWriter
         sb.Append("                        Include: ").Append(StringArrayLiteralOrNull(ix.Include)).AppendLine(",");
         sb.Append("                        Filter: ").Append(StringLiteral(ix.Filter)).AppendLine(",");
         sb.Append("                        Usage: ").Append(StringLiteral(ix.Usage)).AppendLine(",");
-        sb.Append("                        IsUnique: ").Append(ix.IsUnique ? "true" : "false").AppendLine("),");
+        sb.Append("                        IsUnique: ").Append(ix.IsUnique ? "true" : "false").Append(')');
+        if (ix.OptimizeForSequentialKey)
+        {
+            sb.Append(" { OptimizeForSequentialKey = true }");
+        }
+        sb.AppendLine(",");
     }
 
     internal static string StringArrayLiteralOrNull(ImmutableArray<string> arr)

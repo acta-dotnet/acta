@@ -226,7 +226,8 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         ImmutableArray<string> Include,
         string? Filter,
         string Usage,
-        bool IsUnique
+        bool IsUnique,
+        bool OptimizeForSequentialKey
     );
 
     internal readonly record struct CheckInfo(string Name, string Sql);

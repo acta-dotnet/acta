@@ -20,9 +20,7 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     Area = "Alerts",
     Contract = "Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job."
 )]
-// purge-now keeps its jobs no time at all, so a sweep walks the namespace from the cutoff and reaches a job that a
-// fact expires by hand.
-[Deploys("add-numbers", "purge-now")]
+[Deploys("add-numbers")]
 public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertPurgeRaceSpec>>
 {
     private const int JobsPerRound = 40;

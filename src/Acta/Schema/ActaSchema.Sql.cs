@@ -202,11 +202,14 @@ internal static partial class ActaSchema
         /// <summary>The most rows one batch of a retention delete takes.</summary>
         public static readonly DbValueSpec<int> PurgeBatchSize = new("p_batch_size", DbKind.Int32);
 
-        /// <summary>The instant half of the jobs walk's cursor (<see cref="RetentionCursor"/>); null starts a cycle.</summary>
-        public static readonly DbValueSpec<DateTime?> PurgeBeforeCreatedUtc = new("p_before_created_utc", DbKind.UtcInstant);
+        /// <summary>
+        /// The retention-date half of the jobs walk's cursor (<see cref="RetentionCursor"/>); a walk starts at
+        /// <see cref="DateTime.MinValue"/>.
+        /// </summary>
+        public static readonly DbValueSpec<DateTime> PurgeAfterRetentionUtc = new("p_after_retention_utc", DbKind.UtcInstant);
 
-        /// <summary>The job id half of the jobs walk's cursor; see <see cref="PurgeBeforeCreatedUtc"/>.</summary>
-        public static readonly DbValueSpec<long> PurgeBeforeJobId = new("p_before_job_id", DbKind.Int64);
+        /// <summary>The job id half of the jobs walk's cursor; see <see cref="PurgeAfterRetentionUtc"/>.</summary>
+        public static readonly DbValueSpec<long> PurgeAfterJobId = new("p_after_job_id", DbKind.Int64);
 
         /// <summary>The instant half of the event position a batch of an events pass reads on from.</summary>
         public static readonly DbValueSpec<DateTime> PurgeAfterCreatedUtc = new("p_after_created_utc", DbKind.UtcInstant);

@@ -25,8 +25,8 @@ public sealed class RetentionJobTests
         var result = await Job(store.Handler, clock).SweepAsync(Sweep, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, clock.Reads);
-        // Every delete but the jobs walk, whose cycle ended, spent its two batches finding rows, so the sweep asks to run
-        // again at once.
+        // Every delete but the jobs walk, which reached the end of the expired range, spent its two batches finding rows,
+        // so the sweep asks to run again at once.
         Assert.Equal(new RetentionSweepCounts(2, 2, 2, 0, 2, 2, 2, null, BudgetSpent: true), result);
         Assert.Equal(
             [Jobs, Jobs, Events, Events, Alerts, Alerts, Workers, Workers, Locks, Locks, Lanes, Lanes],
@@ -45,7 +45,7 @@ public sealed class RetentionJobTests
     [Fact]
     public async Task Empty_batch_ends_only_its_delete_but_not_the_jobs_walk()
     {
-        // A jobs slice with nothing expired says nothing about the slices below it, so the walk goes on.
+        // A jobs batch that deleted nothing may be one its guards kept whole, so the walk goes on.
         var store = new Store(static _ => 0);
         var result = await Job(store.Handler, new Clock()).SweepAsync(Sweep, TestContext.Current.CancellationToken);
         Assert.Equal([Jobs, Jobs, Events, Alerts, Workers, Locks, Lanes], store.Calls.Select(c => c.Stem));
@@ -133,14 +133,14 @@ public sealed class RetentionJobTests
     }
 
     [Fact]
-    public async Task The_jobs_walk_continues_from_the_cursor_and_ends_with_its_cycle()
+    public async Task The_jobs_walk_continues_from_the_cursor_and_ends_with_the_expired_range()
     {
-        var (stored, older) = (new RetentionCursor(Now.AddDays(-5).Ticks, 500), new RetentionCursor(Now.AddDays(-70).Ticks, 70));
-        var store = new Store(static _ => 1, call => Before(call) == older ? null : older);
+        var (stored, later) = (new RetentionCursor(Now.AddDays(-70).Ticks, 70), new RetentionCursor(Now.AddDays(-5).Ticks, 500));
+        var store = new Store(static _ => 1, call => After(call) == later ? null : later);
         var result = await Job(store.Handler, new Clock())
             .SweepAsync(Sweep with { JobsCursor = stored }, TestContext.Current.CancellationToken);
 
-        Assert.Equal([stored, older], store.Calls.Where(c => c.Stem == Jobs).Select(Before));
+        Assert.Equal([stored, later], store.Calls.Where(c => c.Stem == Jobs).Select(After));
         Assert.Null(result.JobsCursor);
         Assert.Equal(2, result.Jobs);
     }
@@ -200,14 +200,14 @@ public sealed class RetentionJobTests
     [InlineData(10, false, 2)]
     [InlineData(0, true, 1)]
     public async Task The_jobs_walk_stops_at_its_delete_budget_or_its_time_and_keeps_its_place(
-        int deletedPerSlice,
+        int deletedPerBatch,
         bool timeSpent,
-        int expectedSlices
+        int expectedBatches
     )
     {
-        // Ten a slice reaches the delete budget of MaxIterations x BatchSize = 20 in two slices, though the cycle goes
-        // on. A walk whose time is spent stops after the slice it was reading, whatever that slice held.
-        var store = new Store(_ => deletedPerSlice, Older);
+        // Ten a batch reaches the delete budget of MaxIterations x BatchSize = 20 in two batches, though the walk goes on.
+        // A walk whose time is spent stops after the batch it was reading, whatever that batch held.
+        var store = new Store(_ => deletedPerBatch, Later);
         var result = await Job(store.Handler, new Clock())
             .SweepAsync(
                 Sweep with
@@ -217,7 +217,7 @@ public sealed class RetentionJobTests
                 TestContext.Current.CancellationToken
             );
 
-        Assert.Equal(expectedSlices, store.Calls.Count(c => c.Stem == Jobs));
+        Assert.Equal(expectedBatches, store.Calls.Count(c => c.Stem == Jobs));
         Assert.NotNull(result.JobsCursor);
     }
 
@@ -225,11 +225,11 @@ public sealed class RetentionJobTests
     [InlineData(10, false, true)]
     [InlineData(0, false, false)]
     [InlineData(10, true, false)]
-    public async Task An_unfinished_jobs_walk_runs_again_at_once_only_when_it_deleted(int deletedPerSlice, bool cycleEnds, bool budgetSpent)
+    public async Task An_unfinished_jobs_walk_runs_again_at_once_only_when_it_deleted(int deletedPerBatch, bool walkEnds, bool budgetSpent)
     {
-        // One slice a pass. A pass that deleted and has more to walk runs again at once; one that read only jobs still
-        // kept waits for its tick, or a namespace of long-kept jobs would never rest; one whose cycle ended is done.
-        var store = new Store(call => call.Stem == Jobs ? deletedPerSlice : 0, cycleEnds ? static _ => null : Older);
+        // One batch a pass. A pass that deleted and has more to walk runs again at once; one that read only jobs its
+        // guards keep waits for its tick, or a namespace of such jobs would never rest; one whose walk ended is done.
+        var store = new Store(call => call.Stem == Jobs ? deletedPerBatch : 0, walkEnds ? static _ => null : Later);
         var result = await Job(store.Handler, new Clock())
             .SweepAsync(Sweep with { JobsWalkBudget = TimeSpan.Zero }, TestContext.Current.CancellationToken);
 
@@ -239,7 +239,7 @@ public sealed class RetentionJobTests
     [Fact]
     public async Task The_walks_place_is_kept_before_a_later_delete_can_fail()
     {
-        var store = new Store(static call => call.Stem == Events ? throw new InvalidOperationException("failed batch") : 0, Older);
+        var store = new Store(static call => call.Stem == Events ? throw new InvalidOperationException("failed batch") : 0, Later);
         RetentionCursor? kept = null;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -251,15 +251,15 @@ public sealed class RetentionJobTests
                 })
         );
 
-        Assert.Equal(Older(store.Calls[0]), kept);
+        Assert.Equal(Later(store.Calls[0]), kept);
     }
 
     [Fact]
     public async Task The_handler_stores_the_walks_place_and_the_next_pass_reads_on_from_it()
     {
         var ct = TestContext.Current.CancellationToken;
-        // A whole delete budget in one slice: the pass stops mid-cycle having deleted, so it runs again at once.
-        var store = new Store(static call => call.Stem == Jobs ? 50_000 : 0, Older);
+        // A whole delete budget in one batch: the pass stops mid-walk having deleted, so it runs again at once.
+        var store = new Store(static call => call.Stem == Jobs ? 50_000 : 0, Later);
         var ctx = new RecordingJobContext();
         var job = Job(store.Handler, new Clock());
 
@@ -267,13 +267,13 @@ public sealed class RetentionJobTests
         await Assert.ThrowsAsync<RescheduleJobException>(() => job.Handle(ctx, ct));
 
         var jobs = store.Calls.Where(c => c.Stem == Jobs).ToList();
-        Assert.Null(Before(jobs[0]));
-        Assert.Equal(Older(jobs[0]), Before(jobs[1]));
-        Assert.Equal(Older(jobs[1]), await ctx.GetVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
+        Assert.Null(After(jobs[0]));
+        Assert.Equal(Later(jobs[0]), After(jobs[1]));
+        Assert.Equal(Later(jobs[1]), await ctx.GetVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
     }
 
     [Fact]
-    public async Task The_handler_stores_no_place_once_a_cycle_has_ended()
+    public async Task The_handler_stores_no_place_once_the_walk_has_ended()
     {
         var ct = TestContext.Current.CancellationToken;
         var store = new Store(static _ => 0, static _ => null);
@@ -284,12 +284,13 @@ public sealed class RetentionJobTests
         Assert.Equal(RetentionCursor.None, await ctx.GetVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
     }
 
-    // A walk that never reaches the namespace's oldest job.
-    private static RetentionCursor? Older(BoundCall call) => new((Before(call)?.Utc ?? Now).AddDays(-1).Ticks, 7);
+    // A walk that never reaches the end of the expired range.
+    private static RetentionCursor? Later(BoundCall call) => new((After(call)?.Utc ?? Now.AddDays(-100)).AddDays(1).Ticks, 7);
 
-    private static RetentionCursor? Before(BoundCall call) =>
-        call.Get(ActaSchema.Sql.PurgeBeforeCreatedUtc) is { } before
-            ? new RetentionCursor(before.Ticks, call.Get(ActaSchema.Sql.PurgeBeforeJobId))
+    // A walk starts at the start of time, which is no cursor.
+    private static RetentionCursor? After(BoundCall call) =>
+        call.Get(ActaSchema.Sql.PurgeAfterRetentionUtc) is var after && after > DateTime.MinValue
+            ? new RetentionCursor(after.Ticks, call.Get(ActaSchema.Sql.PurgeAfterJobId))
             : null;
 
     // The locks delete names no namespace, and the lanes delete no cutoff.
@@ -311,8 +312,8 @@ public sealed class RetentionJobTests
 
     /// <summary>The real purge handlers over a scripted session that records each bound batch and answers it.</summary>
     /// <remarks>
-    /// The jobs walk answers <paramref name="next"/>: by default a cursor to the call that starts a cycle and the cycle's end to
-    /// the next. An alerts batch answers <paramref name="undelivered"/> of what it deleted as undelivered, and the namespace's
+    /// The jobs walk answers <paramref name="next"/>: by default a cursor to the call that starts at the oldest and the end of
+    /// the expired range to the next. An alerts batch answers <paramref name="undelivered"/> of what it deleted as undelivered, and the namespace's
     /// projector stands at <paramref name="projector"/>, or there is none.
     /// </remarks>
     internal sealed class Store(
@@ -343,7 +344,7 @@ public sealed class RetentionJobTests
                 Jobs => new PurgeExpiredJobsResponse(
                     deleted,
                     next is not null ? next(call)
-                        : Before(call) is null ? new RetentionCursor(Now.AddDays(-100).Ticks, 1000)
+                        : After(call) is null ? new RetentionCursor(Now.AddDays(-100).Ticks, 1000)
                         : null
                 ),
                 Events => new PurgeExpiredEventsResponse(

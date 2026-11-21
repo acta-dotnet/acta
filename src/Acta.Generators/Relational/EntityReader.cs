@@ -322,7 +322,8 @@ internal static class EntityReader
         var include = ReadArrayNamedArg(a, "Include");
         var filt = ReadNamedArg(a, "Filter") as string;
         var usage = ReadNamedArg(a, "Usage") as string ?? "";
-        return new IndexInfo(name, cols, desc, include, filt, usage, isUnique);
+        var sequential = ReadNamedArg(a, "OptimizeForSequentialKey") is bool osk && osk;
+        return new IndexInfo(name, cols, desc, include, filt, usage, isUnique, sequential);
     }
 
     internal static object? ReadNamedArg(AttributeData a, string name)
