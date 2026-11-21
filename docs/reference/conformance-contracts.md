@@ -1082,6 +1082,11 @@
   - A restart of a job past its Strict deadline is rejected, and the job stays as it ended
   - Advisory never auto-terminates
 
+### A handler that ignores its timeout and returns late is recorded Succeeded
+- **Contract:** A handler that runs past its ExecutionTimeout keeps its concurrency slot until it returns, and a normal return is recorded Succeeded with its result.
+- **Guarantees:**
+  - A handler past its timeout keeps its key until it returns, lands Succeeded with its result in one execution, and only then does the job behind its key run
+
 ### A handler exceeding its timeout fails with the timeout reason
 - **Contract:** A handler that exceeds its ExecutionTimeout has its token fired by the timeout source and the completion records ExecutionTimeout applying the retry budget.
 - **Guarantees:**
