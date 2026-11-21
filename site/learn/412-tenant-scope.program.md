@@ -52,7 +52,7 @@ var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantName("acme").CorrelationKey(runId));
 
 // learn: end
-var parentTerminal = await WaitForAsync(jobs, parent.JobId, static snapshot => snapshot.Status.IsFinished, "tenant parent to finish");
+var parentTerminal = await WaitForAsync(jobs, parent.JobRef, static snapshot => snapshot.Status.IsFinished, "tenant parent to finish");
 if (parentTerminal.Status != JobStatusCode.Succeeded)
 {
     throw new InvalidOperationException($"Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.");
@@ -101,7 +101,7 @@ if (suspendActive)
 
         var preExistingTerminal = await WaitForAsync(
             jobs,
-            preExisting.JobId,
+            preExisting.JobRef,
             static snapshot => snapshot.Status.IsFinished,
             "work accepted before tenant suspension to finish"
         );
@@ -151,14 +151,14 @@ await lab.ShowAsync(
 
 await host.StopAsync();
 
-static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJobResponse, bool> predicate, string description)
+static async Task<GetJobResponse> WaitForAsync(IJobs jobs, JobRef job, Func<GetJobResponse, bool> predicate, string description)
 {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     try
     {
         while (true)
         {
-            var snapshot = await jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+            var snapshot = await jobs.GetAsync(job, timeout.Token);
             if (snapshot is not null && predicate(snapshot))
             {
                 return snapshot;
@@ -168,7 +168,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
     }
     catch (OperationCanceledException) when (timeout.IsCancellationRequested)
     {
-        throw new TimeoutException($"Timed out waiting for {description} on job {jobId}.");
+        throw new TimeoutException($"Timed out waiting for {description} on job {job}.");
     }
 }
 

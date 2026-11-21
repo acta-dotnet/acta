@@ -519,13 +519,18 @@ dotnet_diagnostic.CA1716.severity = none
 [src/Acta/Handlers/JobHandlerInvokeDelegate.cs]
 dotnet_diagnostic.CA1711.severity = none
 
-# CA2225: the two implicit conversions into JobLookup, from JobRef and from EnqueueJobResponse. The
-# friendly alternates CA2225 asks for already exist and are what the operators call - ByRef(JobRef)
-# and ById(long) - so the rule is satisfied in substance and fails only on the spelling: it wants
+# CA2225: the implicit conversions into JobLookup, from JobRef, from a ref's Guid and from
+# EnqueueJobResponse. The friendly alternates CA2225 asks for already exist and are what the operators
+# call - ByRef(JobRef) and ById(long) - so the rule is satisfied in substance and fails only on the spelling: it wants
 # ToJobLookup / FromJobRef. Acta names lookup factories By* as a family - ByRef, ById,
 # ByIdempotencyKey - which reads at the call site as the sentence it is, and the type is
 # public, so a second name for each would be one more name to keep.
 [src/Acta/Domain/Jobs/JobLookup.cs]
+dotnet_diagnostic.CA2225.severity = none
+
+# CA2225: JobRef's implicit conversion to Guid. The alternate the rule asks for exists as the Value
+# property, which the operator returns; a ToGuid() beside it would be a second name for the same read.
+[src/Acta/Domain/Jobs/JobRef.cs]
 dotnet_diagnostic.CA2225.severity = none
 
 # CA1711: JobBehaviorDelegate is a delegate declaration, on the same reasoning as

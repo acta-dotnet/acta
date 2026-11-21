@@ -72,7 +72,7 @@ In `job-versions.cs` (excerpt):
 ```csharp
 var next = await jobs.EnqueueAsync(new SendInvoiceV2("INV-3", "USD"));
 
-(await jobs.WaitAsync(JobLookup.ByRef(stored.JobRef))).ThrowIfFailed();
+(await jobs.WaitAsync(stored)).ThrowIfFailed();
 (await current.WaitAsync()).ThrowIfFailed();
 (await next.WaitAsync()).ThrowIfFailed();
 

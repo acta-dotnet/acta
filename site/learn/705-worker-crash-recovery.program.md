@@ -137,7 +137,7 @@ await ShowStateAsync(lab, probe.JobId, sessionId);
 Console.WriteLine("Worker B is live. Waiting for A's short lab lease to lapse; B's heartbeat takes the recovery pass once a lease...");
 
 using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-while ((await jobs.GetAsync(JobLookup.ById(probe.JobId), recoveryTimeout.Token))?.Status.IsFinished != true)
+while ((await jobs.GetAsync(probe.JobRef, recoveryTimeout.Token))?.Status.IsFinished != true)
 {
     await Task.Delay(100, recoveryTimeout.Token);
 }

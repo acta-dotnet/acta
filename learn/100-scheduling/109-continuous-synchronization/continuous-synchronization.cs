@@ -133,9 +133,9 @@ if (mode == "worker")
 }
 
 Console.WriteLine("Watching three firings of one permanent job...");
-var slotId = await SlotIdAsync(jobs, schedules);
+var slot = await SlotRefAsync(schedules);
 using var tourTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-while ((await jobs.GetAsync(JobLookup.ById(slotId), tourTimeout.Token))?.ExecutionNumber < 3)
+while ((await jobs.GetAsync(slot, tourTimeout.Token))?.ExecutionNumber < 3)
 {
     await Task.Delay(250, tourTimeout.Token);
 }
@@ -143,13 +143,15 @@ while ((await jobs.GetAsync(JobLookup.ById(slotId), tourTimeout.Token))?.Executi
 await ShowStateAsync(lab, jobs, schedules, store, shop);
 await host.StopAsync();
 
-static async Task<long> SlotIdAsync(IJobs jobs, ISchedules schedules)
+static async Task<JobRef> SlotRefAsync(ISchedules schedules)
 {
     var schedule = (await schedules.ListAsync(new ListSchedulesQuery(JobNamespace: jobNamespace, JobName: jobName))).Items.Single(s =>
         s.ScheduleName == scheduleName
     );
-    return (await jobs.GetIdAsync(schedule.JobRef!.Value))!.JobId;
+    return schedule.JobRef!.Value;
 }
+
+static async Task<long> SlotIdAsync(IJobs jobs, ISchedules schedules) => (await jobs.GetIdAsync(await SlotRefAsync(schedules)))!.JobId;
 
 static async Task ShowStateAsync(LearnLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ShopFeed shop)
 {

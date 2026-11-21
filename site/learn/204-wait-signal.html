@@ -93,7 +93,7 @@
 <p>Whoever learns the answer raises the signal by name on that job: an endpoint, another job, an operator. The value is stored, the job becomes ready, and the handler runs again from its first line. This time the wait returns the stored value.</p>
 <figure class="listing"><figcaption><span class="file">wait-signal.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> jobs.RaiseSignalAsync(job, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> Decision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>));</span>
 Console.WriteLine(<span class="s">&quot;approved - the job resumes.&quot;</span>);
-<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, job.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;signal-waiting job to finish&quot;</span>);
+<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, job.JobRef, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;signal-waiting job to finish&quot;</span>);
 EnsureDone(terminal);
 <span class="k">await</span> ShowSignalStateAsync(lab, job.JobId);
 <span class="k">await</span> host.StopAsync();</code></pre></figure>
@@ -200,9 +200,9 @@ builder.Services.UseActa(j =&gt;
         <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Job {waiting.JobRef} is {waiting.Status}, not suspended on the approval signal.&quot;</span>);
     }
 
-    <span class="k">await</span> jobs.RaiseSignalAsync(JobLookup.ById(waiting.JobId), <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> Decision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>));
+    <span class="k">await</span> jobs.RaiseSignalAsync(waiting.JobRef, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> Decision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>));
     Console.WriteLine(<span class="s">$&quot;Raised approval for the existing durable identity {waiting.JobRef}.&quot;</span>);
-    <span class="k">var</span> completed = <span class="k">await</span> WaitForAsync(jobs, waiting.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;signal-waiting job to finish&quot;</span>);
+    <span class="k">var</span> completed = <span class="k">await</span> WaitForAsync(jobs, waiting.JobRef, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;signal-waiting job to finish&quot;</span>);
     EnsureDone(completed);
     <span class="k">await</span> ShowSignalStateAsync(lab, waiting.JobId);
     <span class="k">await</span> host.StopAsync();
@@ -212,7 +212,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ApproveExpense(<span class="s">&quot;exp-1&quot;</span>, 4_200m));
 <span class="k">var</span> suspended = <span class="k">await</span> WaitForAsync(
     jobs,
-    job.JobId,
+    job.JobRef,
     <span class="k">static</span> snapshot =&gt; snapshot.Status == JobStatusCode.Suspended,
     <span class="s">&quot;job to suspend on approval&quot;</span>
 );
@@ -247,7 +247,7 @@ builder.Services.UseActa(j =&gt;
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">&quot;approved - the job resumes.&quot;</span>);
-<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, job.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;signal-waiting job to finish&quot;</span>);
+<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, job.JobRef, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;signal-waiting job to finish&quot;</span>);
 EnsureDone(terminal);
 <span class="k">await</span> ShowSignalStateAsync(lab, job.JobId);
 <span class="k">await</span> host.StopAsync();
@@ -259,14 +259,14 @@ EnsureDone(terminal);
         ?? <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Job {jobRefText} was not found. Use the same configured database for every command.&quot;</span>);
 }
 
-<span class="k">static</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; WaitForAsync(IJobs jobs, <span class="k">long</span> jobId, Func&lt;GetJobResponse, <span class="k">bool</span>&gt; predicate, <span class="k">string</span> description)
+<span class="k">static</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; WaitForAsync(IJobs jobs, JobRef job, Func&lt;GetJobResponse, <span class="k">bool</span>&gt; predicate, <span class="k">string</span> description)
 {
     <span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
     <span class="k">try</span>
     {
         <span class="k">while</span> (<span class="k">true</span>)
         {
-            <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+            <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(job, timeout.Token);
             <span class="k">if</span> (snapshot <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; predicate(snapshot))
             {
                 <span class="k">return</span> snapshot;
@@ -280,7 +280,7 @@ EnsureDone(terminal);
     }
     <span class="k">catch</span> (OperationCanceledException) <span class="k">when</span> (timeout.IsCancellationRequested)
     {
-        <span class="k">throw</span> <span class="k">new</span> TimeoutException(<span class="s">$&quot;Timed out waiting for {description} on job {jobId}.&quot;</span>);
+        <span class="k">throw</span> <span class="k">new</span> TimeoutException(<span class="s">$&quot;Timed out waiting for {description} on job {job}.&quot;</span>);
     }
 }
 

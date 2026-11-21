@@ -189,7 +189,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> BuildSnowman(<span class="s">&quot;Frosty&quot;</span>, failChild ? <span class="s">&quot;head&quot;</span> : <span class="k">null</span>));
 <span class="k">await</span> WaitForAsync(
     jobs,
-    outcome.JobId,
+    outcome.JobRef,
     <span class="k">static</span> snapshot =&gt; snapshot.Status == JobStatusCode.Suspended,
     <span class="s">&quot;parent to suspend on child latches&quot;</span>
 );
@@ -224,7 +224,7 @@ builder.Services.UseActa(j =&gt;
     <span class="k">new</span> { parentJobId = outcome.JobId }
 );
 
-<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, outcome.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;parent to reach a terminal state&quot;</span>);
+<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, outcome.JobRef, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;parent to reach a terminal state&quot;</span>);
 <span class="k">if</span> (terminal.Status == JobStatusCode.Succeeded)
 {
     <span class="k">var</span> result = <span class="k">await</span> jobs.GetResultAsync&lt;FinishedSnowman&gt;(outcome);
@@ -271,14 +271,14 @@ builder.Services.UseActa(j =&gt;
 
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">static</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; WaitForAsync(IJobs jobs, <span class="k">long</span> jobId, Func&lt;GetJobResponse, <span class="k">bool</span>&gt; predicate, <span class="k">string</span> description)
+<span class="k">static</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; WaitForAsync(IJobs jobs, JobRef job, Func&lt;GetJobResponse, <span class="k">bool</span>&gt; predicate, <span class="k">string</span> description)
 {
     <span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
     <span class="k">try</span>
     {
         <span class="k">while</span> (<span class="k">true</span>)
         {
-            <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+            <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(job, timeout.Token);
             <span class="k">if</span> (snapshot <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; predicate(snapshot))
             {
                 <span class="k">return</span> snapshot;
@@ -292,7 +292,7 @@ builder.Services.UseActa(j =&gt;
     }
     <span class="k">catch</span> (OperationCanceledException) <span class="k">when</span> (timeout.IsCancellationRequested)
     {
-        <span class="k">throw</span> <span class="k">new</span> TimeoutException(<span class="s">$&quot;Timed out waiting for {description} on job {jobId}.&quot;</span>);
+        <span class="k">throw</span> <span class="k">new</span> TimeoutException(<span class="s">$&quot;Timed out waiting for {description} on job {job}.&quot;</span>);
     }
 }
 

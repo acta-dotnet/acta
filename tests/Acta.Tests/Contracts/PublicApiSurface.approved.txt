@@ -1535,6 +1535,7 @@ record struct Acta.JobLookup
     static Acta.JobLookup ByRef(Acta.JobRef jobRef)
     static Acta.JobLookup op_Implicit(Acta.EnqueueJobResponse outcome)
     static Acta.JobLookup op_Implicit(Acta.JobRef jobRef)
+    static Acta.JobLookup op_Implicit(System.Guid jobRef)
 enum Acta.JobLookupKind : System.Byte
     IdempotencyKey = 2
     JobId = 3
@@ -1613,6 +1614,7 @@ record struct Acta.JobRef
     static Acta.JobRef New()
     static Acta.JobRef Parse(System.String value)
     static System.Boolean TryParse(System.String? value, out Acta.JobRef jobRef)
+    static System.Guid op_Implicit(Acta.JobRef jobRef)
 sealed class Acta.JobRefJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.JobRef>
     .ctor()
     Acta.JobRef Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)

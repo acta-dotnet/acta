@@ -21,6 +21,12 @@ public readonly record struct JobRef(Guid Value)
     public override string ToString() => EntityRefCodec.Render(Prefix, Value);
 
     /// <summary>
+    /// The ref as its Guid, for a column of your own, a message, or a call that cannot carry <see cref="JobRef"/>;
+    /// the Guid converts to a <see cref="JobLookup"/>, so it passes back to every <see cref="IJobs"/> call.
+    /// </summary>
+    public static implicit operator Guid(JobRef jobRef) => jobRef.Value;
+
+    /// <summary>
     /// Parse a job ref, throwing <see cref="FormatException"/> on malformed input.
     /// </summary>
     public static JobRef Parse(string value) =>

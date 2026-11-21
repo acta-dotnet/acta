@@ -108,7 +108,7 @@ Console.WriteLine(
 using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while (true)
 {
-    var snapshot = await jobs.GetAsync(JobLookup.ById(crashed.JobId), recoveryTimeout.Token);
+    var snapshot = await jobs.GetAsync(crashed.JobRef, recoveryTimeout.Token);
     if (snapshot?.Status.IsFinished == true)
     {
         break;

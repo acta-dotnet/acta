@@ -44,7 +44,7 @@ internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scena
         }
 
         await WaitForAsync(
-            checkout.JobId,
+            checkout.JobRef,
             snapshot => snapshot.Status == JobStatusCode.Suspended && snapshot.ExecutionNumber == 1,
             "fraud-review suspension",
             ct
@@ -99,7 +99,7 @@ internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scena
 
         if (scenario.RejectFraudReview)
         {
-            await WaitForAsync(checkout.JobId, snapshot => snapshot.Status == JobStatusCode.Cancelled, "fraud rejection cancellation", ct);
+            await WaitForAsync(checkout.JobRef, snapshot => snapshot.Status == JobStatusCode.Cancelled, "fraud rejection cancellation", ct);
             await lab.ShowAsync(
                 "3. Rejected - cancellation is terminal and no timer or receipt was created",
                 """
@@ -148,7 +148,7 @@ internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scena
         }
 
         await WaitForAsync(
-            checkout.JobId,
+            checkout.JobRef,
             snapshot => snapshot.Status == JobStatusCode.Ready && snapshot.ExecutionNumber == 2,
             "settlement timer",
             ct
@@ -175,7 +175,7 @@ internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scena
             ct
         );
 
-        await WaitForAsync(checkout.JobId, snapshot => snapshot.Status == JobStatusCode.Succeeded, "terminal completion", ct);
+        await WaitForAsync(checkout.JobRef, snapshot => snapshot.Status == JobStatusCode.Succeeded, "terminal completion", ct);
         await lab.ShowAsync(
             "4. Done - one identity completed through three handler entries",
             """
@@ -225,7 +225,7 @@ internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scena
     }
 
     private async Task<GetJobResponse> WaitForAsync(
-        long jobId,
+        JobRef job,
         Func<GetJobResponse, bool> predicate,
         string description,
         CancellationToken ct
@@ -237,7 +237,7 @@ internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scena
         {
             while (true)
             {
-                var snapshot = await jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+                var snapshot = await jobs.GetAsync(job, timeout.Token);
                 if (snapshot is not null && predicate(snapshot))
                 {
                     return snapshot;
@@ -247,7 +247,7 @@ internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scena
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new TimeoutException($"Timed out waiting for {description} on job {jobId}.");
+            throw new TimeoutException($"Timed out waiting for {description} on job {job}.");
         }
     }
 

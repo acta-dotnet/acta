@@ -117,4 +117,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/411-alert-escalation.program.md): every file as compiled, 89 lines.
+- [The whole program](/learn/411-alert-escalation.program.md): every file as compiled, 88 lines.

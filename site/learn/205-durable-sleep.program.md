@@ -66,7 +66,7 @@ if (command == "recover")
 {
     var existing = await RequireJobAsync(jobs, args[jobRefIndex]);
     Console.WriteLine($"Recovering existing durable identity {existing.JobRef}; no new job was enqueued.");
-    var recovered = await WaitForAsync(jobs, existing.JobId, static snapshot => snapshot.Status.IsFinished, "sleeping job to finish");
+    var recovered = await WaitForAsync(jobs, existing.JobRef, static snapshot => snapshot.Status.IsFinished, "sleeping job to finish");
     EnsureDone(recovered);
     await ShowTimerStateAsync(lab, existing.JobId);
     await host.StopAsync();
@@ -77,7 +77,7 @@ var delaySeconds = command == "start" ? 15 : 3;
 var job = await jobs.EnqueueAsync(new SendFollowUp("sam@example.com", delaySeconds));
 var sleeping = await WaitForAsync(
     jobs,
-    job.JobId,
+    job.JobRef,
     static snapshot => snapshot.ExecutionNumber >= 1 && snapshot.Status == JobStatusCode.Ready,
     "job to persist its durable timer"
 );
@@ -94,7 +94,7 @@ if (command == "start")
     return;
 }
 
-var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsFinished, "sleeping job to finish");
+var terminal = await WaitForAsync(jobs, job.JobRef, static snapshot => snapshot.Status.IsFinished, "sleeping job to finish");
 EnsureDone(terminal);
 await ShowTimerStateAsync(lab, job.JobId);
 await host.StopAsync();
@@ -106,14 +106,14 @@ static async Task<GetJobResponse> RequireJobAsync(IJobs jobs, string jobRefText)
         ?? throw new InvalidOperationException($"Job {jobRefText} was not found. Use the same configured database for every command.");
 }
 
-static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJobResponse, bool> predicate, string description)
+static async Task<GetJobResponse> WaitForAsync(IJobs jobs, JobRef job, Func<GetJobResponse, bool> predicate, string description)
 {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
     try
     {
         while (true)
         {
-            var snapshot = await jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+            var snapshot = await jobs.GetAsync(job, timeout.Token);
             if (snapshot is not null && predicate(snapshot))
             {
                 return snapshot;
@@ -127,7 +127,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
     }
     catch (OperationCanceledException) when (timeout.IsCancellationRequested)
     {
-        throw new TimeoutException($"Timed out waiting for {description} on job {jobId}.");
+        throw new TimeoutException($"Timed out waiting for {description} on job {job}.");
     }
 }
 

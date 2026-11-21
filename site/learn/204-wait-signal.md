@@ -50,7 +50,7 @@ In `wait-signal.cs` (excerpt):
 ```csharp
 await jobs.RaiseSignalAsync(job, "approval", new Decision(true, "alice"));
 Console.WriteLine("approved - the job resumes.");
-var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
+var terminal = await WaitForAsync(jobs, job.JobRef, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
 EnsureDone(terminal);
 await ShowSignalStateAsync(lab, job.JobId);
 await host.StopAsync();

@@ -60,9 +60,9 @@ if (command == "raise")
         throw new InvalidOperationException($"Job {waiting.JobRef} is {waiting.Status}, not suspended on the approval signal.");
     }
 
-    await jobs.RaiseSignalAsync(JobLookup.ById(waiting.JobId), "approval", new Decision(true, "alice"));
+    await jobs.RaiseSignalAsync(waiting.JobRef, "approval", new Decision(true, "alice"));
     Console.WriteLine($"Raised approval for the existing durable identity {waiting.JobRef}.");
-    var completed = await WaitForAsync(jobs, waiting.JobId, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
+    var completed = await WaitForAsync(jobs, waiting.JobRef, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
     EnsureDone(completed);
     await ShowSignalStateAsync(lab, waiting.JobId);
     await host.StopAsync();
@@ -72,7 +72,7 @@ if (command == "raise")
 var job = await jobs.EnqueueAsync(new ApproveExpense("exp-1", 4_200m));
 var suspended = await WaitForAsync(
     jobs,
-    job.JobId,
+    job.JobRef,
     static snapshot => snapshot.Status == JobStatusCode.Suspended,
     "job to suspend on approval"
 );
@@ -107,7 +107,7 @@ await jobs.RaiseSignalAsync(job, "approval", new Decision(true, "alice"));
 
 // learn: end
 Console.WriteLine("approved - the job resumes.");
-var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
+var terminal = await WaitForAsync(jobs, job.JobRef, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
 EnsureDone(terminal);
 await ShowSignalStateAsync(lab, job.JobId);
 await host.StopAsync();
@@ -119,14 +119,14 @@ static async Task<GetJobResponse> RequireJobAsync(IJobs jobs, string jobRefText)
         ?? throw new InvalidOperationException($"Job {jobRefText} was not found. Use the same configured database for every command.");
 }
 
-static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJobResponse, bool> predicate, string description)
+static async Task<GetJobResponse> WaitForAsync(IJobs jobs, JobRef job, Func<GetJobResponse, bool> predicate, string description)
 {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     try
     {
         while (true)
         {
-            var snapshot = await jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+            var snapshot = await jobs.GetAsync(job, timeout.Token);
             if (snapshot is not null && predicate(snapshot))
             {
                 return snapshot;
@@ -140,7 +140,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
     }
     catch (OperationCanceledException) when (timeout.IsCancellationRequested)
     {
-        throw new TimeoutException($"Timed out waiting for {description} on job {jobId}.");
+        throw new TimeoutException($"Timed out waiting for {description} on job {job}.");
     }
 }
 

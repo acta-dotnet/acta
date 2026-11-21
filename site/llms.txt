@@ -137,7 +137,7 @@ public static class ShippingHandlers
 - The handle follows the job without another lookup: `await handle.WaitAsync()` answers its outcome, `await handle.GetResultAsync<ShipmentLabel>()` returns the stored result
   and throws when there is none, and `await handle.TryGetResultAsync<ShipmentLabel>()` answers `(Found, Value)` for a result that may not exist yet; on the `JobHandle<TResult>` a generated call answers, drop the type argument.
   From a ref the same reads are on `IJobs`: `jobs.GetResultAsync<ShipmentLabel>(jobRef)`. Neither read waits.
-- An `IJobs` call that addresses a job takes a `JobLookup`, and both the handle an enqueue answered and a `JobRef` convert to one, so pass what you hold: `jobs.GetStatusAsync(jobRef)`. A ref that arrives as text, from a route or a column of your own, is `JobRef.Parse(text)` or `JobRef.TryParse`. `JobLookup.ByIdempotencyKey(jobNamespace, key)` finds the job a key made.
+- An `IJobs` call that addresses a job takes a `JobLookup`, and the handle an enqueue answered, a `JobRef`, and a ref's `Guid` (a `JobRef` converts to one, for a column, a message or a call that cannot carry `JobRef`) each convert to one, so pass what you hold: `jobs.GetStatusAsync(jobRef)`. A ref is unique across namespaces, so it needs no namespace beside it. A ref that arrives as text, from a route or a column of your own, is `JobRef.Parse(text)` or `JobRef.TryParse`. `JobLookup.ByIdempotencyKey(jobNamespace, key)` finds the job a key made.
 - Handlers resolve through DI: an instance class's constructor dependencies must be registered. One DI cannot build fails its job on the first attempt with `HandlerActivationException`, never retried, and the message names the missing service.
 
 ## Wiring rules by situation

@@ -335,7 +335,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         }
 
         <span class="k">await</span> WaitForAsync(
-            checkout.JobId,
+            checkout.JobRef,
             snapshot =&gt; snapshot.Status == JobStatusCode.Suspended &amp;&amp; snapshot.ExecutionNumber == 1,
             <span class="s">&quot;fraud-review suspension&quot;</span>,
             ct
@@ -390,7 +390,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 
         <span class="k">if</span> (scenario.RejectFraudReview)
         {
-            <span class="k">await</span> WaitForAsync(checkout.JobId, snapshot =&gt; snapshot.Status == JobStatusCode.Cancelled, <span class="s">&quot;fraud rejection cancellation&quot;</span>, ct);
+            <span class="k">await</span> WaitForAsync(checkout.JobRef, snapshot =&gt; snapshot.Status == JobStatusCode.Cancelled, <span class="s">&quot;fraud rejection cancellation&quot;</span>, ct);
             <span class="k">await</span> lab.ShowAsync(
                 <span class="s">&quot;3. Rejected - cancellation is terminal and no timer or receipt was created&quot;</span>,
                 <span class="s">&quot;&quot;&quot;</span>
@@ -439,7 +439,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         }
 
         <span class="k">await</span> WaitForAsync(
-            checkout.JobId,
+            checkout.JobRef,
             snapshot =&gt; snapshot.Status == JobStatusCode.Ready &amp;&amp; snapshot.ExecutionNumber == 2,
             <span class="s">&quot;settlement timer&quot;</span>,
             ct
@@ -466,7 +466,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
             ct
         );
 
-        <span class="k">await</span> WaitForAsync(checkout.JobId, snapshot =&gt; snapshot.Status == JobStatusCode.Succeeded, <span class="s">&quot;terminal completion&quot;</span>, ct);
+        <span class="k">await</span> WaitForAsync(checkout.JobRef, snapshot =&gt; snapshot.Status == JobStatusCode.Succeeded, <span class="s">&quot;terminal completion&quot;</span>, ct);
         <span class="k">await</span> lab.ShowAsync(
             <span class="s">&quot;4. Done - one identity completed through three handler entries&quot;</span>,
             <span class="s">&quot;&quot;&quot;</span>
@@ -516,7 +516,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
     }
 
     <span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; WaitForAsync(
-        <span class="k">long</span> jobId,
+        JobRef job,
         Func&lt;GetJobResponse, <span class="k">bool</span>&gt; predicate,
         <span class="k">string</span> description,
         CancellationToken ct
@@ -528,7 +528,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         {
             <span class="k">while</span> (<span class="k">true</span>)
             {
-                <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+                <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(job, timeout.Token);
                 <span class="k">if</span> (snapshot <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; predicate(snapshot))
                 {
                     <span class="k">return</span> snapshot;
@@ -538,7 +538,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         }
         <span class="k">catch</span> (OperationCanceledException) <span class="k">when</span> (!ct.IsCancellationRequested)
         {
-            <span class="k">throw</span> <span class="k">new</span> TimeoutException(<span class="s">$&quot;Timed out waiting for {description} on job {jobId}.&quot;</span>);
+            <span class="k">throw</span> <span class="k">new</span> TimeoutException(<span class="s">$&quot;Timed out waiting for {description} on job {job}.&quot;</span>);
         }
     }
 

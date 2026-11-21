@@ -46,10 +46,9 @@ Console.WriteLine($"enqueued {outcome.JobRef}");
 
 // Wait for all 4 attempts to exhaust and the job to reach Failed.
 Console.WriteLine("waiting for terminal failure...");
-var jobId = outcome.JobId;
 while (true)
 {
-    var status = (await jobs.GetStatusAsync(JobLookup.ById(jobId)))?.Status;
+    var status = (await outcome.GetStatusAsync())?.Status;
     if (status == JobStatusCode.Failed)
         break;
     await Task.Delay(200);

@@ -203,4 +203,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program and its notes](/learn/109-continuous-synchronization.program.md): every file as compiled, 533 lines, and the notes on the design, the rows to inspect, and how to break it.
+- [The whole program and its notes](/learn/109-continuous-synchronization.program.md): every file as compiled, 535 lines, and the notes on the design, the rows to inspect, and how to break it.

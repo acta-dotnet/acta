@@ -130,7 +130,7 @@ builder.Services.UseActa(j =&gt;
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/411-alert-escalation"><code>learn/400-observability-and-alerts/411-alert-escalation</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">alert-escalation.cs</span><span class="file-size">89 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-escalation.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to escalate an alert as failures add up</span>
+<details class="source-file"><summary><span class="file-name">alert-escalation.cs</span><span class="file-size">88 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-escalation.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to escalate an alert as failures add up</span>
 <span class="c">// Automatic failure alerts escalate in stages: the first failure, the failure count reaching</span>
 <span class="c">// `AlertFailureThreshold`, and the final failure when the retry budget is spent.</span>
 <span class="k">using</span> Acta;
@@ -165,10 +165,9 @@ Console.WriteLine(<span class="s">$&quot;enqueued {outcome.JobRef}&quot;</span>)
 
 <span class="c">// Wait for all 4 attempts to exhaust and the job to reach Failed.</span>
 Console.WriteLine(<span class="s">&quot;waiting for terminal failure...&quot;</span>);
-<span class="k">var</span> jobId = outcome.JobId;
 <span class="k">while</span> (<span class="k">true</span>)
 {
-    <span class="k">var</span> status = (<span class="k">await</span> jobs.GetStatusAsync(JobLookup.ById(jobId)))?.Status;
+    <span class="k">var</span> status = (<span class="k">await</span> outcome.GetStatusAsync())?.Status;
     <span class="k">if</span> (status == JobStatusCode.Failed)
         <span class="k">break</span>;
     <span class="k">await</span> Task.Delay(200);

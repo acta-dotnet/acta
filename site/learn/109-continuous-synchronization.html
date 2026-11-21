@@ -286,7 +286,7 @@ feed head: change 180; local orders: 40 (newest change 180)</code></pre></figure
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/109-continuous-synchronization"><code>learn/100-scheduling/109-continuous-synchronization</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">continuous-synchronization.cs</span><span class="file-size">242 lines</span></summary><figure class="listing"><figcaption><span class="file">continuous-synchronization.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to keep another system in sync with a permanent job</span>
+<details class="source-file"><summary><span class="file-name">continuous-synchronization.cs</span><span class="file-size">244 lines</span></summary><figure class="listing"><figcaption><span class="file">continuous-synchronization.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to keep another system in sync with a permanent job</span>
 <span class="c">// One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one</span>
 <span class="c">// bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so</span>
 <span class="c">// a recovered firing continues where the lost one stopped.</span>
@@ -421,9 +421,9 @@ builder.Services.UseActa(j =&gt;
 }
 
 Console.WriteLine(<span class="s">&quot;Watching three firings of one permanent job...&quot;</span>);
-<span class="k">var</span> slotId = <span class="k">await</span> SlotIdAsync(jobs, schedules);
+<span class="k">var</span> slot = <span class="k">await</span> SlotRefAsync(schedules);
 <span class="k">using</span> <span class="k">var</span> tourTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(45));
-<span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(JobLookup.ById(slotId), tourTimeout.Token))?.ExecutionNumber &lt; 3)
+<span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(slot, tourTimeout.Token))?.ExecutionNumber &lt; 3)
 {
     <span class="k">await</span> Task.Delay(250, tourTimeout.Token);
 }
@@ -431,13 +431,15 @@ Console.WriteLine(<span class="s">&quot;Watching three firings of one permanent 
 <span class="k">await</span> ShowStateAsync(lab, jobs, schedules, store, shop);
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">static</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; SlotIdAsync(IJobs jobs, ISchedules schedules)
+<span class="k">static</span> <span class="k">async</span> Task&lt;JobRef&gt; SlotRefAsync(ISchedules schedules)
 {
     <span class="k">var</span> schedule = (<span class="k">await</span> schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: jobNamespace, JobName: jobName))).Items.Single(s =&gt;
         s.ScheduleName == scheduleName
     );
-    <span class="k">return</span> (<span class="k">await</span> jobs.GetIdAsync(schedule.JobRef!.Value))!.JobId;
+    <span class="k">return</span> schedule.JobRef!.Value;
 }
+
+<span class="k">static</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; SlotIdAsync(IJobs jobs, ISchedules schedules) =&gt; (<span class="k">await</span> jobs.GetIdAsync(<span class="k">await</span> SlotRefAsync(schedules)))!.JobId;
 
 <span class="k">static</span> <span class="k">async</span> Task ShowStateAsync(LearnLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ShopFeed shop)
 {

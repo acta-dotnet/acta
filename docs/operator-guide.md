@@ -187,9 +187,9 @@ request field; on the [CLI](#built-in-control-cli) it is `--actor <name>`, or th
 without it; a C# caller passes it.
 
 ```csharp
-// Address the job by its public ref (what dashboards and clients hold), by idempotency key,
-// or by internal id (advanced/debug); all three resolve through the same JobLookup.
-JobLookup job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
+// Address the job by its public ref: what dashboards, logs and clients hold, one word that is unique
+// across namespaces. The handle an enqueue answered passes the same way.
+var job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
 
 await jobs.CancelAsync(job, "superseded by order-9");  // cascades to non-terminal descendants
 await jobs.PauseAsync(job);                             // hold a not-yet-running job

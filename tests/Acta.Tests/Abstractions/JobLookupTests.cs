@@ -35,6 +35,18 @@ public class JobLookupTests
         Assert.Equal(jobRef, job.JobRef);
     }
 
+    /// <summary>A ref that travelled as a plain Guid addresses the same job as the ref itself.</summary>
+    [Fact]
+    public void Guid_converts_implicitly_to_the_lookup_of_its_ref()
+    {
+        var jobRef = JobRef.New();
+        Guid carried = jobRef;
+        JobLookup job = carried;
+
+        Assert.Equal(jobRef.Value, carried);
+        Assert.Equal(JobLookup.ByRef(jobRef), job);
+    }
+
     [Fact]
     public void ById_carries_kind_and_value()
     {

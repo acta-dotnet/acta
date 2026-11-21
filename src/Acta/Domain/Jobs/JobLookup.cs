@@ -71,6 +71,12 @@ public readonly record struct JobLookup
 
     public static implicit operator JobLookup(JobRef jobRef) => ByRef(jobRef);
 
+    /// <summary>
+    /// A job ref's Guid addresses its job, so a ref that travelled as a plain Guid, through a column, a message or a
+    /// call that cannot carry <see cref="JobRef"/>, passes to every <see cref="IJobs"/> call as it is.
+    /// </summary>
+    public static implicit operator JobLookup(Guid jobRef) => ByRef(new JobRef(jobRef));
+
     public static implicit operator JobLookup(EnqueueJobResponse outcome)
     {
         ArgumentNullException.ThrowIfNull(outcome);

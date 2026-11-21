@@ -99,7 +99,7 @@
 <p>The callers move to the new input. The rows already stored under the old name keep their handler.</p>
 <figure class="listing"><figcaption><span class="file">job-versions.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> next = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendInvoiceV2(<span class="s">&quot;INV-3&quot;</span>, <span class="s">&quot;USD&quot;</span>));</span>
 
-(<span class="k">await</span> jobs.WaitAsync(JobLookup.ByRef(stored.JobRef))).ThrowIfFailed();
+(<span class="k">await</span> jobs.WaitAsync(stored)).ThrowIfFailed();
 (<span class="k">await</span> current.WaitAsync()).ThrowIfFailed();
 (<span class="k">await</span> next.WaitAsync()).ThrowIfFailed();
 
@@ -155,7 +155,7 @@ builder.Services.UseActa(j =&gt;
 
 <span class="c">// learn: end</span>
 
-(<span class="k">await</span> jobs.WaitAsync(JobLookup.ByRef(stored.JobRef))).ThrowIfFailed();
+(<span class="k">await</span> jobs.WaitAsync(stored)).ThrowIfFailed();
 (<span class="k">await</span> current.WaitAsync()).ThrowIfFailed();
 (<span class="k">await</span> next.WaitAsync()).ThrowIfFailed();
 

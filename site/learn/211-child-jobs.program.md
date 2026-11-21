@@ -45,7 +45,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 var outcome = await jobs.EnqueueAsync(new BuildSnowman("Frosty", failChild ? "head" : null));
 await WaitForAsync(
     jobs,
-    outcome.JobId,
+    outcome.JobRef,
     static snapshot => snapshot.Status == JobStatusCode.Suspended,
     "parent to suspend on child latches"
 );
@@ -80,7 +80,7 @@ await lab.ShowAsync(
     new { parentJobId = outcome.JobId }
 );
 
-var terminal = await WaitForAsync(jobs, outcome.JobId, static snapshot => snapshot.Status.IsFinished, "parent to reach a terminal state");
+var terminal = await WaitForAsync(jobs, outcome.JobRef, static snapshot => snapshot.Status.IsFinished, "parent to reach a terminal state");
 if (terminal.Status == JobStatusCode.Succeeded)
 {
     var result = await jobs.GetResultAsync<FinishedSnowman>(outcome);
@@ -127,14 +127,14 @@ await lab.ShowAsync(
 
 await host.StopAsync();
 
-static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJobResponse, bool> predicate, string description)
+static async Task<GetJobResponse> WaitForAsync(IJobs jobs, JobRef job, Func<GetJobResponse, bool> predicate, string description)
 {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     try
     {
         while (true)
         {
-            var snapshot = await jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+            var snapshot = await jobs.GetAsync(job, timeout.Token);
             if (snapshot is not null && predicate(snapshot))
             {
                 return snapshot;
@@ -148,7 +148,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
     }
     catch (OperationCanceledException) when (timeout.IsCancellationRequested)
     {
-        throw new TimeoutException($"Timed out waiting for {description} on job {jobId}.");
+        throw new TimeoutException($"Timed out waiting for {description} on job {job}.");
     }
 }
 
