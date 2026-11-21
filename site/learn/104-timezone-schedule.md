@@ -58,7 +58,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 ## Remember
 
 - A schedule is written by a deploy: `jobs migrate` or `jobs deploy` in production, the development start on your own machine. Once a namespace has been deployed that way, a new or changed schedule takes `jobs deploy`.
-- A permanent job keeps its step results from one firing to the next. Put the firing in a step's name, `$"send.f{ctx.FiringId:N}"`, or the step that ran on Monday answers from its record on Tuesday.
+- A permanent job keeps its step results from one firing to the next, so a step that succeeded on Monday answers from its record on Tuesday. End the handler with `await ctx.ResetStateAsync(ct)`, as its last action, and each firing starts clean. A step named per firing, `$"send.f{ctx.FiringId:N}"`, also runs every time, but each firing then leaves a step row that is kept as long as the job, and a permanent job lives as long as its schedule.
 - A run that comes due while no worker is up is skipped by default. [Decide what happens to runs a schedule missed](/learn/106-schedule-misfire.md) shows the other choices.
 - On the night the clocks change, a cron that names an hour they skip fires at the moment they jump, and one that names an hour they repeat fires once, in its first pass. An hour outside 01:00 to 03:00 local time meets neither in most zones.
 - A time zone id is an IANA or a Windows id. One that cannot be resolved fails the deploy, so a typo never ships a schedule that fires at the wrong hour.

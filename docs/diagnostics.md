@@ -1,8 +1,8 @@
 # Job-authoring diagnostics
 
 The `[Job]` source generator reports every problem it finds in a handler, a schedule, or a
-payload-format declaration as a compiler diagnostic with an `ACTA01xx` id, and an analyzer in the same
-package reports a catch in handler code that can take Acta's control flow. Each
+payload-format declaration as a compiler diagnostic with an `ACTA01xx` id, and two analyzers in the same
+package report a catch in handler code that can take Acta's control flow, and a recorded name that can never be valid. Each
 section below is one id: what the generator found, what to change, and the smallest example that
 clears it. The message you see in the build output names the exact member and variant; the id is
 the same for every variant of a section. An error stops the manifest from being generated for the

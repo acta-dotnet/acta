@@ -192,7 +192,7 @@ curl -X POST http://localhost:5090/orders/1043/ship-now  # 200 with the label: e
 
 `"shipping"` in `Run<ShippingJobs>("shipping")` is the namespace the jobs are stored under, and it is permanent: every job row, the dashboard and the CLI carry it, and there is no rename, so choose it for the work the app owns, not for an environment or a version.
 
-`using Shipping;` is needed: the manifest `ShippingJobs` is generated into the project's root namespace, and top-level statements live in the global one. The naming rule is in [Troubleshooting](./operator-guide.md#the-generated-manifest-type-does-not-resolve).
+`ShippingJobs` is the manifest: at build time Acta's source generator writes it from every `[Job]` handler in the project, with a typed call for each job. `using Shipping;` is needed because the manifest is generated into the project's root namespace, and top-level statements live in the global one. The naming rule is in [Troubleshooting](./operator-guide.md#the-generated-manifest-type-does-not-resolve).
 
 ## Two failures: one final, one retried
 

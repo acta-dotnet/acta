@@ -693,6 +693,8 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0104` | Duplicate input type within the manifest (warning); typed enqueue cannot resolve a unique route.                                                                                                                  |
 | `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
 | `ACTA0106` | A job's generated member name (its call factory, or the argument record of a job taking several parameters) collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out and dispatch is unaffected. |
+| `ACTA0107` | A handler taking several input parameters in a Native AOT build; declare the input record yourself and give the handler that one parameter. |
+| `ACTA0108` | A schedule faster than once a minute (warning); state `EventRecording`, and `JobRetention` on a per-occurrence job, to say the history it writes is intended. |
 | `ACTA0121` | Invalid `[Schedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment, a definition that also declares a `Lane`).                                                                                                            |
 | `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or an interval of whole milliseconds, at least one second, and days at most, such as `5m` or `P1D`.                                                       |
 | `ACTA0123` | `[Schedule]` handler whose input has no accessible parameterless constructor, or that takes several input parameters.                                                                                            |
@@ -704,6 +706,8 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
 | `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`ResultFormat`, `ResultFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
 | `ACTA0142` | A duration written with an uppercase or calendar unit; durations use lowercase `ms`, `s`, `m`, `h`, or `d`. |
+| `ACTA0151` | A `catch` in handler code that can take Acta's control flow (a wait, a sleep, a reschedule or a pause ends the attempt by throwing); catch narrower, or rethrow `JobControlException`. |
+| `ACTA0152` | A step, variable, signal, timer, child or group name that can never be valid, so the job would fail on it at once. |
 
 Placement on anything but a method (for example a request DTO) is rejected by `[AttributeUsage(AttributeTargets.Method)]` at compile time, not by a diagnostic.
 

@@ -95,7 +95,8 @@ internal static partial class ProvisionScriptEmitter
         script.AppendLine("-- EXECUTE, with MigrateOnStartup left false. Because the history rows are recorded by");
         script.AppendLine("-- the script itself, a bootstrap with migrations enabled also accepts the result and applies");
         script.AppendLine("-- nothing. Site-specific physical tuning (partitioning, tablespaces, compression) is yours to");
-        script.AppendLine("-- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.");
+        script.AppendLine("-- add; keep the logical shape intact: tables, columns, routine signatures, and what each");
+        script.AppendLine("-- constraint enforces. A table partitioned by date may add that date to its primary key.");
         script.AppendLine();
 
         void Append(string text)

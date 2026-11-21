@@ -66,6 +66,22 @@ produced by the project, on the project's machine, and published in this reposit
 - The benchmark round: an [Acta Verify](../tools/Acta.Verify/README.md) run on one machine, the latest
   kept in [benchmark.md](./reference/benchmark.md).
 
+### What to test first, and where it is already tested
+
+A reviewer's seven first tests, each with the [Acta Verify](../tools/Acta.Verify/README.md) scenarios that run it on
+every release, on all three databases unless a row says otherwise. Run one yourself with
+`dotnet run -c Release --project tools/Acta.Verify -- run <scenario> --db pg|mssql|sqlite`.
+
+| Test | Scenarios | Not covered |
+|---|---|---|
+| A worker dies after an outside effect and before its step is recorded | `crash-after-effect`, `idempotent-sink-crash`, `non-idempotent-sink`, `at-most-once` | |
+| Two workers and one job, with a lease that expires | `pause-beyond-lease`, `kill-busy-worker`, `timeout-late-attempt` | Database latency is not injected; the lease is made to expire by freezing or killing a worker |
+| The database goes away during a completion | `database-disconnect`, `database-crash`, `lost-completion-reply` | The first two run on the servers only: SQLite is embedded, with no connection to cut and no process to kill |
+| A rolling deployment with changed handlers | `rolling-restart`, `compatible-contract`, `incompatible-contract` | Two builds of one application side by side; the contract scenarios change a fixture's types inside one build |
+| A transaction that rolls back | `transactional-enqueue-rollback`, `transactional-enqueue-commit` | |
+| A handler that runs long and ignores cancellation | `timeout-late-attempt`, `pause-beyond-lease` | [What such a handler holds until it returns](./known-limitations.md) is a documented limit, not a scenario |
+| Retention and database growth | `retention-during-load`, `retained-history`, `retention-live-dependencies` | Nothing measures the database's size on disk, and `schema-upgrade` is skipped until a second baseline exists |
+
 There is no independent evidence yet: no third-party audit, no published production case study, no
 benchmark someone else ran. If you run Acta in production, an issue describing the workload and what
 went right or wrong is the most useful contribution the project can receive.

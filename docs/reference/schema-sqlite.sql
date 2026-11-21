@@ -27,7 +27,8 @@
 -- EXECUTE, with MigrateOnStartup left false. Because the history rows are recorded by
 -- the script itself, a bootstrap with migrations enabled also accepts the result and applies
 -- nothing. Site-specific physical tuning (partitioning, tablespaces, compression) is yours to
--- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.
+-- add; keep the logical shape intact: tables, columns, routine signatures, and what each
+-- constraint enforces. A table partitioned by date may add that date to its primary key.
 
 -- ===== refuse a file an earlier candidate provisioned without the prefix =====
 CREATE TEMP TABLE IF NOT EXISTS candidate_guard (
