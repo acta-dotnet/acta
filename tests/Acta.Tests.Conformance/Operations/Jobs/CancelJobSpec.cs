@@ -55,18 +55,18 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         await SetJobStatusAsync(Db, suspendedJob, (byte)JobStatusCode.Suspended, ct);
         await SetJobStatusAsync(Db, executingJob, (byte)JobStatusCode.Executing, ct);
 
-        // Default retention is 90 days so retention_until_utc will be ~now + 90d; capture a window.
+        // add-numbers states no retention, so retention_until_utc is now + JobsOptions.Retention, a year by default.
         // Both ends come off the DATABASE clock, because the value being bracketed does: comparing a
         // db_now-derived instant against this process's clock would fold container clock skew into a
-        // one-second lower bound, and skew is not what this fact is about.
-        var tBefore = (await NowAsync(ct)).AddSeconds(-1);
+        // one-second bound, and skew is not what this fact is about.
+        var tBefore = (await NowAsync(ct)).AddDays(365).AddSeconds(-1);
         var cancelSuspended = await Services
             .GetRequiredService<CancelJobHandler>()
             .CancelAsync(suspendedJob, input, fence: null, walkRootJobId: null, ct);
         var cancelExecuting = await Services
             .GetRequiredService<CancelJobHandler>()
             .CancelAsync(executingJob, input, fence: null, walkRootJobId: null, ct);
-        var tAfter = (await NowAsync(ct)).AddDays(91);
+        var tAfter = (await NowAsync(ct)).AddDays(365).AddSeconds(1);
 
         Assert.Equal(ControlAction.Applied, cancelSuspended.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancelSuspended.Status);

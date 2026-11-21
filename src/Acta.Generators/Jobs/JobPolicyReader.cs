@@ -348,7 +348,12 @@ internal static class JobPolicyReader
                 return true;
 
             case "JobRetention":
-                draft.JobRetentionSeconds = ReadDurationSeconds(named, diagnostics, location);
+                // "never" is the largest retention the column holds, about 68 years. The duration reader the other
+                // durations share refuses the word.
+                draft.JobRetentionSeconds =
+                    named.Value.Value is string retention && retention.Trim() == "never"
+                        ? int.MaxValue
+                        : ReadDurationSeconds(named, diagnostics, location);
                 return true;
 
             default:

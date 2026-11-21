@@ -129,7 +129,8 @@ internal sealed partial class WorkerFinalizer
         var slot = job.Kind == JobKindCode.Permanent;
         // Resolved once and passed on every completion shape; complete_executions stamps it onto
         // jobs_state.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
-        // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.
+        // re-arm / suspend / pause. The definition row is its one source: a worker's descriptor carries the row's
+        // effective retention, so no worker stamps a number of its own.
         // Every shape but the success ones writes no result payload.
         // A one-shot success carries its result and its reset failure count immediately, avoiding a second command
         // object for the common path.
@@ -145,7 +146,7 @@ internal sealed partial class WorkerFinalizer
             s.ReasonMessage,
             s.DurationMs,
             FailureCount: oneShotSuccess ? 0 : null,
-            RetentionSeconds: descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds
+            RetentionSeconds: descriptor.JobRetentionSeconds
         )
         {
             HasLane = job.LaneId is not null,

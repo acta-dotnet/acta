@@ -14,4 +14,8 @@ public static class PurgeProbeHandler
     // deletable terminal row through the real enqueue/execute/complete path.
     [Job("purge-now", JobRetention = "0s")]
     public static PurgeProbeResult Run(PurgeProbe input) => new(input.Note);
+
+    // The longest retention there is; one attempt, so a lapsed lease fails the job at its first reclaim.
+    [Job("keep-forever", JobRetention = "never", MaxAttempts = 1)]
+    public static void KeepForever() { }
 }

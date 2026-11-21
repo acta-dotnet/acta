@@ -310,6 +310,25 @@ describe('DefinitionDetail retire', () => {
   });
 });
 
+describe('DefinitionDetail retention', () => {
+  it('labels a retention of 2,147,483,647 seconds "never" and shows any other as its number', async () => {
+    stubFetch((url) =>
+      url.pathname.endsWith('/events')
+        ? pagedResponse([])
+        : new Response(
+            JSON.stringify({ ...definition, jobRetentionSeconds: 2147483647, jobRetentionSecondsEffective: 86400 }),
+            { status: 200 }
+          )
+    );
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    const row = (await screen.findByText('Retention (s)')).closest('tr')!;
+    const cells = Array.from(row.querySelectorAll('td')).map((cell) => cell.textContent?.trim());
+    expect(cells[1]).toBe('never');
+    expect(cells[3]).toBe('86400');
+  });
+});
+
 describe('DefinitionDetail overrides', () => {
   it('seeds each override input from the read\'s overrides and saves every member, a blank one as null', async () => {
     const calls: { url: URL; init?: RequestInit }[] = [];

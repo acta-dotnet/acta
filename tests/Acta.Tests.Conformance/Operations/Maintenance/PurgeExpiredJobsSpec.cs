@@ -142,10 +142,10 @@ public sealed class PurgeExpiredJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var jobId = (await EnqueueAndRunAsync("add-numbers", new AddNumbers(2, 3), ct)).JobId;
         var after = await clock.GetUtcNowAsync(ct);
 
-        // add-numbers carries no [Job(JobRetention=...)], so completion stamps the 90-day default.
+        // add-numbers carries no [Job(JobRetention=...)], so completion stamps JobsOptions.Retention, a year by default.
         var job = await ReadJobAsync(jobId, ct);
         Assert.NotNull(job!.RetentionUntilUtc);
-        Assert.InRange(job.RetentionUntilUtc!.Value, before.AddDays(89), after.AddDays(91));
+        Assert.InRange(job.RetentionUntilUtc!.Value, before.AddDays(365).AddSeconds(-1), after.AddDays(365).AddSeconds(1));
 
         var result = await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);
 
@@ -160,7 +160,7 @@ public sealed class PurgeExpiredJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var (parent, child) = await EnqueueParentAndChildAsync(ct);
 
-        // Parent to terminal with zero retention; the child stays Ready (default 90-day window).
+        // Parent to terminal with zero retention; the child stays Ready.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         await RetentionTestOps.PurgeAsync(Services, ns, NoPurgeDays, 1000, 50, ct);

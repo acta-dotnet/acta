@@ -22,7 +22,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
 
     // Def() registers with well-known base values so the clear fact can assert exact effective fallbacks.
     // Base policy: Priority=Bulk, MaxAttempts=3, EventRecording=Failures, AlertProfile=None.
-    // Framework defaults fill Backoff="1m..1d x2 ~10%", ExecutionTimeout=300, JobRetention=7776000;
+    // Framework defaults fill Backoff="1m..1d x2 ~10%", ExecutionTimeout=300, JobRetention=31536000 (JobsOptions.Retention);
     // DeadlineSeconds=0, DeadlineBehavior=Strict.
     private static JobDescriptor Def(string name) =>
         new(
@@ -216,7 +216,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         Assert.Equal(300, cleared.ExecutionTimeoutSecondsEffective); // framework default
         Assert.Equal(0, cleared.DeadlineSecondsEffective); // no deadline
         Assert.Equal(DeadlineBehaviorCode.Strict, cleared.DeadlineBehaviorEffective);
-        Assert.Equal(7776000, cleared.JobRetentionSecondsEffective); // framework default
+        Assert.Equal(31536000, cleared.JobRetentionSecondsEffective); // JobsOptions.Retention
         Assert.Equal(EventRecordingCode.Failures, cleared.EventRecordingEffective);
         Assert.Equal(AlertProfileCode.None, cleared.AlertProfileEffective);
         Assert.Null(cleared.AlertChannelNameEffective);

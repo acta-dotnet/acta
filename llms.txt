@@ -509,11 +509,14 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
   that override: read `Overrides` from `GetAsync`, change it with `with { ConcurrencyLimit = 4 }`, and send it back
   with the definition's `version`. Workers take the change on their next heartbeat (`HeartbeatInterval`, 45
   seconds by default).
-- Retention deletes finished work only. A job that landed `Succeeded`, `Failed`, or `Cancelled` is
-  deleted with its steps and checkpoints once its definition's `JobRetention` has passed, 90 days by
-  default (`[Job("release-payment", JobRetention = "365d")]`). A job that waits is never deleted,
+- Acta keeps finished work and its history for a year; change it in one place, and a job that should go
+  sooner or stay longer says so. Retention deletes finished work only. A job that landed `Succeeded`,
+  `Failed`, or `Cancelled` is deleted with its steps and checkpoints once its definition's retention has
+  passed: `JobsOptions.Retention`, a year by default, which a deploy writes to every definition that states
+  none, or the job's own (`[Job("send-digest", JobRetention = "7d")]`; `"never"` keeps it 2,147,483,647
+  seconds, about 68 years). A job that waits is never deleted,
   however long it waits, and a finished child stays until its parent has finished and the parent's own retention is due. Events go by age,
-  a year by default (`JobsOptions.Retention`): a job still waiting after that keeps
+  kept for `JobsOptions.Retention` too: a job still waiting after that keeps
   everything it needs to resume and loses the oldest lines of its timeline. Jobs and events both wait
   for the namespace's alert projector (`sys.alerts`) to read past them, so a stuck projector delays
   their deletion. A record the business must keep for good belongs in the application's own table,

@@ -43,7 +43,7 @@ public sealed class DefinitionRegistrationValidationTests
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
         new RegisterDefinitionsHandler(new DbSessionStub(), null!, null!).HandleAsync(
-            new RegisterDefinitionsCommand(1, [.. descriptors], stored, "test"),
+            new RegisterDefinitionsCommand(1, [.. descriptors], stored, "test", new JobsOptions().Retention),
             TestContext.Current.CancellationToken
         );
 
@@ -73,7 +73,7 @@ public sealed class DefinitionRegistrationValidationTests
                 ExecutionTimeoutSeconds: JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
                 DeadlineSeconds: 0,
                 DeadlineBehavior: DeadlineBehaviorCode.Strict,
-                JobRetentionSeconds: JobDefinitionRegistration.DefaultJobRetentionSeconds,
+                JobRetentionSeconds: 3600,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.None,
                 FiringFailurePolicy: FiringFailurePolicyCode.Continue,

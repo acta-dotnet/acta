@@ -1361,6 +1361,51 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Contains("JobRetentionSeconds = 7776000,", manifest);
     }
 
+    [Fact]
+    public void JobRetention_never_is_the_largest_retention_the_column_holds()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("kept-for-good", JobRetention = "never")]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        Assert.Contains("JobRetentionSeconds = 2147483647,", Assert.Single(result.GeneratedTrees).ToString());
+    }
+
+    // The word belongs to JobRetention alone: a timeout, a deadline or an expiry takes a duration.
+    [Theory]
+    [InlineData("[Job(\"no-timeout\", ExecutionTimeout = \"never\")]")]
+    [InlineData("[Job(\"no-deadline\", Deadline = \"never\")]")]
+    [InlineData(
+        "[Job(\"no-expiry\")] [Schedule(\"tick\", Cron.Hourly, ExpireAfter = \"never\", ExpireAction = ScheduleExpireActionCode.Continue)]"
+    )]
+    public void Never_is_refused_for_every_duration_but_JobRetention_ACTA0105(string attributes)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                {{attributes}}
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0105"));
+    }
+
     // ACTA0121: invalid schedule declaration
 
     [Fact]

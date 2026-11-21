@@ -131,7 +131,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 
 - Schedules emphasize their expression, time zone, current state, and next occurrence. Advanced delivery policy and editing use disclosures. An active schedule whose evaluation is past due by more than the Overview's schedule-lag envelope leads with "Overdue for evaluation".
 - Calendars emphasize the shown definition and forecast. Keep version navigation compact and show bound schedules when present.
-- Definitions emphasize effective policy and recent performance. Place the full override editor, contract, and supporting metadata behind disclosures.
+- Definitions emphasize effective policy and recent performance. Place the full override editor, contract, and supporting metadata behind disclosures. A retention of 2,147,483,647 seconds, what `JobRetention = "never"` stores, reads "never".
 - Workers emphasize health, heartbeat, and execution capacity. Keep process identity, exact audit times, and runtime versions in technical details.
 - Alerts emphasize the incident and acknowledgment or resolution. Show delivery problems clearly and keep routine delivery metadata secondary.
 - Namespaces and tenants emphasize current availability and human context. Use disclosures for editing and supporting metadata.

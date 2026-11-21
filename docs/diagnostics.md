@@ -90,7 +90,7 @@ Acta duration, or a numeric knob such as `MaxAttempts` or `ConcurrencyLimit` is 
 code argument is undefined. The framework default applies until it is corrected.
 
 Durations are a number and a lowercase unit (`30s`, `5m`, `2h`, `1d`) or ISO 8601 (`PT5M`); a
-backoff curve is `"1m..1d x2 ~10%"`.
+backoff curve is `"1m..1d x2 ~10%"`. `JobRetention` alone also takes `"never"`, in lowercase.
 
 ```csharp
 [Job("sync-crm", MaxAttempts = 5, Backoff = "30s..10m x2")]

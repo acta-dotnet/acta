@@ -2185,6 +2185,12 @@
 - **Guarantees:**
   - Stopped and Dead workers are both reaped while an Active worker is kept
 
+### Registration writes JobsOptions.Retention, and never is the longest retention
+- **Contract:** A definition that states no JobRetention takes JobsOptions.Retention at deploy, and a never job lands 68 years out on every path and outlives the sweep.
+- **Guarantees:**
+  - A definition that states no JobRetention is written with JobsOptions.Retention, and its job lands with it
+  - A never job lands 2,147,483,647 seconds out, whichever statement lands it, and the sweep keeps it
+
 ### A worker's events keep resolving its ref through retention
 - **Contract:** Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves.
 - **Guarantees:**

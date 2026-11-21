@@ -21,9 +21,10 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         }
 
         var rows = new List<DefinitionValues>(command.Descriptors.Length);
+        var retentionSeconds = (int)command.Retention.TotalSeconds;
         foreach (var descriptor in command.Descriptors)
         {
-            rows.Add(BuildRow(descriptor, command.NamespaceId, serializers));
+            rows.Add(BuildRow(descriptor, command.NamespaceId, retentionSeconds, serializers));
         }
 
         ValidateSharedRateNames(rows, command.NamespaceId);
@@ -161,7 +162,12 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         }
     }
 
-    private static DefinitionValues BuildRow(JobDescriptor descriptor, int namespaceId, IJobPayloadSerializerRegistry serializers)
+    private static DefinitionValues BuildRow(
+        JobDescriptor descriptor,
+        int namespaceId,
+        int retentionSeconds,
+        IJobPayloadSerializerRegistry serializers
+    )
     {
         var priorityCode = (byte)descriptor.Priority;
         var (defaultInputFormatId, defaultInput) = JobDefinitionRegistration.DefaultInputOf(descriptor, serializers);
@@ -180,7 +186,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         var deadlineSeconds = descriptor.DeadlineSeconds ?? 0;
         var deadlineBehaviorCode = (byte)descriptor.DeadlineBehavior;
-        var jobRetention = descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds;
+        var jobRetention = descriptor.JobRetentionSeconds ?? retentionSeconds;
         var eventRecordingCode = (byte)descriptor.EventRecording;
         var alertProfileCode = (byte)descriptor.AlertProfile;
         var firingFailurePolicyCode = (byte)descriptor.FiringFailurePolicy;

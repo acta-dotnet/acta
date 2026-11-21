@@ -130,8 +130,12 @@
     return s; // enum (kebab wire name) or string
   }
 
+  // [Job(JobRetention = "never")] is stored as the largest retention the column holds.
+  const NEVER_RETENTION_SECONDS = 2147483647;
+
   function displayPolicyValue(field, value) {
     if (value === null || value === undefined) return '·';
+    if (field.key === 'jobRetentionSeconds' && value === NEVER_RETENTION_SECONDS) return 'never';
     return field.kind === 'int' && typeof value === 'number' ? displayFormatter.number(value) : value;
   }
 

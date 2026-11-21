@@ -11,11 +11,12 @@ namespace Acta;
 public sealed class JobsOptions
 {
     /// <summary>
-    /// How long Acta keeps history, in whole days, a year by default: every <c>events</c> row, audit timeline and
-    /// execution ledger alike; every <c>alerts</c> row whatever its state, so a still-failing job whose open incident
-    /// ages out opens a fresh one on its next failure; and every terminal <c>workers</c> row, <c>Stopped</c> and
-    /// <c>Dead</c> alike, counted from its last heartbeat and its last event, and never while a job it leased is still
-    /// Executing. A fractional day is rejected at startup because the purge works in days.
+    /// Acta keeps finished work and its history for a year; change it in one place, and a job that should go sooner or
+    /// stay longer says so. This is the retention of every job whose <c>[Job]</c> states no <c>JobRetention</c>, written to
+    /// its definition at the next deploy, and how long Acta keeps every <c>events</c> row, audit timeline and execution
+    /// ledger alike; every <c>alerts</c> row whatever its state, so a still-failing job whose open incident ages out opens a
+    /// fresh one on its next failure; and every terminal <c>workers</c> row, counted from its last heartbeat and its last
+    /// event, and never while a job it leased is still Executing. Whole days only: the purge works in days.
     /// </summary>
     public TimeSpan Retention { get; set; } = TimeSpan.FromDays(365);
 

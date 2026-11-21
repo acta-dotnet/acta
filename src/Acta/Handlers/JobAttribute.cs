@@ -92,9 +92,10 @@ public sealed class JobAttribute(string name) : Attribute
     public DeadlineBehaviorCode DeadlineBehavior { get; init; } = DeadlineBehaviorCode.Strict;
 
     /// <summary>
-    /// How long terminal Jobs are retained before the retention sweep deletes them, in Acta duration
-    /// syntax, e.g. <c>"90d"</c> (the default) or <c>"6h"</c>. <c>"0s"</c> means purge at the next
-    /// sweep. Null = framework default.
+    /// How long a finished job is kept before the retention sweep deletes it, in Acta duration syntax, e.g.
+    /// <c>"7d"</c> or <c>"6h"</c>; <c>"0s"</c> deletes it at the next sweep. Acta keeps finished work and its history for
+    /// a year; change it in one place, and a job that should go sooner or stay longer says so. Unset takes
+    /// <c>JobsOptions.Retention</c> at the next deploy. <c>"never"</c> keeps the job 2,147,483,647 seconds, about 68 years.
     /// </summary>
     public string? JobRetention { get; init; }
 

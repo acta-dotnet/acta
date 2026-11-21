@@ -137,6 +137,35 @@ public sealed class CompletionCommandTests
         Assert.Null(oneShot.FinalStatus);
     }
 
+    // A job's retention has one source, its definition row, which the worker's descriptor carries: the worker adds none.
+    [Fact]
+    public void A_descriptor_that_carries_no_retention_lands_with_none_of_the_workers_own()
+    {
+        var descriptor = new JobDescriptor(
+            "one-shot",
+            typeof(CompletionCommandTests),
+            "Run",
+            typeof(object),
+            null,
+            default,
+            null,
+            default,
+            1,
+            default,
+            default,
+            default,
+            default,
+            null!,
+            null!,
+            null
+        );
+        var job = new ClaimedJob(1, Guid.Empty, 1, null, 2, null, null, 0, ReadOnlyMemory<byte>.Empty, null, default, 0);
+
+        Assert.Null(
+            WorkerFinalizer.BuildCommand(descriptor, job, new ExecutionCompletion(CompletionKind.Succeeded), default).RetentionSeconds
+        );
+    }
+
     [Fact]
     public void The_metric_counts_a_sleep_as_slept_and_a_wait_as_suspended()
     {

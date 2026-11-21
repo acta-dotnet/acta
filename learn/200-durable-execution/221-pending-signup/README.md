@@ -6,7 +6,7 @@
 - The deadline is stored once, as database time plus the timeout. Restarts and downtime never make it longer.
 - The handler runs from the top after the confirmation. The email is not sent again, because the step that sends it already has a recorded outcome.
 - Make `create-user` safe to repeat: insert only when the address is absent. A crash right after the insert runs the step again, and two submits of the form end as one account.
-- A finished job is kept with its input for its retention period: ninety days by default, seven here, through `[Job("register-user", JobRetention = "7d")]`. Keep the input to what the work needs when it holds personal data.
+- A finished job is kept with its input for its retention period: a year by default, seven days here, through `[Job("register-user", JobRetention = "7d")]`. Keep the input to what the work needs when it holds personal data.
 - In a web app the confirm link opens a page with a Confirm button that posts: mail scanners fetch the links they see, and a fetch must not confirm anything.
 - `"send-confirmation"` and `"create-user"` are the keys to each step's stored result. Rename `"send-confirmation"` and a sign-up that already sent its email sends it again.
 - `"email-confirmed"` names the signal a sign-up waits on. A renamed signal is a different signal, so let the waiting sign-ups finish before you rename it.

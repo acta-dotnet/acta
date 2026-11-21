@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Acta.Tests.Conformance.Testing;
 
@@ -45,7 +46,16 @@ internal static class DefinitionTestOps
                 return (
                     await services
                         .GetRequiredService<RegisterDefinitionsHandler>()
-                        .HandleAsync(new RegisterDefinitionsCommand(namespaceId, descriptors, stored, "test"), ct)
+                        .HandleAsync(
+                            new RegisterDefinitionsCommand(
+                                namespaceId,
+                                descriptors,
+                                stored,
+                                "test",
+                                services.GetRequiredService<IOptions<JobsOptions>>().Value.Retention
+                            ),
+                            ct
+                        )
                 ).DefinitionIds;
             }
             catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException && attempt < RegistrationPasses)

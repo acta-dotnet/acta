@@ -52,7 +52,7 @@ internal sealed class CatalogRegistrar(
         var resolve = await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, transaction, ct);
 
         var registered = await _definitions.RegisterDefinitionsAsync(
-            new(namespaceId, allDescriptors, storedContracts, deploymentVersion, transaction),
+            new(namespaceId, allDescriptors, storedContracts, deploymentVersion, _options.Value.Retention, transaction),
             ct
         );
         var defIds = registered.DefinitionIds;

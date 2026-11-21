@@ -62,7 +62,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetDefinitionPerformance` | `IDefinitions.GetPerformanceAsync` | `GET /definitions/{jobNamespace}/{jobName}/performance` (`getDefinitionPerformance`, `acta.read`) | · | inline | · | `GetDefinitionPerformanceSpec` |
 | `ListDefinitionContracts` | · | · | · | inline | · | `ListDefinitionContractsSpec` |
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` (`listDefinitions`, `acta.read`) | · | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
-| `RegisterDefinitions` | · | · | · | inline | `definitions` | `RegisterDefinitionsSpec` |
+| `RegisterDefinitions` | · | · | · | inline | `definitions` | `RegisterDefinitionsRetentionSpec`, `RegisterDefinitionsSpec` |
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` (`retireDefinition`, `acta.admin`) | · | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSlotSpec`, `RetireDefinitionSpec` |
 | `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PUT /definitions/{jobNamespace}/{jobName}/overrides` (`updateDefinitionOverrides`, `acta.admin`) | · | inline | `definitions`, `events`, `jobs`, `jobs_state` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
 

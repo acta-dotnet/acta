@@ -305,7 +305,7 @@ public sealed class WorkerCatalogValidationTests
                 ExecutionTimeoutSeconds: JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
                 DeadlineSeconds: 0,
                 DeadlineBehavior: DeadlineBehaviorCode.Strict,
-                JobRetentionSeconds: JobDefinitionRegistration.DefaultJobRetentionSeconds,
+                JobRetentionSeconds: 3600,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.None,
                 FiringFailurePolicy: FiringFailurePolicyCode.Continue,

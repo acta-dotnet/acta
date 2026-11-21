@@ -106,7 +106,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         Assert.NotNull(def);
         Assert.Equal("1m..1d x2 ~10%", def!.Backoff);
         Assert.Equal(5 * 60, def.ExecutionTimeoutSeconds);
-        Assert.Equal(90 * 24 * 60 * 60, def.JobRetentionSeconds);
+        Assert.Equal(365 * 24 * 60 * 60, def.JobRetentionSeconds);
         Assert.Null(def.AlertChannelName);
         Assert.Null(def.RunbookUrl);
         Assert.Null(def.DisplayName);
