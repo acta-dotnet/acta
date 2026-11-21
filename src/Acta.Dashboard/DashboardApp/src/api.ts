@@ -729,6 +729,17 @@ export interface JobCheckpoint {
   modifiedAtUtc: string;
 }
 
+// One row of GET /jobs/{jobRef}/steps, which pages a job's steps newest first; status is the kebab StepStatusCode. A step
+// was created when it first started, in whichever execution got there first, and modified when it was last written,
+// possibly in a later execution.
+export interface JobStepItem {
+  name: string;
+  status: string;
+  failureMessage: string | null;
+  createdAtUtc: string;
+  modifiedAtUtc: string;
+}
+
 // GET /definitions/{ns}/{name}/input-template: the compile-time shape of a job's input. `templateJson`
 // is the skeleton as JSON text, null when the input is not json-formatted. A job this host has no
 // descriptor for is a 404, which getDefinitionInputTemplate() below answers as null.

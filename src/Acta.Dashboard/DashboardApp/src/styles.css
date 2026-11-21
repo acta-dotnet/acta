@@ -1173,6 +1173,19 @@ button.copy:hover { color: var(--accent); }
    their events. Tones ride the shared status tokens, so all themes and accents work unchanged. */
 .timeline-eyebrow { margin: 22px 0 12px; font-size: var(--text-micro); color: var(--muted); font-weight: 500; }
 .timeline-attempt:first-child .timeline-eyebrow { margin-top: 2px; }
+/* An execution's steps, in one line under its name that wraps beside its label: each name in the running weight, then
+   its check or the word "started". The check alone takes a tone. */
+.timeline-steps { display: flex; align-items: baseline; gap: 10px; margin: -8px 0 12px; color: var(--muted); font-size: var(--text-micro); line-height: 1.45; }
+.timeline-steps ul { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.timeline-steps li { min-width: 0; }
+.timeline-steps .mono { overflow-wrap: anywhere; color: color-mix(in srgb, var(--ink) 80%, var(--muted)); }
+.timeline-step-check { color: var(--tone); }
+/* The padding grows the target to the 24px floor, and the matching negative margin keeps the line its height. */
+button.timeline-steps-earlier {
+  padding: 4px 0; margin: -4px 0; border: 0; background: none; color: var(--muted); font: inherit;
+  text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
+}
+button.timeline-steps-earlier:hover:not(:disabled) { color: var(--accent); }
 
 .rail { list-style: none; margin: 0; padding: 0; --tone: var(--muted); --tone-bg: var(--badge-bg); --on-tone: var(--panel); }
 .rail li {

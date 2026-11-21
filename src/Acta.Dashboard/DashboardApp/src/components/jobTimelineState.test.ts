@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   failedTimelineAttempts,
   matchesTimelineCategory,
+  STEPS_LINE_CAP,
+  stepsLineView,
   timelineActor,
   timelineAttemptNumbers,
   timelinePresentation
@@ -67,4 +69,17 @@ test('an action the job took on itself reads as the job, and any other actor by 
   assert.equal(resetBy(null), null);
   // Only an event about the job reads so: an alert a job resolved names the job by its ref.
   assert.equal(timelineActor({ eventCode: 'alert.resolved', entity: 'alert', entityId: 3, jobRef: null, actor: 'job_aa' }), 'job_aa');
+});
+
+test('a steps line keeps its newest steps up to the cap, counts the earlier ones, and shows every step while expanded', () => {
+  // The tenth step began and did not finish: it stays in view, at the end of the line.
+  const line = [
+    ...Array.from({ length: STEPS_LINE_CAP + 1 }, (_, i) => ({ name: 'step-' + i, state: 'succeeded' as const })),
+    { name: 'send-receipt', state: 'started' as const }
+  ];
+  assert.equal(STEPS_LINE_CAP, 8);
+  assert.deepEqual(stepsLineView(line, false), { shown: line.slice(2), earlier: 2 });
+  assert.equal(stepsLineView(line, false).shown.at(-1)?.name, 'send-receipt');
+  assert.deepEqual(stepsLineView(line, true), { shown: line, earlier: 2 });
+  assert.deepEqual(stepsLineView(line.slice(0, STEPS_LINE_CAP), false), { shown: line.slice(0, STEPS_LINE_CAP), earlier: 0 });
 });

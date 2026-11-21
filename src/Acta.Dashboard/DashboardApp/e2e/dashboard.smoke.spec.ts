@@ -283,6 +283,10 @@ async function mockDashboard(
     onClearSignal?: () => void;
     // The job row the detail read carries; the failed job unless a test names one.
     jobRow?: Record<string, unknown>;
+    // The events the job's timeline reads; the one failure unless a test names them.
+    jobEvents?: unknown[];
+    // The rows the job's steps read answers, newest first; none unless a test names them, and 'fault' answers a 503.
+    steps?: unknown[] | 'fault';
     // Called for each read of the job's result, which answers {"sent":true}.
     onResultRead?: () => void;
     // Called for each read of the job's input, which answers {"invoiceId":42}.
@@ -455,7 +459,12 @@ async function mockDashboard(
       });
       return json(paged([deployed(0.8, '1.6.2+5c0ffee', '1.6.2+5c0ffee'), deployed(0.55, '1.6.2+5c0ffee', '1.6.1+b81d04e')]));
     }
-    if (path === `jobs/${jobRef}/events` || path === 'events') return json(paged([event]));
+    if (path === `jobs/${jobRef}/events`) return json(paged(options.jobEvents ?? [event]));
+    if (path === 'events') return json(paged([event]));
+    if (path === `jobs/${jobRef}/steps`) {
+      if (options.steps === 'fault') return json({ title: 'Service unavailable.', status: 503 }, 503);
+      return json(paged(options.steps ?? []));
+    }
     // The aggregate the detail page actually reads (JobDetailView in api.ts). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion
     // rather than on what they were written to check.
@@ -576,6 +585,113 @@ test('executions disclosure summarizes the attempt and deep-links expanded', asy
   await walk.click();
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByLabel('Execution')).toHaveValue('1');
+});
+
+// A job whose first execution failed in its last step after nine that succeeded, more than a line shows, and whose second
+// execution ran that step alone. The steps read answers newest first.
+const retriedJob = { ...job, status: 'succeeded', executionNumber: 2, failureCount: 0, modifiedAtUtc: '2026-07-14T08:05:00Z' };
+const retriedEvents = [
+  { ...event, eventId: 92, eventCode: 'job.execution-succeeded', createdAtUtc: '2026-07-14T08:05:00Z', executionNumber: 2, durationMs: 120, message: null, detailsText: null },
+  { ...event, eventId: 91, eventCode: 'job.execution-failed', createdAtUtc: '2026-07-14T08:00:00Z', executionNumber: 1, durationMs: 850, message: 'The mail server timed out.', detailsText: '{"reason":"unhandled-exception","to":"ready"}' }
+];
+// The first name has no hyphen, so only the line's own wrapping breaks it on a phone.
+const firstSteps = ['billing.provider.settlement.batch.export.reconcile.nightly.retry', 'book-shipment', 'charge-card', 'issue-invoice', 'reserve-stock', 'print-label', 'schedule-pickup', 'update-ledger', 'notify-warehouse'];
+const retriedSteps = [
+  { name: 'send-receipt', status: 'succeeded', failureMessage: null, createdAtUtc: '2026-07-14T07:59:59.900Z', modifiedAtUtc: '2026-07-14T08:04:59.990Z' },
+  ...firstSteps
+    .map((name, i) => ({ name, status: 'succeeded', failureMessage: null, createdAtUtc: `2026-07-14T07:59:59.${200 + i * 50}Z`, modifiedAtUtc: `2026-07-14T07:59:59.${210 + i * 50}Z` }))
+    .reverse()
+];
+const retried = { jobRow: retriedJob, jobEvents: retriedEvents, steps: retriedSteps };
+
+test("the timeline lists each execution's steps under its name, from one read, and unfolds a long line", async ({ page }) => {
+  const stepReads: URL[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith(`/api/v1/jobs/${jobRef}/steps`)) stepReads.push(url);
+  });
+  await mockDashboard(page, { controls: false, ...retried });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+  await page.locator('#job-activity > summary').click();
+
+  const first = page.locator('#attempt-1 .timeline-steps');
+  const items = first.getByRole('listitem');
+  await expect(first.getByRole('button', { name: '+2 earlier steps' })).toHaveAttribute('aria-expanded', 'false');
+  await expect(items).toHaveCount(9);
+  // The newest steps stay in view, the one the execution failed in last, beside its error.
+  await expect(items.nth(1)).toHaveText('charge-card succeeded');
+  await expect(items.last()).toHaveText('send-receipt started');
+  await expect(page.locator('#attempt-2 .timeline-steps').getByRole('listitem')).toHaveText(['send-receipt succeeded']);
+
+  await first.getByRole('button', { name: '+2 earlier steps' }).click();
+  await expect(first.getByRole('button', { name: 'show fewer steps' })).toHaveAttribute('aria-expanded', 'true');
+  await expect(items).toHaveCount(11);
+  await expect(items.nth(1)).toHaveText(`${firstSteps[0]} succeeded`);
+  await expect(items.last()).toHaveText('send-receipt started');
+  await first.getByRole('button', { name: 'show fewer steps' }).click();
+  await expect(items).toHaveCount(9);
+
+  // One read of the first page at its largest size, and none again: this job's read does not change.
+  expect(stepReads.map((url) => url.search)).toEqual(['?pageSize=100']);
+});
+
+test("the steps are read again when the job's read says they may have changed, and only then", async ({ page }) => {
+  let stepReads = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.endsWith(`/api/v1/jobs/${jobRef}/steps`)) stepReads++;
+  });
+  // The mock answers the job and its steps from these at each read.
+  const row = { ...retriedJob };
+  const steps = [...retriedSteps];
+  await mockDashboard(page, { controls: false, ...retried, jobRow: row, steps });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+  await page.locator('#job-activity > summary').click();
+  const second = page.locator('#attempt-2 .timeline-steps').getByRole('listitem');
+  await expect(second).toHaveText(['send-receipt succeeded']);
+  const refreshed = async () => {
+    const read = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith(`/api/v1/jobs/${jobRef}/detail`));
+    await page.getByRole('button', { name: 'Refresh now' }).first().click();
+    await read;
+  };
+
+  // The same job read starts no steps read; a moved one does, and its answer replaces the line.
+  await refreshed();
+  steps.unshift({ ...steps[0], name: 'archive-order', createdAtUtc: '2026-07-14T08:04:59.995Z', modifiedAtUtc: '2026-07-14T08:04:59.999Z' });
+  row.modifiedAtUtc = '2026-07-14T08:06:00Z';
+  await refreshed();
+  await expect(second).toHaveText(['send-receipt succeeded', 'archive-order succeeded']);
+  expect(stepReads).toBe(2);
+});
+
+test('a steps line wraps at phone width, with no sideways scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 844 });
+  await mockDashboard(page, { controls: false, ...retried });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+  await page.locator('#job-activity > summary').click();
+  const first = page.locator('#attempt-1 .timeline-steps');
+  await first.getByRole('button', { name: '+2 earlier steps' }).click();
+  await expect(first.getByText('billing.provider.settlement.batch.export.reconcile.nightly.retry')).toBeVisible();
+
+  // The shell clips what runs past the screen rather than scrolling, so the line's own right edge is what tells.
+  const box = await first.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(400 - 16);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+});
+
+test('a steps read that fails draws no line and leaves the timeline as it was', async ({ page }) => {
+  let stepFaults = 0;
+  page.on('response', (response) => {
+    if (new URL(response.url()).pathname.endsWith(`/api/v1/jobs/${jobRef}/steps`)) stepFaults++;
+  });
+  await mockDashboard(page, { controls: false, ...retried, steps: 'fault' });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+  await page.locator('#job-activity > summary').click();
+
+  await expect(page.locator('.rail-code')).toHaveText(['job.execution-failed', 'job.execution-succeeded']);
+  // The read and its one retry both answer the fault.
+  await expect.poll(() => stepFaults).toBe(2);
+  await expect(page.locator('.timeline-steps')).toHaveCount(0);
+  await expect(page.locator('#job-timeline .control-message')).toHaveCount(0);
 });
 
 test('Focus actions and related links stay accessible across resizing', async ({ page }) => {
@@ -1915,6 +2031,11 @@ const scanned: Array<[RouteName, string, (page: Page) => Promise<void>]> = [
     await openJob(page);
     await page.locator('#job-activity > summary').click();
     await expect(page.locator('.rail-code')).toHaveText('job.failed');
+  }],
+  ['job-detail', "a job's steps lines", async (page) => {
+    await openJob(page, { controls: true, ...retried });
+    await page.locator('#job-activity > summary').click();
+    await expect(page.locator('#attempt-1 .timeline-steps').getByRole('button', { name: '+2 earlier steps' })).toBeVisible();
   }],
   ['job-detail', 'a job\'s Actions menu', async (page) => {
     await openJob(page);

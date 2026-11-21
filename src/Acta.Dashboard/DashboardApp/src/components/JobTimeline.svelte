@@ -4,6 +4,7 @@
   import {
     failedTimelineAttempts,
     matchesTimelineCategory,
+    stepsLineView,
     timelineActor,
     timelineAttemptNumbers,
     timelinePresentation
@@ -14,6 +15,8 @@
 
   let {
     events = [],
+    // Each execution's steps, by execution number, for the line under its name.
+    stepLines = new Map(),
     nextRunAtUtc = null,
     nextRunLabel = 'Next run',
     hasMore = false,
@@ -27,6 +30,8 @@
   let attemptFilter = $state(initialAttempt != null ? String(initialAttempt) : 'all');
   let categoryFilter = $state('all');
   let eventFilter = $state('');
+  // The executions whose steps line shows every step.
+  let expandedSteps = $state({});
 
   let attemptNumbers = $derived(timelineAttemptNumbers(events));
   let failedAttempts = $derived(failedTimelineAttempts(events));
@@ -113,6 +118,27 @@
         <div class="timeline-eyebrow">
           <span>{attempt === 0 ? 'Lifecycle' : 'Execution ' + displayFormatter.number(attempt)}</span>
         </div>
+        {#if stepLines.get(attempt)?.length}
+          {@const view = stepsLineView(stepLines.get(attempt), !!expandedSteps[attempt])}
+          <div class="timeline-steps">
+            <span id={'attempt-' + attempt + '-steps'}>steps</span>
+            <ul aria-labelledby={'attempt-' + attempt + '-steps'}>
+              {#if view.earlier > 0}
+                <li>
+                  <button class="timeline-steps-earlier" aria-expanded={!!expandedSteps[attempt]} onclick={() => (expandedSteps[attempt] = !expandedSteps[attempt])}>
+                    {expandedSteps[attempt] ? 'show fewer' : '+' + displayFormatter.number(view.earlier) + ' earlier'} <span class="sr-only">steps</span>
+                  </button>
+                </li>
+              {/if}
+              {#each view.shown as step (step.name)}
+                <li>
+                  <span class="mono">{step.name}</span>
+                  {#if step.state === 'succeeded'}<span class="t-ok timeline-step-check"><Icon name="check" /><span class="sr-only">succeeded</span></span>{:else}<span>started</span>{/if}
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
         <ol class="rail">
           {#each steps as evt (evt.eventId)}
             {@const p = timelinePresentation(evt)}

@@ -128,3 +128,25 @@ export function failedTimelineAttempts(events: TimelineEvent[]): number[] {
     events.some((evt) => (evt.executionNumber ?? 0) === attempt && FAILURE_CODES.has(String(evt.eventCode ?? '').toLowerCase()))
   );
 }
+
+/**
+ * A step on its execution's steps line: succeeded where its success was recorded, started where it began and did not
+ * finish. A step that has not succeeded is never drawn as failed: the execution's error may have come from code between
+ * steps.
+ */
+export interface ExecutionStep {
+  name: string;
+  state: 'succeeded' | 'started';
+}
+
+/** The newest steps a line shows after its "+N earlier": two rows at desktop width. */
+export const STEPS_LINE_CAP = 8;
+
+/**
+ * A line's steps in view: every one while expanded, else the newest up to the cap, so an unfinished last step stays
+ * beside its execution's error; earlier counts those folded before them.
+ */
+export function stepsLineView(line: ExecutionStep[], expanded: boolean): { shown: ExecutionStep[]; earlier: number } {
+  const earlier = Math.max(0, line.length - STEPS_LINE_CAP);
+  return { shown: expanded || earlier === 0 ? line : line.slice(earlier), earlier };
+}

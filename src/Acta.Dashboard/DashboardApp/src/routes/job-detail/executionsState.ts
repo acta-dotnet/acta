@@ -1,7 +1,7 @@
-import type { EventItem } from '../../api.ts';
+import type { EventItem, JobStepItem } from '../../api.ts';
 import { eventFacts } from '../../lib/eventFacts.ts';
 import type { JobDetail } from './types.ts';
-import type { TimelineTone } from '../../components/jobTimelineState.ts';
+import type { ExecutionStep, TimelineTone } from '../../components/jobTimelineState.ts';
 
 // One row per execution whose outcome the ledger holds: the event that closed the attempt, which carries
 // the worker and the handler's duration. The claim writes no event, so the execution in flight takes its
@@ -105,6 +105,54 @@ export function withRunningExecution(
     message: null,
   };
   return [running, ...executions];
+}
+
+// Places each step in the shown executions, by execution number. An execution holds the instants after the previous
+// one's end up to its own end, inclusive; the running one has no end. Step writes are fenced to the executing attempt,
+// so a shown previous execution's end is the exact bound, and execution 1, with none before it, has no lower bound.
+// Past a gap the derived start bounds it instead, which runs late: the closing event is written after the handler
+// returns. With neither bound it takes everything up to its end.
+// A succeeded step goes to the execution holding its last write, and is started in the one holding its first start
+// when that is another; a step that has not succeeded is started there. A step no shown execution holds is left off.
+// Each line runs by first start, then name.
+export function placeSteps(
+  executions: ExecutionSummary[],
+  steps: Pick<JobStepItem, 'name' | 'status' | 'createdAtUtc' | 'modifiedAtUtc'>[]
+): Map<number, ExecutionStep[]> {
+  const ordered = [...executions].sort((a, b) => a.executionNumber - b.executionNumber);
+  const spans = ordered.map((execution, index) => {
+    const previous = ordered[index - 1];
+    const previousEnd = previous?.finishedAtUtc != null ? Date.parse(previous.finishedAtUtc) : null;
+    const exact =
+      execution.executionNumber === 1 || (previousEnd !== null && previous.executionNumber === execution.executionNumber - 1);
+    const start = !exact && execution.startedAtUtc != null ? Date.parse(execution.startedAtUtc) : null;
+    const end = execution.finishedAtUtc != null ? Date.parse(execution.finishedAtUtc) : Infinity;
+    return {
+      executionNumber: execution.executionNumber,
+      holds: (at: number) => (start !== null ? at >= start : previousEnd === null || at > previousEnd) && at <= end
+    };
+  });
+  const holder = (instant: string) => {
+    const at = Date.parse(instant);
+    return spans.find((span) => span.holds(at))?.executionNumber;
+  };
+
+  const lines = new Map<number, ExecutionStep[]>();
+  const add = (executionNumber: number, step: ExecutionStep) => {
+    const line = lines.get(executionNumber);
+    if (line) line.push(step);
+    else lines.set(executionNumber, [step]);
+  };
+  const byStart = [...steps].sort(
+    (a, b) => Date.parse(a.createdAtUtc) - Date.parse(b.createdAtUtc) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+  );
+  for (const step of byStart) {
+    const began = holder(step.createdAtUtc);
+    const finished = step.status === 'succeeded' ? holder(step.modifiedAtUtc) : undefined;
+    if (finished !== undefined) add(finished, { name: step.name, state: 'succeeded' });
+    if (began !== undefined && began !== finished) add(began, { name: step.name, state: 'started' });
+  }
+  return lines;
 }
 
 export interface ExecutionGap {
