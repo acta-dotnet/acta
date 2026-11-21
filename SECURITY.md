@@ -25,8 +25,8 @@ the dashboard or HTTP API is exposed beyond localhost, and the smallest reproduc
 
 ## What to expect
 
-Acta is maintained by one person. The commitment is best-effort rather than a contractual
-SLA: acknowledgement when the report is read, an assessment of whether it is exploitable and how,
+Acta has one dedicated maintainer who owns all of it, so the commitment is best-effort rather than a
+contractual SLA: acknowledgement when the report is read, an assessment of whether it is exploitable and how,
 and a fix in the next published version once confirmed. If a report turns out not to be a
 vulnerability, you will get the reasoning rather than silence.
 

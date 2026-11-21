@@ -45,8 +45,8 @@ separate reference. Repository tooling (`Acta.Verify`, `Acta.Emit`) is not publi
 ## Patch policy
 
 Fixes ship in the next published version of the latest minor only. There are no backports, no LTS
-branches, and no hotfix streams. Acta is maintained by one person, so the commitment is best-effort
-rather than a contractual SLA. Report security problems through [SECURITY.md](../SECURITY.md).
+branches, and no hotfix streams. Acta has one dedicated maintainer who owns all of it, so the commitment
+is best-effort rather than a contractual SLA. Report security problems through [SECURITY.md](../SECURITY.md).
 
 If that maintainer stops, nothing stops with them. The code is Apache-2.0 and forkable, the packages
 call no hosted service, and every job, attempt, and schedule is a row in your own database that
