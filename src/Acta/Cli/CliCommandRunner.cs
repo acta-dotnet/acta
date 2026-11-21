@@ -69,7 +69,7 @@ internal sealed class CliCommandRunner(
         var snapshot = await jobs.GetAsync(lookup, ct);
         if (snapshot is null)
         {
-            return await NotFoundAsync();
+            return await NotFoundAsync(lookup.NotFoundHint());
         }
 
         var job = JobLookup.ById(snapshot.JobId);
@@ -216,9 +216,14 @@ internal sealed class CliCommandRunner(
         return ExitOk;
     }
 
-    private async Task<int> NotFoundAsync()
+    /// <summary>Reports a missing job, with what may have happened to it when the operator typed a ref Acta minted.</summary>
+    private async Task<int> NotFoundAsync(string? hint = null)
     {
         await error.WriteLineAsync("job not found");
+        if (hint is not null)
+        {
+            await error.WriteLineAsync(hint);
+        }
         return ExitNotFound;
     }
 

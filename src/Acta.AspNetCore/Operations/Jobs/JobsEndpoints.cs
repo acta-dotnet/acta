@@ -19,7 +19,11 @@ internal static class JobsEndpoints
             "Read one job",
             "Job",
             ActaApiJsonContext.Relaxed.GetJobResponse,
-            (http, call) => call.Jobs.GetAsync(RouteKeys.Job(http, options), call.Ct)
+            async (http, call) =>
+            {
+                var job = RouteKeys.Job(http, options);
+                return await call.Jobs.GetAsync(job, call.Ct) ?? throw new TargetNotFoundException("Job", job.NotFoundHint());
+            }
         );
 
         // A lookup, not a filter, and deliberately its own route. Both parameters are required and together identify at
@@ -78,7 +82,8 @@ internal static class JobsEndpoints
                     await call.Jobs.ListCheckpointsAsync(
                         new ListJobCheckpointsQuery(
                             JobLookup.ById(
-                                await call.Jobs.StoredJobIdAsync(bound.Job, call.Ct) ?? throw new TargetNotFoundException("Job")
+                                await call.Jobs.StoredJobIdAsync(bound.Job, call.Ct)
+                                    ?? throw new TargetNotFoundException("Job", bound.Job.NotFoundHint())
                             ),
                             bound.PageSize,
                             bound.Cursor,
@@ -107,7 +112,8 @@ internal static class JobsEndpoints
                     await call.Jobs.ListStepsAsync(
                         new ListJobStepsQuery(
                             JobLookup.ById(
-                                await call.Jobs.StoredJobIdAsync(bound.Job, call.Ct) ?? throw new TargetNotFoundException("Job")
+                                await call.Jobs.StoredJobIdAsync(bound.Job, call.Ct)
+                                    ?? throw new TargetNotFoundException("Job", bound.Job.NotFoundHint())
                             ),
                             bound.PageSize,
                             bound.Cursor,

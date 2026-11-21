@@ -60,6 +60,23 @@ public sealed class GetJobResultSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.StartsWith("No job matches", none.Message, StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "A handle on a purged job names its ref, and when the ref was minted, in each typed read and wait that throws")]
+    public async Task A_handle_on_a_purged_job_names_when_its_ref_was_minted()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var handle = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
+        await Runtime.RunOnceAsync(handle, ct);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(handle, ct: ct)).Action);
+
+        var result = await Assert.ThrowsAsync<InvalidOperationException>(async () => await handle.GetResultAsync<AddNumbersResult>(ct));
+        var input = await Assert.ThrowsAsync<InvalidOperationException>(async () => await Jobs.GetInputAsync<AddNumbers>(handle, ct));
+        var wait = await Assert.ThrowsAsync<InvalidOperationException>(async () => await handle.WaitAsync(SpecWaits.Gate, ct));
+
+        var expected = JobLookup.ByRef(handle.JobRef).NoJobMessage();
+        Assert.StartsWith($"No job matches {handle.JobRef}. The ref was minted at ", expected, StringComparison.Ordinal);
+        Assert.Equal(new[] { expected, expected, expected }, new[] { result.Message, input.Message, wait.Message });
+    }
+
     [Fact(DisplayName = "After a successful run the raw read answers the stored payload and both typed reads the deserialized result")]
     public async Task Typed_and_raw_result_are_available_after_completion()
     {

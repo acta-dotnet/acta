@@ -12,13 +12,13 @@ internal static class GetJobInputEndpoint
 {
     public static void Map(RouteGroupBuilder reads, ActaEndpointOptions options) =>
         reads
-            .MapGet("/jobs/{jobRef}/input", (HttpContext http, IJobs jobs, CancellationToken ct) =>
-                RouteTable.Run(async () =>
-                    await jobs.StoredJobIdAsync(RouteKeys.Job(http, options), ct) is { } jobId
+            .MapGet("/jobs/{jobRef}/input", (HttpContext http, IJobs jobs, CancellationToken ct) => RouteTable.Run(async () =>
+                {
+                    var job = RouteKeys.Job(http, options);
+                    return await jobs.StoredJobIdAsync(job, ct) is { } jobId
                         ? RawPayload.Serve(http, (await jobs.GetInputAsync(JobLookup.ById(jobId), ct))?.Input)
-                        : RouteTable.NotFound("Job")
-                )
-            )
+                        : RouteTable.NotFound("Job", job.NotFoundHint());
+                }))
             .WithMetadata(new ActaOperationAttribute("getJobInput", ActaPermissions.Read))
             .WithSummary("Read the job's stored input as the body")
             .ProducesPayload()

@@ -21,7 +21,7 @@ internal static class GetJobDetailEndpoint
                     var snapshot = await jobs.GetAsync(lookup, ct);
                     if (snapshot is null)
                     {
-                        return RouteTable.NotFound("Job");
+                        return RouteTable.NotFound("Job", lookup.NotFoundHint());
                     }
 
                     var detail = await GetJobDetailResponse.ComposeAsync(jobs, operations, snapshot, ct);

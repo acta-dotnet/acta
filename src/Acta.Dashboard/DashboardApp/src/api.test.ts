@@ -165,6 +165,14 @@ test('controlRequest accepts typed 404 and 409 outcomes', async () => {
   assert.equal(rejected.action, 'rejected');
 });
 
+test('a not-found problem that says what may have happened reads its title, then its detail', () => {
+  const hint = 'The ref was minted at 2026-07-14T07:58:41.512Z.';
+
+  assert.equal(new ApiError(404, 'Job not found.', hint, null).message, `Job not found. ${hint}`);
+  assert.equal(new ApiError(404, 'Job not found.', null, null).message, 'Job not found.');
+  assert.equal(new ApiError(400, 'Invalid request.', 'jobRef is not a valid job ref.', null).message, 'jobRef is not a valid job ref.');
+});
+
 test('controlRequest keeps the typed fallback for a malformed accepted error response', async () => {
   globalThis.fetch = (async () => new Response('upstream returned HTML', { status: 404 })) as typeof fetch;
 

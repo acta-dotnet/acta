@@ -190,6 +190,28 @@ public class CliRunnerClipboardTests
         Assert.Empty(jobs.Controls);
     }
 
+    /// <summary>
+    /// A ref Acta minted that names no job adds a line saying when the ref was minted and what may have happened; a random
+    /// ref and an idempotency key report the missing job alone.
+    /// </summary>
+    [Fact]
+    public async Task A_missing_minted_ref_says_when_it_was_minted()
+    {
+        var minted = JobRef.New();
+
+        var (mintedExit, _, mintedError, _) = await RunArgsAsync("info", minted.ToString());
+        var (randomExit, _, randomError, _) = await RunArgsAsync("cancel", "job_3f2b8c1e9d4a4f6b8e7c5a2d1b0f9e8d");
+        var (keyExit, _, keyError, _) = await RunArgsAsync("info", "no-such-key", "--ns", "shop");
+
+        Assert.Equal((2, 2, 2), (mintedExit, randomExit, keyExit));
+        Assert.Equal(
+            ["job not found", JobLookup.ByRef(minted).NotFoundHint()!],
+            mintedError.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+        );
+        Assert.Equal("job not found" + Environment.NewLine, randomError);
+        Assert.Equal("job not found" + Environment.NewLine, keyError);
+    }
+
     [Fact]
     public async Task A_bare_integer_is_a_idempotency_key_in_the_namespace()
     {

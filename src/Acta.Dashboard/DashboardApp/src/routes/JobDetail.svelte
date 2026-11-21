@@ -44,6 +44,8 @@
   let eventsPanel: { refresh(): void } | undefined = $state();
   let executionsPanel: { refresh(): void } | undefined = $state();
   let events: EventItem[] = $state([]);
+  // A 404's detail says what may have happened to a job the requested ref named; it is kept with that ref.
+  let notFound = $state<{ ref: string; hint: string | null } | null>(null);
 
   // One aggregate read renders the whole screen: snapshot plus explain, lineage, eligible workers, the
   // definition link, this job's schedules, and the first page of checkpoints. It states the input, the result,
@@ -55,11 +57,16 @@
     return {
       queryKey: keys.detail('jobs', jobRef),
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<JobDetailView | null> => {
+        const target = jobRef;
         try {
-          return await api<JobDetailView>(`jobs/${jobRef}/detail`, {}, { signal });
+          return await api<JobDetailView>(`jobs/${target}/detail`, {}, { signal });
         } catch (error) {
+          if (error instanceof ApiError && error.status === 404) {
+            notFound = { ref: target, hint: error.detail };
+            return null;
+          }
           // The route answers 400 only for a target that does not parse, which names no job either, and a retry cannot fix.
-          if (error instanceof ApiError && (error.status === 404 || error.status === 400)) return null;
+          if (error instanceof ApiError && error.status === 400) return null;
           throw error;
         }
       },
@@ -88,6 +95,7 @@
   let showControls = $derived(canControlNow || controlsSeen);
 
   let missing = $derived(!detailQuery.isPending && !detailQuery.error && detailQuery.data === null);
+  let missingHint = $derived(notFound?.ref === jobRef ? notFound.hint : null);
   let explanation = $derived(detail?.explain ?? null);
   let lineage = $derived(detail?.lineage ?? null);
   let workers = $derived(detail?.workers ?? null);
@@ -192,7 +200,7 @@
   {/snippet}
 
   {#if missing}
-    <div class="panel"><StateView emptyText={`Job ${jobRef} not found.`} /></div>
+    <div class="panel"><StateView emptyText={`Job ${jobRef} not found.` + (missingHint ? ' ' + missingHint : '')} /></div>
   {:else if detailQuery.error}
     <div class="panel"><StateView error={errorMessage(detailQuery.error)} onRetry={() => detailQuery.refetch()} /></div>
   {:else if job && detail}

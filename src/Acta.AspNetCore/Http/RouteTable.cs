@@ -305,7 +305,7 @@ internal static class RouteTable
         }
         catch (TargetNotFoundException ex)
         {
-            return NotFound(ex.Entity);
+            return NotFound(ex.Entity, ex.Detail);
         }
         catch (RouteConflictException ex)
         {
@@ -352,9 +352,12 @@ internal static class RouteTable
     public static IResult BadRequest(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);
 
-    /// <summary>The entity is named at every call site: one shared noun would answer every other route with the wrong one.</summary>
-    public static IResult NotFound(string entity) =>
-        Results.Problem(statusCode: StatusCodes.Status404NotFound, title: $"{entity} not found.");
+    /// <summary>
+    /// The entity is named at every call site: one shared noun would answer every other route with the wrong one. A job
+    /// route passes its lookup's <see cref="JobLookup.NotFoundHint"/> as the detail.
+    /// </summary>
+    public static IResult NotFound(string entity, string? detail = null) =>
+        Results.Problem(statusCode: StatusCodes.Status404NotFound, title: $"{entity} not found.", detail: detail);
 }
 
 /// <summary>One control request as a route table's verb sees it: the parsed body, its trimmed and capped reason, and the operator.</summary>

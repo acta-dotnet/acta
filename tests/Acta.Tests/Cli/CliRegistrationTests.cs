@@ -123,11 +123,12 @@ public sealed class CliRegistrationTests
         {
             Assert.Equal(0, (await MigrateAsync(path)).ExitCode);
 
-            var (exitCode, error, mode) = await ReadAsync(path, ["status", JobRef.New().ToString()]);
+            var target = JobRef.New();
+            var (exitCode, error, mode) = await ReadAsync(path, ["status", target.ToString()]);
 
             Assert.Equal(SqliteOpenMode.ReadOnly, mode);
             Assert.Equal(2, exitCode);
-            Assert.Equal(["job not found"], Lines(error));
+            Assert.Equal(["job not found", JobLookup.ByRef(target).NotFoundHint()!], Lines(error));
         }
         finally
         {

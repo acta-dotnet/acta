@@ -2095,6 +2095,7 @@
   - Before a result exists the raw read answers null and the typed Try read not found, neither waiting
   - The typed Get read throws, naming the job and its status, when the job has stored no result
   - For a lookup that matches no job the raw read answers null, the typed Try read not found, and the typed Get read throws, saying no job matches
+  - A handle on a purged job names its ref, and when the ref was minted, in each typed read and wait that throws
   - After a successful run the raw read answers the stored payload and both typed reads the deserialized result
 
 ### Null stores nothing, and a typed outcome answers a success with no value

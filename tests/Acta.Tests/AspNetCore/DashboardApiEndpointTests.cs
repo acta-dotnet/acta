@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Text.Json;
 using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -905,6 +906,44 @@ public sealed class DashboardApiEndpointTests
             await missingJob.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
             StringComparison.Ordinal
         );
+    }
+
+    /// <summary>
+    /// A job route's 404 for a ref Acta minted carries, as its detail, when the ref was minted and what may have happened
+    /// to a job that held it; a ref of any other shape gets the title alone.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("/detail")]
+    [InlineData("/input")]
+    [InlineData("/result")]
+    [InlineData("/steps")]
+    [InlineData("/checkpoints")]
+    [InlineData("/checkpoints/variable/counter/value")]
+    public async Task A_job_route_says_when_a_missing_ref_was_minted(string route)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var minted = JobRef.New();
+
+        var (title, detail) = await NotFoundProblemAsync(client, $"/acta/api/v1/jobs/{minted}{route}", ct);
+        var (randomTitle, randomDetail) = await NotFoundProblemAsync(client, $"/acta/api/v1/jobs/{Missing}{route}", ct);
+
+        Assert.Equal("Job not found.", title);
+        Assert.NotNull(detail);
+        Assert.Equal(JobLookup.ByRef(minted).NotFoundHint(), detail);
+        Assert.Equal("Job not found.", randomTitle);
+        Assert.Null(randomDetail);
+    }
+
+    private static async Task<(string? Title, string? Detail)> NotFoundProblemAsync(HttpClient client, string path, CancellationToken ct)
+    {
+        var response = await client.GetAsync(path, ct);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        var root = doc.RootElement;
+        return (root.GetProperty("title").GetString(), root.TryGetProperty("detail", out var detail) ? detail.GetString() : null);
     }
 
     [Fact]

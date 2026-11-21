@@ -327,7 +327,7 @@ public interface IJobs
             await GetAsync(job, ct) is { } snapshot
                 ? $"Job {snapshot.JobRef} ('{snapshot.JobName}') is {snapshot.Status} and has no result. "
                     + "TryGetResultAsync reads a result that may not exist."
-                : "No job matches the lookup, so there is no result to read."
+                : job.NoJobMessage()
         );
     }
 

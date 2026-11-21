@@ -237,11 +237,7 @@ internal static class JobRunAndWait
         var (snapshot, timedOut) = jobId is { } id
             ? await AwaitAsync(jobs, wakeup, id, remaining, Defaults.PollInterval, ct, check)
             : default;
-        return snapshot is not null
-            ? (snapshot, timedOut)
-            : throw new InvalidOperationException(
-                $"No job matches {job}. A job enqueued in a transaction is invisible until that transaction commits."
-            );
+        return snapshot is not null ? (snapshot, timedOut) : throw new InvalidOperationException(job.NoJobMessage());
     }
 
     /// <summary>

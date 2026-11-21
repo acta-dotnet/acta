@@ -144,7 +144,7 @@ internal sealed class JobsOperations(
         where TInput : notnull =>
         await getJobInput.ReadAsync(job, ct) is { } row
             ? routing.DecodeInput<TInput>(row)
-            : throw new InvalidOperationException($"No job matches {job}, so there is no input to read.");
+            : throw new InvalidOperationException(job.NoJobMessage());
 
     public Task<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
         getJobResult.HandleAsync(new GetJobResultQuery(job), ct);

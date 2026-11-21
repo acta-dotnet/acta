@@ -22,7 +22,7 @@ internal static class GetJobCheckpointValueEndpoint
                         var name = RouteKeys.CheckpointName(RouteKeys.Value(http, "checkpointName"));
                         return await jobs.StoredJobIdAsync(job, ct) is { } jobId
                             ? RawPayload.Serve(http, (await jobs.GetCheckpointValueAsync(JobLookup.ById(jobId), kind, name, ct))?.Value)
-                            : RouteTable.NotFound("Job");
+                            : RouteTable.NotFound("Job", job.NotFoundHint());
                     })
             )
             .WithMetadata(new ActaOperationAttribute("getJobCheckpointValue", ActaPermissions.Read))

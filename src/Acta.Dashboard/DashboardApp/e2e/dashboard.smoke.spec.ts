@@ -23,6 +23,12 @@ const undeclaredQuery = (method: string, path: string, url: URL): string | undef
 
 const jobRef = 'job_019f9b3509487d1b911f2020158384a3';
 const timestamp = '2026-07-14T08:00:00Z';
+// The detail a job route's 404 gives for a ref Acta minted, which holds its mint time; and such a ref that names no job.
+const notFoundHint = (minted: string) =>
+  `The ref was minted at ${minted}. If a job held it, the job's retention or a purge may have removed it; ` +
+  'a ref minted moments ago may belong to a transaction that has not committed.';
+const goneJobRef = 'job_019f5fa2a1687c3e9b5d2a4f6e8c1d07';
+const goneJobHint = notFoundHint('2026-07-14T07:58:41.512Z');
 
 const paged = <T>(items: T[]) => ({ items, nextCursor: null, hasMore: false, pageSize: 50, totalCount: items.length });
 
@@ -498,6 +504,7 @@ async function mockDashboard(
     }
     // A ref that does not parse is the 400 every ref-addressed route answers.
     if (path === 'jobs/not-a-ref/detail') return json({ title: 'Invalid request.', detail: 'jobRef is not a valid job ref.' }, 400);
+    if (path === `jobs/${goneJobRef}/detail`) return json({ title: 'Job not found.', status: 404, detail: goneJobHint }, 404);
     if (path === `jobs/${jobRef}/restart` && request.method() === 'POST') {
       if (!options.controls) return json({ title: 'Controls disabled.' }, 404);
       if (options.refuseControls) {
@@ -568,6 +575,19 @@ test('a malformed job ref reads as a job not found, with nothing to retry', asyn
   await expect(page.getByText('Job not-a-ref not found.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
   await expect(page.getByText('Update failed')).toHaveCount(0);
+});
+
+test('a missing job names the ref, then when it was minted and what may have happened', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto(`/#/jobs/${goneJobRef}`);
+
+  await expect(page.getByText(`Job ${goneJobRef} not found. ${goneJobHint}`, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+
+  // A 404 with no detail, as for a ref Acta did not mint, keeps the plain line, and the last ref's hint does not follow.
+  const randomRef = 'job_3f2b8c1e9d4a4f6b8e7c5a2d1b0f9e8d';
+  await page.goto(`/#/jobs/${randomRef}`);
+  await expect(page.getByText(`Job ${randomRef} not found.`, { exact: true })).toBeVisible();
 });
 
 test('executions disclosure summarizes the attempt and deep-links expanded', async ({ page }) => {
@@ -1028,6 +1048,18 @@ test('the input, the result, and a checkpoint value are each read from their own
   const table = page.getByRole('table', { name: 'Job checkpoints' });
   await table.locator('summary').click();
   await expect(table.getByText('"approved": false')).toBeVisible();
+});
+
+test('a payload whose job is gone by the time it is read says the job is not found, then what may have happened', async ({ page }) => {
+  const done = { ...job, status: 'succeeded', resultFormatId: 1, resultByteLength: 13 };
+  await mockDashboard(page, { controls: false, jobRow: done });
+  const hint = notFoundHint('2026-07-25T21:36:12.104Z');
+  await page.route(`**/api/v1/jobs/${jobRef}/result`, (route) =>
+    route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ title: 'Job not found.', status: 404, detail: hint }) })
+  );
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await expect(page.getByRole('region', { name: 'Job result' }).getByRole('alert')).toContainText(`Job not found. ${hint}`);
 });
 
 test('a payload over the display limit states its size and offers its download without being read', async ({ page }) => {

@@ -1529,6 +1529,7 @@ record struct Acta.JobLookup
     System.Int64 JobId { get; }
     System.String? IdempotencyKey { get; }
     System.String? JobNamespace { get; }
+    System.String? NotFoundHint()
     static Acta.JobLookup ById(System.Int64 jobId)
     static Acta.JobLookup ByIdempotencyKey(System.String jobNamespace, System.String idempotencyKey)
     static Acta.JobLookup ByRef(Acta.JobRef jobRef)

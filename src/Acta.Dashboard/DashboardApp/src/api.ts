@@ -31,7 +31,8 @@ export class ApiError extends Error {
     detail: string | null,
     traceId: string | null
   ) {
-    super(detail ?? title ?? `HTTP ${status}`);
+    // A not-found title names what is missing and its detail says what may have happened, so a 404 reads both.
+    super(status === 404 && title && detail ? `${title} ${detail}` : detail ?? title ?? `HTTP ${status}`);
     this.name = 'ApiError';
     this.status = status;
     this.title = title;
