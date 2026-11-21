@@ -45,7 +45,7 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Job
             JobNamespace: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
-            DeduplicationKey: null,
+            IdempotencyKey: null,
             CorrelationKey: null,
             Priority: null
         );

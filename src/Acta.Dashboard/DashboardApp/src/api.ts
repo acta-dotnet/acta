@@ -842,7 +842,7 @@ async function problemError(response: Response): Promise<ApiError> {
 }
 
 // POST /jobs enqueue outcome: the assigned public ref and the coarse action ('inserted' for a fresh
-// row, 'deduplicated' when a deduplicationKey matched an existing job).
+// row, 'deduplicated' when an idempotencyKey matched an existing job).
 export interface JobEnqueueResult {
   jobRef: string;
   action: 'inserted' | 'deduplicated';
@@ -852,7 +852,7 @@ export interface EnqueueJobRequest {
   jobNamespace: string;
   jobName: string;
   input?: RawJson;
-  deduplicationKey?: string | null;
+  idempotencyKey?: string | null;
   correlationKey?: string | null;
   tenantName?: string | null;
   priority?: string | null;
@@ -881,7 +881,7 @@ export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueRes
       jobNamespace: spec.jobNamespace.trim(),
       jobName: spec.jobName.trim(),
       input: spec.input ?? undefined,
-      deduplicationKey: spec.deduplicationKey?.trim() || null,
+      idempotencyKey: spec.idempotencyKey?.trim() || null,
       correlationKey: spec.correlationKey?.trim() || null,
       tenantName: spec.tenantName?.trim() || null,
       priority: spec.priority || null,

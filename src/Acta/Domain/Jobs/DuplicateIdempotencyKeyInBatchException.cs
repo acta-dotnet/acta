@@ -1,14 +1,14 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown before a batch enqueue reaches SQL when two rows carry the same deduplication key inside
+/// Thrown before a batch enqueue reaches SQL when two rows carry the same idempotency key inside
 /// the same root or child uniqueness boundary.
 /// </summary>
-public sealed class DuplicateDeduplicationKeyInBatchException : ActaException
+public sealed class DuplicateIdempotencyKeyInBatchException : ActaException
 {
-    private DuplicateDeduplicationKeyInBatchException(
+    private DuplicateIdempotencyKeyInBatchException(
         string message,
-        string deduplicationKey,
+        string idempotencyKey,
         string? rootJobNamespace,
         long? parentJobId,
         int firstOrdinal,
@@ -16,7 +16,7 @@ public sealed class DuplicateDeduplicationKeyInBatchException : ActaException
     )
         : base(message)
     {
-        DeduplicationKey = deduplicationKey;
+        IdempotencyKey = idempotencyKey;
         RootJobNamespace = rootJobNamespace;
         ParentJobId = parentJobId;
         FirstOrdinal = firstOrdinal;
@@ -24,20 +24,20 @@ public sealed class DuplicateDeduplicationKeyInBatchException : ActaException
     }
 
     /// <summary>Create a duplicate failure for root jobs, whose key is unique within a namespace.</summary>
-    public static DuplicateDeduplicationKeyInBatchException ForRoot(
+    public static DuplicateIdempotencyKeyInBatchException ForRoot(
         string rootJobNamespace,
-        string deduplicationKey,
+        string idempotencyKey,
         int firstOrdinal,
         int secondOrdinal
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootJobNamespace);
-        ValidateCommon(deduplicationKey, firstOrdinal, secondOrdinal);
+        ValidateCommon(idempotencyKey, firstOrdinal, secondOrdinal);
 
-        return new DuplicateDeduplicationKeyInBatchException(
-            $"Enqueue batch has duplicate DeduplicationKey '{deduplicationKey}' for root namespace "
+        return new DuplicateIdempotencyKeyInBatchException(
+            $"Enqueue batch has duplicate IdempotencyKey '{idempotencyKey}' for root namespace "
                 + $"'{rootJobNamespace}' at rows {firstOrdinal} and {secondOrdinal}.",
-            deduplicationKey,
+            idempotencyKey,
             rootJobNamespace,
             parentJobId: null,
             firstOrdinal,
@@ -46,20 +46,20 @@ public sealed class DuplicateDeduplicationKeyInBatchException : ActaException
     }
 
     /// <summary>Create a duplicate failure for child jobs, whose key is unique under a direct parent.</summary>
-    public static DuplicateDeduplicationKeyInBatchException ForChild(
+    public static DuplicateIdempotencyKeyInBatchException ForChild(
         long parentJobId,
-        string deduplicationKey,
+        string idempotencyKey,
         int firstOrdinal,
         int secondOrdinal
     )
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(parentJobId);
-        ValidateCommon(deduplicationKey, firstOrdinal, secondOrdinal);
+        ValidateCommon(idempotencyKey, firstOrdinal, secondOrdinal);
 
-        return new DuplicateDeduplicationKeyInBatchException(
-            $"Enqueue batch has duplicate DeduplicationKey '{deduplicationKey}' for child parent job "
+        return new DuplicateIdempotencyKeyInBatchException(
+            $"Enqueue batch has duplicate IdempotencyKey '{idempotencyKey}' for child parent job "
                 + $"{parentJobId} at rows {firstOrdinal} and {secondOrdinal}.",
-            deduplicationKey,
+            idempotencyKey,
             rootJobNamespace: null,
             parentJobId,
             firstOrdinal,
@@ -68,7 +68,7 @@ public sealed class DuplicateDeduplicationKeyInBatchException : ActaException
     }
 
     /// <summary>The duplicated canonical key.</summary>
-    public string DeduplicationKey { get; }
+    public string IdempotencyKey { get; }
 
     /// <summary>The root-job namespace boundary, or null for a child-job duplicate.</summary>
     public string? RootJobNamespace { get; }
@@ -82,9 +82,9 @@ public sealed class DuplicateDeduplicationKeyInBatchException : ActaException
     /// <summary>The zero-based ordinal of the second duplicate row.</summary>
     public int SecondOrdinal { get; }
 
-    private static void ValidateCommon(string deduplicationKey, int firstOrdinal, int secondOrdinal)
+    private static void ValidateCommon(string idempotencyKey, int firstOrdinal, int secondOrdinal)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(deduplicationKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
         ArgumentOutOfRangeException.ThrowIfNegative(firstOrdinal);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(secondOrdinal, firstOrdinal);
     }

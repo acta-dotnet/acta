@@ -106,7 +106,7 @@ internal sealed class JobRequestRouting(
     }
 
     /// <summary>
-    /// Refuses to read a registered job's result as another type, a <c>T</c> result as <c>T?</c> excepted. A deduplication
+    /// Refuses to read a registered job's result as another type, a <c>T</c> result as <c>T?</c> excepted. An idempotency
     /// key shared across definitions hands back the other definition's job, and a lenient decode of its result would fill
     /// the missing members with defaults. A job this process does not register decodes as the caller says.
     /// </summary>
@@ -120,7 +120,7 @@ internal sealed class JobRequestRouting(
             throw new InvalidOperationException(
                 $"Job '{jobNamespace}/{jobName}' produces '{descriptor.ResultType?.FullName ?? "no result"}', not "
                     + $"'{typeof(TResult).FullName}': wait on it with its own result type. A job an enqueue handed back "
-                    + "because another definition's job holds its deduplication key is that other job."
+                    + "because another definition's job holds its idempotency key is that other job."
             );
         }
     }
@@ -142,7 +142,7 @@ internal sealed class JobRequestRouting(
             throw new InvalidOperationException(
                 $"Job '{row.JobNamespace}/{row.JobName}' takes '{descriptor.InputType.FullName}', not '{typeof(TInput).FullName}': "
                     + "read its input as its own type. A job an enqueue handed back because another definition's job holds "
-                    + "its deduplication key is that other job."
+                    + "its idempotency key is that other job."
             );
         }
 
@@ -169,7 +169,7 @@ internal sealed class JobRequestRouting(
             JobNamespace: jobNamespace,
             JobName: jobName,
             Input: input,
-            DeduplicationKey: options?.DeduplicationKey,
+            IdempotencyKey: options?.IdempotencyKey,
             CorrelationKey: options?.CorrelationKey,
             ConcurrencyKey: options?.ConcurrencyKey,
             Priority: options?.Priority,

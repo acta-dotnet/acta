@@ -55,7 +55,7 @@ BEGIN TRY
         claim_until_utc = DATEADD(SECOND, @p_lease_ttl_seconds, SYSUTCDATETIME())
     OUTPUT
         INSERTED.job_ref, INSERTED.namespace_name, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
-        INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane_name, INSERTED.job_priority_code,
+        INSERTED.idempotency_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane_name, INSERTED.job_priority_code,
         INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_name, INSERTED.meta, INSERTED.failure_count, INSERTED.id
     FROM {{table_ref}} AS o WITH (FORCESEEK, ROWLOCK)
     INNER JOIN due ON due.id = o.id;

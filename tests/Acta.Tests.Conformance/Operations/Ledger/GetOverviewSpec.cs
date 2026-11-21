@@ -38,7 +38,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
                     NamespaceName: TestNamespace,
                     JobName: "add-numbers",
                     Input: payload,
-                    DeduplicationKey: Unique("overview")
+                    IdempotencyKey: Unique("overview")
                 ),
             ],
             ct

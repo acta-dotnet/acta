@@ -141,7 +141,7 @@ FROM (
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL,
-        c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc, ch.job_ref, ch.deduplication_key, NULL, NULL
+        c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc, ch.job_ref, ch.idempotency_key, NULL, NULL
     FROM {{schema}}.checkpoints c
     LEFT JOIN {{schema}}.jobs ch
         ON

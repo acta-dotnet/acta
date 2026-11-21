@@ -6,7 +6,7 @@ internal sealed record ClaimJobsRow(
     long? JobId,
     int? DefinitionId,
     long? ExecutionNumber,
-    string? DeduplicationKey,
+    string? IdempotencyKey,
     JobKindCode? JobKindCode,
     string? CorrelationKey,
     string? ConcurrencyKey,

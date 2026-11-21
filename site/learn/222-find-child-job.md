@@ -1,6 +1,6 @@
 # How to find the child job that handles one item
 
-A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the parent's children and pick the one that carries the item's key.
+A child's name on the reads is its idempotency key, `{map}/{key}` for a child that a map started. List the parent's children and pick the one that carries the item's key.
 
 - Section: Split work across child jobs, step 5
 - Program: `learn/200-durable-execution/222-find-child-job` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -12,7 +12,7 @@ A child's name on the reads is its deduplication key, `{map}/{key}` for a child 
 
 ## 1. Start each child under the item's own key
 
-`itemKey` names each child after its item. The name is stored as the child's deduplication key, and it is how a replay of the parent and a reader from outside find the same child.
+`itemKey` names each child after its item. The name is stored as the child's idempotency key, and it is how a replay of the parent and a reader from outside find the same child.
 
 The lines that matter:
 
@@ -53,9 +53,9 @@ The lines that matter:
 
 ```csharp
 var children = await operations.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent));
-foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, StringComparer.Ordinal))
+foreach (var child in children.Items.OrderBy(child => child.IdempotencyKey, StringComparer.Ordinal))
 {
-    Console.WriteLine($"{child.DeduplicationKey}: {child.Status.Code}");
+    Console.WriteLine($"{child.IdempotencyKey}: {child.Status.Code}");
 }
 ```
 
@@ -69,12 +69,12 @@ var parent = await jobs.EnqueueAsync(new SendInvoices([5, 6, 7]));
 await parent.WaitAsync();
 
 var children = await operations.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent));
-foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, StringComparer.Ordinal))
+foreach (var child in children.Items.OrderBy(child => child.IdempotencyKey, StringComparer.Ordinal))
 {
-    Console.WriteLine($"{child.DeduplicationKey}: {child.Status.Code}");
+    Console.WriteLine($"{child.IdempotencyKey}: {child.Status.Code}");
 }
 
-var invoice7 = children.Items.Single(child => child.DeduplicationKey == "invoice/7");
+var invoice7 = children.Items.Single(child => child.IdempotencyKey == "invoice/7");
 var why = (await jobs.ExplainAsync(invoice7.JobRef))!;
 Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
 
@@ -88,7 +88,7 @@ The key is the one the map was given for that item, so a page that shows invoice
 The lines that matter:
 
 ```csharp
-var invoice7 = children.Items.Single(child => child.DeduplicationKey == "invoice/7");
+var invoice7 = children.Items.Single(child => child.IdempotencyKey == "invoice/7");
 var why = (await jobs.ExplainAsync(invoice7.JobRef))!;
 Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
 ```
@@ -97,12 +97,12 @@ In `find-child-job.cs` (excerpt):
 
 ```csharp
 var children = await operations.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent));
-foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, StringComparer.Ordinal))
+foreach (var child in children.Items.OrderBy(child => child.IdempotencyKey, StringComparer.Ordinal))
 {
-    Console.WriteLine($"{child.DeduplicationKey}: {child.Status.Code}");
+    Console.WriteLine($"{child.IdempotencyKey}: {child.Status.Code}");
 }
 
-var invoice7 = children.Items.Single(child => child.DeduplicationKey == "invoice/7");
+var invoice7 = children.Items.Single(child => child.IdempotencyKey == "invoice/7");
 var why = (await jobs.ExplainAsync(invoice7.JobRef))!;
 Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
 
@@ -130,7 +130,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Remember
 
-- A child's name on the job reads is its `DeduplicationKey`: the call's name for `EnqueueChildAsync`, `{map}/{key}` for a map's child.
+- A child's name on the job reads is its `IdempotencyKey`: the call's name for `EnqueueChildAsync`, `{map}/{key}` for a map's child.
 - Keys keep their case: `Invoice/7` and `invoice/7` are two keys, so build the key the same way where you start the child and where you look for it.
 - The list answers a page at a time, fifty jobs unless `PageSize` says otherwise and a hundred at most. A parent with more children is read page by page, as in [list and page through jobs](/learn/409-operator-queries.md).
 - A failed child does not fail its parent by itself, so a parent that reads `succeeded` can still have a child that failed. [Handle child jobs that fail](/learn/219-child-failure-outcomes.md) shows the parent's side.
@@ -140,7 +140,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Check yourself
 
-1. A parent mapped invoices 5, 6 and 7 under the name `invoice`. Which deduplication key does the child for invoice 6 carry?
+1. A parent mapped invoices 5, 6 and 7 under the name `invoice`. Which idempotency key does the child for invoice 6 carry?
    - a) `6`
    - b) `invoice/6`
    - c) `send-invoice/6`

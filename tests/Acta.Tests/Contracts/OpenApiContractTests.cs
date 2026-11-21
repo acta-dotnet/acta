@@ -1149,7 +1149,7 @@ public sealed partial class OpenApiContractTests
                 client,
                 HttpMethod.Post,
                 "jobs",
-                $$"""{"jobNamespace":"{{SqliteNamespace}}","jobName":"echo","deduplicationKey":"tag-probe"}"""
+                $$"""{"jobNamespace":"{{SqliteNamespace}}","jobName":"echo","idempotencyKey":"tag-probe"}"""
             );
             var jobRef = JsonNode.Parse(await enqueued.Content.ReadAsStringAsync(ct))!["jobRef"]!.GetValue<string>();
             foreach (var owner in owners.Select(owner => owner.Replace(SqliteJob, jobRef, StringComparison.Ordinal)))
@@ -1539,7 +1539,7 @@ public sealed partial class OpenApiContractTests
                         JobNamespace: enqueue.JobNamespace!,
                         JobName: enqueue.JobName!,
                         Input: enqueue.Input!.ToPayload("input"),
-                        DeduplicationKey: enqueue.DeduplicationKey,
+                        IdempotencyKey: enqueue.IdempotencyKey,
                         CorrelationKey: enqueue.CorrelationKey,
                         Priority: enqueue.Priority,
                         NextRunAtUtc: enqueue.NextRunAtUtc,

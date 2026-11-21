@@ -35,7 +35,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // The manifest's generated call names the job and takes its handler's parameters; the namespace resolves from the
 // registered manifest, and nothing is inferred from the input's type.
 var single = await jobs.EnqueueAsync(JobCallJobs.Hello(new Hello("World")));
-var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.DeduplicationKey("greet-ada"));
+var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.IdempotencyKey("greet-ada"));
 
 // learn: end
 Console.WriteLine($"Enqueued hello as {single.JobRef} and greet as {several.JobRef}.");

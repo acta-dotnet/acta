@@ -978,13 +978,13 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task JobByDeduplicationKey_resolves_to_snapshot()
+    public async Task JobByIdempotencyKey_resolves_to_snapshot()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/by-deduplication-key?jobNamespace=billing&deduplicationKey=ck-1",
+            "/acta/api/v1/jobs/by-idempotency-key?jobNamespace=billing&idempotencyKey=ck-1",
             TestContext.Current.CancellationToken
         );
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -995,13 +995,13 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task JobByDeduplicationKey_unknown_returns_404()
+    public async Task JobByIdempotencyKey_unknown_returns_404()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/by-deduplication-key?jobNamespace=billing&deduplicationKey=nope",
+            "/acta/api/v1/jobs/by-idempotency-key?jobNamespace=billing&idempotencyKey=nope",
             TestContext.Current.CancellationToken
         );
 
@@ -1009,13 +1009,13 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task JobByDeduplicationKey_missing_params_returns_400()
+    public async Task JobByIdempotencyKey_missing_params_returns_400()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/by-deduplication-key?deduplicationKey=ck-1",
+            "/acta/api/v1/jobs/by-idempotency-key?idempotencyKey=ck-1",
             TestContext.Current.CancellationToken
         );
 
@@ -1023,14 +1023,14 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Theory]
-    [InlineData("jobNamespace=bad!&deduplicationKey=ck-1")]
-    [InlineData("jobNamespace=billing&deduplicationKey=ck%201")]
-    public async Task JobByDeduplicationKey_malformed_namespace_or_key_returns_400(string query)
+    [InlineData("jobNamespace=bad!&idempotencyKey=ck-1")]
+    [InlineData("jobNamespace=billing&idempotencyKey=ck%201")]
+    public async Task JobByIdempotencyKey_malformed_namespace_or_key_returns_400(string query)
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync($"/acta/api/v1/jobs/by-deduplication-key?{query}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/by-idempotency-key?{query}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

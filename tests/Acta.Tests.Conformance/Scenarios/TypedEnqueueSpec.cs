@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Conformance for the typed <see cref="IJobs"/> façade: <c>EnqueueAsync&lt;TInput&gt;</c> (route
-/// resolution + serialization), <see cref="JobEnqueueOptions"/> (deduplication key / delayed run),
+/// resolution + serialization), <see cref="JobEnqueueOptions"/> (idempotency key / delayed run),
 /// <c>CallAsync&lt;TInput, TResult&gt;</c> (enqueue + wait + typed result), and the delayed-enqueue
 /// claim gate (<c>next_run_at_utc</c>). Uses the <c>add-numbers</c> job (input <see cref="AddNumbers"/>,
 /// result <see cref="AddNumbersResult"/>) registered under the per-test namespace.
@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "typed-enqueue.facade",
     "Typed enqueue resolves the route and delayed jobs gate on next_run",
     Area = "Enqueue",
-    Contract = "The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and CallAsync waits."
+    Contract = "The typed IJobs façade resolves the route from the input type, applies idempotency-key dedupe and delayed-run options, and CallAsync waits."
 )]
 [Deploys("add-numbers", "null-result", "old-then-failing-probe", "policy-probe", "scalar-double-echo", "scalar-int-echo")]
 public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<TypedEnqueueSpec>>
@@ -94,22 +94,22 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(0, await job.GetResultAsync<int>(ct));
     }
 
-    [Fact(DisplayName = "Typed enqueue applies the deduplication key and a repeat deduplicates onto one row")]
-    public async Task Typed_enqueue_options_apply_deduplication_key_and_dedupe()
+    [Fact(DisplayName = "Typed enqueue applies the idempotency key and a repeat deduplicates onto one row")]
+    public async Task Typed_enqueue_options_apply_idempotency_key_and_dedupe()
     {
         var ct = TestContext.Current.CancellationToken;
         var first = await Jobs.EnqueueAsync(
             new AddNumbers(1, 1),
-            o => o.DeduplicationKey("typed-invoice-1").Priority(JobPriorityCode.High).Tag("billing").Tag("team", "payments"),
+            o => o.IdempotencyKey("typed-invoice-1").Priority(JobPriorityCode.High).Tag("billing").Tag("team", "payments"),
             ct
         );
         Assert.Equal(EnqueueJobAction.Inserted, first.Action);
 
         var snapshot = await Jobs.GetAsync(first, ct);
-        Assert.Equal("typed-invoice-1", snapshot!.DeduplicationKey);
+        Assert.Equal("typed-invoice-1", snapshot!.IdempotencyKey);
 
-        // Same deduplication key dedupes onto the same row.
-        var again = await Jobs.EnqueueAsync(new AddNumbers(1, 1), o => o.DeduplicationKey("typed-invoice-1"), ct);
+        // Same idempotency key dedupes onto the same row.
+        var again = await Jobs.EnqueueAsync(new AddNumbers(1, 1), o => o.IdempotencyKey("typed-invoice-1"), ct);
         Assert.Equal(EnqueueJobAction.Deduplicated, again.Action);
         Assert.Equal(first.JobId, again.JobId);
     }
@@ -220,18 +220,18 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var input = new OldThenFailingInput(1);
         const string key = "typed-restarted-1";
 
-        var first = await Jobs.EnqueueAsync(input, o => o.DeduplicationKey(key), ct);
+        var first = await Jobs.EnqueueAsync(input, o => o.IdempotencyKey(key), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(first, ct));
         Assert.Equal("old", await Jobs.GetResultAsync<string>(first, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(first, ct: ct)).Action);
 
-        // The deduplication key lands the wait on the restarted job, whose second execution fails for good: the
+        // The idempotency key lands the wait on the restarted job, whose second execution fails for good: the
         // wait answers that failure and never the first execution's "old".
         var waiting = Jobs.CallAsync(
             TestJobsManifest.OldThenFailingProbe(input),
             new JobExecutionOptions
             {
-                DeduplicationKey = key,
+                IdempotencyKey = key,
                 WaitTimeout = TimeSpan.FromSeconds(60),
                 PollInterval = TimeSpan.FromMilliseconds(100),
             },

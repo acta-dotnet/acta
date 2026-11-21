@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to chain jobs into a pipeline · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to chain jobs into a pipeline with Acta, durable execution for .NET. Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts no second pipeline." />
+  <meta name="description" content="How to chain jobs into a pipeline with Acta, durable execution for .NET. Each stage is a job of its own that enqueues the next one, with an idempotency key so a replayed handoff starts no second pipeline." />
   <link rel="canonical" href="https://useacta.net/learn/602-chained-jobs" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to chain jobs into a pipeline · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to chain jobs into a pipeline with Acta, durable execution for .NET. Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts no second pipeline." />
+  <meta property="og:description" content="How to chain jobs into a pipeline with Acta, durable execution for .NET. Each stage is a job of its own that enqueues the next one, with an idempotency key so a replayed handoff starts no second pipeline." />
   <meta property="og:url" content="https://useacta.net/learn/602-chained-jobs" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to chain jobs into a pipeline","description":"How to chain jobs into a pipeline with Acta, durable execution for .NET. Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts no second pipeline.","url":"https://useacta.net/learn/602-chained-jobs","inLanguage":"en","articleSection":"Split work across child jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to chain jobs into a pipeline","description":"How to chain jobs into a pipeline with Acta, durable execution for .NET. Each stage is a job of its own that enqueues the next one, with an idempotency key so a replayed handoff starts no second pipeline.","url":"https://useacta.net/learn/602-chained-jobs","inLanguage":"en","articleSection":"Split work across child jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Split work across child jobs","item":"https://useacta.net/learn#s-children"},{"@type":"ListItem","position":3,"name":"How to chain jobs into a pipeline","item":"https://useacta.net/learn/602-chained-jobs"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to chain jobs into a pipeline</h1>
-      <p class="lede">Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts no second pipeline.</p>
+      <p class="lede">Each stage is a job of its own that enqueues the next one, with an idempotency key so a replayed handoff starts no second pipeline.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -84,7 +84,7 @@
     <span class="k">public</span> <span class="k">async</span> Task Handle(IngestDocument input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;ingested {input.FileName}&quot;</span>);
-<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
     }
 }</code></pre></figure>
 </div>
@@ -96,7 +96,7 @@
     <span class="k">public</span> <span class="k">async</span> Task Handle(RenderPdf input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;rendered {input.FileName} -&gt; PDF&quot;</span>);
-<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
     }
 }</code></pre></figure>
 </div>
@@ -113,7 +113,7 @@ archived report.md - pipeline done</code></pre></figure>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/600-job-composition/602-chained-jobs"><code>learn/600-job-composition/602-chained-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">chained-jobs.cs</span><span class="file-size">76 lines</span></summary><figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to chain jobs into a pipeline</span>
-<span class="c">// Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts</span>
+<span class="c">// Each stage is a job of its own that enqueues the next one, with an idempotency key so a replayed handoff starts</span>
 <span class="c">// no second pipeline.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.ChainedJobs;
@@ -146,7 +146,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
     <span class="c">// re-executed.</span>
     <span class="c">//</span>
     <span class="c">// What a crash CAN repeat is the handoff itself. The enqueue happens before the stage completes,</span>
-    <span class="c">// so a replay enqueues the next stage again. Each handoff therefore carries a deduplication key</span>
+    <span class="c">// so a replay enqueues the next stage again. Each handoff therefore carries an idempotency key</span>
     <span class="c">// derived from the document, which makes the replay return the existing job rather than a second</span>
     <span class="c">// pipeline running beside the first.</span>
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> IngestDocument(<span class="k">string</span> FileName);
@@ -164,7 +164,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
             <span class="c">// learn: 1. Enqueue the next stage as the last act of this one</span>
             <span class="c">// The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the</span>
             <span class="c">// document, makes the repeat answer the existing job.</span>
-<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
             <span class="c">// learn: end</span>
         }
     }
@@ -177,7 +177,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
             Console.WriteLine(<span class="s">$&quot;rendered {input.FileName} -&gt; PDF&quot;</span>);
             <span class="c">// learn: 2. Let the next stage hand on the same way</span>
             <span class="c">// Every stage enqueues the one after it under a key of its own; the last stage enqueues nothing.</span>
-<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
             <span class="c">// learn: end</span>
         }
     }

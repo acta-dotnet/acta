@@ -38,7 +38,7 @@ public sealed class OutboxStagingSpec : ActaTestBase<ConformanceFixture>
         var rebuilt = OutboxRequestReconstruction.ToRequest(row, 1 << 20);
         Assert.Equal(request.JobNamespace, rebuilt.JobNamespace);
         Assert.Equal(request.JobName, rebuilt.JobName);
-        Assert.Equal(request.DeduplicationKey, rebuilt.DeduplicationKey);
+        Assert.Equal(request.IdempotencyKey, rebuilt.IdempotencyKey);
         Assert.Equal(request.CorrelationKey, rebuilt.CorrelationKey);
         Assert.Equal(request.Priority, rebuilt.Priority);
         Assert.Equal("customer-42", rebuilt.Lane);
@@ -68,7 +68,7 @@ public sealed class OutboxStagingSpec : ActaTestBase<ConformanceFixture>
             "orders",
             "send-receipt",
             JobPayload.CopyBytes(JobPayloadFormat.Json, "{\"a\":1}"u8),
-            DeduplicationKey: "stage-" + TestId,
+            IdempotencyKey: "stage-" + TestId,
             CorrelationKey: "corr-1",
             Priority: JobPriorityCode.High,
             Lane: "Customer-42",

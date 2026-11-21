@@ -15,7 +15,7 @@ public sealed class JobEnqueueOptionsBuilderTests
 
         var options = new JobEnqueueOptionsBuilder()
             .JobNamespace("payments")
-            .DeduplicationKey("invoice-1")
+            .IdempotencyKey("invoice-1")
             .CorrelationKey("corr-1")
             .ConcurrencyKey("acct-7")
             .Priority(JobPriorityCode.High)
@@ -24,7 +24,7 @@ public sealed class JobEnqueueOptionsBuilderTests
             .Build();
 
         Assert.Equal("payments", options.JobNamespace);
-        Assert.Equal("invoice-1", options.DeduplicationKey);
+        Assert.Equal("invoice-1", options.IdempotencyKey);
         Assert.Equal("corr-1", options.CorrelationKey);
         Assert.Equal("acct-7", options.ConcurrencyKey);
         Assert.Equal(JobPriorityCode.High, options.Priority);
@@ -40,7 +40,7 @@ public sealed class JobEnqueueOptionsBuilderTests
         var options = new JobEnqueueOptionsBuilder().Build();
 
         Assert.Null(options.JobNamespace);
-        Assert.Null(options.DeduplicationKey);
+        Assert.Null(options.IdempotencyKey);
         Assert.Null(options.Tags);
         Assert.Null(options.NextRunAtUtc);
     }
@@ -57,12 +57,12 @@ public sealed class JobEnqueueOptionsBuilderTests
     [Fact]
     public void Build_is_repeatable_and_isolated()
     {
-        var builder = new JobEnqueueOptionsBuilder().DeduplicationKey("first");
+        var builder = new JobEnqueueOptionsBuilder().IdempotencyKey("first");
         var first = builder.Build();
-        builder.DeduplicationKey("second");
+        builder.IdempotencyKey("second");
 
-        Assert.Equal("first", first.DeduplicationKey);
-        Assert.Equal("second", builder.Build().DeduplicationKey);
+        Assert.Equal("first", first.IdempotencyKey);
+        Assert.Equal("second", builder.Build().IdempotencyKey);
     }
 
     [Fact]
@@ -81,10 +81,10 @@ public sealed class JobEnqueueOptionsBuilderTests
     }
 
     [Fact]
-    public void DeduplicationKey_rejects_system_prefix_and_whitespace()
+    public void IdempotencyKey_rejects_system_prefix_and_whitespace()
     {
-        Assert.ThrowsAny<ArgumentException>(() => new JobEnqueueOptionsBuilder().DeduplicationKey("sys.reserved"));
-        Assert.ThrowsAny<ArgumentException>(() => new JobEnqueueOptionsBuilder().DeduplicationKey(" "));
+        Assert.ThrowsAny<ArgumentException>(() => new JobEnqueueOptionsBuilder().IdempotencyKey("sys.reserved"));
+        Assert.ThrowsAny<ArgumentException>(() => new JobEnqueueOptionsBuilder().IdempotencyKey(" "));
     }
 
     [Fact]

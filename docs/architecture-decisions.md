@@ -30,7 +30,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 - a generic workflow-graph table or generic checkpoint-JSON blob. The substrate is typed tables (`checkpoints` discriminated by kind with typed columns, plus `steps`), not an untyped graph.
 - guaranteed exactly-once effects against arbitrary external systems. No durable executor can make
   a card network, email provider, webhook receiver, and SQL database share one exactly-once commit.
-  Acta gives you at-least-once jobs, checkpointed durable steps, deduplication keys, a check before a
+  Acta gives you at-least-once jobs, checkpointed durable steps, idempotency keys, a check before a
   step repeats, and `AtMostOnce()` step semantics; applications still own external side-effect safety.
 
 ## The four claims
@@ -61,7 +61,7 @@ Adding a table requires showing that no existing substrate's access pattern, lif
 Examples:
 
 - Coordinating jobs are ordinary jobs, no dedicated coordinator table.
-- The `DeduplicationKey` column doubles as the operator-facing secondary key: no separate name-resolution table.
+- The `IdempotencyKey` column doubles as the operator-facing secondary key: no separate name-resolution table.
 - Domain metadata lives as fields on the input record, cross-cutting searchable metadata as `Tag` rows: no `JobMeta` table.
 - System jobs (`sys.alerts`, `sys.retention`, and `sys.outbox` where a relay is registered) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
 - Per-attempt history is one outcome event per `(JobId, ExecutionNumber)` (succeeded, failed, orphaned, yielded, or terminally failed), carrying the worker and the handler's duration: no separate execution table. An attempt in flight is its `jobs_state` row.
@@ -121,7 +121,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Boundaries
 
-- **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + the 32 hex digits of a C#-allocated UUIDv7, one word to copy and search), `DeduplicationKey` caller-defined; `alerts` denormalize `job_ref` at INSERT (low-volume retained incidents), while events carry only the numeric entity pair: an explicit purge leaves one `job.purged` tombstone whose details snapshot the ref and correlation once. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers; a GUID on every execution event is width the ledger never reads back.
+- **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + the 32 hex digits of a C#-allocated UUIDv7, one word to copy and search), `IdempotencyKey` caller-defined; `alerts` denormalize `job_ref` at INSERT (low-volume retained incidents), while events carry only the numeric entity pair: an explicit purge leaves one `job.purged` tombstone whose details snapshot the ref and correlation once. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers; a GUID on every execution event is width the ledger never reads back.
 - **`JobNamespace` is the service-owned execution boundary.** Each worker owns exactly one namespace; a host can run several workers, one per `Run(jobNamespace, ...)`, each on a distinct namespace, and the replicas of a service run the same namespace names. *Reason:* namespace identity = deployment unit, not tenant marker.
 - **Workers only claim within their own namespace.** *Reason:* blast-radius firewall, a bug cannot escape its namespace; cross-namespace enqueue allowed, cross-namespace claim impossible by index seek.
 - **One `WorkerRuntime` per `Run(...)`; enqueue-only hosts register nothing.** A process running several `Run(...)` calls fans out one claimer, executor set, finalizer, and heartbeat per namespace. `Reference(...)` and enqueue-only frontends create no worker registration and write no catalog rows; typed enqueue resolves `(namespace, jobName)` to ids via SQL JOIN at INSERT time. *Reason:* routing lives in the database, so worker-hosted and enqueue-only deployments share one enqueue code path and a frontend can enqueue for a namespace it never claims.
@@ -158,7 +158,7 @@ Reopening an entry means writing a proposal, not editing this file.
 - **Identifier convention:** plural, prefix-free, underscore-free tables; `lower_snake_case` columns; `ix_`/`ux_`/`pk_`/`ck_`/`fk_` prefixes; every persisted name explicit on its attribute; no quoted identifiers; CLR entities keep domain names (`Job*`). *Reason:* unquoted names work on every target DB and survive convention renames.
 - **Varchar sizes come from a fixed ladder:** 16, 32, 64, 128, 256, 512, 1024, max. *Reason:* SHA-256/512 hex fit natively; no bespoke widths.
 - **All datetime columns are `datetime2(3)` UTC** with a `Utc` suffix. *Reason:* one precision, one zone, self-describing names.
-- **Three identifier shapes: name, key, display text.** A name (namespace, definition, schedule, signal, tag, lane, tenant, rate meter) is ASCII dotted kebab, trimmed and lowercased on input, so it compares equal under any collation. A key (deduplication, concurrency, lock, correlation) is printable ASCII kept as given, case included, once surrounding whitespace is trimmed, and compared bytewise; the compared key columns carry a binary collation on SQL Server (`DbColumn(CaseExact = true)`). Display text is Unicode within a cap and never compared. *Reason:* Acta-owned identifiers survive every collation, terminal, and URL, and a caller's identity is never altered.
+- **Three identifier shapes: name, key, display text.** A name (namespace, definition, schedule, signal, tag, lane, tenant, rate meter) is ASCII dotted kebab, trimmed and lowercased on input, so it compares equal under any collation. A key (idempotency, concurrency, lock, correlation) is printable ASCII kept as given, case included, once surrounding whitespace is trimmed, and compared bytewise; the compared key columns carry a binary collation on SQL Server (`DbColumn(CaseExact = true)`). Display text is Unicode within a cap and never compared. *Reason:* Acta-owned identifiers survive every collation, terminal, and URL, and a caller's identity is never altered.
 - **Three text tiers via `DbKind`:** `AsciiString`, `UnicodeString` (cold/mid tables only), `BinaryPayload`; never `jsonb`. *Reason:* hot tables stay narrow; validation lives at the application boundary.
 - **SQLite tables are `STRICT` and keep `AUTOINCREMENT`.** *Reason:* the file enforces the declared types, as the servers do, and a rowid is never reused.
 - **Optimistic-concurrency token is a `version` column**, manually incremented; no `rowversion`, no `xmin`. It is 64-bit on `jobs_state`, which a long-lived job changes without bound, 32-bit on every other table, and `long` in the API. *Reason:* uniform across providers and operator-observable.
@@ -230,7 +230,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 
 - **Duration policy has three representations.** ISO 8601 in attributes/config, `TimeSpan` in C#, `int` seconds in the DB. *Reason:* one canonical form per layer.
 - **One heartbeat rhythm:** `HeartbeatInterval` 45s is the single setting; `LeaseTtl` (x4, 180s) and `WorkerDeadAfter` (x7, 315s) derive from it, and leases and worker liveness extend on one loop. *Reason:* one tuning constant, one mental model - and since the triple must agree across replicas with nothing able to verify that at runtime, deriving holds the ratio by construction instead of by validation.
-- **`TimeProvider`, not `DateTime.UtcNow`**, for anything driving scheduling, lease, or claim correctness; carve-outs are DB-rendered defaults, the `DeduplicationKey.Per*` convenience overloads, the clock-free wakeup hint, the handler's advisory deadline reads (`IsOverdue`, `TimeUntilDeadline`), the in-process wait for a rate turn, and a placeholder next run the completion overwrites in the same statement. *Reason:* testability and clock-source clarity.
+- **`TimeProvider`, not `DateTime.UtcNow`**, for anything driving scheduling, lease, or claim correctness; carve-outs are DB-rendered defaults, the `IdempotencyKey.Per*` convenience overloads, the clock-free wakeup hint, the handler's advisory deadline reads (`IsOverdue`, `TimeUntilDeadline`), the in-process wait for a rate turn, and a placeholder next run the completion overwrites in the same statement. *Reason:* testability and clock-source clarity.
 - **Per-execution DI scope.** Scoped services receive fresh instances per attempt. *Reason:* the attempt is the unit of work.
 
 ## Invariants

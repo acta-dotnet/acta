@@ -67,7 +67,7 @@ internal static partial class ActaOpenApiDocument
     /// <summary>
     /// A key as <c>KeySyntax.Canonicalize</c> takes it: once trimmed, 1 to <paramref name="maxLength"/> printable ASCII
     /// characters without white space, and with <paramref name="reserveSystem"/> not starting sys. in any case, as a
-    /// deduplication key at enqueue.
+    /// idempotency key at enqueue.
     /// </summary>
     public static string KeyPattern(int maxLength, bool reserveSystem = false) =>
         "^" + TrimmedSpace + "*" + (reserveSystem ? "(?![Ss][Yy][Ss]\\.)" : "") + $"[!-~]{{1,{maxLength}}}" + TrimmedSpace + "*$";
@@ -91,7 +91,7 @@ internal static partial class ActaOpenApiDocument
     [
         new("EnqueueJobRequest", "jobNamespace", Pattern: NamePattern(NameSyntax.DefaultMaxLength, reserveSystem: true)),
         new("EnqueueJobRequest", "jobName", Pattern: NamePattern(NameSyntax.ExtendedMaxLength, reserveSystem: true)),
-        new("EnqueueJobRequest", "deduplicationKey", Pattern: KeyPattern(DeduplicationKey.MaxLength, reserveSystem: true)),
+        new("EnqueueJobRequest", "idempotencyKey", Pattern: KeyPattern(IdempotencyKey.MaxLength, reserveSystem: true)),
         new("EnqueueJobRequest", "correlationKey", Pattern: KeyPattern(NameSyntax.DefaultMaxLength)),
         new("EnqueueJobRequest", "tenantName", Pattern: NamePattern(NameSyntax.ExtendedMaxLength, reserveSystem: true)),
         new("EnqueueJobRequest", "delaySeconds", Minimum: 0),

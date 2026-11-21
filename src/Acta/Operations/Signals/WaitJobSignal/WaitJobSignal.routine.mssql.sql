@@ -150,7 +150,7 @@ BEGIN
                 + CASE
                     WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                         THEN N'child ' + COALESCE(
-                            N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
+                            N'''' + ch.idempotency_key COLLATE DATABASE_DEFAULT + N'''',
                             N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
                         )
                     ELSE N'signal ''' + @p_checkpoint_name + N''''
@@ -164,7 +164,7 @@ BEGIN
                     -- the other providers do not, and a map child's name holds one.
                     + CAST(
                         REPLACE(
-                            STRING_ESCAPE(COALESCE(ch.deduplication_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json'),
+                            STRING_ESCAPE(COALESCE(ch.idempotency_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json'),
                             '\/',
                             '/'
                         ) AS VARCHAR(1024)

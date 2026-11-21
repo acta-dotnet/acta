@@ -29,7 +29,7 @@ public interface IActaTestHost : IAsyncDisposable
     /// Claim + execute the specific <paramref name="job"/>, retrying a transient claim miss under parallel load.
     /// The enqueue's <see cref="JobHandle"/> or <see cref="EnqueueJobResponse"/> and a <see cref="JobRef"/> convert
     /// to the lookup, as for every <see cref="IJobs"/> call. Multi-worker hosts route by the job's own namespace.
-    /// A ref or deduplication key that matches no job throws, here and in every helper that takes a lookup.
+    /// A ref or idempotency key that matches no job throws, here and in every helper that takes a lookup.
     /// </summary>
     Task<ActaRunStatus> RunOnceAsync(JobLookup job, CancellationToken ct = default);
 

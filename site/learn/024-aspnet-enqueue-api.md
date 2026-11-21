@@ -19,7 +19,7 @@ The lines that matter:
 ```csharp
 var job = await jobs.EnqueueAsync(
     new ImportCsv(request.Tenant, request.ImportId, request.FileName),
-    o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
+    o => o.IdempotencyKey(idempotencyKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
     ct
 );
 
@@ -32,16 +32,16 @@ In `Program.cs` (excerpt):
 
 ```csharp
 // POST writes a durable job and returns 202; the import runs on the worker after the request ends.
-// DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.
+// IdempotencyKey dedupes a retry with the same tenant/import id onto the same job.
 app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =>
 {
     var businessKey = $"import:{request.Tenant}:{request.ImportId}";
-    var deduplicationKey = DeduplicationKey.ForDefinition("import-csv", businessKey);
+    var idempotencyKey = IdempotencyKey.ForDefinition("import-csv", businessKey);
     var correlationKey = http.TraceIdentifier;
 
     var job = await jobs.EnqueueAsync(
         new ImportCsv(request.Tenant, request.ImportId, request.FileName),
-        o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
+        o => o.IdempotencyKey(idempotencyKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
         ct
     );
 

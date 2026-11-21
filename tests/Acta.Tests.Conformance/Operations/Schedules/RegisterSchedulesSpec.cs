@@ -146,7 +146,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // An ordinary job keyed by the job name, before any schedule was declared: unrelated to the slot.
         var ordinary = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, jobName, JobPayload.Json(1), DeduplicationKey: jobName),
+            new EnqueueJobRequest(TestNamespace, jobName, JobPayload.Json(1), IdempotencyKey: jobName),
             ct
         );
         var before = await ReadJobAsync(ordinary.JobId, ct);

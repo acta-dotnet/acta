@@ -164,7 +164,7 @@ BEGIN
             'The wait for '
             || CASE
                 WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
-                    THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(p_checkpoint_name, 11))
+                    THEN 'child ' || COALESCE('''' || ch.idempotency_key || '''', 'job ' || substr(p_checkpoint_name, 11))
                 ELSE 'signal ''' || p_checkpoint_name || ''''
             END || ' expired.',
             1 /* JobPayloadFormat.Json */,
@@ -172,7 +172,7 @@ BEGIN
                 -- Only a child wait whose child is still stored carries its ref.
                 json_strip_nulls(json_build_object(
                     'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
-                    'name', COALESCE(ch.deduplication_key, p_checkpoint_name),
+                    'name', COALESCE(ch.idempotency_key, p_checkpoint_name),
                     'child', 'job_' || replace(ch.job_ref::text, '-', ''),
                     'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
                 ))::text,

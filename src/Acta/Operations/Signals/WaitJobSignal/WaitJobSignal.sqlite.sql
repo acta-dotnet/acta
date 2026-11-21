@@ -89,7 +89,7 @@ SELECT
     'The wait for '
     || CASE
         WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
-            THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(@p_checkpoint_name, 11))
+            THEN 'child ' || COALESCE('''' || ch.idempotency_key || '''', 'job ' || substr(@p_checkpoint_name, 11))
         ELSE 'signal ''' || @p_checkpoint_name || ''''
     END || ' expired.',
     1 /* JobPayloadFormat.Json */,
@@ -99,7 +99,7 @@ SELECT
             '{}',
             json_object(
                 'kind', CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
-                'name', COALESCE(ch.deduplication_key, @p_checkpoint_name),
+                'name', COALESCE(ch.idempotency_key, @p_checkpoint_name),
                 'child', 'job_' || replace(ch.job_ref, '-', ''),
                 'dueAtUtc', strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch')
             )

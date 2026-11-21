@@ -393,7 +393,7 @@ public sealed class ChildRestartSpec : ActaRuntimeTestBase<ConformanceFixture, J
 
     private async Task<IReadOnlyDictionary<string, long>> ChildIdsAsync(long parentId, CancellationToken ct) =>
         (await Db.From<JobEntity>().Where(j => j.ParentJobId == parentId).ToListAsync(ct)).ToDictionary(
-            j => j.DeduplicationKey!,
+            j => j.IdempotencyKey!,
             j => j.Id,
             StringComparer.Ordinal
         );

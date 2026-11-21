@@ -50,7 +50,7 @@ test('internal ids accept both spellings', () => {
 test('reserved prefixes beat the tag token', () => {
   assert.equal(parseQuery('id:42')!.kind, 'jobId');
   assert.deepEqual(parseQuery('corr:ORD-1042'), { kind: 'correlation', key: 'ORD-1042' });
-  assert.deepEqual(parseQuery('key:invoice-99'), { kind: 'dedupKey', key: 'invoice-99' });
+  assert.deepEqual(parseQuery('key:invoice-99'), { kind: 'idempotencyKey', key: 'invoice-99' });
 });
 
 test('a bare name:value token is a tag filter', () => {

@@ -34,7 +34,7 @@ internal static class RegistrationCases
                 "verify",
                 "evolution-fixture",
                 JobPayload.Json(input, WorkJson.Default.WorkInput),
-                DeduplicationKey: input.Key
+                IdempotencyKey: input.Key
             ),
             ct
         );

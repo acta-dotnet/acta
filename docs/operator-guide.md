@@ -109,9 +109,9 @@ SELECT * FROM acta.jobs_view WHERE job_ref = :job_ref;
 -- One job, by internal id (engine identity; logs and SQL joins use it).
 SELECT * FROM acta.jobs_view WHERE job_id = :job_id;
 
--- By deduplication key (root jobs; children are keyed per parent instead).
+-- By idempotency key (root jobs; children are keyed per parent instead).
 SELECT * FROM acta.jobs_view
- WHERE namespace_name = 'billing' AND deduplication_key = :key AND parent_job_id IS NULL;
+ WHERE namespace_name = 'billing' AND idempotency_key = :key AND parent_job_id IS NULL;
 
 -- Failures in the last 24 hours, newest first.
 SELECT job_id, job_ref, namespace_name, definition_name, failure_count, modified_at_utc
@@ -149,7 +149,7 @@ SELECT created_at_utc, entity_id, event, execution_number, duration_ms, wait_ms,
  ORDER BY created_at_utc, event_id;
 
 -- Children of a parent.
-SELECT job_id, job_ref, deduplication_key, job_status
+SELECT job_id, job_ref, idempotency_key, job_status
   FROM acta.jobs_view
  WHERE parent_job_id = :job_id;
 
@@ -187,7 +187,7 @@ request field; on the [CLI](#built-in-control-cli) it is `--actor <name>`, or th
 without it; a C# caller passes it.
 
 ```csharp
-// Address the job by its public ref (what dashboards and clients hold), by deduplication key,
+// Address the job by its public ref (what dashboards and clients hold), by idempotency key,
 // or by internal id (advanced/debug); all three resolve through the same JobLookup.
 JobLookup job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
 
@@ -286,7 +286,7 @@ Five rules the table cannot show:
 | --- | --- |
 | Retry under the job's own policy | None: the policy retries a failed attempt by itself. `reschedule` brings a waiting retry forward, and `restart` gives a Failed job a new budget. |
 | Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again, and the expired wait that ended the job waits again under a fresh bound, unless an instant bounded it, which it meets again at once. |
-| New work from a changed input | A new job, enqueued under a new deduplication key (`invoice-77.r2`) with the old job's correlation key, so every revision is found together. Its steps and children start fresh. |
+| New work from a changed input | A new job, enqueued under a new idempotency key (`invoice-77.r2`) with the old job's correlation key, so every revision is found together. Its steps and children start fresh. |
 | Settle an interrupted external call first | An at-most-once step hands its handler the interrupted state to reconcile; `restart` runs a failed at-most-once step again, but never an interrupted one or one whose body threw `OutcomeUnknownException`. |
 
 A restart of a parent leaves its failed children failed. The parent's handler decides what a failed
@@ -355,23 +355,23 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 
 ```
 <app> jobs help
-<app> jobs info    <job-ref|deduplication-key|id:n>
-<app> jobs status  <job-ref|deduplication-key|id:n>
-<app> jobs result  <job-ref|deduplication-key|id:n>
-<app> jobs explain <job-ref|deduplication-key|id:n>
-<app> jobs events  <job-ref|deduplication-key|id:n> [--take <n>] [--after <cursor>]
-<app> jobs cancel  <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
-<app> jobs pause   <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
-<app> jobs resume  <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
-<app> jobs restart <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
-<app> jobs signal  <job-ref|deduplication-key> <name> [--value <json>] [--actor <name>]
-<app> jobs clear-signal <job-ref|deduplication-key> <name> [--actor <name>]
-<app> jobs debug   <job-ref|deduplication-key> [--break] [--actor <name>]
+<app> jobs info    <job-ref|idempotency-key|id:n>
+<app> jobs status  <job-ref|idempotency-key|id:n>
+<app> jobs result  <job-ref|idempotency-key|id:n>
+<app> jobs explain <job-ref|idempotency-key|id:n>
+<app> jobs events  <job-ref|idempotency-key|id:n> [--take <n>] [--after <cursor>]
+<app> jobs cancel  <job-ref|idempotency-key> [--reason <msg>] [--actor <name>]
+<app> jobs pause   <job-ref|idempotency-key> [--reason <msg>] [--actor <name>]
+<app> jobs resume  <job-ref|idempotency-key> [--reason <msg>] [--actor <name>]
+<app> jobs restart <job-ref|idempotency-key> [--reason <msg>] [--actor <name>]
+<app> jobs signal  <job-ref|idempotency-key> <name> [--value <json>] [--actor <name>]
+<app> jobs clear-signal <job-ref|idempotency-key> <name> [--actor <name>]
+<app> jobs debug   <job-ref|idempotency-key> [--break] [--actor <name>]
 <app> jobs deploy  [--force] [--json]
 <app> jobs migrate [--force] [--json]
 ```
 
-A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output. A control records `--actor <name>` as the actor on its event, and the operating system's user name without it (`debug` on the restart it makes of a finished job, its only event); a read, `deploy` or `migrate` given `--actor` exits 64.
+A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, an idempotency key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for an idempotency-key lookup and `--json` for JSON output. A control records `--actor <name>` as the actor on its event, and the operating system's user name without it (`debug` on the restart it makes of a finished job, its only event); a read, `deploy` or `migrate` given `--actor` exits 64.
 
 On SQLite a read opens the database file read-only, so a read of a file `migrate` has not provisioned creates nothing and prints ``not provisioned; run `<app> jobs migrate` `` to stderr, exiting 1. A file an earlier run left empty answers the same.
 
@@ -401,8 +401,8 @@ app.MapActa("/acta", options =>
 
 - **Local only by default.** Remote requests answer 403. A local request, one from loopback, from the machine's own address, or with no remote address at all, as on a Unix socket, must also address `localhost` or an IP. To expose it, set `LocalOnly = false` and either turn on [permissions](#permissions) or require your own authorization through `ConfigureEndpoints`, either of which covers the page, its assets, and the API; without one startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. Short of permissions or that acknowledgment, the guard stays on every endpoint that carries no authorization, so an empty `ConfigureEndpoints` hook, or one that adds `AllowAnonymous`, still answers a remote request 403; `RequireAuthorization` from a parent group counts. A fallback policy does not count, because the framework refuses to serve an endpoint that requires authorization when the authorization middleware is missing and makes no such check for a fallback policy. Neither package ships authentication, and CORS is not authorization.
 - **Reads expose payloads.** Anyone who can read can see every job's input, result, and checkpoint values: `GET /jobs/{jobRef}/input`, `/result` and `/checkpoints/{checkpointKind}/{checkpointName}/value` each serve one payload whole as the body. The job read, the job detail and the checkpoint list state each payload's format and size and carry no body. Treat read access as access to every payload in the ledger.
-- **Controls are opt-in.** `EnableControls = true` turns on every route that writes: the job controls, enqueue, the input update, signals, the schedule controls, definition overrides and retire, tenant and namespace changes, the alert and outbox controls, calendar changes, and tag writes. While it is off, each of them answers 403 with a problem whose detail names `EnableControls`, after the local-only guard and the permission check. Each control request must be confirmed by the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight; a call with none of them answers 400. It is a guard against cross-site requests, not authentication. `ControlConfirmationHeaderName` renames the header, and mapping throws for an empty name or one of the five CORS-safelisted request headers (`Accept`, `Accept-Language`, `Content-Language`, `Content-Type`, `Range`), which any page may send without a preflight. A control's outcome is the `action` of its response body under a status that matches it: 200 for `applied`, and for `already-in-state` where the target already was as asked; 404 for `not-found`; and 409 for `rejected` or `version-conflict`. Two kinds of control answer otherwise: `POST /jobs` answers 201 when it inserts the job and 200 when a deduplication key matches an existing one, and a refused enqueue is a 409 problem document whose `reasonCode` says why; the outbox requeue and discard answer 202 `accepted`, since the next relay pass applies them. Problem details are kept for malformed input, authorization, and faults.
-- **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-deduplication-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
+- **Controls are opt-in.** `EnableControls = true` turns on every route that writes: the job controls, enqueue, the input update, signals, the schedule controls, definition overrides and retire, tenant and namespace changes, the alert and outbox controls, calendar changes, and tag writes. While it is off, each of them answers 403 with a problem whose detail names `EnableControls`, after the local-only guard and the permission check. Each control request must be confirmed by the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight; a call with none of them answers 400. It is a guard against cross-site requests, not authentication. `ControlConfirmationHeaderName` renames the header, and mapping throws for an empty name or one of the five CORS-safelisted request headers (`Accept`, `Accept-Language`, `Content-Language`, `Content-Type`, `Range`), which any page may send without a preflight. A control's outcome is the `action` of its response body under a status that matches it: 200 for `applied`, and for `already-in-state` where the target already was as asked; 404 for `not-found`; and 409 for `rejected` or `version-conflict`. Two kinds of control answer otherwise: `POST /jobs` answers 201 when it inserts the job and 200 when an idempotency key matches an existing one, and a refused enqueue is a 409 problem document whose `reasonCode` says why; the outbox requeue and discard answer 202 `accepted`, since the next relay pass applies them. Problem details are kept for malformed input, authorization, and faults.
+- **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by idempotency key (`/jobs/by-idempotency-key?jobNamespace=&idempotencyKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
 - **A query parameter a route does not declare is refused.** It answers 400 naming the parameter, so a mistyped filter never answers an unfiltered list; the OpenAPI document lists each route's parameters.
 - **Lists page by cursor.** Pass a page's `nextCursor` back as `cursor` until `hasMore` is false; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `includeTotal=true` adds `totalCount`; on `GET /events` it needs `jobRef`, or `entity` with `entityId`, and a definition's events and the outbox sources take none.
 - **A definition's performance is read from its events.** The definition page's Performance panel, and `GET /definitions/{jobNamespace}/{jobName}/performance?fromUtc=&toUtc=&intervalSeconds=` behind it, count the executions in the range that ended in success or in failure and give the p50, p95 and p99 of their durations, for each outcome, over the range and in each interval. The route also answers the same percentiles and histograms of how long those executions waited to be claimed (`waitP50Ms`, `waitP95Ms`, `waitP99Ms`, `succeededWaitBins`, `failedWaitBins`), counted over the executions that recorded a wait. A duration is one handler invocation as its worker timed it, so a job that waited and resumed counts only the execution that finished it, and a yielded or orphaned execution is not counted. The numbers are computed from retained events on each read, so event retention bounds how far back a window reads. A read takes the newest executions of its range up to a limit and says when it stopped there (`executionsHasMore`, `oldestAtUtc`). A definition that records failures only records a success when it follows a failure or closes an alert, so its succeeded durations are a partial set and the panel gives no failure rate. A window that spans a change of the definition's recording level mixes two recordings, which the panel cannot tell: its failure rate is comparable again once the window has passed the change. The trend marks each change of the namespace's deployment version in the window.
@@ -542,7 +542,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261120230853_init to schema acta
+applied M20261120234904_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1014,7 +1014,7 @@ handler from a deploy never cancels anything by itself; see
 A permanent job follows the same rule. A deploy that drops every schedule of one leaves it `Idle`
 with nothing due, and a deploy that brings a schedule back puts the schedule in front of the admitter
 again. A deploy that adds a `[Schedule]` registers the permanent job beside any ordinary job of that name: the
-permanent job carries no deduplication key, so an ordinary job keyed by the job name is unrelated to it. See
+permanent job carries no idempotency key, so an ordinary job keyed by the job name is unrelated to it. See
 [Scheduling and calendars](./scheduling.md).
 
 Retiring a permanent job's definition leaves the job inert instead of cancelling it: a firing admitted and
@@ -1223,8 +1223,8 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
   row finds it pending again and deletes nothing; its event says `0 row(s)`.
 - Resolve the resulting job by the row's `job_ref`, which is the job's ref: `IJobs.GetAsync` with it answers
   the job, and a null result means the request has not been relayed yet, not that it was lost. A row staged
-  with a deduplication key that a job already holds is deduplicated onto that job, found with
-  `JobLookup.ByDeduplicationKey(ns, key)`.
+  with an idempotency key that a job already holds is deduplicated onto that job, found with
+  `JobLookup.ByIdempotencyKey(ns, key)`.
 
 Background: [Transactional enqueue and the external outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox).
 
@@ -1354,14 +1354,14 @@ EXEC acta.enqueue_job
     @p_tags           = @tags;
 ```
 
-The optional parameters keep their column names: `p_deduplication_key`, `p_correlation_key`,
+The optional parameters keep their column names: `p_idempotency_key`, `p_correlation_key`,
 `p_job_priority_code_override`, `p_input_format_id`, `p_concurrency_key`, `p_next_run_at_utc` or
 `p_delay_seconds`, `p_parent_job_id`, `p_tenant_name` with `p_tenant_override`, and `p_lane_name`.
 With the default json format, `p_input` must be exactly one strict JSON value. The routine does not check it, so a
 malformed row stores, fails its handler's deserialization, and reads back over HTTP as bytes: `application/octet-stream` with `X-Acta-Payload-Format: 1`, where a well-formed JSON row reads as `application/json`.
 Postgres takes tags as the three arrays `p_tag_name`, `p_tag_value`, and `p_tag_value_search`.
 
-The routine stores what it is given, where the API canonicalizes first. Pass every name (namespace, job, tenant, lane, tag) as it is stored, which is lowercase, and every key as the API would take it: printable ASCII with no whitespace, within its column's width, since SQL Server cuts a longer value to the width without an error, and for a deduplication key not starting with `sys.`, which the engine's own keys use. A key with whitespace or a character outside printable ASCII is stored, deduplicates, runs, and reads back as stored, but the API cannot look it up or filter by it. A key that is empty or only spaces is refused: pass `NULL` for no key. A priority must be one of the bands 10, 50, 70, 90, and 100; any other is refused, since a job between two bands would never be claimed. `p_tag_value_search` is the tag's value trimmed and upper-cased, which is what the API's tag filters compare. On PostgreSQL the two small integers need a cast, as in `p_job_priority_code_override => 70::smallint`.
+The routine stores what it is given, where the API canonicalizes first. Pass every name (namespace, job, tenant, lane, tag) as it is stored, which is lowercase, and every key as the API would take it: printable ASCII with no whitespace, within its column's width, since SQL Server cuts a longer value to the width without an error, and for an idempotency key not starting with `sys.`, which the engine's own keys use. A key with whitespace or a character outside printable ASCII is stored, deduplicates, runs, and reads back as stored, but the API cannot look it up or filter by it. A key that is empty or only spaces is refused: pass `NULL` for no key. A priority must be one of the bands 10, 50, 70, 90, and 100; any other is refused, since a job between two bands would never be claimed. `p_tag_value_search` is the tag's value trimmed and upper-cased, which is what the API's tag filters compare. On PostgreSQL the two small integers need a cast, as in `p_job_priority_code_override => 70::smallint`.
 
 SQLite has no callable enqueue routine; enqueue through the application (`IJobs.EnqueueAsync`).
 
@@ -1616,7 +1616,7 @@ Background: [transactional enqueue and the external outbox](./developer-guide.md
 Inspect quarantined rows:
 
 ```sql
-SELECT job_ref, namespace_name, job_name, deduplication_key, failure_count, failure_message, created_at_utc
+SELECT job_ref, namespace_name, job_name, idempotency_key, failure_count, failure_message, created_at_utc
   FROM acta_outbox
  WHERE outbox_status_code = 90
  ORDER BY created_at_utc;
@@ -1671,7 +1671,7 @@ scoping to Quarantined makes the intent explicit and the statement idempotent.
 ### Identifier Casing In Raw SQL
 
 Names (namespace, job, schedule, signal, channel, lane, tenant, rate meter) are stored lowercase: Acta
-trims and lowercases them on input, so a name compares equal under any collation. Keys (deduplication,
+trims and lowercases them on input, so a name compares equal under any collation. Keys (idempotency,
 concurrency, lock, correlation) are stored as the caller gave them, case included, with surrounding whitespace trimmed, and compared bytewise; on
 SQL Server the compared key columns carry a binary collation for that, on PostgreSQL and SQLite equality
 is already exact. Display text (`display_name`, `alert_message`, `actor`) is stored verbatim and never compared.

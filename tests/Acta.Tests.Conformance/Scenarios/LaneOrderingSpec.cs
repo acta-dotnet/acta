@@ -153,7 +153,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var finished = await Jobs.EnqueueAsync(
             Request("lane-step", new LaneStep("orders", "a"), "orders") with
             {
-                DeduplicationKey = "a",
+                IdempotencyKey = "a",
             },
             ct
         );
@@ -164,7 +164,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, J
                 [
                     Request("lane-step", new LaneStep("orders", "a"), "orders") with
                     {
-                        DeduplicationKey = "a",
+                        IdempotencyKey = "a",
                     },
                     Request("lane-step", new LaneStep("orders", "b"), "orders"),
                     Request("lane-step", new LaneStep("orders", "c"), "orders"),

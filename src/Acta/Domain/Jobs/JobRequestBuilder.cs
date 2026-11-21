@@ -15,7 +15,7 @@ public sealed class JobRequestBuilder
     private readonly string _jobNamespace;
     private readonly string _jobName;
     private JobPayload _input;
-    private string? _deduplicationKey;
+    private string? _idempotencyKey;
     private string? _correlationKey;
     private string? _concurrencyKey;
     private string? _lane;
@@ -91,18 +91,17 @@ public sealed class JobRequestBuilder
     /// primary raw-builder API and composes
     /// <c>&lt;jobName-from-Create&gt;:&lt;businessKey&gt;</c> before assigning the final key.
     /// </summary>
-    public JobRequestBuilder Deduplicate(string businessKey) =>
-        DeduplicationKey(Acta.DeduplicationKey.ForDefinition(_jobName, businessKey));
+    public JobRequestBuilder Deduplicate(string businessKey) => IdempotencyKey(Acta.IdempotencyKey.ForDefinition(_jobName, businessKey));
 
     /// <summary>
-    /// Assign an already composed final deduplication key. This is the lower-level API for explicit
+    /// Assign an already composed final idempotency key. This is the lower-level API for explicit
     /// cross-definition or time-bucketed keys; prefer <see cref="Deduplicate"/> for the usual
     /// definition-scoped business key. The key keeps its case and may not start with <c>sys.</c>.
     /// </summary>
-    public JobRequestBuilder DeduplicationKey(string deduplicationKey)
+    public JobRequestBuilder IdempotencyKey(string idempotencyKey)
     {
-        deduplicationKey = Acta.DeduplicationKey.Canonicalize(deduplicationKey, nameof(deduplicationKey));
-        _deduplicationKey = deduplicationKey;
+        idempotencyKey = Acta.IdempotencyKey.Canonicalize(idempotencyKey, nameof(idempotencyKey));
+        _idempotencyKey = idempotencyKey;
         return this;
     }
 
@@ -178,7 +177,7 @@ public sealed class JobRequestBuilder
     /// <summary>
     /// Enqueue as a child of the given Job. The parent must exist and be non-terminal; the child
     /// inherits the parent's lineage root and (when unset) its correlation id and tenant, and
-    /// <c>DeduplicationKey</c> dedup becomes sibling-unique per parent.
+    /// <c>IdempotencyKey</c> dedup becomes sibling-unique per parent.
     /// </summary>
     public JobRequestBuilder ParentJobId(long parentJobId)
     {
@@ -250,7 +249,7 @@ public sealed class JobRequestBuilder
             JobNamespace: _jobNamespace,
             JobName: _jobName,
             Input: _input,
-            DeduplicationKey: _deduplicationKey,
+            IdempotencyKey: _idempotencyKey,
             CorrelationKey: _correlationKey,
             Priority: _priority
         )

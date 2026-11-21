@@ -46,7 +46,7 @@ public sealed partial class OpenApiContractTests
             Taken = ["\"ECHO\""],
             Refused = ["\"bad key\"", "\"sys.retention\"", Text(129)],
         },
-        new("EnqueueJobRequest", "deduplicationKey", HttpMethod.Post, "jobs", v => Enqueue("\"deduplicationKey\":{v}", v))
+        new("EnqueueJobRequest", "idempotencyKey", HttpMethod.Post, "jobs", v => Enqueue("\"idempotencyKey\":{v}", v))
         {
             Taken = ["\" Order#42 \"", Text(128)],
             Refused = ["\"sys.x\"", "\"bad key\"", Text(129)],

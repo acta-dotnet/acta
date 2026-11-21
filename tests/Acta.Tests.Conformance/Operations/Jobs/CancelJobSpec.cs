@@ -120,7 +120,7 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(2, 3)),
-                DeduplicationKey: Unique("child"),
+                IdempotencyKey: Unique("child"),
                 ParentJobId: parentId
             ),
             ct
@@ -156,7 +156,7 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
                 TestNamespace,
                 "job-wait-signal",
                 JobPayload.None,
-                DeduplicationKey: "after-restart",
+                IdempotencyKey: "after-restart",
                 ParentJobId: root.JobId
             ),
             ct

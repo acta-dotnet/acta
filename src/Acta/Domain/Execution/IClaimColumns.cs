@@ -12,7 +12,7 @@ internal interface IClaimColumns
 
     long? ExecutionNumber { get; }
 
-    string? DeduplicationKey { get; }
+    string? IdempotencyKey { get; }
 
     JobKindCode? JobKindCode { get; }
 

@@ -43,7 +43,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     /// <summary>Stages one row the relay already quarantined after five failed deliveries.</summary>
-    private protected async Task<Guid> SeedQuarantinedAsync(string dedup)
+    private protected async Task<Guid> SeedQuarantinedAsync(string idempotencyKey)
     {
         var when = DateTime.UtcNow.AddMinutes(-5);
         var row = new OutboxSeed(
@@ -52,7 +52,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
             JobName: "echo",
             InputFormatId: 0,
             Input: null,
-            DeduplicationKey: dedup,
+            IdempotencyKey: idempotencyKey,
             PriorityCode: null,
             CreatedAtUtc: when,
             NextAttemptAtUtc: when,

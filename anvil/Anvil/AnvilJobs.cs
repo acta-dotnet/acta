@@ -158,7 +158,7 @@ public static class OutboxReceiptJob
 
 public static class FanOutJob
 {
-    // Replay-safe fan-out: each EnqueueChildAsync name is that child's dedup key, so a suspend/resume
+    // Replay-safe fan-out: each EnqueueChildAsync name is that child's idempotency key, so a suspend/resume
     // replay of this loop returns the already-started children instead of inserting duplicates. The
     // start answers are rebuilt on every replay - no static or in-process state carries them.
     [Job("fan-out")]

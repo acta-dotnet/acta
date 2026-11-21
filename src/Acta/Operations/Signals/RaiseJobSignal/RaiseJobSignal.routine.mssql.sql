@@ -134,7 +134,7 @@ BEGIN
             @p_event_message,
             N'Child '
             + COALESCE(
-                (SELECT N'''' + c.deduplication_key COLLATE DATABASE_DEFAULT + N'''' FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id),
+                (SELECT N'''' + c.idempotency_key COLLATE DATABASE_DEFAULT + N'''' FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id),
                 N'job ' + CONVERT(NVARCHAR(20), @p_child_job_id)
             )
             + N' '

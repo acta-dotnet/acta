@@ -25,7 +25,7 @@ public sealed class EnqueueJobTenantSpec : ActaRuntimeTestBase<ConformanceFixtur
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
-    private JobEnqueueValues Row(string? tenantName, long? parentId = null, string? deduplicationKey = null, bool overrideParent = false)
+    private JobEnqueueValues Row(string? tenantName, long? parentId = null, string? idempotencyKey = null, bool overrideParent = false)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
@@ -33,7 +33,7 @@ public sealed class EnqueueJobTenantSpec : ActaRuntimeTestBase<ConformanceFixtur
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
-            DeduplicationKey: deduplicationKey,
+            IdempotencyKey: idempotencyKey,
             ParentJobId: parentId,
             TenantName: tenantName,
             OverrideParentTenant: overrideParent
@@ -198,7 +198,7 @@ public sealed class EnqueueJobTenantSpec : ActaRuntimeTestBase<ConformanceFixtur
     }
 
     [Fact(
-        DisplayName = "A deduplication key another tenant's job holds is refused, one row or a batch, while a side with no tenant still matches"
+        DisplayName = "An idempotency key another tenant's job holds is refused, one row or a batch, while a side with no tenant still matches"
     )]
     public async Task A_key_another_tenants_job_holds_is_refused()
     {
@@ -212,8 +212,8 @@ public sealed class EnqueueJobTenantSpec : ActaRuntimeTestBase<ConformanceFixtur
             .GetRequiredService<IJobPayloadSerializerRegistry>()
             .Resolve(JobPayloadFormat.Json.Id)
             .Serialize(new AddNumbers(1, 2));
-        EnqueueJobRequest Request(string? tenant, string dedupKey) =>
-            new(TestNamespace, "add-numbers", payload, DeduplicationKey: dedupKey, TenantName: tenant);
+        EnqueueJobRequest Request(string? tenant, string idempotencyKey) =>
+            new(TestNamespace, "add-numbers", payload, IdempotencyKey: idempotencyKey, TenantName: tenant);
 
         var held = await Jobs.EnqueueAsync(Request(tenantA, key), ct);
         Assert.Equal(EnqueueJobAction.Inserted, held.Action);

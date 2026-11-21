@@ -21,8 +21,8 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
     public async Task Failure_before_target_enqueue_reclaims_and_delivers_the_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = Unique("hb1");
-        var seed = EchoRow(dedup);
+        var idempotencyKey = Unique("hb1");
+        var seed = EchoRow(idempotencyKey);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceConnection);
@@ -31,7 +31,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         // Tick 1: claim commits, then the target enqueue fails -> infrastructure failure that releases the
         // claim and fails the tick. No target job exists and the source row is back to Pending.
         await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(), ct));
-        Assert.Equal(0, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(0, await CountLedgerJobsAsync(idempotencyKey, ct));
         var released = await Fixture.ReadOutboxRowAsync(SourceTable, seed.JobRef);
         Assert.True(released.Exists);
         Assert.Equal((byte)OutboxStatusCode.Pending, released.StatusCode);
@@ -40,15 +40,15 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         target.FailInstead = null;
         await Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(), ct);
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
-        Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(idempotencyKey, ct));
     }
 
     [Fact(DisplayName = "A finalize failure after the target commit still leaves exactly one target job and cleans the source on retry")]
     public async Task Finalize_failure_after_target_commit_dedupes_to_one_job_and_cleans_up()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = Unique("hb2");
-        var seed = EchoRow(dedup);
+        var idempotencyKey = Unique("hb2");
+        var seed = EchoRow(idempotencyKey);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var failFinalize = true;
@@ -62,7 +62,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         // Tick 1: enqueue commits (one target job), then the source delete crashes -> the tick fails and the
         // row stays Claimed.
         await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store.Source, OwnedSubmission).RunTickAsync(opts, ct));
-        Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(idempotencyKey, ct));
         Assert.Equal(1, await Fixture.CountOutboxAsync(SourceTable));
 
         // Let the 1s claim lease expire so the retry tick recovers the row.
@@ -72,7 +72,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         // finalize deletes the source row and there is still exactly one target job.
         failFinalize = false;
         await Relay(store.Source, OwnedSubmission).RunTickAsync(opts, ct);
-        Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(idempotencyKey, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }
 
@@ -80,34 +80,34 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
     public async Task Retry_after_source_deletion_does_not_recreate_the_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = Unique("hb3");
-        var seed = EchoRow(dedup);
+        var idempotencyKey = Unique("hb3");
+        var seed = EchoRow(idempotencyKey);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceConnection);
         await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
-        Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(idempotencyKey, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
 
         // A subsequent tick (the post-deletion crash-restart window) claims nothing and resurrects nothing.
         await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
-        Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(idempotencyKey, ct));
     }
 
     [Fact(DisplayName = "Duplicate source rows for one key coalesce to a single target job and all delete")]
     public async Task Duplicate_source_rows_coalesce_to_one_job_and_all_delete()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = Unique("hb4");
+        var idempotencyKey = Unique("hb4");
         for (var i = 0; i < 3; i++)
         {
-            await Fixture.SeedOutboxRowAsync(SourceTable, EchoRow(dedup));
+            await Fixture.SeedOutboxRowAsync(SourceTable, EchoRow(idempotencyKey));
         }
         Assert.Equal(3, await Fixture.CountOutboxAsync(SourceTable));
 
         await Relay(new HookedOutboxStore(SourceConnection).Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
-        Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(idempotencyKey, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }
 }

@@ -23,9 +23,9 @@ internal static class JobEnqueueRequestValidation
                 NameSyntax.ExtendedMaxLength,
                 reserveSystem: true
             ),
-            DeduplicationKey = request.DeduplicationKey is null
+            IdempotencyKey = request.IdempotencyKey is null
                 ? null
-                : DeduplicationKey.Canonicalize(request.DeduplicationKey, Field(paramName, nameof(EnqueueJobRequest.DeduplicationKey))),
+                : IdempotencyKey.Canonicalize(request.IdempotencyKey, Field(paramName, nameof(EnqueueJobRequest.IdempotencyKey))),
             CorrelationKey = request.CorrelationKey is null
                 ? null
                 : KeySyntax.Canonicalize(

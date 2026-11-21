@@ -18,7 +18,7 @@ internal static class SqlServerTableParameters
         new("job_ref", SqlDbType.UniqueIdentifier),
         new("namespace_name", SqlDbType.VarChar, 128),
         new("job_name", SqlDbType.VarChar, 128),
-        new("deduplication_key", SqlDbType.VarChar, 128),
+        new("idempotency_key", SqlDbType.VarChar, 128),
         new("correlation_key", SqlDbType.VarChar, 64),
         new("job_priority_code_override", SqlDbType.TinyInt),
         new("input_format_id", SqlDbType.TinyInt),
@@ -42,7 +42,7 @@ internal static class SqlServerTableParameters
             record.SetGuid(1, jobRefs[i]);
             record.SetString(2, row.NamespaceName);
             record.SetString(3, row.JobName);
-            SetNullableString(record, 4, row.DeduplicationKey);
+            SetNullableString(record, 4, row.IdempotencyKey);
             SetNullableString(record, 5, row.CorrelationKey);
             if (row.PriorityOverride is { } priority)
             {

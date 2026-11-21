@@ -1,10 +1,10 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="IJobs.GetIdAsync"/>: an id passes through without a round trip, and a ref or a deduplication key
+/// <see cref="IJobs.GetIdAsync"/>: an id passes through without a round trip, and a ref or an idempotency key
 /// resolves (canonicalized first); no SQL of its own. Null when no job matches.
 /// </summary>
-internal sealed class GetJobIdHandler(GetJobIdByRefHandler byRef, GetJobIdByDeduplicationKeyHandler byDeduplicationKey)
+internal sealed class GetJobIdHandler(GetJobIdByRefHandler byRef, GetJobIdByIdempotencyKeyHandler byIdempotencyKey)
 {
     public async Task<GetJobIdResponse?> HandleAsync(GetJobIdQuery query, CancellationToken ct) =>
         await ResolveAsync(query.Job, ct) is { } jobId ? new GetJobIdResponse(jobId) : null;
@@ -14,11 +14,11 @@ internal sealed class GetJobIdHandler(GetJobIdByRefHandler byRef, GetJobIdByDedu
         {
             JobLookupKind.JobId => job.JobId,
             JobLookupKind.JobRef => (await byRef.HandleAsync(new GetJobIdByRefQuery(job.JobRef!.Value), ct))?.JobId,
-            JobLookupKind.DeduplicationKey => (
-                await byDeduplicationKey.HandleAsync(
-                    new GetJobIdByDeduplicationKeyQuery(
+            JobLookupKind.IdempotencyKey => (
+                await byIdempotencyKey.HandleAsync(
+                    new GetJobIdByIdempotencyKeyQuery(
                         NameSyntax.Canonicalize(job.JobNamespace!, nameof(job.JobNamespace)),
-                        KeySyntax.Canonicalize(job.DeduplicationKey!, nameof(job.DeduplicationKey))
+                        KeySyntax.Canonicalize(job.IdempotencyKey!, nameof(job.IdempotencyKey))
                     ),
                     ct
                 )

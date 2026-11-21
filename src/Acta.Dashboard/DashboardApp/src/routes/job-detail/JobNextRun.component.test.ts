@@ -21,7 +21,7 @@ function job(overrides: Partial<JobDetail>): JobDetail {
     lineageRootJobRef: null,
     parentJobRef: null,
     tenantName: null,
-    deduplicationKey: null,
+    idempotencyKey: null,
     correlationKey: null,
     concurrencyKey: null,
     inputFormatId: 1,

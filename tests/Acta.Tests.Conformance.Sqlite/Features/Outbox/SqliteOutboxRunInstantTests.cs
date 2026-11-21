@@ -37,10 +37,10 @@ public sealed class SqliteOutboxRunInstantTests : ActaTestBase<SqliteConformance
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText =
-            $"INSERT INTO main.{table} (job_ref, namespace_name, job_name, input_format_id, deduplication_key, next_run_at_utc, "
-            + "next_attempt_at_utc) VALUES (@id, 'orders', 'send', 0, @dedup, @next, strftime('%Y-%m-%d %H:%M:%f', 'now', '-5 minutes'))";
+            $"INSERT INTO main.{table} (job_ref, namespace_name, job_name, input_format_id, idempotency_key, next_run_at_utc, "
+            + "next_attempt_at_utc) VALUES (@id, 'orders', 'send', 0, @idempotency_key, @next, strftime('%Y-%m-%d %H:%M:%f', 'now', '-5 minutes'))";
         cmd.Parameters.Add(new SqliteParameter("@id", SqliteType.Text) { Value = Guid.NewGuid().ToString() });
-        cmd.Parameters.Add(new SqliteParameter("@dedup", SqliteType.Text) { Value = Guid.NewGuid().ToString("N") });
+        cmd.Parameters.Add(new SqliteParameter("@idempotency_key", SqliteType.Text) { Value = Guid.NewGuid().ToString("N") });
         cmd.Parameters.Add(new SqliteParameter("@next", SqliteType.Text) { Value = nextRunAtUtc });
         await cmd.ExecuteNonQueryAsync(ct);
     }

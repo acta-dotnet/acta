@@ -146,10 +146,10 @@ public sealed class SqliteOutboxScriptTests
         var column = extra is { } e ? ", " + e.Column : "";
         var value = extra is null ? "" : ", @value";
         cmd.CommandText =
-            $"INSERT INTO acta_outbox (job_ref, namespace_name, job_name, input_format_id, deduplication_key{column}) "
-            + $"VALUES (@id, 'orders', 'send', 0, @dedup{value})";
+            $"INSERT INTO acta_outbox (job_ref, namespace_name, job_name, input_format_id, idempotency_key{column}) "
+            + $"VALUES (@id, 'orders', 'send', 0, @idempotency_key{value})";
         cmd.Parameters.AddWithValue("@id", jobRef);
-        cmd.Parameters.AddWithValue("@dedup", Guid.NewGuid().ToString("N"));
+        cmd.Parameters.AddWithValue("@idempotency_key", Guid.NewGuid().ToString("N"));
         if (extra is { } set)
         {
             cmd.Parameters.AddWithValue("@value", set.Value);

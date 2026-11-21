@@ -36,7 +36,7 @@ internal static class ReplyLossCases
             "verify",
             "work",
             JobPayload.Json(input, WorkJson.Default.WorkInput),
-            DeduplicationKey: input.Key
+            IdempotencyKey: input.Key
         );
         var submission = jobs.EnqueueAsync(request, ct);
         // The worker starts after the enqueue, so the completion injection can name the case's job.
@@ -111,7 +111,7 @@ internal static class ReplyLossCases
                     "verify",
                     "work",
                     JobPayload.Json(followUp, WorkJson.Default.WorkInput),
-                    DeduplicationKey: followUp.Key
+                    IdempotencyKey: followUp.Key
                 ),
                 ct
             );

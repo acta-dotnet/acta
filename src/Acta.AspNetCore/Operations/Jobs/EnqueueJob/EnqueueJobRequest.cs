@@ -6,7 +6,7 @@ namespace Acta.AspNetCore;
 /// <param name="JobNamespace">The namespace of the definition to enqueue.</param>
 /// <param name="JobName">The name of the definition to enqueue, within jobNamespace.</param>
 /// <param name="Input">The job's input as a payload envelope; omitted or null enqueues a job without input.</param>
-/// <param name="DeduplicationKey">A key that makes the enqueue repeat-safe within the namespace: a second enqueue with the same key
+/// <param name="IdempotencyKey">A key that makes the enqueue repeat-safe within the namespace: a second enqueue with the same key
 /// matches the first job and enqueues nothing.</param>
 /// <param name="CorrelationKey">A key of the caller's that ties this job to related work; kept with its case and copied onto the job's
 /// events.</param>
@@ -22,7 +22,7 @@ internal sealed record EnqueueJobRequest(
     string? JobNamespace = null,
     string? JobName = null,
     JobPayloadBody? Input = null,
-    string? DeduplicationKey = null,
+    string? IdempotencyKey = null,
     string? CorrelationKey = null,
     string? TenantName = null,
     JobPriorityCode? Priority = null,

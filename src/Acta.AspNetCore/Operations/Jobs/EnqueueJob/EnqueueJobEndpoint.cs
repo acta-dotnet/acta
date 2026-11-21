@@ -47,7 +47,7 @@ internal static class EnqueueJobEndpoint
                     JobNamespace: body.JobNamespace,
                     JobName: body.JobName,
                     Input: input,
-                    DeduplicationKey: body.DeduplicationKey,
+                    IdempotencyKey: body.IdempotencyKey,
                     CorrelationKey: body.CorrelationKey,
                     Priority: body.Priority,
                     NextRunAtUtc: body.NextRunAtUtc,
@@ -88,7 +88,7 @@ internal static class EnqueueJobEndpoint
                 }
             })
             .WithMetadata(new ActaOperationAttribute("enqueueJob", ActaPermissions.Enqueue))
-            // 201 when the enqueue inserted, 200 when a deduplication key matched an existing row.
+            // 201 when the enqueue inserted, 200 when an idempotency key matched an existing row.
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
             .WithSummary("Enqueue a job")
             // The body is read manually rather than bound, so the document only learns its shape here.
@@ -96,7 +96,7 @@ internal static class EnqueueJobEndpoint
             .WithMetadata(
                 new ResponseHeaderDoc(
                     "Location",
-                    "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its deduplication key matched."
+                    "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its idempotency key matched."
                 )
             )
             .Produces<EnqueueJobResponse>(StatusCodes.Status201Created)

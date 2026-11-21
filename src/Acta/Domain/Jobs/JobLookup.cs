@@ -2,19 +2,19 @@ namespace Acta;
 
 /// <summary>
 /// Lookup key for the read surface of <see cref="IJobs"/>. Carries the public <see cref="JobRef"/>,
-/// a <c>(JobNamespace, DeduplicationKey)</c> pair that resolves to the root <c>job</c> row (root only,
+/// a <c>(JobNamespace, IdempotencyKey)</c> pair that resolves to the root <c>job</c> row (root only,
 /// parent_job_id IS NULL), or the database-local numeric <see cref="JobId"/>. Construct via
-/// <see cref="ByRef"/>, <see cref="ByDeduplicationKey"/>, or <see cref="ById"/>; implicit conversions
+/// <see cref="ByRef"/>, <see cref="ByIdempotencyKey"/>, or <see cref="ById"/>; implicit conversions
 /// exist for <see cref="JobRef"/> and <see cref="EnqueueJobResponse"/>.
 /// </summary>
 public readonly record struct JobLookup
 {
-    private JobLookup(JobLookupKind kind, long jobId, string? jobNamespace, string? deduplicationKey, JobRef jobRef)
+    private JobLookup(JobLookupKind kind, long jobId, string? jobNamespace, string? idempotencyKey, JobRef jobRef)
     {
         Kind = kind;
         JobId = jobId;
         JobNamespace = jobNamespace;
-        DeduplicationKey = deduplicationKey;
+        IdempotencyKey = idempotencyKey;
         JobRef = jobRef;
     }
 
@@ -27,11 +27,11 @@ public readonly record struct JobLookup
     /// <summary>Database-local numeric job identity; populated when <see cref="Kind"/> is <see cref="JobLookupKind.JobId"/>.</summary>
     public long JobId { get; }
 
-    /// <summary>Lowercase kebab-case namespace; populated when <see cref="Kind"/> is <see cref="JobLookupKind.DeduplicationKey"/>.</summary>
+    /// <summary>Lowercase kebab-case namespace; populated when <see cref="Kind"/> is <see cref="JobLookupKind.IdempotencyKey"/>.</summary>
     public string? JobNamespace { get; }
 
-    /// <summary>Acta-normalized deduplication key; populated when <see cref="Kind"/> is <see cref="JobLookupKind.DeduplicationKey"/>.</summary>
-    public string? DeduplicationKey { get; }
+    /// <summary>Acta-normalized idempotency key; populated when <see cref="Kind"/> is <see cref="JobLookupKind.IdempotencyKey"/>.</summary>
+    public string? IdempotencyKey { get; }
 
     /// <summary>
     /// Build a lookup by public <paramref name="jobRef"/>; the normal identity for dashboard and
@@ -41,15 +41,15 @@ public readonly record struct JobLookup
     public static JobLookup ByRef(JobRef jobRef) => new(JobLookupKind.JobRef, 0, null, null, jobRef);
 
     /// <summary>
-    /// Build a lookup by caller-supplied <paramref name="deduplicationKey"/> within
+    /// Build a lookup by caller-supplied <paramref name="idempotencyKey"/> within
     /// <paramref name="jobNamespace"/>. Matches the root Job row only (parent_job_id IS NULL).
     /// </summary>
-    public static JobLookup ByDeduplicationKey(string jobNamespace, string deduplicationKey)
+    public static JobLookup ByIdempotencyKey(string jobNamespace, string idempotencyKey)
     {
         jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
-        deduplicationKey = KeySyntax.Canonicalize(deduplicationKey, nameof(deduplicationKey));
+        idempotencyKey = KeySyntax.Canonicalize(idempotencyKey, nameof(idempotencyKey));
 
-        return new JobLookup(JobLookupKind.DeduplicationKey, 0, jobNamespace, deduplicationKey, default);
+        return new JobLookup(JobLookupKind.IdempotencyKey, 0, jobNamespace, idempotencyKey, default);
     }
 
     /// <summary>

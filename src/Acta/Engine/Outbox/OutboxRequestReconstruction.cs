@@ -52,7 +52,7 @@ internal static class OutboxRequestReconstruction
             JobNamespace: row.JobNamespace,
             JobName: row.JobName,
             Input: input,
-            DeduplicationKey: row.DeduplicationKey,
+            IdempotencyKey: row.IdempotencyKey,
             CorrelationKey: row.CorrelationKey,
             ConcurrencyKey: row.ConcurrencyKey,
             Priority: row.PriorityCode is { } p ? (JobPriorityCode)p : null,

@@ -113,7 +113,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 - No wake-up is published for an enqueue in a transaction, so a worker finds the job on its next poll after the commit.
 - There is no `CallAsync` in a transaction and no handle: the job is invisible until the commit, so nothing could wait for it.
 - The record's table has to live in the database Acta uses. Work for a separate database is handed over through an outbox.
-- A request that may arrive twice still needs a deduplication key on the enqueue, as in [keep a repeated request from creating a second job](/learn/010-deduplication-key.md).
+- A request that may arrive twice still needs an idempotency key on the enqueue, as in [keep a repeated request from creating a second job](/learn/010-idempotency-key.md).
 - The name in `[Job("fulfil-order")]` and the namespace in `Run<EnqueueInTransactionJobs>("enqueue-in-transaction")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
 - `FulfilOrder` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `fulfil-order-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
@@ -131,7 +131,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to find a job by its deduplication key](/learn/014-read-by-deduplication-key.md)
+- [How to find a job by its idempotency key](/learn/014-read-by-idempotency-key.md)
 
 ## More
 

@@ -265,7 +265,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
             writer.WriteString("job_ref", jobRefs[index].ToString());
             writer.WriteString("namespace_name", row.NamespaceName);
             writer.WriteString("job_name", row.JobName);
-            WriteStringOrNull(writer, "deduplication_key", row.DeduplicationKey);
+            WriteStringOrNull(writer, "idempotency_key", row.IdempotencyKey);
             WriteStringOrNull(writer, "correlation_key", row.CorrelationKey);
             WriteNumberOrNull(writer, "job_priority_code_override", row.PriorityOverride is { } priority ? (short)priority : (short?)null);
             writer.WriteNumber("input_format_id", row.Input.Format.Id);
@@ -316,7 +316,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
         AddText(command, "@p_job_ref", jobRef.ToString());
         AddText(command, "@p_namespace_name", row.NamespaceName);
         AddText(command, "@p_job_name", row.JobName);
-        AddNullableText(command, "@p_deduplication_key", row.DeduplicationKey);
+        AddNullableText(command, "@p_idempotency_key", row.IdempotencyKey);
         AddNullableText(command, "@p_correlation_key", row.CorrelationKey);
         AddNullableInt(command, "@p_job_priority_code_override", row.PriorityOverride is { } priority ? (short)priority : null);
         AddInt(command, "@p_input_format_id", row.Input.Format.Id);

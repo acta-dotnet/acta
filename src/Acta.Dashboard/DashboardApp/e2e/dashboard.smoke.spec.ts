@@ -30,7 +30,7 @@ const job = {
   jobRef,
   lineageRootJobRef: null,
   parentJobRef: null,
-  deduplicationKey: 'invoice-42',
+  idempotencyKey: 'invoice-42',
   correlationKey: 'order-42',
   jobNamespace: 'billing',
   jobName: 'send-invoice',
@@ -432,7 +432,7 @@ async function mockDashboard(
       options.onPublish?.(request.postDataJSON());
       return json({ action: 'applied', version: 3, retimedSchedules: ['billing/send-invoice/nightly'], overdueSchedules: [], reason: null });
     }
-    if (path === 'jobs/by-deduplication-key') return json(job);
+    if (path === 'jobs/by-idempotency-key') return json(job);
     // The namespace's deployments over the range the performance panel asks for, newest first: the same version deployed
     // again, and before it a deploy that changed the version.
     if (path === 'events' && url.searchParams.get('eventCode') === 'namespace.deployed' && url.searchParams.has('createdFromUtc')) {
@@ -729,7 +729,7 @@ test('a reloaded job name filter on a one-namespace host never lists every job',
   await expect(page.getByText('1 filter active')).toBeVisible();
   expect(reads).not.toContain(null);
 
-  const lookup = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith('/api/v1/jobs/by-deduplication-key'));
+  const lookup = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith('/api/v1/jobs/by-idempotency-key'));
   await page.getByLabel('Jump to').fill('invoice-42');
   await page.getByLabel('Jump to').press('Enter');
   expect(new URL((await lookup).url()).searchParams.get('jobNamespace')).toBe('billing');
@@ -746,7 +746,7 @@ test('a reloaded job name filter with several namespaces and no scope asks for o
 
   await page.getByLabel('Jump to').fill('invoice-42');
   await page.getByLabel('Jump to').press('Enter');
-  await expect(page.getByText('Select a namespace scope to look up a deduplication key.')).toBeVisible();
+  await expect(page.getByText('Select a namespace scope to look up an idempotency key.')).toBeVisible();
 });
 
 test('on a host with one namespace, the schedules job name filter needs no scope', async ({ page }) => {
@@ -1339,9 +1339,9 @@ test('a stacked list row gives every cell the whole width of its card on a phone
 
 // A first look across namespaces: the system jobs, a permanent job many firings in, a tenant's job, and a failed one.
 const firstLookJobs = [
-  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b1', jobNamespace: 'quickstart', jobName: 'sys.retention', status: 'idle', executionNumber: 28, failureCount: 0, deduplicationKey: null },
-  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b2', jobNamespace: 'quickstart', jobName: 'sys.outbox', status: 'executing', executionNumber: 1412, failureCount: 0, deduplicationKey: null },
-  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b3', jobNamespace: 'quickstart', jobName: 'reports.nightly-revenue-summary', status: 'idle', executionNumber: 28, failureCount: 0, deduplicationKey: null },
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b1', jobNamespace: 'quickstart', jobName: 'sys.retention', status: 'idle', executionNumber: 28, failureCount: 0, idempotencyKey: null },
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b2', jobNamespace: 'quickstart', jobName: 'sys.outbox', status: 'executing', executionNumber: 1412, failureCount: 0, idempotencyKey: null },
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b3', jobNamespace: 'quickstart', jobName: 'reports.nightly-revenue-summary', status: 'idle', executionNumber: 28, failureCount: 0, idempotencyKey: null },
   { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b4', jobNamespace: 'quickstart', jobName: 'send-invoice', tenantName: 'acme-industries', status: 'ready', nextRunAtUtc: '2026-07-14T08:05:00Z', executionNumber: 3, failureCount: 2 },
   { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b5', jobNamespace: 'quickstart', jobName: 'send-invoice', tenantName: 'globex', executionNumber: 15, failureCount: 15 }
 ];

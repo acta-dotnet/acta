@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Conformance for the jobs CLI runner: each verb maps to the matching IJobs call, exit codes
-/// follow the applied/rejected/not-found bands, a bare integer target is a deduplication key, and
+/// follow the applied/rejected/not-found bands, a bare integer target is an idempotency key, and
 /// debug claims exactly the targeted job and runs it in-process through the normal pipeline.
 /// </summary>
 [ConformanceSpec(
@@ -66,8 +66,8 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         Assert.Equal(2, await runner.RunAsync(Parse($"info id:{long.MaxValue}"), ct));
     }
 
-    [Fact(DisplayName = "A bare integer target is a deduplication key and a control refuses an internal id")]
-    public async Task A_bare_integer_is_a_deduplication_key_and_a_control_refuses_an_id()
+    [Fact(DisplayName = "A bare integer target is an idempotency key and a control refuses an internal id")]
+    public async Task A_bare_integer_is_a_idempotency_key_and_a_control_refuses_an_id()
     {
         var ct = TestContext.Current.CancellationToken;
         var byId = await EnqueueJobAsync(Unique("cli-integer"), ct);
@@ -108,8 +108,8 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         Assert.Contains("status: ready", text);
     }
 
-    [Fact(DisplayName = "A verb resolves a job by deduplication key with an explicit namespace")]
-    public async Task DeduplicationKey_lookup_resolves_with_explicit_ns()
+    [Fact(DisplayName = "A verb resolves a job by idempotency key with an explicit namespace")]
+    public async Task IdempotencyKey_lookup_resolves_with_explicit_ns()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = Unique("cli-key");
@@ -211,7 +211,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Job
             ct
         );
 
-    private async Task<EnqueueJobResponse> EnqueueJobAsync(string deduplicationKey, CancellationToken ct)
+    private async Task<EnqueueJobResponse> EnqueueJobAsync(string idempotencyKey, CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
@@ -221,7 +221,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Job
                 JobNamespace: TestNamespace,
                 JobName: "add-numbers",
                 Input: payload,
-                DeduplicationKey: deduplicationKey,
+                IdempotencyKey: idempotencyKey,
                 CorrelationKey: null,
                 Priority: null
             ),

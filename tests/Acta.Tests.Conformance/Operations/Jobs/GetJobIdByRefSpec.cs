@@ -26,9 +26,9 @@ public sealed class GetJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Job_ref_round_trips_and_unknown_ref_returns_null()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = Unique("ck-resolve-ref");
+        var idempotencyKey = Unique("ck-resolve-ref");
 
-        var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey(deduplicationKey), ct);
+        var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.IdempotencyKey(idempotencyKey), ct);
         Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
         Assert.NotEqual(Guid.Empty, outcome.JobRef.Value);
 
@@ -42,7 +42,7 @@ public sealed class GetJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(outcome.JobId, snapshot.JobId);
         Assert.Equal(outcome.JobRef, snapshot.JobRef);
 
-        var deduplicated = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey(deduplicationKey), ct);
+        var deduplicated = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.IdempotencyKey(idempotencyKey), ct);
         Assert.Equal(EnqueueJobAction.Deduplicated, deduplicated.Action);
         Assert.Equal(outcome.JobRef, deduplicated.JobRef);
 

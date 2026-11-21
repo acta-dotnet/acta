@@ -213,7 +213,7 @@ BEGIN
         IF
             EXISTS (
                 SELECT 1 FROM @p_batch
-                WHERE deduplication_key IS NOT NULL
+                WHERE idempotency_key IS NOT NULL
             )
             BEGIN
                 -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
@@ -225,12 +225,12 @@ BEGIN
                         N'{{schema}}.dedup:',
                         CASE WHEN b.parent_job_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_job_id) END,
                         N':',
-                        b.deduplication_key
+                        b.idempotency_key
                     )
                 FROM @p_batch b
                 LEFT JOIN @resolved r ON r.ordinal = b.ordinal
                 WHERE
-                    b.deduplication_key IS NOT NULL
+                    b.idempotency_key IS NOT NULL
                     AND (b.parent_job_id IS NOT NULL OR r.ns_id IS NOT NULL);
 
                 DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks), @dedup_lock_result INT;
@@ -239,7 +239,7 @@ BEGIN
                         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
                         EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
                         IF @dedup_lock_result < 0
-                            THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+                            THROW 51205, 'ACTA:DEDUP_LOCK:The idempotency key lock was not granted (deadlock victim or cancelled).', 1;
                         SET @dedup_lock = (SELECT MIN(name) FROM @dedup_locks WHERE name > @dedup_lock);
                     END;
 
@@ -252,14 +252,14 @@ BEGIN
                     j.job_id,
                     j.job_ref
                 FROM @p_batch b
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_job_id, deduplication_key)))
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_idempotency_key_child (parent_job_id, idempotency_key)))
                     ON
                         j.parent_job_id = b.parent_job_id
-                        AND j.deduplication_key = b.deduplication_key
+                        AND j.idempotency_key = b.idempotency_key
                         AND j.parent_job_id IS NOT NULL
-                        AND j.deduplication_key IS NOT NULL
+                        AND j.idempotency_key IS NOT NULL
                 WHERE
-                    b.deduplication_key IS NOT NULL
+                    b.idempotency_key IS NOT NULL
                     AND b.parent_job_id IS NOT NULL;
 
                 INSERT INTO @existing (ordinal, job_id, job_ref)
@@ -269,14 +269,14 @@ BEGIN
                     j.job_ref
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_idempotency_key_root (namespace_id, idempotency_key)))
                     ON
                         j.namespace_id = r.ns_id
-                        AND j.deduplication_key = b.deduplication_key
+                        AND j.idempotency_key = b.idempotency_key
                         AND j.parent_job_id IS NULL
-                        AND j.deduplication_key IS NOT NULL
+                        AND j.idempotency_key IS NOT NULL
                 WHERE
-                    b.deduplication_key IS NOT NULL
+                    b.idempotency_key IS NOT NULL
                     AND b.parent_job_id IS NULL;
 
                 -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it
@@ -289,7 +289,7 @@ BEGIN
                         INNER JOIN {{schema}}.jobs j ON j.job_id = x.job_id
                         WHERE j.parent_job_id IS NULL AND j.tenant_id <> r.tenant_id
                     )
-                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.', 1;
+                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name an idempotency key another tenant''s job holds.', 1;
             END;
 
         DECLARE @parents TABLE (
@@ -430,7 +430,7 @@ BEGIN
             BEGIN
                 INSERT INTO {{schema}}.jobs (
                     job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
+                    idempotency_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
                     concurrency_key, event_recording_code,
@@ -442,7 +442,7 @@ BEGIN
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,
-                    b.deduplication_key,
+                    b.idempotency_key,
                     COALESCE(b.correlation_key, p.correlation_key),
                     r.ns_id,
                     r.def_id,
@@ -486,7 +486,7 @@ BEGIN
             BEGIN
                 INSERT INTO {{schema}}.jobs (
                     job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
+                    idempotency_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
                     concurrency_key, event_recording_code,
@@ -498,7 +498,7 @@ BEGIN
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,
-                    b.deduplication_key,
+                    b.idempotency_key,
                     COALESCE(b.correlation_key, p.correlation_key),
                     r.ns_id,
                     r.def_id,

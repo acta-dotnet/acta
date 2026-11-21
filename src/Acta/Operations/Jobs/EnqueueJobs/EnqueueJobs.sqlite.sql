@@ -106,7 +106,7 @@ WHERE EXISTS (
 -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it is taken.
 SELECT
     ACTA_ERROR(
-        'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key'
+        'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name an idempotency key'
         || ' another tenant''s job holds.'
     )
 WHERE EXISTS (
@@ -116,7 +116,7 @@ WHERE EXISTS (
     JOIN {{schema}}.jobs j
         ON
             j.namespace_id = ns.namespace_id
-            AND j.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
+            AND j.idempotency_key = JSON_EXTRACT(r.value, '$.idempotency_key')
             AND j.parent_job_id IS NULL
     WHERE
         JSON_EXTRACT(r.value, '$.parent_job_id') IS NULL
@@ -167,9 +167,9 @@ WHERE EXISTS (
 
 -- One ordered insert for roots and children alike, so job-id order equals the caller's batch order,
 -- which is the order a lane runs in. The untargeted DO NOTHING skips a row that repeats a
--- deduplication key under either unique index.
+-- idempotency key under either unique index.
 INSERT INTO {{schema}}.jobs (
-    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
+    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, idempotency_key, correlation_key,
     namespace_id, definition_id, tenant_id,
     input_format_id, input, concurrency_key, event_recording_code
 )
@@ -178,7 +178,7 @@ SELECT
     JSON_EXTRACT(r.value, '$.job_ref'),
     CASE WHEN pj.job_id IS NOT NULL THEN COALESCE(pj.lineage_root_job_id, pj.job_id) END,
     pj.job_id,
-    JSON_EXTRACT(r.value, '$.deduplication_key'),
+    JSON_EXTRACT(r.value, '$.idempotency_key'),
     COALESCE(JSON_EXTRACT(r.value, '$.correlation_key'), pj.correlation_key),
     ns.namespace_id,
     jd.definition_id,
@@ -208,8 +208,8 @@ WHERE
     OR pj.job_id IS NOT NULL
 ORDER BY JSON_EXTRACT(r.value, '$.ordinal')
 -- Only a deduplication hit is absorbed; any other conflict, a taken job_ref included, raises.
-ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL DO NOTHING
-ON CONFLICT (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL DO NOTHING;
+ON CONFLICT (namespace_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL DO NOTHING
+ON CONFLICT (parent_job_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL DO NOTHING;
 
 -- Until the state insert, which comes last, the jobs this call inserted are the only ones under their refs with no state
 -- row. A ref the caller supplied may name a job that already exists, and the tags and the answers leave that job as it is.
@@ -246,20 +246,20 @@ LEFT JOIN {{schema}}.jobs ins
         )
 LEFT JOIN {{schema}}.jobs ex
     ON
-        JSON_EXTRACT(r.value, '$.deduplication_key') IS NOT NULL
+        JSON_EXTRACT(r.value, '$.idempotency_key') IS NOT NULL
         AND JSON_EXTRACT(r.value, '$.parent_job_id') IS NULL
         AND ex.parent_job_id IS NULL
-        AND ex.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
+        AND ex.idempotency_key = JSON_EXTRACT(r.value, '$.idempotency_key')
         AND ex.namespace_id = (
             SELECT ns.namespace_id FROM {{schema}}.namespaces ns
             WHERE ns.namespace_name = JSON_EXTRACT(r.value, '$.namespace_name')
         )
 LEFT JOIN {{schema}}.jobs exc
     ON
-        JSON_EXTRACT(r.value, '$.deduplication_key') IS NOT NULL
+        JSON_EXTRACT(r.value, '$.idempotency_key') IS NOT NULL
         AND JSON_EXTRACT(r.value, '$.parent_job_id') IS NOT NULL
         AND exc.parent_job_id = JSON_EXTRACT(r.value, '$.parent_job_id')
-        AND exc.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
+        AND exc.idempotency_key = JSON_EXTRACT(r.value, '$.idempotency_key')
 ORDER BY JSON_EXTRACT(r.value, '$.ordinal');
 
 -- A laned row enters Ready only as the first inserted row of its lane with no unfinished member

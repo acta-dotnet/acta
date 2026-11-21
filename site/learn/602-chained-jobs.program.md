@@ -12,7 +12,7 @@ The how-to is [/learn/602-chained-jobs.md](/learn/602-chained-jobs.md). This fil
 
 ```csharp
 // How to chain jobs into a pipeline
-// Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts
+// Each stage is a job of its own that enqueues the next one, with an idempotency key so a replayed handoff starts
 // no second pipeline.
 using Acta;
 using Acta.Learn.ChainedJobs;
@@ -45,7 +45,7 @@ namespace Acta.Learn.ChainedJobs
     // re-executed.
     //
     // What a crash CAN repeat is the handoff itself. The enqueue happens before the stage completes,
-    // so a replay enqueues the next stage again. Each handoff therefore carries a deduplication key
+    // so a replay enqueues the next stage again. Each handoff therefore carries an idempotency key
     // derived from the document, which makes the replay return the existing job rather than a second
     // pipeline running beside the first.
     public sealed record IngestDocument(string FileName);
@@ -63,7 +63,7 @@ namespace Acta.Learn.ChainedJobs
             // learn: 1. Enqueue the next stage as the last act of this one
             // The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the
             // document, makes the repeat answer the existing job.
-            await jobs.EnqueueAsync(new RenderPdf(input.FileName), o => o.DeduplicationKey($"render-{input.FileName}"), ct);
+            await jobs.EnqueueAsync(new RenderPdf(input.FileName), o => o.IdempotencyKey($"render-{input.FileName}"), ct);
             // learn: end
         }
     }
@@ -76,7 +76,7 @@ namespace Acta.Learn.ChainedJobs
             Console.WriteLine($"rendered {input.FileName} -> PDF");
             // learn: 2. Let the next stage hand on the same way
             // Every stage enqueues the one after it under a key of its own; the last stage enqueues nothing.
-            await jobs.EnqueueAsync(new ArchiveFile(input.FileName), o => o.DeduplicationKey($"archive-{input.FileName}"), ct);
+            await jobs.EnqueueAsync(new ArchiveFile(input.FileName), o => o.IdempotencyKey($"archive-{input.FileName}"), ct);
             // learn: end
         }
     }

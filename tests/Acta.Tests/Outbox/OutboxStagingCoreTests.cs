@@ -18,7 +18,7 @@ public sealed class OutboxStagingCoreTests
             "orders",
             "send-receipt",
             JobPayload.Bytes([5, 6, 7]),
-            DeduplicationKey: "order-9",
+            IdempotencyKey: "order-9",
             CorrelationKey: "corr-9",
             ConcurrencyKey: "excl-9",
             Priority: JobPriorityCode.High,
@@ -38,7 +38,7 @@ public sealed class OutboxStagingCoreTests
             row.JobNamespace,
             row.JobName,
             input,
-            row.DeduplicationKey,
+            row.IdempotencyKey,
             row.CorrelationKey,
             row.ConcurrencyKey,
             row.PriorityCode is { } priority ? (JobPriorityCode)priority : null,
@@ -62,7 +62,7 @@ public sealed class OutboxStagingCoreTests
         Assert.Equal(request.JobName, rebuilt.JobName);
         Assert.Equal(request.Input.Format.Id, rebuilt.Input.Format.Id);
         Assert.Equal(request.Input.Data.ToArray(), rebuilt.Input.Data.ToArray());
-        Assert.Equal(request.DeduplicationKey, rebuilt.DeduplicationKey);
+        Assert.Equal(request.IdempotencyKey, rebuilt.IdempotencyKey);
         Assert.Equal(request.CorrelationKey, rebuilt.CorrelationKey);
         Assert.Equal(request.ConcurrencyKey, rebuilt.ConcurrencyKey);
         Assert.Equal(request.Priority, rebuilt.Priority);
@@ -93,7 +93,7 @@ public sealed class OutboxStagingCoreTests
     [MemberData(nameof(Payloads))]
     public void Payload_kinds_round_trip(string _, JobPayload payload)
     {
-        var request = new EnqueueJobRequest("orders", "send-receipt", payload, DeduplicationKey: "order-1");
+        var request = new EnqueueJobRequest("orders", "send-receipt", payload, IdempotencyKey: "order-1");
 
         var rebuilt = Reconstruct(OutboxStaging.Stage(request));
 
@@ -102,21 +102,18 @@ public sealed class OutboxStagingCoreTests
     }
 
     [Fact]
-    public void Stage_takes_a_record_without_a_deduplication_key_and_mints_its_job_ref()
+    public void Stage_takes_a_record_without_a_idempotency_key_and_mints_its_job_ref()
     {
-        var row = OutboxStaging.Stage(new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: null));
+        var row = OutboxStaging.Stage(new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, IdempotencyKey: null));
 
-        Assert.Null(row.DeduplicationKey);
+        Assert.Null(row.IdempotencyKey);
         Assert.Equal(7, row.JobRef.Version);
     }
 
     [Fact]
     public void Stage_rejects_a_parent_id()
     {
-        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.Json("hi"), DeduplicationKey: "k") with
-        {
-            ParentJobId = 42,
-        };
+        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.Json("hi"), IdempotencyKey: "k") with { ParentJobId = 42 };
 
         var ex = Assert.Throws<ArgumentException>(() => OutboxStaging.Stage(request));
         Assert.Contains("ParentJobId", ex.Message, StringComparison.Ordinal);
@@ -125,7 +122,7 @@ public sealed class OutboxStagingCoreTests
     [Fact]
     public void Stage_rejects_next_run_and_delay_together()
     {
-        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: "k")
+        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, IdempotencyKey: "k")
         {
             NextRunAtUtc = DateTime.UtcNow,
             DelaySeconds = 30,
@@ -183,7 +180,7 @@ public sealed class OutboxStagingCoreTests
         var local = new DateTime(2035, 6, 1, 12, 0, 0, DateTimeKind.Local);
 
         var row = OutboxStaging.Stage(
-            new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: "k", NextRunAtUtc: local)
+            new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, IdempotencyKey: "k", NextRunAtUtc: local)
         );
 
         Assert.NotNull(row.NextRunAtUtc);
@@ -196,14 +193,14 @@ public sealed class OutboxStagingCoreTests
     {
         Assert.Null(OutboxMetaWriter.Write(null));
         Assert.Null(OutboxMetaWriter.Write([]));
-        Assert.Null(OutboxStaging.Stage(new EnqueueJobRequest("orders", "j", JobPayload.None, DeduplicationKey: "k")).Meta);
+        Assert.Null(OutboxStaging.Stage(new EnqueueJobRequest("orders", "j", JobPayload.None, IdempotencyKey: "k")).Meta);
     }
 
     // Extension-level guards on the provider staging primitive, proven on an in-memory SQLite transaction
     // (no server): an uppercase table override is rejected before any I/O by the same lowercase identifier
     // validation the relay source uses, and a completed transaction is rejected by the structural transaction
     // validation that mirrors the transactional IJobs overloads.
-    private static EnqueueJobRequest Valid() => new("orders", "send", JobPayload.Json("hi"), DeduplicationKey: "k");
+    private static EnqueueJobRequest Valid() => new("orders", "send", JobPayload.Json("hi"), IdempotencyKey: "k");
 
     [Fact]
     public async Task An_uppercase_table_override_is_rejected()

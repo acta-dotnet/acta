@@ -45,7 +45,7 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
     // A due producer row targeting the registered echo route in this test's namespace, staged in the past
     // so the claim predicate is satisfied without waiting.
     private protected OutboxSeed EchoRow(
-        string? dedup,
+        string? idempotencyKey,
         string? jobName = null,
         string? jobNamespace = null,
         byte status = 10,
@@ -62,7 +62,7 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
             JobName: jobName ?? "echo",
             InputFormatId: inputFormatId,
             Input: data ?? EchoJson(),
-            DeduplicationKey: dedup,
+            IdempotencyKey: idempotencyKey,
             PriorityCode: null,
             CreatedAtUtc: when,
             NextAttemptAtUtc: when,
@@ -79,13 +79,13 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
             .Serialize(new TestJobs.Echo("relayed"))
             .Data.ToArray();
 
-    // Ledger jobs in this test's namespace carrying the given deduplication key: the target side of the
-    // (namespace, deduplication key) exactly-once invariant.
-    private protected async Task<int> CountLedgerJobsAsync(string dedup, CancellationToken ct) =>
-        await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
+    // Ledger jobs in this test's namespace carrying the given idempotency key: the target side of the
+    // (namespace, idempotency key) exactly-once invariant.
+    private protected async Task<int> CountLedgerJobsAsync(string idempotencyKey, CancellationToken ct) =>
+        await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId && j.IdempotencyKey == idempotencyKey).CountAsync(ct);
 
-    private protected async Task<int> CountLedgerJobsAsync(int namespaceId, string dedup, CancellationToken ct) =>
-        await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
+    private protected async Task<int> CountLedgerJobsAsync(int namespaceId, string idempotencyKey, CancellationToken ct) =>
+        await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.IdempotencyKey == idempotencyKey).CountAsync(ct);
 
     // A ledger job stands in for the sys.outbox slot (these specs drive the relay composition directly);
     // the jobs_state row backs the evidence event join.

@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to allow one job per hour or per day · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to allow one job per hour or per day with Acta, durable execution for .NET. A deduplication key built from a time bucket lets one job in per bucket: DeduplicationKey.PerTimeBucket here, with PerHour and PerDay as its fixed sizes." />
+  <meta name="description" content="How to allow one job per hour or per day with Acta, durable execution for .NET. An idempotency key built from a time bucket lets one job in per bucket: IdempotencyKey.PerTimeBucket here, with PerHour and PerDay as its fixed sizes." />
   <link rel="canonical" href="https://useacta.net/learn/028-deduplication-time-buckets" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to allow one job per hour or per day · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to allow one job per hour or per day with Acta, durable execution for .NET. A deduplication key built from a time bucket lets one job in per bucket: DeduplicationKey.PerTimeBucket here, with PerHour and PerDay as its fixed sizes." />
+  <meta property="og:description" content="How to allow one job per hour or per day with Acta, durable execution for .NET. An idempotency key built from a time bucket lets one job in per bucket: IdempotencyKey.PerTimeBucket here, with PerHour and PerDay as its fixed sizes." />
   <meta property="og:url" content="https://useacta.net/learn/028-deduplication-time-buckets" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to allow one job per hour or per day","description":"How to allow one job per hour or per day with Acta, durable execution for .NET. A deduplication key built from a time bucket lets one job in per bucket: DeduplicationKey.PerTimeBucket here, with PerHour and PerDay as its fixed sizes.","url":"https://useacta.net/learn/028-deduplication-time-buckets","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to allow one job per hour or per day","description":"How to allow one job per hour or per day with Acta, durable execution for .NET. An idempotency key built from a time bucket lets one job in per bucket: IdempotencyKey.PerTimeBucket here, with PerHour and PerDay as its fixed sizes.","url":"https://useacta.net/learn/028-deduplication-time-buckets","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Start jobs","item":"https://useacta.net/learn#s-start"},{"@type":"ListItem","position":3,"name":"How to allow one job per hour or per day","item":"https://useacta.net/learn/028-deduplication-time-buckets"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
       <h1>How to allow one job per hour or per day</h1>
-      <p class="lede">A deduplication key built from a time bucket lets one job in per bucket: <code>DeduplicationKey.PerTimeBucket</code> here, with <code>PerHour</code> and <code>PerDay</code> as its fixed sizes.</p>
+      <p class="lede">An idempotency key built from a time bucket lets one job in per bucket: <code>IdempotencyKey.PerTimeBucket</code> here, with <code>PerHour</code> and <code>PerDay</code> as its fixed sizes.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -81,21 +81,21 @@
 <figure class="listing"><figcaption><span class="file">deduplication-time-buckets.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// --- Within the same bucket: two enqueues collapse to one job ---</span>
 Console.WriteLine(<span class="s">&quot;Enqueueing twice in the same 30-minute bucket...&quot;</span>);
 
-<span class="hl"><span class="k">var</span> keyA1 = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyA1));</span>
+<span class="hl"><span class="k">var</span> keyA1 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
+<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA1));</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 1: job {first.JobRef} action={first.Action}&quot;</span>);
 
-<span class="k">var</span> keyA2 = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);
-<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyA2));
+<span class="k">var</span> keyA2 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);
+<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA2));
 Console.WriteLine(<span class="s">$&quot;  enqueue 2: job {second.JobRef} action={second.Action}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Enqueue again inside the bucket and get the first job back</h2>
-<figure class="listing"><figcaption><span class="file">deduplication-time-buckets.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> keyA1 = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);
-<span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyA1));
+<figure class="listing"><figcaption><span class="file">deduplication-time-buckets.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> keyA1 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);
+<span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA1));
 Console.WriteLine(<span class="s">$&quot;  enqueue 1: job {first.JobRef} action={first.Action}&quot;</span>);
 
-<span class="hl"><span class="k">var</span> keyA2 = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyA2));</span>
+<span class="hl"><span class="k">var</span> keyA2 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA2));</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 2: job {second.JobRef} action={second.Action}&quot;</span>);
 
 Console.WriteLine(
@@ -106,8 +106,8 @@ Console.WriteLine(
 <figure class="listing"><figcaption><span class="file">deduplication-time-buckets.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// --- Across buckets: a third enqueue in a new bucket inserts a fresh job ---</span>
 Console.WriteLine(<span class="s">&quot;Enqueueing in the next bucket...&quot;</span>);
 
-<span class="hl"><span class="k">var</span> keyB = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantB, bucketSize);</span>
-<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyB));</span>
+<span class="hl"><span class="k">var</span> keyB = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantB, bucketSize);</span>
+<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyB));</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 3: job {third.JobRef} action={third.Action}&quot;</span>);
 
 Console.WriteLine(third.Action == EnqueueJobAction.Inserted ? <span class="s">&quot;Inserted - new bucket, new job.&quot;</span> : <span class="s">&quot;ERROR: expected Inserted&quot;</span>);
@@ -134,7 +134,7 @@ Two distinct jobs across buckets - done.</code></pre></figure>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/028-deduplication-time-buckets"><code>learn/000-fundamentals/028-deduplication-time-buckets</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">deduplication-time-buckets.cs</span><span class="file-size">78 lines</span></summary><figure class="listing"><figcaption><span class="file">deduplication-time-buckets.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to allow one job per hour or per day</span>
-<span class="c">// A deduplication key built from a time bucket lets one job in per bucket: `DeduplicationKey.PerTimeBucket` here,</span>
+<span class="c">// An idempotency key built from a time bucket lets one job in per bucket: `IdempotencyKey.PerTimeBucket` here,</span>
 <span class="c">// with `PerHour` and `PerDay` as its fixed sizes.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.DeduplicationTimeBuckets;
@@ -168,15 +168,15 @@ Console.WriteLine(<span class="s">&quot;Enqueueing twice in the same 30-minute b
 <span class="c">// The key carries the bucket its instant falls in, so every enqueue inside the same half hour composes the same key.</span>
 <span class="c">// `bucketSize` is thirty minutes and `instantA` a fixed instant, so the run repeats. `PerHour(job, businessKey)` and</span>
 <span class="c">// `PerDay(job, businessKey)` are the fixed sizes, and every bucket is counted in UTC.</span>
-<span class="hl"><span class="k">var</span> keyA1 = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyA1));</span>
+<span class="hl"><span class="k">var</span> keyA1 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
+<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA1));</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 1: job {first.JobRef} action={first.Action}&quot;</span>);
 
 <span class="c">// learn: 2. Enqueue again inside the bucket and get the first job back</span>
-<span class="hl"><span class="k">var</span> keyA2 = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyA2));</span>
+<span class="hl"><span class="k">var</span> keyA2 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA2));</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 2: job {second.JobRef} action={second.Action}&quot;</span>);
@@ -189,8 +189,8 @@ Console.WriteLine(
 Console.WriteLine(<span class="s">&quot;Enqueueing in the next bucket...&quot;</span>);
 
 <span class="c">// learn: 3. Enqueue in the next bucket and get a new job</span>
-<span class="hl"><span class="k">var</span> keyB = DeduplicationKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantB, bucketSize);</span>
-<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.DeduplicationKey(keyB));</span>
+<span class="hl"><span class="k">var</span> keyB = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantB, bucketSize);</span>
+<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyB));</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 3: job {third.JobRef} action={third.Action}&quot;</span>);
@@ -229,10 +229,10 @@ Console.WriteLine(first.JobRef != third.JobRef ? <span class="s">&quot;Two disti
             <li><a href="/learn/006-many-jobs-one-class" data-id="006"><span class="rail-n">6</span>Keep several jobs in one class</a></li>
             <li><a href="/learn/011-delayed-job" data-id="011"><span class="rail-n">7</span>Run a job once, later</a></li>
             <li><a href="/learn/217-absolute-time-controls" data-id="217"><span class="rail-n">8</span>Schedule, sleep, and reschedule to an exact instant</a></li>
-            <li><a href="/learn/010-deduplication-key" data-id="010"><span class="rail-n">9</span>Keep a repeated request from creating a second job</a></li>
+            <li><a href="/learn/010-idempotency-key" data-id="010"><span class="rail-n">9</span>Keep a repeated request from creating a second job</a></li>
             <li aria-current="page"><a href="/learn/028-deduplication-time-buckets" data-id="028"><span class="rail-n">10</span>Allow one job per hour or per day</a></li>
             <li><a href="/learn/029-enqueue-in-transaction" data-id="029"><span class="rail-n">11</span>Save a record and start its job in one transaction</a></li>
-            <li><a href="/learn/014-read-by-deduplication-key" data-id="014"><span class="rail-n">12</span>Find a job by its deduplication key</a></li>
+            <li><a href="/learn/014-read-by-idempotency-key" data-id="014"><span class="rail-n">12</span>Find a job by its idempotency key</a></li>
             <li><a href="/learn/015-call-vs-enqueue" data-id="015"><span class="rail-n">13</span>Choose between starting a job and waiting for it</a></li>
             <li><a href="/learn/019-batch-enqueue" data-id="019"><span class="rail-n">14</span>Enqueue many jobs in one round trip</a></li>
             <li><a href="/learn/017-priority" data-id="017"><span class="rail-n">15</span>Run urgent jobs first</a></li>
@@ -241,7 +241,7 @@ Console.WriteLine(first.JobRef != third.JobRef ? <span class="s">&quot;Two disti
             <li><a href="/learn/501-payload-formats" data-id="501"><span class="rail-n">18</span>Store a job's payload in a custom format</a></li>
         </ol>
         <button class="button done-toggle" type="button" data-done-toggle="028" aria-pressed="false">Mark as done</button>
-        <p class="rail-turn"><a href="/learn/010-deduplication-key" rel="prev">Previous</a><a href="/learn/029-enqueue-in-transaction" rel="next">Next</a></p>
+        <p class="rail-turn"><a href="/learn/010-idempotency-key" rel="prev">Previous</a><a href="/learn/029-enqueue-in-transaction" rel="next">Next</a></p>
       </aside>
     </div>
     <section class="wrap newcomer" aria-labelledby="newcomer-title">

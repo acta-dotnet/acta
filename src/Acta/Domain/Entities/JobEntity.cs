@@ -11,15 +11,15 @@ namespace Acta;
 [DbPrimaryKey(Name = "pk_jobs", Columns = ["job_id"], OptimizeForSequentialKey = true)]
 [DbUniqueIndex(Name = "ux_jobs_ref", Columns = ["job_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(
-    Name = "ux_jobs_deduplication_key_root",
-    Columns = ["namespace_id", "deduplication_key"],
-    Filter = "deduplication_key IS NOT NULL AND parent_job_id IS NULL",
+    Name = "ux_jobs_idempotency_key_root",
+    Columns = ["namespace_id", "idempotency_key"],
+    Filter = "idempotency_key IS NOT NULL AND parent_job_id IS NULL",
     Usage = "uniqueness"
 )]
 [DbUniqueIndex(
-    Name = "ux_jobs_deduplication_key_child",
-    Columns = ["parent_job_id", "deduplication_key"],
-    Filter = "deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL",
+    Name = "ux_jobs_idempotency_key_child",
+    Columns = ["parent_job_id", "idempotency_key"],
+    Filter = "idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL",
     Usage = "uniqueness"
 )]
 // One permanent slot per scheduled definition: registration inserts through it and finds the slot by it.
@@ -109,24 +109,24 @@ internal sealed class JobEntity : IEntity<long>
     // ---------- Caller keys ----------
 
     /// <summary>
-    /// Deduplication key on enqueue and a stable address for <c>IJobs.GetIdAsync</c>, compared exactly; user keys
-    /// cannot start with <c>"sys."</c> in any case. Root jobs are unique per namespace (<c>ux_jobs_deduplication_key_root</c>) and children per direct
-    /// parent (<c>ux_jobs_deduplication_key_child</c>). A permanent job carries no key, so an
+    /// Idempotency key on enqueue and a stable address for <c>IJobs.GetIdAsync</c>, compared exactly; user keys
+    /// cannot start with <c>"sys."</c> in any case. Root jobs are unique per namespace (<c>ux_jobs_idempotency_key_root</c>) and children per direct
+    /// parent (<c>ux_jobs_idempotency_key_child</c>). A permanent job carries no key, so an
     /// ordinary job keyed by the job's name is unrelated to it; a per-occurrence root carries
     /// <c>sys.occurrence.{schedule_id}.{ticks}</c>.
     /// </summary>
-    [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128, CaseExact = true)]
-    public string? DeduplicationKey { get; init; }
+    [DbColumn("idempotency_key", DbKind.AsciiString, Size = 128, CaseExact = true)]
+    public string? IdempotencyKey { get; init; }
 
     /// <summary>
     /// Opaque correlation key threading related jobs across systems: a W3C trace id or a caller's own
-    /// custom value, a case-sensitive key like the deduplication key. At most 64 chars; null = uncorrelated.
+    /// custom value, a case-sensitive key like the idempotency key. At most 64 chars; null = uncorrelated.
     /// </summary>
     [DbColumn("correlation_key", DbKind.AsciiString, Size = 64, CaseExact = true)]
     public string? CorrelationKey { get; init; }
 
     /// <summary>
-    /// Named concurrency key, a case-sensitive key like the deduplication key. Enforced by execution-time lock slot leases
+    /// Named concurrency key, a case-sensitive key like the idempotency key. Enforced by execution-time lock slot leases
     /// (<c>{ns_id}.sem.{key}.{slot}</c> rows) the runner takes after claim; a claimed loser re-arms
     /// Ready after the fixed bounce delay. The key alone admits one at a time; the definition's
     /// <c>concurrency_limit</c> widens it to that many lock slots.

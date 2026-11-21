@@ -26,7 +26,7 @@ internal sealed record AdmitScheduleFiringsGroup(
     bool Admit,
     string? Envelope,
     Guid? JobRef = null,
-    string? DeduplicationKey = null,
+    string? IdempotencyKey = null,
     string? TriggerMessage = null,
     string? TriggerActor = null,
     string? TriggerDetails = null

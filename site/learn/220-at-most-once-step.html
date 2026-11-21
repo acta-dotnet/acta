@@ -206,7 +206,7 @@ builder.Services.UseActa(j =&gt;
 {
     <span class="k">var</span> runId = Guid.CreateVersion7().ToString(<span class="s">&quot;N&quot;</span>);
     <span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ChargeCard(<span class="s">$&quot;order-{runId}&quot;</span>, 125_00), o =&gt;
-        o.DeduplicationKey(DeduplicationKey.ForDefinition(<span class="s">&quot;charge-card&quot;</span>, <span class="s">$&quot;charge-card-lab-{runId}&quot;</span>)).Delayed(TimeSpan.FromSeconds(2))
+        o.IdempotencyKey(IdempotencyKey.ForDefinition(<span class="s">&quot;charge-card&quot;</span>, <span class="s">$&quot;charge-card-lab-{runId}&quot;</span>)).Delayed(TimeSpan.FromSeconds(2))
     );
     File.WriteAllText(currentJobFile, enqueued.JobRef.ToString());
     Console.WriteLine(<span class="s">$&quot;Enqueued {enqueued.JobRef}. The process will terminate inside the at-most-once step.&quot;</span>);

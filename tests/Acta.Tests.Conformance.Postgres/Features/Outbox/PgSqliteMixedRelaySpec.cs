@@ -44,8 +44,8 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var dedup = Unique("mixed");
-        await SeedSqliteRowAsync(Guid.NewGuid(), dedup);
+        var idempotencyKey = Unique("mixed");
+        await SeedSqliteRowAsync(Guid.NewGuid(), idempotencyKey);
 
         // Source store on SQLite, target on the Postgres ledger: two independent provider registrations.
         var store = OutboxOperations.OpenSource(
@@ -59,7 +59,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
 
         // The SQLite source row is gone (delivered and finalized) and the Postgres ledger has exactly one job.
         Assert.Equal(0, await CountSqliteRowsAsync());
-        Assert.Equal(1, await PgConformanceFixture.CountLedgerJobsByDedupAsync(ns, dedup));
+        Assert.Equal(1, await PgConformanceFixture.CountLedgerJobsByIdempotencyKeyAsync(ns, idempotencyKey));
     }
 
     // Single-source the canonical table from the tested SQLite DDL API rather than duplicating the text.
@@ -72,7 +72,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await cmd.ExecuteNonQueryAsync();
     }
 
-    private async Task SeedSqliteRowAsync(Guid jobRef, string dedup)
+    private async Task SeedSqliteRowAsync(Guid jobRef, string idempotencyKey)
     {
         var payload = Services
             .GetRequiredService<IJobPayloadSerializerRegistry>()
@@ -83,9 +83,9 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await using var cmd = c.CreateCommand();
         cmd.CommandText = """
             INSERT INTO main.acta_outbox
-                (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
+                (job_ref, namespace_name, job_name, input_format_id, input, idempotency_key,
                  created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count)
-            VALUES (@id, @ns, 'echo', 1, @data, @dedup,
+            VALUES (@id, @ns, 'echo', 1, @data, @idempotency_key,
                     strftime('%Y-%m-%d %H:%M:%f','now','-5 minutes'),
                     strftime('%Y-%m-%d %H:%M:%f','now','-5 minutes'), 10, 0);
             """;
@@ -93,7 +93,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         cmd.Parameters.AddWithValue("@id", jobRef);
         cmd.Parameters.AddWithValue("@ns", TestNamespace);
         cmd.Parameters.AddWithValue("@data", payload.Data.ToArray());
-        cmd.Parameters.AddWithValue("@dedup", dedup);
+        cmd.Parameters.AddWithValue("@idempotency_key", idempotencyKey);
         await cmd.ExecuteNonQueryAsync();
     }
 

@@ -48,7 +48,7 @@ if (mode == "crash")
 {
     var runId = Guid.CreateVersion7().ToString("N");
     var enqueued = await jobs.EnqueueAsync(new ChargeCard($"order-{runId}", 125_00), o =>
-        o.DeduplicationKey(DeduplicationKey.ForDefinition("charge-card", $"charge-card-lab-{runId}")).Delayed(TimeSpan.FromSeconds(2))
+        o.IdempotencyKey(IdempotencyKey.ForDefinition("charge-card", $"charge-card-lab-{runId}")).Delayed(TimeSpan.FromSeconds(2))
     );
     File.WriteAllText(currentJobFile, enqueued.JobRef.ToString());
     Console.WriteLine($"Enqueued {enqueued.JobRef}. The process will terminate inside the at-most-once step.");

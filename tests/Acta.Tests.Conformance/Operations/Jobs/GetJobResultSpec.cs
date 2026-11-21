@@ -52,7 +52,7 @@ public sealed class GetJobResultSpec : ActaRuntimeTestBase<ConformanceFixture, J
     public async Task A_lookup_that_matches_no_job_has_no_result()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nobody = JobLookup.ByDeduplicationKey(TestNamespace, Unique("no-such-job"));
+        var nobody = JobLookup.ByIdempotencyKey(TestNamespace, Unique("no-such-job"));
 
         Assert.Null(await Jobs.GetResultAsync(nobody, ct));
         Assert.Equal((false, null), await Jobs.TryGetResultAsync<AddNumbersResult>(nobody, ct));

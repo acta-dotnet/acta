@@ -1,28 +1,28 @@
-# How to find a job by its deduplication key
+# How to find a job by its idempotency key
 
-`JobLookup.ByDeduplicationKey` finds a job by the key it was enqueued with, when you did not keep its ref.
+`JobLookup.ByIdempotencyKey` finds a job by the key it was enqueued with, when you did not keep its ref.
 
 - Section: Start jobs, step 12
-- Program: `learn/000-fundamentals/014-read-by-deduplication-key` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/014-read-by-idempotency-key` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
-- Page for people: /learn/014-read-by-deduplication-key
+- Page for people: /learn/014-read-by-idempotency-key
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
 
 ## 1. Enqueue with a key you can build again later
 
-A typed enqueue stores its key exactly as given. This one puts the job's name in front with `DeduplicationKey.ForDefinition`; whatever key you choose, build it the same way where you look the job up.
+A typed enqueue stores its key exactly as given. This one puts the job's name in front with `IdempotencyKey.ForDefinition`; whatever key you choose, build it the same way where you look the job up.
 
 The lines that matter:
 
 ```csharp
 var businessKey = "welcome:sam";
-var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
-await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
+var finalKey = IdempotencyKey.ForDefinition("send-welcome-email", businessKey);
+await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.IdempotencyKey(finalKey));
 ```
 
-In `read-by-deduplication-key.cs` (excerpt):
+In `read-by-idempotency-key.cs` (excerpt):
 
 ```csharp
 using var host = builder.Build();
@@ -31,11 +31,11 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var businessKey = "welcome:sam";
-var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
-await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
+var finalKey = IdempotencyKey.ForDefinition("send-welcome-email", businessKey);
+await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.IdempotencyKey(finalKey));
 
-var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey("read-by-deduplication-key", finalKey));
-Console.WriteLine($"Found job {snapshot!.JobRef} by deduplication key '{snapshot.DeduplicationKey}', status {snapshot.Status}.");
+var snapshot = await jobs.GetAsync(JobLookup.ByIdempotencyKey("read-by-idempotency-key", finalKey));
+Console.WriteLine($"Found job {snapshot!.JobRef} by idempotency key '{snapshot.IdempotencyKey}', status {snapshot.Status}.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 ```
 
@@ -46,20 +46,20 @@ The first argument is the namespace the job was enqueued in, the name given to `
 The lines that matter:
 
 ```csharp
-var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey("read-by-deduplication-key", finalKey));
+var snapshot = await jobs.GetAsync(JobLookup.ByIdempotencyKey("read-by-idempotency-key", finalKey));
 ```
 
-In `read-by-deduplication-key.cs` (excerpt):
+In `read-by-idempotency-key.cs` (excerpt):
 
 ```csharp
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var businessKey = "welcome:sam";
-var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
-await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
+var finalKey = IdempotencyKey.ForDefinition("send-welcome-email", businessKey);
+await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.IdempotencyKey(finalKey));
 
-var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey("read-by-deduplication-key", finalKey));
-Console.WriteLine($"Found job {snapshot!.JobRef} by deduplication key '{snapshot.DeduplicationKey}', status {snapshot.Status}.");
+var snapshot = await jobs.GetAsync(JobLookup.ByIdempotencyKey("read-by-idempotency-key", finalKey));
+Console.WriteLine($"Found job {snapshot!.JobRef} by idempotency key '{snapshot.IdempotencyKey}', status {snapshot.Status}.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();
@@ -68,7 +68,7 @@ await host.StopAsync();
 
 ## 3. The job it acts on
 
-`read-by-deduplication-key.cs` (excerpt):
+`read-by-idempotency-key.cs` (excerpt):
 
 ```csharp
 public static class WelcomeJob
@@ -83,13 +83,13 @@ public static class WelcomeJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project learn/000-fundamentals/014-read-by-deduplication-key
+dotnet run --project learn/000-fundamentals/014-read-by-idempotency-key
 ```
 
 Its output must contain:
 
 ```text
-by deduplication key 'send-welcome-email:welcome:sam'
+by idempotency key 'send-welcome-email:welcome:sam'
 Sent welcome email to Sam <sam@example.com>
 ```
 
@@ -97,7 +97,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Remember
 
-- The name in `[Job("send-welcome-email")]` and the namespace in `Run<ReadByDeduplicationKeyJobs>("read-by-deduplication-key")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- The name in `[Job("send-welcome-email")]` and the namespace in `Run<ReadByIdempotencyKeyJobs>("read-by-idempotency-key")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
 - `SendWelcomeEmail` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `send-welcome-email-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
@@ -110,4 +110,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/014-read-by-deduplication-key.program.md): every file as compiled, 51 lines.
+- [The whole program](/learn/014-read-by-idempotency-key.program.md): every file as compiled, 51 lines.

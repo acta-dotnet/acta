@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_job(
     p_job_ref UUID DEFAULT GEN_RANDOM_UUID(),
     p_namespace_name VARCHAR DEFAULT NULL,
     p_job_name VARCHAR DEFAULT NULL,
-    p_deduplication_key VARCHAR DEFAULT NULL,
+    p_idempotency_key VARCHAR DEFAULT NULL,
     p_correlation_key VARCHAR DEFAULT NULL,
     p_job_priority_code_override SMALLINT DEFAULT NULL,
     p_input_format_id SMALLINT DEFAULT NULL,
@@ -54,7 +54,7 @@ BEGIN
 
     -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
     -- Spaces are trimmed because SQL Server compares strings padded, so both servers refuse the same keys.
-    IF btrim(p_deduplication_key, ' ') = '' OR btrim(p_correlation_key, ' ') = '' OR btrim(p_concurrency_key, ' ') = '' THEN
+    IF btrim(p_idempotency_key, ' ') = '' OR btrim(p_correlation_key, ' ') = '' OR btrim(p_concurrency_key, ' ') = '' THEN
         RAISE EXCEPTION 'Enqueue rejected: a key is blank. Pass NULL for no key.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -216,7 +216,7 @@ BEGIN
             job_ref,
             lineage_root_job_id,
             parent_job_id,
-            deduplication_key,
+            idempotency_key,
             correlation_key,
             namespace_id,
             definition_id,
@@ -231,7 +231,7 @@ BEGIN
             p_job_ref,
             v_lineage,
             p_parent_job_id,
-            p_deduplication_key,
+            p_idempotency_key,
             COALESCE(p_correlation_key, v_parent_corr),
             v_ns_id,
             v_def_id,
@@ -242,8 +242,8 @@ BEGIN
             p_concurrency_key,
             v_def_event_recording,
             now())
-        ON CONFLICT (parent_job_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL
+        ON CONFLICT (parent_job_id, idempotency_key)
+            WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL
             DO NOTHING
         RETURNING jobs.job_id INTO v_job_id;
     ELSE
@@ -257,7 +257,7 @@ BEGIN
             job_ref,
             lineage_root_job_id,
             parent_job_id,
-            deduplication_key,
+            idempotency_key,
             correlation_key,
             namespace_id,
             definition_id,
@@ -272,7 +272,7 @@ BEGIN
             p_job_ref,
             NULL,
             NULL,
-            p_deduplication_key,
+            p_idempotency_key,
             p_correlation_key,
             v_ns_id,
             v_def_id,
@@ -282,8 +282,8 @@ BEGIN
             p_concurrency_key,
             v_def_event_recording,
             now())
-        ON CONFLICT (namespace_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL
+        ON CONFLICT (namespace_id, idempotency_key)
+            WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL
             DO NOTHING
         RETURNING jobs.job_id INTO v_job_id;
     END IF;
@@ -342,15 +342,15 @@ BEGIN
         WHERE
             (p_parent_job_id IS NULL
                 AND j.namespace_id = v_ns_id
-                AND j.deduplication_key = p_deduplication_key
+                AND j.idempotency_key = p_idempotency_key
                 AND j.parent_job_id IS NULL)
             OR (p_parent_job_id IS NOT NULL
                 AND j.parent_job_id = p_parent_job_id
-                AND j.deduplication_key = p_deduplication_key);
+                AND j.idempotency_key = p_idempotency_key);
 
         -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
         IF p_parent_job_id IS NULL AND v_held_tenant <> v_tenant_id THEN
-            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.'
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the idempotency key belongs to another tenant''s job.'
                 USING ERRCODE = 'P0001';
         END IF;
 

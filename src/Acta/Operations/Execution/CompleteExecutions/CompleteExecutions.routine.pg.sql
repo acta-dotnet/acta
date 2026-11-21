@@ -548,7 +548,7 @@ BEGIN
                 c.event_message,
                 -- The landing names the child as its parent named it, how it ended, and the child's own message.
                 LEFT(
-                    'Child ' || COALESCE('''' || j.deduplication_key || '''', 'job ' || r.job_id) || ' '
+                    'Child ' || COALESCE('''' || j.idempotency_key || '''', 'job ' || r.job_id) || ' '
                     || CASE r.job_status_code
                         WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
                         WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'

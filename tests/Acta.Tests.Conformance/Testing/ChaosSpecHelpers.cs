@@ -88,7 +88,7 @@ internal static class ChaosSpecHelpers
                 JobNamespace: ns,
                 JobName: "add-numbers",
                 Input: payload,
-                DeduplicationKey: $"chaos-{Guid.NewGuid()}",
+                IdempotencyKey: $"chaos-{Guid.NewGuid()}",
                 CorrelationKey: null,
                 Priority: null
             ),

@@ -4,24 +4,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to keep a repeated request from creating a second job · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to keep a repeated request from creating a second job with Acta, durable execution for .NET. A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there." />
-  <link rel="canonical" href="https://useacta.net/learn/010-deduplication-key" />
+  <meta name="description" content="How to keep a repeated request from creating a second job with Acta, durable execution for .NET. With an idempotency key, a second enqueue with the same key answers the job that is already there." />
+  <link rel="canonical" href="https://useacta.net/learn/010-idempotency-key" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to keep a repeated request from creating a second job · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to keep a repeated request from creating a second job with Acta, durable execution for .NET. A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there." />
-  <meta property="og:url" content="https://useacta.net/learn/010-deduplication-key" />
+  <meta property="og:description" content="How to keep a repeated request from creating a second job with Acta, durable execution for .NET. With an idempotency key, a second enqueue with the same key answers the job that is already there." />
+  <meta property="og:url" content="https://useacta.net/learn/010-idempotency-key" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to keep a repeated request from creating a second job","description":"How to keep a repeated request from creating a second job with Acta, durable execution for .NET. A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there.","url":"https://useacta.net/learn/010-deduplication-key","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Start jobs","item":"https://useacta.net/learn#s-start"},{"@type":"ListItem","position":3,"name":"How to keep a repeated request from creating a second job","item":"https://useacta.net/learn/010-deduplication-key"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to keep a repeated request from creating a second job","description":"How to keep a repeated request from creating a second job with Acta, durable execution for .NET. With an idempotency key, a second enqueue with the same key answers the job that is already there.","url":"https://useacta.net/learn/010-idempotency-key","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Start jobs","item":"https://useacta.net/learn#s-start"},{"@type":"ListItem","position":3,"name":"How to keep a repeated request from creating a second job","item":"https://useacta.net/learn/010-idempotency-key"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
-  <link rel="alternate" type="text/markdown" href="/learn/010-deduplication-key.md" title="This page as Markdown, for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/010-idempotency-key.md" title="This page as Markdown, for coding agents" />
   <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -61,15 +61,15 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
       <h1>How to keep a repeated request from creating a second job</h1>
-      <p class="lede">A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there.</p>
+      <p class="lede">With an idempotency key, a second enqueue with the same key answers the job that is already there.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/010-deduplication-key"><code>learn/000-fundamentals/010-deduplication-key</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/010-idempotency-key"><code>learn/000-fundamentals/010-idempotency-key</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
-        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/010-deduplication-key.md">an agent</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/010-idempotency-key.md">an agent</button>
       </div>
       </div>
     </header>
@@ -78,29 +78,29 @@
 <p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the enqueue a key that names the request</h2>
 <p><code>Deduplicate(businessKey)</code> on the raw builder stores the key with the job's name in front, so one business key used by two jobs never collides.</p>
-<figure class="listing"><figcaption><span class="file">deduplication-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> businessKey = <span class="s">$&quot;welcome:{Guid.NewGuid():N}&quot;</span>;
-<span class="k">var</span> finalKey = DeduplicationKey.ForDefinition(<span class="s">&quot;send-welcome-email&quot;</span>, businessKey);
+<span class="k">var</span> finalKey = IdempotencyKey.ForDefinition(<span class="s">&quot;send-welcome-email&quot;</span>, businessKey);
 
 <span class="hl"><span class="k">var</span> request = JobRequestBuilder</span>
-<span class="hl">    .Create(<span class="s">&quot;deduplication-key&quot;</span>, <span class="s">&quot;send-welcome-email&quot;</span>)</span>
+<span class="hl">    .Create(<span class="s">&quot;idempotency-key&quot;</span>, <span class="s">&quot;send-welcome-email&quot;</span>)</span>
 <span class="hl">    .Json(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>))</span>
 <span class="hl">    .Deduplicate(businessKey)</span>
 <span class="hl">    .Build();</span>
 <span class="hl"> </span>
 <span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(request, CancellationToken.None);</span>
 
-<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.DeduplicationKey(finalKey));</code></pre></figure>
+<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.IdempotencyKey(finalKey));</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Repeat the enqueue and get the same job back</h2>
-<p>A typed enqueue stores its key exactly as given, so to meet the first job it passes the same composed key. Two typed enqueues need only pass the same string to <code>DeduplicationKey(...)</code>. This second enqueue answers the first job, deduplicated.</p>
-<figure class="listing"><figcaption><span class="file">deduplication-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(request, CancellationToken.None);
+<p>A typed enqueue stores its key exactly as given, so to meet the first job it passes the same composed key. Two typed enqueues need only pass the same string to <code>IdempotencyKey(...)</code>. This second enqueue answers the first job, deduplicated.</p>
+<figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(request, CancellationToken.None);
 
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.DeduplicationKey(finalKey));</span></code></pre></figure>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.IdempotencyKey(finalKey));</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">deduplication-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> WelcomeJob
+<figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> WelcomeJob
 {
     <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-welcome-email&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendWelcomeEmail input) =&gt; Console.WriteLine(<span class="s">$&quot;Sent welcome email to {input.Name} &lt;{input.Email}&gt;&quot;</span>);
@@ -108,20 +108,19 @@
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/010-deduplication-key</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/010-idempotency-key</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Same job - deduplicated.
 Sent welcome email to Sam &lt;sam@example.com&gt;</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
-<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>handle.Action</code> says which happened: <code>EnqueueJobAction.Deduplicated</code> when the key matched a job already there, <code>Inserted</code> when this enqueue created it.</li><li>The key prevents a second job row, not a second side effect. Execution stays at-least-once.</li><li>Keys keep their case: <code>Order-1</code> and <code>order-1</code> are two keys, so lowercase an id yourself when its source ignores case.</li><li>The name in <code>[Job(&quot;send-welcome-email&quot;)]</code> and the namespace in <code>Run&lt;DeduplicationKeyJobs&gt;(&quot;deduplication-key&quot;)</code> are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>SendWelcomeEmail</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>send-welcome-email-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>handle.Action</code> says which happened: <code>EnqueueJobAction.Deduplicated</code> when the key matched a job already there, <code>Inserted</code> when this enqueue created it.</li><li>The key prevents a second job row, not a second side effect. Execution stays at-least-once.</li><li>Keys keep their case: <code>Order-1</code> and <code>order-1</code> are two keys, so lowercase an id yourself when its source ignores case.</li><li>The name in <code>[Job(&quot;send-welcome-email&quot;)]</code> and the namespace in <code>Run&lt;IdempotencyKeyJobs&gt;(&quot;idempotency-key&quot;)</code> are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>SendWelcomeEmail</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>send-welcome-email-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/010-deduplication-key"><code>learn/000-fundamentals/010-deduplication-key</code></a>, as it is compiled.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/010-idempotency-key"><code>learn/000-fundamentals/010-idempotency-key</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">deduplication-key.cs</span><span class="file-size">65 lines</span></summary><figure class="listing"><figcaption><span class="file">deduplication-key.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to keep a repeated request from creating a second job</span>
-<span class="c">// A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is</span>
-<span class="c">// already there.</span>
+<details class="source-file"><summary><span class="file-name">idempotency-key.cs</span><span class="file-size">64 lines</span></summary><figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to keep a repeated request from creating a second job</span>
+<span class="c">// With an idempotency key, a second enqueue with the same key answers the job that is already there.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Learn.DeduplicationKey;
+<span class="k">using</span> Acta.Learn.IdempotencyKey;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 
@@ -130,7 +129,7 @@ Sent welcome email to Sam &lt;sam@example.com&gt;</code></pre></figure>
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;DeduplicationKeyJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;deduplication-key&quot;</span>);
+    j.Run&lt;IdempotencyKeyJobs&gt;(<span class="s ct" data-ct="namespace" tabindex="0">&quot;idempotency-key&quot;</span>);
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -139,13 +138,13 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> businessKey = <span class="s">$&quot;welcome:{Guid.NewGuid():N}&quot;</span>;
-<span class="k">var</span> finalKey = DeduplicationKey.ForDefinition(<span class="s">&quot;send-welcome-email&quot;</span>, businessKey);
+<span class="k">var</span> finalKey = IdempotencyKey.ForDefinition(<span class="s">&quot;send-welcome-email&quot;</span>, businessKey);
 
 <span class="c">// learn: 1. Give the enqueue a key that names the request</span>
 <span class="c">// `Deduplicate(businessKey)` on the raw builder stores the key with the job's name in front, so one business key</span>
 <span class="c">// used by two jobs never collides.</span>
 <span class="hl"><span class="k">var</span> request = JobRequestBuilder</span>
-<span class="hl">    .Create(<span class="s">&quot;deduplication-key&quot;</span>, <span class="s">&quot;send-welcome-email&quot;</span>)</span>
+<span class="hl">    .Create(<span class="s">&quot;idempotency-key&quot;</span>, <span class="s">&quot;send-welcome-email&quot;</span>)</span>
 <span class="hl">    .Json(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>))</span>
 <span class="hl">    .Deduplicate(businessKey)</span>
 <span class="hl">    .Build();</span>
@@ -156,9 +155,9 @@ builder.Services.UseActa(j =&gt;
 
 <span class="c">// learn: 2. Repeat the enqueue and get the same job back</span>
 <span class="c">// A typed enqueue stores its key exactly as given, so to meet the first job it passes the same composed key. Two</span>
-<span class="c">// typed enqueues need only pass the same string to `DeduplicationKey(...)`. This second enqueue answers the first</span>
+<span class="c">// typed enqueues need only pass the same string to `IdempotencyKey(...)`. This second enqueue answers the first</span>
 <span class="c">// job, deduplicated.</span>
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.DeduplicationKey(finalKey));</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.IdempotencyKey(finalKey));</span>
 
 <span class="c">// learn: end</span>
 
@@ -172,7 +171,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 <span class="k">await</span> host.WaitForShutdownAsync();
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">namespace</span> Acta.Learn.DeduplicationKey
+<span class="k">namespace</span> Acta.Learn.IdempotencyKey
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SendWelcomeEmail(<span class="k">string</span> Email, <span class="k">string</span> Name);
 
@@ -186,7 +185,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/028-deduplication-time-buckets">How to allow one job per hour or per day</a><span>Start jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/010-deduplication-key.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/010-deduplication-key.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/010-idempotency-key.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/010-idempotency-key.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">
@@ -200,10 +199,10 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
             <li><a href="/learn/006-many-jobs-one-class" data-id="006"><span class="rail-n">6</span>Keep several jobs in one class</a></li>
             <li><a href="/learn/011-delayed-job" data-id="011"><span class="rail-n">7</span>Run a job once, later</a></li>
             <li><a href="/learn/217-absolute-time-controls" data-id="217"><span class="rail-n">8</span>Schedule, sleep, and reschedule to an exact instant</a></li>
-            <li aria-current="page"><a href="/learn/010-deduplication-key" data-id="010"><span class="rail-n">9</span>Keep a repeated request from creating a second job</a></li>
+            <li aria-current="page"><a href="/learn/010-idempotency-key" data-id="010"><span class="rail-n">9</span>Keep a repeated request from creating a second job</a></li>
             <li><a href="/learn/028-deduplication-time-buckets" data-id="028"><span class="rail-n">10</span>Allow one job per hour or per day</a></li>
             <li><a href="/learn/029-enqueue-in-transaction" data-id="029"><span class="rail-n">11</span>Save a record and start its job in one transaction</a></li>
-            <li><a href="/learn/014-read-by-deduplication-key" data-id="014"><span class="rail-n">12</span>Find a job by its deduplication key</a></li>
+            <li><a href="/learn/014-read-by-idempotency-key" data-id="014"><span class="rail-n">12</span>Find a job by its idempotency key</a></li>
             <li><a href="/learn/015-call-vs-enqueue" data-id="015"><span class="rail-n">13</span>Choose between starting a job and waiting for it</a></li>
             <li><a href="/learn/019-batch-enqueue" data-id="019"><span class="rail-n">14</span>Enqueue many jobs in one round trip</a></li>
             <li><a href="/learn/017-priority" data-id="017"><span class="rail-n">15</span>Run urgent jobs first</a></li>

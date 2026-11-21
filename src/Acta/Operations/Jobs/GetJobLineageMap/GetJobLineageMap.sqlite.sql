@@ -83,7 +83,7 @@ SELECT
     c.checkpoint_status_code AS status,
     c.due_at_utc,
     ch.job_ref AS child_job_ref,
-    ch.deduplication_key AS child_name
+    ch.idempotency_key AS child_name
 FROM {{schema}}.checkpoints c
 LEFT JOIN {{schema}}.jobs ch
     ON
@@ -102,7 +102,7 @@ SELECT
     r.job_status_code AS status,
     j.created_at_utc,
     r.modified_at_utc,
-    j.deduplication_key AS child_name
+    j.idempotency_key AS child_name
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id

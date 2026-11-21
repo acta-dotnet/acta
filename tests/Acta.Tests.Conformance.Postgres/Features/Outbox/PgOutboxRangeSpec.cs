@@ -76,7 +76,7 @@ public sealed class PgOutboxRangeSpec
     }
 
     private static string Insert(string schema, string table, string column, string literal) =>
-        $"INSERT INTO {schema}.{table} (job_ref, namespace_name, job_name, input_format_id, deduplication_key, {column}) "
+        $"INSERT INTO {schema}.{table} (job_ref, namespace_name, job_name, input_format_id, idempotency_key, {column}) "
         + $"VALUES ('{Guid.NewGuid()}', 'orders', 'send', 0, '{Guid.NewGuid():N}', {literal});";
 
     private static async Task ExecAsync(NpgsqlConnection conn, string sql, CancellationToken ct)

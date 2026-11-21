@@ -9,7 +9,7 @@ export interface JobDetail {
   lineageRootJobRef: string | null;
   parentJobRef: string | null;
   tenantName: string | null;
-  deduplicationKey: string | null;
+  idempotencyKey: string | null;
   correlationKey: string | null;
   concurrencyKey: string | null;
   inputFormatId: number;

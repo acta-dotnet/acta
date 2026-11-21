@@ -22,7 +22,7 @@ namespace Acta;
 /// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to; null for a root job.</param>
 /// <param name="ParentJobRef">The ref of the job that started this one as a child; null for a job without a parent.</param>
 /// <param name="TenantName">The tenant the job is about, when it names one.</param>
-/// <param name="DeduplicationKey">The job's deduplication key, when it was enqueued with one.</param>
+/// <param name="IdempotencyKey">The job's idempotency key, when it was enqueued with one.</param>
 /// <param name="CorrelationKey">The caller's correlation key, when the job was enqueued with one.</param>
 /// <param name="ConcurrencyKey">The job's concurrency key, when it was enqueued with one; jobs that share a key run at most as many at
 /// once as the definition's concurrency limit allows.</param>
@@ -62,7 +62,7 @@ public sealed record GetJobResponse(
     JobRef? ParentJobRef,
     [property: JsonIgnore] int? TenantId,
     string? TenantName,
-    string? DeduplicationKey,
+    string? IdempotencyKey,
     string? CorrelationKey,
     string? ConcurrencyKey,
     byte InputFormatId,

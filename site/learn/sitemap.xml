@@ -49,7 +49,7 @@
     <loc>https://useacta.net/learn/217-absolute-time-controls</loc>
   </url>
   <url>
-    <loc>https://useacta.net/learn/010-deduplication-key</loc>
+    <loc>https://useacta.net/learn/010-idempotency-key</loc>
   </url>
   <url>
     <loc>https://useacta.net/learn/028-deduplication-time-buckets</loc>
@@ -58,7 +58,7 @@
     <loc>https://useacta.net/learn/029-enqueue-in-transaction</loc>
   </url>
   <url>
-    <loc>https://useacta.net/learn/014-read-by-deduplication-key</loc>
+    <loc>https://useacta.net/learn/014-read-by-idempotency-key</loc>
   </url>
   <url>
     <loc>https://useacta.net/learn/015-call-vs-enqueue</loc>

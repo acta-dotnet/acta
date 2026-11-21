@@ -524,7 +524,7 @@ BEGIN
                         -- The landing names the child as its parent named it, how it ended, and the child's own message; the cast
                         -- caps it in UTF-16 units, which LEFT does not count under a supplementary-character collation.
                         CAST(LEFT(
-                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
+                            N'Child ' + COALESCE(N'''' + j.idempotency_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
                             + CASE d.job_status_code
                                 WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
                                 WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'

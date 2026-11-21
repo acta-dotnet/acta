@@ -332,7 +332,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Equal(ScheduleStatusCode.Active, (await ScheduleAsync(defId, "only", ct)).Config.Status);
         Assert.Equal(ControlAction.Applied, (await Schedules.TriggerAsync(lookup, ct: ct)).Action);
         var root = Assert.Single(await Db.From<JobEntity>().Where(j => j.ScheduleId == config.Id).ToListAsync(ct));
-        Assert.StartsWith("sys.manual.", root.DeduplicationKey, StringComparison.Ordinal);
+        Assert.StartsWith("sys.manual.", root.IdempotencyKey, StringComparison.Ordinal);
         Assert.Equal(1, (await ScheduleAsync(defId, "only", ct)).State.OutstandingCount);
 
         long definitionEntityId = defId;

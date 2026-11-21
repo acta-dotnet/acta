@@ -367,10 +367,10 @@ internal sealed partial class RuntimeJobContext(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
-    ) => RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct)), options.DeduplicationKey);
+    ) => RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct)), options.IdempotencyKey);
 
     private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
-        RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct)), request.DeduplicationKey);
+        RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct)), request.IdempotencyKey);
 
     private protected override Task<EnqueueJobResponse> EnqueueChildCallCoreAsync<TInput>(
         Type? manifestType,
@@ -382,7 +382,7 @@ internal sealed partial class RuntimeJobContext(
     ) =>
         RememberChildAsync(
             FencedAsync(() => _jobOperations.EnqueueChildAsync(manifestType, jobName, input, resultType, options, Fence, ct)),
-            options.DeduplicationKey
+            options.IdempotencyKey
         );
 
     // The name each child this attempt enqueued or found was given, by its id, so a wait on it names it. A replay enqueues
@@ -407,8 +407,8 @@ internal sealed partial class RuntimeJobContext(
         var children = new Dictionary<string, EnqueueJobResponse>(StringComparer.Ordinal);
         foreach (var child in (await _executionStore.ListChildJobsByNameAsync(JobId, names, ct)).Children)
         {
-            children[child.DeduplicationKey] = new EnqueueJobResponse(child.JobId, new JobRef(child.JobRef), EnqueueJobAction.Deduplicated);
-            _childNames[child.JobId] = child.DeduplicationKey;
+            children[child.IdempotencyKey] = new EnqueueJobResponse(child.JobId, new JobRef(child.JobRef), EnqueueJobAction.Deduplicated);
+            _childNames[child.JobId] = child.IdempotencyKey;
         }
         return children;
     }

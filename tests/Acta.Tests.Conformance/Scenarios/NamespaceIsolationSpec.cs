@@ -96,8 +96,8 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
 
         await other.HoldAsync(ct);
         await other.Check("enqueue", t => Jobs.EnqueueAsync(Request("add-numbers", new AddNumbers(1, 1)), t));
-        await other.Check("enqueue with a deduplication key", t =>
-            Jobs.EnqueueAsync(Request("add-numbers", new AddNumbers(1, 2)) with { DeduplicationKey = Unique("dedup") }, t)
+        await other.Check("enqueue with an idempotency key", t =>
+            Jobs.EnqueueAsync(Request("add-numbers", new AddNumbers(1, 2)) with { IdempotencyKey = Unique("idempotency") }, t)
         );
         await other.Check("enqueue a batch", t =>
             Jobs.EnqueueJobsAsync([Request("add-numbers", new AddNumbers(2, 2)), Request("add-numbers", new AddNumbers(2, 3))], t)
@@ -338,12 +338,12 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         // Sets a variable, then waits on a signal nothing raises.
         var waiting = await Jobs.EnqueueAsync(Request("job-wait-signal", null), ct);
         await Runtime.RunOnceAsync(TestNamespace, waiting.JobId, ct);
-        var deduplicationKey = Unique("dedup");
+        var idempotencyKey = Unique("idempotency");
         await Jobs.EnqueueAsync(
             Request("add-numbers", new AddNumbers(5, 6)) with
             {
                 DelaySeconds = 3600,
-                DeduplicationKey = deduplicationKey,
+                IdempotencyKey = idempotencyKey,
             },
             ct
         );
@@ -358,8 +358,8 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         await other.HoldAsync(ct);
         await other.Check("read a job", async t => Assert.NotNull(await Jobs.GetAsync(completed, t)));
         await other.Check("read a job by its ref", async t => Assert.NotNull(await Jobs.GetAsync(JobLookup.ByRef(completed.JobRef), t)));
-        await other.Check("read a job by its deduplication key", async t =>
-            Assert.NotNull(await Jobs.GetAsync(JobLookup.ByDeduplicationKey(TestNamespace, deduplicationKey), t))
+        await other.Check("read a job by its idempotency key", async t =>
+            Assert.NotNull(await Jobs.GetAsync(JobLookup.ByIdempotencyKey(TestNamespace, idempotencyKey), t))
         );
         await other.Check("read a job's input", async t => Assert.NotNull(await Jobs.GetInputAsync(completed, t)));
         await other.Check("explain a job", async t => Assert.NotNull(await Jobs.ExplainAsync(completed, t)));
@@ -567,7 +567,7 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         await runtime.RunOnceAsync(jobNamespace, (await jobs.EnqueueAsync(Of("job-sleep-basic"), ct)).JobId, ct);
         // Left Ready, after every run above so none of them claims these.
         await jobs.EnqueueAsync(Of("add-numbers", new AddNumbers(3, 4)), ct);
-        await jobs.EnqueueAsync(Of("add-numbers", new AddNumbers(5, 6)) with { DeduplicationKey = "held" }, ct);
+        await jobs.EnqueueAsync(Of("add-numbers", new AddNumbers(5, 6)) with { IdempotencyKey = "held" }, ct);
         await jobs.EnqueueAsync(Of("lane-step", new LaneStep("held", "one")) with { Lane = "held" }, ct);
         await jobs.EnqueueAsync(Of("lane-step", new LaneStep("held", "two")) with { Lane = "held" }, ct);
         await RaiseAlertAsync(services, jobNamespace, finished.JobId, ct);

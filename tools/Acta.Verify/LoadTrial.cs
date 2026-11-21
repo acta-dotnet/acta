@@ -84,7 +84,7 @@ internal static class LoadTrial
     /// <summary>The width of the completion buckets that the backlog and the drain percentiles are rebuilt from.</summary>
     private static readonly long BucketTicks = Stopwatch.Frequency / 100;
 
-    /// <summary>The deduplication key of arrival <paramref name="index"/>, which is also its root's key.</summary>
+    /// <summary>The idempotency key of arrival <paramref name="index"/>, which is also its root's key.</summary>
     internal static string Key(int index) => $"root-{index}";
 
     /// <summary>A trial's disk latency from the host's disk counters, unavailable when no sample of its drive wrote.</summary>
@@ -228,13 +228,13 @@ internal static class LoadTrial
                 if (cohort)
                 {
                     // A stream's lost replies are settled by its rows after the drain; a cohort's drain counts by id range,
-                    // so a reply lost in its enqueue is settled by its deduplication key first.
+                    // so a reply lost in its enqueue is settled by its idempotency key first.
                     await Parallel.ForEachAsync(
                         Enumerable.Range(0, count).Where(i => outcome[i] == Ambiguous),
                         new ParallelOptions { MaxDegreeOfParallelism = spec.Calls, CancellationToken = ct },
                         async (i, token) =>
                         {
-                            if (await jobs.GetAsync(JobLookup.ByDeduplicationKey(Namespace(i), Key(i)), token) is { } found)
+                            if (await jobs.GetAsync(JobLookup.ByIdempotencyKey(Namespace(i), Key(i)), token) is { } found)
                             {
                                 (outcome[i], ids[i]) = (Recovered, found.JobId);
                             }
@@ -667,7 +667,7 @@ internal static class LoadTrial
                 Namespace(i),
                 "work",
                 JobPayload.Json(work, WorkJson.Default.WorkInput),
-                DeduplicationKey: work.Key,
+                IdempotencyKey: work.Key,
                 Lane: spec.Lane(i),
                 ConcurrencyKey: spec.ConcurrencyKey
             );

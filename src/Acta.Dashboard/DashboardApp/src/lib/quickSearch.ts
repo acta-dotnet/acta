@@ -10,7 +10,7 @@ export type Recognition =
   | { kind: 'alertRef'; ref: string }
   | { kind: 'jobId'; id: string }
   | { kind: 'correlation'; key: string }
-  | { kind: 'dedupKey'; key: string }
+  | { kind: 'idempotencyKey'; key: string }
   | { kind: 'scope'; name: string }
   | { kind: 'tag'; token: string }
   | { kind: 'text'; folded: string; raw: string };
@@ -34,7 +34,7 @@ export function parseQuery(input: string): Recognition | null {
   if (id) return { kind: 'jobId', id: id[1] };
   const lower = value.toLowerCase();
   if (lower.startsWith('corr:') && value.length > 5) return { kind: 'correlation', key: value.slice(5) };
-  if (lower.startsWith('key:') && value.length > 4) return { kind: 'dedupKey', key: value.slice(4) };
+  if (lower.startsWith('key:') && value.length > 4) return { kind: 'idempotencyKey', key: value.slice(4) };
   // Namespace names are lowercase by convention, so the scope target folds.
   if (lower.startsWith('ns:') && value.length > 3) return { kind: 'scope', name: lower.slice(3) };
   // tag: makes bare tag names (no value) reachable; without a prefix they read as name fragments.

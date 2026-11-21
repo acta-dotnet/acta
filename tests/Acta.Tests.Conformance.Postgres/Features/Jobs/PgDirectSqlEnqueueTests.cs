@@ -36,16 +36,16 @@ public sealed class PgDirectSqlEnqueueTests : ActaRuntimeTestBase<PgConformanceF
         // No key the API takes holds a space; the routine stores what it is given, and the definition limits concurrency,
         // so the run takes a slot under the stored key.
         var (jobId, _, _) = await EnqueueAsync(
-            "p_deduplication_key => 'order 42', p_correlation_key => 'trace 7', p_concurrency_key => 'tenant a'",
+            "p_idempotency_key => 'order 42', p_correlation_key => 'trace 7', p_concurrency_key => 'tenant a'",
             ct,
             "concurrency-limit-probe"
         );
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, jobId, ct));
         var read = await ReadAsync(jobId, ct);
-        Assert.Equal(("order 42", "trace 7", "tenant a"), (read.DeduplicationKey, read.CorrelationKey, read.ConcurrencyKey));
+        Assert.Equal(("order 42", "trace 7", "tenant a"), (read.IdempotencyKey, read.CorrelationKey, read.ConcurrencyKey));
         var listed = (await Operations.Ledger.ListJobsAsync(new ListJobsQuery(TestNamespace, PageSize: 100), ct)).Items;
-        Assert.Equal("order 42", Assert.Single(listed, j => j.JobId == jobId).DeduplicationKey);
+        Assert.Equal("order 42", Assert.Single(listed, j => j.JobId == jobId).IdempotencyKey);
     }
 
     [Fact(DisplayName = "A priority that is not a band is refused")]
@@ -72,14 +72,14 @@ public sealed class PgDirectSqlEnqueueTests : ActaRuntimeTestBase<PgConformanceF
         Assert.Equal((given, given), (jobRef, (await ReadAsync(jobId, ct)).JobRef.Value));
     }
 
-    [Fact(DisplayName = "p_deduplication_key answers the first job to a second call")]
+    [Fact(DisplayName = "p_idempotency_key answers the first job to a second call")]
     public async Task A_repeated_key_answers_the_first_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = Unique("sql-key");
 
-        var first = await EnqueueAsync($"p_deduplication_key => '{key}'", ct);
-        var second = await EnqueueAsync($"p_deduplication_key => '{key}'", ct);
+        var first = await EnqueueAsync($"p_idempotency_key => '{key}'", ct);
+        var second = await EnqueueAsync($"p_idempotency_key => '{key}'", ct);
 
         Assert.Equal((first.JobId, first.JobRef, 2), second);
     }
@@ -143,10 +143,10 @@ public sealed class PgDirectSqlEnqueueTests : ActaRuntimeTestBase<PgConformanceF
     }
 
     [Theory(DisplayName = "A key that is empty or only spaces is refused, since every later enqueue would share it")]
-    [InlineData("p_deduplication_key", "")]
+    [InlineData("p_idempotency_key", "")]
     [InlineData("p_correlation_key", "")]
     [InlineData("p_concurrency_key", "")]
-    [InlineData("p_deduplication_key", "  ")]
+    [InlineData("p_idempotency_key", "  ")]
     [InlineData("p_correlation_key", "  ")]
     [InlineData("p_concurrency_key", "  ")]
     public async Task A_blank_key_is_refused(string parameter, string key)

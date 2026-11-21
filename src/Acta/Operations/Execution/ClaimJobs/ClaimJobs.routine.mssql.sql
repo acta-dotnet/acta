@@ -39,7 +39,7 @@ BEGIN
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
                 execution_number BIGINT NOT NULL,
-                deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                idempotency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 job_kind_code TINYINT NOT NULL,
                 correlation_key VARCHAR(64) NULL,
                 concurrency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
@@ -123,7 +123,7 @@ BEGIN
             j.definition_id,
             j.tenant_id,
             INSERTED.execution_number,
-            j.deduplication_key,
+            j.idempotency_key,
             j.job_kind_code,
             j.correlation_key,
             j.concurrency_key,
@@ -138,7 +138,7 @@ BEGIN
         INTO
             @claimed (
                 job_id, job_ref, definition_id, tenant_id, execution_number,
-                deduplication_key, job_kind_code, correlation_key, concurrency_key,
+                idempotency_key, job_kind_code, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 failure_count, lane_id, parent_job_id, schedule_id
             )
@@ -155,7 +155,7 @@ BEGIN
                     job_id,
                     definition_id,
                     execution_number,
-                    deduplication_key,
+                    idempotency_key,
                     job_kind_code,
                     correlation_key,
                     concurrency_key,
@@ -181,7 +181,7 @@ BEGIN
                     CAST(NULL AS BIGINT) AS job_id,
                     CAST(NULL AS INT) AS definition_id,
                     CAST(NULL AS BIGINT) AS execution_number,
-                    CAST(NULL AS VARCHAR(128)) AS deduplication_key,
+                    CAST(NULL AS VARCHAR(128)) AS idempotency_key,
                     CAST(NULL AS TINYINT) AS job_kind_code,
                     CAST(NULL AS VARCHAR(64)) AS correlation_key,
                     CAST(NULL AS VARCHAR(128)) AS concurrency_key,

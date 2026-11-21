@@ -299,7 +299,7 @@ internal sealed class ScheduleAdmitter(
                     Admit = true,
                     Envelope = new FiringEnvelope(firingId, FiringEnvelope.ScheduledKind, nowUtc, [Contributor(s, admit)]).ToJson(),
                     JobRef = Guid.CreateVersion7(),
-                    DeduplicationKey = OccurrenceKey(s.ScheduleId, admit.OccurrenceAtUtc),
+                    IdempotencyKey = OccurrenceKey(s.ScheduleId, admit.OccurrenceAtUtc),
                 };
             }
         }

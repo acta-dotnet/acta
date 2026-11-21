@@ -12,7 +12,7 @@ The how-to is [/learn/222-find-child-job.md](/learn/222-find-child-job.md). This
 
 ```csharp
 // How to find the child job that handles one item
-// A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the
+// A child's name on the reads is its idempotency key, `{map}/{key}` for a child that a map started. List the
 // parent's children and pick the one that carries the item's key.
 using Acta;
 using Acta.Learn.FindChildJob;
@@ -43,9 +43,9 @@ await parent.WaitAsync();
 // learn: 2. List the parent's children
 // `Parent` restricts the job list to the children of one job. Each child shows the name it was started under.
 var children = await operations.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent));
-foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, StringComparer.Ordinal))
+foreach (var child in children.Items.OrderBy(child => child.IdempotencyKey, StringComparer.Ordinal))
 {
-    Console.WriteLine($"{child.DeduplicationKey}: {child.Status.Code}");
+    Console.WriteLine($"{child.IdempotencyKey}: {child.Status.Code}");
 }
 
 // learn: end
@@ -53,7 +53,7 @@ foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, St
 // learn: 3. Pick the child that carries the item's key
 // The key is the one the map was given for that item, so a page that shows invoice 7 gets from the invoice to its
 // job, and from there to what the job did.
-var invoice7 = children.Items.Single(child => child.DeduplicationKey == "invoice/7");
+var invoice7 = children.Items.Single(child => child.IdempotencyKey == "invoice/7");
 var why = (await jobs.ExplainAsync(invoice7.JobRef))!;
 Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
 
@@ -73,7 +73,7 @@ namespace Acta.Learn.FindChildJob
         public async Task Handle(SendInvoices batch, JobContext ctx, CancellationToken ct)
         {
             // learn: 1. Start each child under the item's own key
-            // `itemKey` names each child after its item. The name is stored as the child's deduplication key, and it
+            // `itemKey` names each child after its item. The name is stored as the child's idempotency key, and it
             // is how a replay of the parent and a reader from outside find the same child.
             var sent = await ctx.MapAsync("invoice", batch.InvoiceIds, itemKey: id => id, child: id => new SendInvoice(id), ct);
             // learn: end

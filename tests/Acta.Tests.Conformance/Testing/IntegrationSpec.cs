@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// <see cref="DisposeAsync"/> is a no-op on it so rows persist for inspection. xunit v3's
 /// new-instance-per-test default gives each test a fresh spec object and fixture, but every one of them
 /// reads and writes the same tables, so a spec isolates itself by owning its rows - a unique namespace, a
-/// unique deduplication key, a filter on ids it created - and never by assuming an empty schema. Reset is
+/// unique idempotency key, a filter on ids it created - and never by assuming an empty schema. Reset is
 /// an explicit operator action via <c>DatabaseSetup.ResetActaTestSchema</c>.
 /// <typeparamref name="TFixture"/> supplies the per-provider hooks so the spec class stays
 /// provider-neutral.

@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Acta API",
-    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, and answers 403 where the host has not enabled controls. A control whose request object is optional acts with its defaults when the request has no body, with or without a JSON content type. A signal raise takes any JSON value instead, and no bytes raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks. Each operation names the permission it needs in x-acta-permission; where the host turns permission checks on, a call with no credential answers 401, and one whose caller lacks the permission answers 403.\n\nA call that changes something must show that it is no cross-site form post, in one of three ways: the header X-Acta-Control: true, a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a bearer token passes without doing anything more; for a call with no body and no bearer token, send the header.",
+    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, and answers 403 where the host has not enabled controls. A control whose request object is optional acts with its defaults when the request has no body, with or without a JSON content type. A signal raise takes any JSON value instead, and no bytes raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when an idempotency key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks. Each operation names the permission it needs in x-acta-permission; where the host turns permission checks on, a call with no credential answers 401, and one whose caller lacks the permission answers 403.\n\nA call that changes something must show that it is no cross-site form post, in one of three ways: the header X-Acta-Control: true, a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a bearer token passes without doing anything more; for a call with no body and no bearer token, send the header.",
     "contact": {
       "name": "Acta",
       "url": "https://github.com/acta-dotnet/acta/issues"
@@ -2350,7 +2350,7 @@
                         "invoiceId": 42
                       }
                     },
-                    "deduplicationKey": "invoice-42",
+                    "idempotencyKey": "invoice-42",
                     "lane": "reports",
                     "concurrencyKey": "customer:42",
                     "tags": [
@@ -2371,7 +2371,7 @@
             "description": "The call ran; the body says what it did.",
             "headers": {
               "Location": {
-                "description": "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its deduplication key matched.",
+                "description": "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its idempotency key matched.",
                 "schema": {
                   "type": "string"
                 }
@@ -2397,7 +2397,7 @@
             "description": "The resource was created, and Location holds its URL.",
             "headers": {
               "Location": {
-                "description": "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its deduplication key matched.",
+                "description": "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its idempotency key matched.",
                 "schema": {
                   "type": "string"
                 }
@@ -2700,7 +2700,7 @@
                           "tenantName": "cust-001",
                           "parentJobRef": "job_00000000000000000000000000000040",
                           "lineageRootJobRef": "job_00000000000000000000000000000040",
-                          "deduplicationKey": "ck-1",
+                          "idempotencyKey": "ck-1",
                           "correlationKey": "order-1042",
                           "status": "ready",
                           "priority": "high",
@@ -9071,7 +9071,7 @@
                       "lineageRootJobRef": "job_00000000000000000000000000000040",
                       "parentJobRef": "job_00000000000000000000000000000040",
                       "tenantName": "cust-001",
-                      "deduplicationKey": "ck-1",
+                      "idempotencyKey": "ck-1",
                       "correlationKey": "order-1042",
                       "concurrencyKey": "customer:1042",
                       "inputFormatId": 1,
@@ -9204,19 +9204,19 @@
         "x-acta-permission": "acta.read"
       }
     },
-    "/v1/jobs/by-deduplication-key": {
+    "/v1/jobs/by-idempotency-key": {
       "get": {
         "tags": [
           "Jobs"
         ],
-        "summary": "Resolve a job by namespace and deduplication key",
+        "summary": "Resolve a job by namespace and idempotency key",
         "description": "Needs the acta.read permission.",
-        "operationId": "getJobByDeduplicationKey",
+        "operationId": "getJobByIdempotencyKey",
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "query",
-            "description": "The deduplication key's namespace scope.",
+            "description": "The idempotency key's namespace scope.",
             "required": true,
             "schema": {
               "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
@@ -9224,9 +9224,9 @@
             }
           },
           {
-            "name": "deduplicationKey",
+            "name": "idempotencyKey",
             "in": "query",
-            "description": "The caller-supplied deduplication key to resolve.",
+            "description": "The caller-supplied idempotency key to resolve.",
             "required": true,
             "schema": {
               "type": "string"
@@ -9242,7 +9242,7 @@
                   "$ref": "#/components/schemas/GetJobResponse"
                 },
                 "examples": {
-                  "getJobByDeduplicationKey": {
+                  "getJobByIdempotencyKey": {
                     "value": {
                       "jobRef": "job_00000000000000000000000000000042",
                       "kind": "ordinary",
@@ -9251,7 +9251,7 @@
                       "lineageRootJobRef": "job_00000000000000000000000000000040",
                       "parentJobRef": "job_00000000000000000000000000000040",
                       "tenantName": "cust-001",
-                      "deduplicationKey": "ck-1",
+                      "idempotencyKey": "ck-1",
                       "correlationKey": "order-1042",
                       "concurrencyKey": "customer:1042",
                       "inputFormatId": 1,
@@ -9286,12 +9286,12 @@
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "getJobByDeduplicationKey": {
+                  "getJobByIdempotencyKey": {
                     "value": {
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid request.",
                       "status": 400,
-                      "detail": "jobNamespace and deduplicationKey are required."
+                      "detail": "jobNamespace and idempotencyKey are required."
                     }
                   }
                 }
@@ -9309,7 +9309,7 @@
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "getJobByDeduplicationKey": {
+                  "getJobByIdempotencyKey": {
                     "value": {
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.4",
                       "title": "Permission denied.",
@@ -9329,7 +9329,7 @@
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "getJobByDeduplicationKey": {
+                  "getJobByIdempotencyKey": {
                     "value": {
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
                       "title": "Job not found.",
@@ -9348,7 +9348,7 @@
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "getJobByDeduplicationKey": {
+                  "getJobByIdempotencyKey": {
                     "value": {
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
                       "title": "Internal server error.",
@@ -9368,7 +9368,7 @@
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "getJobByDeduplicationKey": {
+                  "getJobByIdempotencyKey": {
                     "value": {
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4",
                       "title": "Service unavailable.",
@@ -9762,7 +9762,7 @@
                         "lineageRootJobRef": "job_00000000000000000000000000000040",
                         "parentJobRef": "job_00000000000000000000000000000040",
                         "tenantName": "cust-001",
-                        "deduplicationKey": "ck-1",
+                        "idempotencyKey": "ck-1",
                         "correlationKey": "order-1042",
                         "concurrencyKey": "customer:1042",
                         "inputFormatId": 1,
@@ -12078,7 +12078,7 @@
                           "jobRef": "job_0000000000000000000000000000000a",
                           "jobNamespace": "billing",
                           "jobName": "send-invoice",
-                          "deduplicationKey": "inv-9",
+                          "idempotencyKey": "inv-9",
                           "correlationKey": "trace-9",
                           "tenantName": null,
                           "failureCount": 5,
@@ -17000,7 +17000,7 @@
           "inserted"
         ],
         "type": "string",
-        "description": "What an enqueue did: inserted a new job, or deduplicated onto the job that already holds the deduplication key.\n\nKnown values: inserted, deduplicated.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What an enqueue did: inserted a new job, or deduplicated onto the job that already holds the idempotency key.\n\nKnown values: inserted, deduplicated.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "inserted",
           "deduplicated"
@@ -17034,7 +17034,7 @@
             ],
             "description": "The job's input as a payload envelope; omitted or null enqueues a job without input."
           },
-          "deduplicationKey": {
+          "idempotencyKey": {
             "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?![Ss][Yy][Ss]\\.)[!-~]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
             "type": [
               "null",
@@ -17129,11 +17129,11 @@
             "$ref": "#/components/schemas/JobRef"
           },
           "action": {
-            "description": "What the call did: enqueued a new job, or matched an existing one by its deduplication key.",
+            "description": "What the call did: enqueued a new job, or matched an existing one by its idempotency key.",
             "$ref": "#/components/schemas/EnqueueJobAction"
           }
         },
-        "description": "What an enqueue answers: the job's ref, and the action that tells a new job from a match on the deduplication key."
+        "description": "What an enqueue answers: the job's ref, and the action that tells a new job from a match on the idempotency key."
       },
       "EnqueueRejectionReason": {
         "examples": [
@@ -18598,7 +18598,7 @@
           "lineageRootJobRef",
           "parentJobRef",
           "tenantName",
-          "deduplicationKey",
+          "idempotencyKey",
           "correlationKey",
           "concurrencyKey",
           "inputFormatId",
@@ -18667,12 +18667,12 @@
             ],
             "description": "The tenant the job is about, when it names one."
           },
-          "deduplicationKey": {
+          "idempotencyKey": {
             "type": [
               "null",
               "string"
             ],
-            "description": "The job's deduplication key, when it was enqueued with one."
+            "description": "The job's idempotency key, when it was enqueued with one."
           },
           "correlationKey": {
             "type": [
@@ -20240,7 +20240,7 @@
           "tenantName",
           "parentJobRef",
           "lineageRootJobRef",
-          "deduplicationKey",
+          "idempotencyKey",
           "correlationKey",
           "status",
           "priority",
@@ -20294,12 +20294,12 @@
             ],
             "description": "The ref of the job at the root of the lineage this job belongs to; null for a root job."
           },
-          "deduplicationKey": {
+          "idempotencyKey": {
             "type": [
               "null",
               "string"
             ],
-            "description": "The job's deduplication key, when it was enqueued with one."
+            "description": "The job's idempotency key, when it was enqueued with one."
           },
           "correlationKey": {
             "type": [
@@ -20671,7 +20671,7 @@
           "jobRef",
           "jobNamespace",
           "jobName",
-          "deduplicationKey",
+          "idempotencyKey",
           "correlationKey",
           "tenantName",
           "failureCount",
@@ -20692,12 +20692,12 @@
             "type": "string",
             "description": "The name of the definition the row would enqueue."
           },
-          "deduplicationKey": {
+          "idempotencyKey": {
             "type": [
               "null",
               "string"
             ],
-            "description": "The deduplication key the row would enqueue with, when it has one."
+            "description": "The idempotency key the row would enqueue with, when it has one."
           },
           "correlationKey": {
             "type": [

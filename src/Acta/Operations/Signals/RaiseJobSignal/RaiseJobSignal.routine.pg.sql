@@ -129,7 +129,7 @@ BEGIN
     v_landing := COALESCE(
         p_event_message,
         'Child '
-        || COALESCE((SELECT '''' || c.deduplication_key || '''' FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id), 'job ' || p_child_job_id)
+        || COALESCE((SELECT '''' || c.idempotency_key || '''' FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id), 'job ' || p_child_job_id)
         || ' '
         || CASE p_child_status
             WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'

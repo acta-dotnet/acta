@@ -62,7 +62,7 @@ internal static class RaceCases
                 expected[0] = expected[0] with { Result = ordering == "before" ? "signalled" : "expired" };
             }
             var root = await jobs.EnqueueAsync(
-                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
+                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), IdempotencyKey: input.Key),
                 ct
             );
             using var worker = OwnedWorker.Start(

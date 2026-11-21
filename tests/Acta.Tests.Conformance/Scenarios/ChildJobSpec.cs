@@ -44,7 +44,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
-        Assert.Equal("echo", child.DeduplicationKey);
+        Assert.Equal("echo", child.IdempotencyKey);
         Assert.Equal(parent.JobId, child.LineageRootJobId);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
@@ -153,7 +153,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
 
         // The parent waits on its first child, a. Another child landing records its outcome and leaves the parent
         // suspended: a child the parent does not wait on costs it no execution.
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(children.Single(j => j.DeduplicationKey == "c").Id, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(children.Single(j => j.IdempotencyKey == "c").Id, ct));
         var waiting = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, waiting.Status);
         Assert.Equal(1, waiting.JobState.ExecutionNumber);
@@ -161,7 +161,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         // a releases it; it replays past c, whose outcome is already there, and waits on b, which releases it again.
         foreach (var key in (string[])["a", "b"])
         {
-            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(children.Single(j => j.DeduplicationKey == key).Id, ct));
+            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(children.Single(j => j.IdempotencyKey == key).Id, ct));
             Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
             await Runtime.RunOnceAsync(parent, ct);
         }
@@ -182,11 +182,11 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         // Attach descendants through the public ParentId wire: a 3-level chain, plus a finished child
         // that itself has a live grandchild, so the walk must pass through the terminal node.
         var child = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: root.JobId),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, IdempotencyKey: "held", ParentJobId: root.JobId),
             ct
         );
         var grandchild = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: child.JobId),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, IdempotencyKey: "held", ParentJobId: child.JobId),
             ct
         );
         var done = await Jobs.EnqueueAsync(
@@ -194,13 +194,13 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
                 TestNamespace,
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),
-                DeduplicationKey: "done",
+                IdempotencyKey: "done",
                 ParentJobId: root.JobId
             ),
             ct
         );
         var behindDone = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: done.JobId),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, IdempotencyKey: "held", ParentJobId: done.JobId),
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(done, ct));
@@ -388,7 +388,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
                     TestNamespace,
                     "job-child-echo",
                     JobPayload.Json(new ChildEcho(i)),
-                    DeduplicationKey: $"c{i}",
+                    IdempotencyKey: $"c{i}",
                     ParentJobId: root.JobId
                 ),
                 ct
@@ -449,7 +449,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var children = await ReadChildrenAsync(parent.JobId, ct);
-        Assert.Equal("echo/1,echo/2,echo/3", string.Join(",", children.Select(child => child.DeduplicationKey).Order()));
+        Assert.Equal("echo/1,echo/2,echo/3", string.Join(",", children.Select(child => child.IdempotencyKey).Order()));
         Assert.All(children, child => Assert.Equal(JobPriorityCode.High, child.Priority));
         foreach (var child in children)
         {

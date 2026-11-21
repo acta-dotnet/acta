@@ -8,7 +8,7 @@ namespace Acta;
 public sealed class JobEnqueueOptionsBuilder
 {
     private string? _namespace;
-    private string? _deduplicationKey;
+    private string? _idempotencyKey;
     private string? _correlationKey;
     private string? _concurrencyKey;
     private string? _lane;
@@ -32,15 +32,15 @@ public sealed class JobEnqueueOptionsBuilder
     }
 
     /// <summary>
-    /// Set an already resolved final deduplication key. Typed routing has not resolved the definition
+    /// Set an already resolved final idempotency key. Typed routing has not resolved the definition
     /// when options are configured, so callers compose definition-scoped keys with
-    /// <see cref="Acta.DeduplicationKey"/> before assigning them here. The key keeps its case and may not
+    /// <see cref="Acta.IdempotencyKey"/> before assigning them here. The key keeps its case and may not
     /// start with <c>sys.</c>.
     /// </summary>
-    public JobEnqueueOptionsBuilder DeduplicationKey(string deduplicationKey)
+    public JobEnqueueOptionsBuilder IdempotencyKey(string idempotencyKey)
     {
-        deduplicationKey = Acta.DeduplicationKey.Canonicalize(deduplicationKey, nameof(deduplicationKey));
-        _deduplicationKey = deduplicationKey;
+        idempotencyKey = Acta.IdempotencyKey.Canonicalize(idempotencyKey, nameof(idempotencyKey));
+        _idempotencyKey = idempotencyKey;
         return this;
     }
 
@@ -111,7 +111,7 @@ public sealed class JobEnqueueOptionsBuilder
     }
 
     /// <summary>
-    /// Enqueue as a child of the given Job. The parent must exist and be non-terminal; deduplication-key
+    /// Enqueue as a child of the given Job. The parent must exist and be non-terminal; idempotency-key
     /// dedup becomes sibling-unique per parent.
     /// </summary>
     public JobEnqueueOptionsBuilder ParentJobId(long parentJobId)
@@ -158,7 +158,7 @@ public sealed class JobEnqueueOptionsBuilder
         new()
         {
             JobNamespace = _namespace,
-            DeduplicationKey = _deduplicationKey,
+            IdempotencyKey = _idempotencyKey,
             CorrelationKey = _correlationKey,
             ConcurrencyKey = _concurrencyKey,
             Lane = _lane,

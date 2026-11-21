@@ -152,7 +152,7 @@ internal sealed class DurableReader(OwnedProvider provider)
             where += $" AND j.job_id IN ({string.Join(',', names)})";
         }
         command.CommandText =
-            $"SELECT {(provider.Provider == "mssql" ? $"TOP ({Page})" : "")} j.job_id, j.deduplication_key, j.parent_job_id, r.job_status_code, r.result, r.execution_number, n.namespace_name, j.lineage_root_job_id, r.modified_at_utc FROM {Table("jobs")} j JOIN {Table("jobs_state")} r ON r.job_id=j.job_id JOIN {Table("namespaces")} n ON n.namespace_id=j.namespace_id JOIN {Table("definitions")} d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%' AND {where} ORDER BY j.job_id {(provider.Provider != "mssql" ? $"LIMIT {Page}" : "")}";
+            $"SELECT {(provider.Provider == "mssql" ? $"TOP ({Page})" : "")} j.job_id, j.idempotency_key, j.parent_job_id, r.job_status_code, r.result, r.execution_number, n.namespace_name, j.lineage_root_job_id, r.modified_at_utc FROM {Table("jobs")} j JOIN {Table("jobs_state")} r ON r.job_id=j.job_id JOIN {Table("namespaces")} n ON n.namespace_id=j.namespace_id JOIN {Table("definitions")} d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%' AND {where} ORDER BY j.job_id {(provider.Provider != "mssql" ? $"LIMIT {Page}" : "")}";
         List<DurableRow> rows = new(Page);
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -339,7 +339,7 @@ internal sealed class DurableReader(OwnedProvider provider)
         command.CommandText = string.Join(
             " UNION ALL ",
             IndexedLiveStates.Select(state =>
-                $"SELECT r.job_id, r.deduplication_key, c.job_id FROM {Table("jobs_state")} cs JOIN {Table("jobs")} c ON c.job_id = cs.job_id JOIN {Table("jobs_state")} rs ON rs.job_id = c.lineage_root_job_id JOIN {Table("jobs")} r ON r.job_id = rs.job_id WHERE {state} AND cs.job_id > @after AND c.parent_job_id IS NOT NULL AND rs.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)"
+                $"SELECT r.job_id, r.idempotency_key, c.job_id FROM {Table("jobs_state")} cs JOIN {Table("jobs")} c ON c.job_id = cs.job_id JOIN {Table("jobs_state")} rs ON rs.job_id = c.lineage_root_job_id JOIN {Table("jobs")} r ON r.job_id = rs.job_id WHERE {state} AND cs.job_id > @after AND c.parent_job_id IS NOT NULL AND rs.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)"
             )
         );
         List<(long, string, long)> found = [];

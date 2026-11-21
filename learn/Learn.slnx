@@ -9,11 +9,11 @@
     <Project Path="000-fundamentals/007-dependency-injection/007-dependency-injection.csproj" />
     <Project Path="000-fundamentals/008-cancellation-token/008-cancellation-token.csproj" />
     <Project Path="000-fundamentals/009-typed-enqueue/009-typed-enqueue.csproj" />
-    <Project Path="000-fundamentals/010-deduplication-key/010-deduplication-key.csproj" />
+    <Project Path="000-fundamentals/010-idempotency-key/010-idempotency-key.csproj" />
     <Project Path="000-fundamentals/011-delayed-job/011-delayed-job.csproj" />
     <Project Path="000-fundamentals/012-read-status/012-read-status.csproj" />
     <Project Path="000-fundamentals/013-read-result/013-read-result.csproj" />
-    <Project Path="000-fundamentals/014-read-by-deduplication-key/014-read-by-deduplication-key.csproj" />
+    <Project Path="000-fundamentals/014-read-by-idempotency-key/014-read-by-idempotency-key.csproj" />
     <Project Path="000-fundamentals/015-call-vs-enqueue/015-call-vs-enqueue.csproj" />
     <Project Path="000-fundamentals/016-max-attempts/016-max-attempts.csproj" />
     <Project Path="000-fundamentals/017-priority/017-priority.csproj" />

@@ -61,7 +61,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
         CancellationToken ct
     )
     {
-        var name = options.DeduplicationKey ?? throw new InvalidOperationException("child options carried no deduplication key.");
+        var name = options.IdempotencyKey ?? throw new InvalidOperationException("child options carried no idempotency key.");
         var id = ++_nextId;
         _idToName[id] = name;
         Started.Add((name, input));
@@ -158,7 +158,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
 
     private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync(EnqueueJobRequest request, CancellationToken ct)
     {
-        var name = request.DeduplicationKey ?? throw new InvalidOperationException("child request carried no deduplication key.");
+        var name = request.IdempotencyKey ?? throw new InvalidOperationException("child request carried no idempotency key.");
         var id = ++_nextId;
         _idToName[id] = name;
         RawStarted.Add(request);

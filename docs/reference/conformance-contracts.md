@@ -719,10 +719,10 @@
   - Pause and resume verbs map to IJobs, exit zero, and apply the transitions
   - Cancel and restart verbs map to IJobs and apply the transitions
   - Exit codes follow action bands: illegal move exits one, missing job exits two
-  - A bare integer target is a deduplication key and a control refuses an internal id
+  - A bare integer target is an idempotency key and a control refuses an internal id
   - Signal verb maps to IJobs and applies on a live job
   - Info and status read verbs print the job row
-  - A verb resolves a job by deduplication key with an explicit namespace
+  - A verb resolves a job by idempotency key with an explicit namespace
   - Debug claims only the targeted id, runs it in-process to Succeeded, and result surfaces the payload
   - Debug on a finished laned job restarts it in place and runs it when its lane is free
   - Debug on a finished laned job restarted behind a live member reports it Blocked and stops
@@ -858,12 +858,12 @@
   - A shorter payload after a longer payload is persisted without retaining trailing bytes
   - A payload with a format and no bytes lands as a zero-length input, not NULL, alone and in a batch
 
-### Same-batch duplicate deduplication keys or malformed rows reject the batch
-- **Contract:** A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted.
+### Same-batch duplicate idempotency keys or malformed rows reject the batch
+- **Contract:** A batch with a same-batch duplicate IdempotencyKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted.
 - **Guarantees:**
-  - A same-batch duplicate DeduplicationKey throws DuplicateDeduplicationKeyInBatchException and persists nothing
-  - Duplicate DeduplicationKeys with different payloads are still rejected
-  - Distinct and null DeduplicationKeys coexist in one batch and all insert
+  - A same-batch duplicate IdempotencyKey throws DuplicateIdempotencyKeyInBatchException and persists nothing
+  - Duplicate IdempotencyKeys with different payloads are still rejected
+  - Distinct and null IdempotencyKeys coexist in one batch and all insert
   - Duplicate tag names on a row throw ArgumentException and persist nothing
   - Rejection is atomic so a valid row in a rejected batch never lands
   - An unknown namespace or job throws and persists nothing
@@ -913,7 +913,7 @@
   - A child with a different TenantName and the explicit override lands under its own tenant
   - A child with a different TenantName and no override is rejected atomically
   - A child naming its tenant-less parent's namespace tenant explicitly lands without the override
-  - A deduplication key another tenant's job holds is refused, one row or a batch, while a side with no tenant still matches
+  - An idempotency key another tenant's job holds is refused, one row or a batch, while a side with no tenant still matches
   - ListJobs filters by tenant id
 
 ### Transactional enqueue commits or rolls back with the business write
@@ -949,10 +949,10 @@
   - Enqueue against a retired definition throws DefinitionRetired
   - A child of a parent that does not exist or has finished throws ParentUnavailable and is not stored
 
-### GetJobIdByDeduplicationKey returns the id for a known key, null otherwise
-- **Contract:** GetJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches.
+### GetJobIdByIdempotencyKey returns the id for a known key, null otherwise
+- **Contract:** GetJobIdByIdempotencyKey resolves a root job's id from its namespace and idempotency key, and returns null when no row matches.
 - **Guarantees:**
-  - Known deduplication key resolves to the enqueued job id and an unknown key returns null
+  - Known idempotency key resolves to the enqueued job id and an unknown key returns null
 
 ### Enqueue assigns a job ref that resolves to the job; unknown refs return null
 - **Contract:** Every enqueued job carries a server-generated job_ref that resolves to its internal id, and an unknown ref resolves to null.
@@ -967,12 +967,12 @@
   - A lane ORDER-1 is the lane order-1
   - A tenant ACME registers as acme and resolves in any case
   - A signal raised as GO releases the wait on go
-  - Deduplication keys that differ only by case are two jobs, and a lookup by key is exact
+  - Idempotency keys that differ only by case are two jobs, and a lookup by key is exact
   - Correlation keys that differ only by case filter apart, and a filter is trimmed like a key
   - Concurrency keys that differ only by case do not share a lock
-  - A batch keeps deduplication keys that differ only by case apart, from each other and from a stored key
+  - A batch keeps idempotency keys that differ only by case apart, from each other and from a stored key
   - Lock keys that differ only by case are two locks, and one heartbeat renews both
-  - SYS.x is rejected as a deduplication key at enqueue and as a name at registration
+  - SYS.x is rejected as an idempotency key at enqueue and as a name at registration
   - A lookup names the seeded sys namespace in any case
 
 ### A generated call enqueues, schedules, and runs its job
@@ -1023,12 +1023,12 @@
   - Builders map relative delay to an integer, round sub-second up, and clear the other channel last-write-wins
 
 ### Typed enqueue resolves the route and delayed jobs gate on next_run
-- **Contract:** The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and CallAsync waits.
+- **Contract:** The typed IJobs façade resolves the route from the input type, applies idempotency-key dedupe and delayed-run options, and CallAsync waits.
 - **Guarantees:**
   - Typed enqueue resolves the route, serializes the input and round-trips the result
   - Typed enqueue round-trips scalar value-type inputs without misclassifying them as none
   - A value-type result is not found until the job stores one, and a stored zero is found
-  - Typed enqueue applies the deduplication key and a repeat deduplicates onto one row
+  - Typed enqueue applies the idempotency key and a repeat deduplicates onto one row
   - A delayed job is not claimable before due but runs once due
   - A handler returning null succeeds and stores no result
   - CallAsync enqueues, waits for completion and returns the typed result
@@ -1696,7 +1696,7 @@
   - A record whose ref another job holds is quarantined with the reason, and the others are delivered
   - A quarantined record keeps its ref through a requeue and is delivered under it
   - A producer's own uuid of any version is accepted as the job's ref
-  - Records sharing a deduplication key become one job, and a later record's ref names no job
+  - Records sharing an idempotency key become one job, and a later record's ref names no job
   - A record whose first job was purged is enqueued again as a new job under the same ref
   - A keyed record with tags delivered before a stop is answered deduplicated by its key, alone or in a batch
   - A record carrying one job's key and another job's ref is deduplicated onto the first and leaves the second as it was
@@ -1819,10 +1819,10 @@
   - An unknown name returns null
   - Display name and description overrides round-trip through the detail projection
 
-### GetJobId resolves a ref or deduplication key to the id, null for no match
-- **Contract:** GetJobId returns the internal id of the job a ref or a root deduplication key names, returns an id lookup's own id, and returns null when no job matches.
+### GetJobId resolves a ref or idempotency key to the id, null for no match
+- **Contract:** GetJobId returns the internal id of the job a ref or a root idempotency key names, returns an id lookup's own id, and returns null when no job matches.
 - **Guarantees:**
-  - A ref and a deduplication key resolve to the enqueued job's id
+  - A ref and an idempotency key resolve to the enqueued job's id
   - An id lookup answers its own id, and a ref or key that matches no job answers null
 
 ### GetJobLineageMap returns the focus job with ancestors and children or null
@@ -1876,7 +1876,7 @@
   - An unknown name, and a name read under a kind it is not stored under, answer null
   - The scheduler's firing record holds a value and is not reachable, as the checkpoint list leaves it out
   - A job that does not exist answers null, by id and by ref
-  - A deduplication key reads its own namespace's job, and from another namespace reaches nothing
+  - An idempotency key reads its own namespace's job, and from another namespace reaches nothing
 
 ### ListJobCheckpoints pages a job's checkpoints by kind then name
 - **Contract:** ListJobCheckpoints pages a job's checkpoints by kind then name, each value by format and size, empty for none or no job, its cursor passing an unknown kind.
@@ -3131,7 +3131,7 @@
 | `GetDefinitionPerformance` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
 | `GetJobCheckpointValue` | yes | yes | yes |
-| `GetJobIdByDeduplicationKey` | yes | yes | yes |
+| `GetJobIdByIdempotencyKey` | yes | yes | yes |
 | `GetJobIdByRef` | yes | yes | yes |
 | `GetJobIdBySlot` | yes | yes | yes |
 | `GetJobInput` | yes | yes | yes |

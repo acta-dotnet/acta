@@ -46,7 +46,7 @@
     { chip: 'ns:', hint: 'switch namespace scope' },
     { chip: 'tag:', hint: 'find tagged items' },
     { chip: 'corr:', hint: 'jobs by correlation id' },
-    { chip: 'key:', hint: 'job by deduplication key' },
+    { chip: 'key:', hint: 'job by idempotency key' },
     { chip: 'id:', hint: 'job by internal id' }
   ];
 
@@ -143,11 +143,11 @@
       out.push({ id: 'jump:corr', group: 'Jump', icon: 'target', label: `Jobs with correlation "${rec.key}"`, href: routes.jobs({ namespace: ns, correlationKey: rec.key }) });
       return out;
     }
-    if (rec.kind === 'dedupKey') {
+    if (rec.kind === 'idempotencyKey') {
       if (ns) {
-        out.push({ id: 'jump:key', group: 'Jump', icon: 'cube', label: `Look up deduplication key "${rec.key}" in ${ns}`, run: () => lookupByKey(ns, rec.key) });
+        out.push({ id: 'jump:key', group: 'Jump', icon: 'cube', label: `Look up idempotency key "${rec.key}" in ${ns}`, run: () => lookupByKey(ns, rec.key) });
       } else {
-        out.push({ id: 'jump:key-hint', group: 'Jump', icon: 'warn', label: 'Select a namespace scope to look up a deduplication key' });
+        out.push({ id: 'jump:key-hint', group: 'Jump', icon: 'warn', label: 'Select a namespace scope to look up an idempotency key' });
       }
       return out;
     }
@@ -282,7 +282,7 @@
   async function lookupByKey(ns: string, key: string): Promise<void> {
     lookupError = '';
     try {
-      const job = await api<{ jobRef: string }>('jobs/by-deduplication-key', { jobNamespace: ns, deduplicationKey: key });
+      const job = await api<{ jobRef: string }>('jobs/by-idempotency-key', { jobNamespace: ns, idempotencyKey: key });
       navigate({ id: 'jump:key', group: 'Jump', icon: 'cube', label: 'job ' + key, href: routes.job(job.jobRef, { namespace: ns }) });
     } catch (e) {
       lookupError = e instanceof Error ? e.message : String(e);
@@ -433,7 +433,7 @@
         {/each}
         {#if rows.length === 0}
           <li class="palette-empty" role="presentation">
-            No matches. Try a name fragment, a job ref, id:123, ns:&lt;namespace&gt;, key:&lt;dedup&gt;, corr:&lt;correlation&gt;, a name:value tag, or tag:&lt;name&gt;.
+            No matches. Try a name fragment, a job ref, id:123, ns:&lt;namespace&gt;, key:&lt;idempotency&gt;, corr:&lt;correlation&gt;, a name:value tag, or tag:&lt;name&gt;.
           </li>
         {/if}
       </ul>

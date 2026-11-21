@@ -92,7 +92,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="hl"><span class="k">var</span> single = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Hello(<span class="k">new</span> Hello(<span class="s">&quot;World&quot;</span>)));</span>
-<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.DeduplicationKey(<span class="s">&quot;greet-ada&quot;</span>));</span>
+<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.IdempotencyKey(<span class="s">&quot;greet-ada&quot;</span>));</span>
 Console.WriteLine(<span class="s">$&quot;Enqueued hello as {single.JobRef} and greet as {several.JobRef}.&quot;</span>);
 
 <span class="k">await</span> host.WaitForShutdownAsync();
@@ -150,7 +150,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// The manifest's generated call names the job and takes its handler's parameters; the namespace resolves from the</span>
 <span class="c">// registered manifest, and nothing is inferred from the input's type.</span>
 <span class="hl"><span class="k">var</span> single = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Hello(<span class="k">new</span> Hello(<span class="s">&quot;World&quot;</span>)));</span>
-<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.DeduplicationKey(<span class="s">&quot;greet-ada&quot;</span>));</span>
+<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.IdempotencyKey(<span class="s">&quot;greet-ada&quot;</span>));</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;Enqueued hello as {single.JobRef} and greet as {several.JobRef}.&quot;</span>);
@@ -198,10 +198,10 @@ Console.WriteLine(<span class="s">$&quot;Enqueued hello as {single.JobRef} and g
             <li><a href="/learn/006-many-jobs-one-class" data-id="006"><span class="rail-n">6</span>Keep several jobs in one class</a></li>
             <li><a href="/learn/011-delayed-job" data-id="011"><span class="rail-n">7</span>Run a job once, later</a></li>
             <li><a href="/learn/217-absolute-time-controls" data-id="217"><span class="rail-n">8</span>Schedule, sleep, and reschedule to an exact instant</a></li>
-            <li><a href="/learn/010-deduplication-key" data-id="010"><span class="rail-n">9</span>Keep a repeated request from creating a second job</a></li>
+            <li><a href="/learn/010-idempotency-key" data-id="010"><span class="rail-n">9</span>Keep a repeated request from creating a second job</a></li>
             <li><a href="/learn/028-deduplication-time-buckets" data-id="028"><span class="rail-n">10</span>Allow one job per hour or per day</a></li>
             <li><a href="/learn/029-enqueue-in-transaction" data-id="029"><span class="rail-n">11</span>Save a record and start its job in one transaction</a></li>
-            <li><a href="/learn/014-read-by-deduplication-key" data-id="014"><span class="rail-n">12</span>Find a job by its deduplication key</a></li>
+            <li><a href="/learn/014-read-by-idempotency-key" data-id="014"><span class="rail-n">12</span>Find a job by its idempotency key</a></li>
             <li><a href="/learn/015-call-vs-enqueue" data-id="015"><span class="rail-n">13</span>Choose between starting a job and waiting for it</a></li>
             <li><a href="/learn/019-batch-enqueue" data-id="019"><span class="rail-n">14</span>Enqueue many jobs in one round trip</a></li>
             <li><a href="/learn/017-priority" data-id="017"><span class="rail-n">15</span>Run urgent jobs first</a></li>

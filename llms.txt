@@ -110,7 +110,7 @@ public static class ShippingHandlers
   `Manifest` instead: `TestJobs` → `TestJobsManifest`). It is generated into that root namespace,
   so a `Program.cs` of top-level statements, which sit in the global namespace, needs `using Shipping;` to see it.
 - `"shipping"` in `j.Run<ShippingJobs>("shipping")` is the namespace, and it is permanent. It is the name the
-  worker's jobs, schedules, deduplication keys, locks and rate meters are stored under, and the dashboard, the CLI,
+  worker's jobs, schedules, idempotency keys, locks and rate meters are stored under, and the dashboard, the CLI,
   the HTTP API (`jobNamespace`) and SQL show it beside every job. There is no rename: jobs stored under an old name
   stay there with no worker to run them. Choose it once, for the work the app owns (`shipping`, `billing`), never
   for an environment, a version, a machine or a project's working title. It follows the name rule above, at most
@@ -131,13 +131,13 @@ public static class ShippingHandlers
   `permit.consultation` is `PermitConsultation`), a factory taking the handler's input parameters and returning the
   job's call: `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)))` names the job outright, and a
   result job's call answers `JobHandle<TResult>`. An enqueue that reads no result can pass the input alone, options
-  included: `jobs.EnqueueAsync(new ShipOrder(orderId), o => o.DeduplicationKey(key))`. A handler may take several input parameters before `JobContext` and
+  included: `jobs.EnqueueAsync(new ShipOrder(orderId), o => o.IdempotencyKey(key))`. A handler may take several input parameters before `JobContext` and
   `CancellationToken`; they travel as one generated record, `ShippingJobs.{Job}Args`, whose parameter names
   are stored JSON keys. Under Native AOT, declare the input record yourself and take it as the one parameter: the build fails with ACTA0107 otherwise, and a host without reflection refuses to start when a job's JSON input or result type is missing from the context.
 - The handle follows the job without another lookup: `await handle.WaitAsync()` answers its outcome, `await handle.GetResultAsync<ShipmentLabel>()` returns the stored result
   and throws when there is none, and `await handle.TryGetResultAsync<ShipmentLabel>()` answers `(Found, Value)` for a result that may not exist yet; on the `JobHandle<TResult>` a generated call answers, drop the type argument.
   From a ref the same reads are on `IJobs`: `jobs.GetResultAsync<ShipmentLabel>(jobRef)`. Neither read waits.
-- An `IJobs` call that addresses a job takes a `JobLookup`, and both the handle an enqueue answered and a `JobRef` convert to one, so pass what you hold: `jobs.GetStatusAsync(jobRef)`. A ref that arrives as text, from a route or a column of your own, is `JobRef.Parse(text)` or `JobRef.TryParse`. `JobLookup.ByDeduplicationKey(jobNamespace, key)` finds the job a key made.
+- An `IJobs` call that addresses a job takes a `JobLookup`, and both the handle an enqueue answered and a `JobRef` convert to one, so pass what you hold: `jobs.GetStatusAsync(jobRef)`. A ref that arrives as text, from a route or a column of your own, is `JobRef.Parse(text)` or `JobRef.TryParse`. `JobLookup.ByIdempotencyKey(jobNamespace, key)` finds the job a key made.
 - Handlers resolve through DI: an instance class's constructor dependencies must be registered. One DI cannot build fails its job on the first attempt with `HandlerActivationException`, never retried, and the message names the missing service.
 
 ## Wiring rules by situation
@@ -243,7 +243,7 @@ public sealed class WebhookJobs(HttpClient http)
             await ctx.RunStepAsync("post", async token =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, input.Url);
-                // The idempotency key comes from the JOB (stable across attempts), never the attempt.
+                // The receiver's idempotency key comes from the JOB (stable across attempts), never the attempt.
                 request.Headers.Add("Idempotency-Key", input.DeliveryId.ToString());
                 request.Content = new StringContent(input.Payload);
                 using var response = await http.SendAsync(request, token);
@@ -357,7 +357,7 @@ until the job ends or the wait times out; a handler's wait parks the job and hol
 - A failed or cancelled child never throws in the parent by itself. Every wait answers an outcome and the handler decides: `ThrowIfFailed()` or `ThrowIfAnyFailed()` to fail with it, or branch on `Failed` and compensate. A group waits for every child; it never fails fast and never cancels siblings.
 - Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. A child that failed carries the message it failed with in `FailureMessage`, and `ThrowIfFailed()` puts it in the parent's failure; one that crash recovery failed carries none. `IJobs.WaitAsync` answers the same type outside a handler, with no `FailureMessage`: read that job's timeline. Wait now with `CallChildAsync`; wait later for children you enqueued, one or many, with `WaitChildrenAsync`; fan a list out with `MapAsync`.
 - `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` in a handler fail the job at once, with no retry: a retry would find the same failed child. To recover, restart the child, then the parent: restarting a child puts its parent's wait for it back to pending, so the parent waits for the child's new outcome whether it runs before or after the child lands. A bounded wait keeps its deadline: a child restarted after that deadline has passed is timed out and cancelled when the parent next runs. A parent restarted alone reads the same failed child and fails again at once. A restarted parent keeps the results of the steps after its wait, so bind a decision you derive from the children's outcomes into the step that acts on it.
-- A child's name is its `DeduplicationKey` on the job reads: the call's name for `CallChildAsync` and `EnqueueChildAsync`, and `{map}/{key}` for a map's child (`sections/coast`; a key that is not lowercase letters, digits and single dashes becomes a hash, so lowercase a key you want to read in the name), so `acta.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent.JobRef))` lists the children by name. A name is unique only under its parent, so `JobLookup.ByDeduplicationKey` finds root jobs only, never a child.
+- A child's name is its `IdempotencyKey` on the job reads: the call's name for `CallChildAsync` and `EnqueueChildAsync`, and `{map}/{key}` for a map's child (`sections/coast`; a key that is not lowercase letters, digits and single dashes becomes a hash, so lowercase a key you want to read in the name), so `acta.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent.JobRef))` lists the children by name. A name is unique only under its parent, so `JobLookup.ByIdempotencyKey` finds root jobs only, never a child.
 - A child alerts on its own failure as its definition's `AlertProfile` says (`OnFailure` by default), also when the
   parent expects the failure and compensates for it. When the parent reports it, declare the child
   `[Job("reserve-room", AlertProfile = AlertProfileCode.None)]`; an alert the parent raises is still created.
@@ -462,9 +462,9 @@ again.
 - An unknown or suspended tenant's enqueue is refused (`EnqueueRejectionReason.TenantUnknown`, `TenantSuspended`).
   Suspension only stops admission: admitted jobs run on, the children they start are admitted, and restarts and
   signals still apply.
-- A deduplication key is the namespace's, not the tenant's: an enqueue whose key another tenant's job holds is refused
+- An idempotency key is the namespace's, not the tenant's: an enqueue whose key another tenant's job holds is refused
   (`EnqueueRejectionReason.TenantMismatch`), naming neither the job nor the tenant, while a side with no tenant still
-  matches. Build a tenant's key with `DeduplicationKey.ForTenant(tenantName, businessKey)`.
+  matches. Build a tenant's key with `IdempotencyKey.ForTenant(tenantName, businessKey)`.
 - A tenant is not a security boundary. Acta authorizes no caller by tenant: its reads filter by tenant only when asked,
   and its HTTP API and dashboard show every tenant to whoever holds the permission, so a tenant-facing app checks
   `TenantName` itself before it shows or controls a job.
@@ -518,16 +518,16 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
   for the namespace's alert projector (`sys.alerts`) to read past them, so a stuck projector delays
   their deletion. A record the business must keep for good belongs in the application's own table,
   written in a step.
-- Deduplication keys keep their case (printable ASCII, no whitespace, surrounding whitespace
+- Idempotency keys keep their case (printable ASCII, no whitespace, surrounding whitespace
   trimmed): `Order-1` and `order-1` are two keys, so lowercase an id yourself when its source is
   case-insensitive.
-- The enqueue `deduplicationKey` prevents a second job ROW, not a second side effect; execution
+- The enqueue `idempotencyKey` prevents a second job ROW, not a second side effect; execution
   stays at-least-once either way. The handle tells which: `handle.Action` is `EnqueueJobAction.Deduplicated` when
   the key matched a job already there, `Inserted` when the enqueue created it. A key holds for as long as
   the job that has it exists, finished or not; retention frees it.
 - An updated input does not recompute what already ran: a restart keeps every succeeded step, so those
   steps return what they computed from the old input. To recompute, enqueue a new job under a new
-  deduplication key (`invoice-77.r2`) with the old job's correlation key; its steps and children start
+  idempotency key (`invoice-77.r2`) with the old job's correlation key; its steps and children start
   fresh, since a child's name is unique only within its parent.
 - Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are
   searchable labels.

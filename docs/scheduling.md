@@ -69,7 +69,7 @@ once deployed: a changed mode fails the deploy, so a new mode takes a new job na
   firing.
 - `PerOccurrence`: each admitted occurrence is a fresh ordinary root job with the definition's default
   input (serialized at the deploy and stored on the definition, so any host admits it), the schedule as
-  its provenance (`jobs.schedule_id`), its own steps, children, retries, and retention, and a deduplication
+  its provenance (`jobs.schedule_id`), its own steps, children, retries, and retention, and an idempotency
   key of the schedule and the nominal instant, so an occurrence is never admitted twice. Three schedules
   due at one instant make three roots.
 
@@ -260,7 +260,7 @@ The workflow keeps a calendar's definition beside the code that names it:
 ## Backfill
 
 Acta currently has no dedicated schedule-backfill API. Backfill is application work and should be
-materialized explicitly with a period in the input, a deduplication key, and usually a correlation id
+materialized explicitly with a period in the input, an idempotency key, and usually a correlation id
 or tags for operator search.
 
 ```csharp
@@ -271,8 +271,8 @@ foreach (var day in requestedDays)
     await jobs.EnqueueAsync(
         new ReconcileDay(day),
         o => o
-            .DeduplicationKey(
-                DeduplicationKey.ForDefinition("reconcile-day", day.ToString("O")))
+            .IdempotencyKey(
+                IdempotencyKey.ForDefinition("reconcile-day", day.ToString("O")))
             .CorrelationKey($"backfill:{requestId}"),
         ct);
 }
@@ -285,7 +285,7 @@ Before a large backfill:
 
 - estimate downstream load and database write volume;
 - choose a distinct correlation key and tags;
-- use deterministic deduplication keys per historical period;
+- use deterministic idempotency keys per historical period;
 - decide whether normal recurring work should remain active;
 - verify retention is long enough for the incident/audit window;
 - start with a small range and inspect the dashboard timeline and alerts.
@@ -293,7 +293,7 @@ Before a large backfill:
 ## Trigger, pause, resume, and preview
 
 Address a schedule by its path: the namespace, the scheduled job's name, and the schedule's name. The
-permanent job carries no deduplication key; `GET /schedules` and the dashboard carry its ref. A schedule of a
+permanent job carries no idempotency key; `GET /schedules` and the dashboard carry its ref. A schedule of a
 `PerOccurrence` definition has no permanent job: trigger-now admits a fresh root charged to the schedule, and is
 rejected while the schedule is at `MaxOutstanding`. An applied trigger answers the job it made ready as `jobRef`,
 the permanent job or the fresh root. `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}`
@@ -315,7 +315,7 @@ await operations.Schedules.ResumeAsync(nightly, reasonMessage: "maintenance comp
 - Rescheduling a permanent job (`IJobs.RescheduleAsync`, the dashboard's Run now, or `POST /jobs/{jobRef}/reschedule` with no instant) runs it now: an `Idle` one, or a Paused one with no firing outstanding, takes a manual firing at the instant, the same firing a schedule trigger admits and rejected the same way in a suspended namespace, and returns to `Idle` when it settles; one mid-firing keeps its firing and moves its instant.
 - Cancelling a permanent job ends it until a restart. A manual purge deletes it only when nothing pins it (every schedule orphaned, or the definition retired), and the next deploy registers a new permanent job.
 - `[Job(FiringFailurePolicy = ...)]` decides what a firing that fails for good does to the definition's schedules: `Continue` (the default) leaves them scheduled, so the next occurrence fires; `Pause` pauses every active one with the pause message `Paused by the firing failure policy: the last firing failed for good.`, each resumable on its own. A completion that spends the budget and a reclaim that does apply it alike, as does a per-occurrence root that lands `Failed`; a handler's own fail or cancel stops a permanent job instead. A retired definition's schedules are left alone, so a firing that fails after the retire does not hold them paused through a redeploy. The pause is recorded as `schedule.paused` at every recording level.
-- A permanent job has no deduplication key: an ordinary job keyed by the job name is unrelated to it, so `IJobs.GetIdAsync` finds a permanent job by its ref or id, never by a key; `GET /schedules` and `ISchedules.ListAsync` carry the permanent job's ref. A per-occurrence root's key is `sys.occurrence.{schedule_id}.{ticks}`, and a manually triggered one's `sys.manual.{schedule_id}.{firingId}`.
+- A permanent job has no idempotency key: an ordinary job keyed by the job name is unrelated to it, so `IJobs.GetIdAsync` finds a permanent job by its ref or id, never by a key; `GET /schedules` and `ISchedules.ListAsync` carry the permanent job's ref. A per-occurrence root's key is `sys.occurrence.{schedule_id}.{ticks}`, and a manually triggered one's `sys.manual.{schedule_id}.{firingId}`.
 - Preview computes upcoming instants without touching the cursor, and is safe on a paused schedule.
 - A schedule's expression and time zone are code-owned: a deploy changes them, and an operator pauses, resumes, or triggers. The version moves with those operator actions and with deploys, not with each fire.
 

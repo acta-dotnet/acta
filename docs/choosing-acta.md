@@ -78,7 +78,7 @@ Ask these in order and stop at the first yes.
 | Timers and in-memory schedules lose or repeat runs after restarts | Jobs, schedules, cursors, leases, attempts, and events are persisted in SQL |
 | Nobody knows what happened last night | Job status, event timelines, alerts, dashboard/API, CLI, and SQL inspection |
 | A worker died mid-job | Worker leases lapse and recovery reclaims eligible jobs for retry |
-| A job must not repeat blindly | Deduplication keys, durable steps, a check before a step repeats, locks, concurrency keys, and at-most-once steps |
+| A job must not repeat blindly | Idempotency keys, durable steps, a check before a step repeats, locks, concurrency keys, and at-most-once steps |
 | Operators need control | Pause, resume, cancel, restart, signal, debug, explain, and schedule pause/resume |
 | Teams do not want more infrastructure | The worker is the app process; durable state is the app database |
 
@@ -89,7 +89,7 @@ Ask these in order and stop at the first yes.
 | A call that must answer now, to a service that may fail for a moment | An in-process resilience library such as Polly: retries, timeouts, and circuit breakers held in the process's memory. Nothing has to outlive the request. |
 | A local loop where a missed tick is harmless | `BackgroundService` or `PeriodicTimer`. Nothing needs to be stored, so nothing more is needed. |
 | A script or container the platform starts on a calendar | cron, systemd timers, Windows Task Scheduler, a Kubernetes CronJob, or a cloud timer. The platform owns the clock and the process. |
-| Messages between services | A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its deduplication key. |
+| Messages between services | A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its idempotency key. |
 | Background work the application owns | Acta, when the work needs retries, durable state, a history, or an operator who can pause, restart, or signal it. |
 | A controller that keeps an external system current: durable progress, bounded batches, a worker that may die mid-batch | Acta, as one permanent job ([the lab](../learn/100-scheduling/109-continuous-synchronization/)). |
 | A long-running workflow in .NET | Acta: one C# handler with steps, child jobs, signals, and timers, and its state as rows in your database. |
@@ -259,7 +259,7 @@ public sealed record ReconcileInvoices(DateOnly BusinessDate);
 
 await jobs.EnqueueAsync(
     new ReconcileInvoices(DateOnly.FromDateTime(DateTime.UtcNow)),
-    o => o.DeduplicationKey(DeduplicationKey.PerDay("reconcile-invoices", "billing")),
+    o => o.IdempotencyKey(IdempotencyKey.PerDay("reconcile-invoices", "billing")),
     ct);
 ```
 
@@ -269,7 +269,7 @@ For a host that only knows namespace and job name:
 var request = JobRequestBuilder
     .Create("billing", "reconcile-invoices")
     .Json(new { BusinessDate = DateOnly.FromDateTime(DateTime.UtcNow) }) // the same JSON the typed record writes
-    .DeduplicationKey(DeduplicationKey.PerDay("reconcile-invoices", "billing"))
+    .IdempotencyKey(IdempotencyKey.PerDay("reconcile-invoices", "billing"))
     .Build();
 
 await jobs.EnqueueAsync(request, ct);
@@ -316,9 +316,9 @@ control actions.
 - Pick one namespace per owning service, such as `billing`, `users`, or `imports`.
 - Convert recurring work to `[Job]` + `[Schedule]`.
 - Keep platform clocks only when the organization already standardizes on them.
-- Add deduplication keys to platform-triggered jobs and user-triggered duplicate-prone jobs.
+- Add idempotency keys to platform-triggered jobs and user-triggered duplicate-prone jobs.
 - Use `JobContext.JobRef` or `JobContext.JobId` in logger scopes for correlation.
-- Wrap side effects in durable steps so a retry skips the ones that completed; a crash before a step records its outcome can still repeat it, so the side effect needs an idempotency key, a check (`RunStepWithCheckAsync`), or `AtMostOnce()`.
+- Wrap side effects in durable steps so a retry skips the ones that completed; a crash before a step records its outcome can still repeat it, so the side effect needs the provider's idempotency key, a check (`RunStepWithCheckAsync`), or `AtMostOnce()`.
 - Teach operators to start with `jobs_view`, `events_view`, the dashboard, and `jobs explain`.
 
 ## Rule of thumb

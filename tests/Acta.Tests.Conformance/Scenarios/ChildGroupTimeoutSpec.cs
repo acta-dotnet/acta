@@ -470,7 +470,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     private async Task<IReadOnlyDictionary<string, long>> ChildIdsAsync(long parentId, CancellationToken ct)
     {
         var children = await Db.From<JobEntity>().Where(j => j.ParentJobId == parentId).ToListAsync(ct);
-        return children.ToDictionary(j => j.DeduplicationKey!, j => j.Id, StringComparer.Ordinal);
+        return children.ToDictionary(j => j.IdempotencyKey!, j => j.Id, StringComparer.Ordinal);
     }
 
     private async Task<IReadOnlyList<CheckpointEntity>> ReadDeadlineCheckpointsAsync(long jobId, CancellationToken ct)

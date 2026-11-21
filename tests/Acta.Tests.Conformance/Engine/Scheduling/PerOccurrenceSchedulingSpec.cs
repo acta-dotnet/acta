@@ -177,7 +177,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         var root = Assert.Single(await RootsAsync(schedule.Id, ct));
         Assert.Equal(JobKindCode.Ordinary, root.Kind);
-        Assert.Equal(ScheduleAdmitter.OccurrenceKey(schedule.Id, occurrence), root.DeduplicationKey);
+        Assert.Equal(ScheduleAdmitter.OccurrenceKey(schedule.Id, occurrence), root.IdempotencyKey);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(root.Id, ct)).Status);
         var envelope = await EnvelopeAsync(root.Id, ct);
         Assert.Equal(CheckpointStatusCode.Pending, envelope.Status);
@@ -316,7 +316,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(ControlAction.Applied, (await Schedules.TriggerAsync(lookup, reasonMessage: "now", actor: Operator, ct: ct)).Action);
 
         var root = Assert.Single(await RootsAsync(schedule.Id, ct));
-        Assert.StartsWith("sys.manual.", root.DeduplicationKey, StringComparison.Ordinal);
+        Assert.StartsWith("sys.manual.", root.IdempotencyKey, StringComparison.Ordinal);
         var envelope = await EnvelopeAsync(root.Id, ct);
         Assert.Equal(FiringEnvelope.ManualKind, envelope.Firing.Kind);
         Assert.Empty(envelope.Firing.Contributors);
@@ -638,7 +638,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         // The second occurrence becomes a root of the readmitted schedule, while the other schedule, full, waits for it.
         await AdmitAtAsync(second, ct);
         var admitted = Assert.Single(await RootsAsync(readmitted.Id, ct), r =>
-            r.DeduplicationKey == ScheduleAdmitter.OccurrenceKey(readmitted.Id, second)
+            r.IdempotencyKey == ScheduleAdmitter.OccurrenceKey(readmitted.Id, second)
         );
         Assert.Equal(
             ScheduleEvaluationStatusCode.WaitingForCapacity,
@@ -662,7 +662,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(second.AddMinutes(5), state.NextOccurrenceAtUtc);
         await ReadSingleEventAsync(admitted.Id, EventCode.ScheduleAdmitted, ct);
         Assert.Empty(await DefinitionEventsAsync(readmitted.DefinitionId, EventCode.ScheduleAdmitted, ct));
-        Assert.Single(await RootsAsync(beside.Id, ct), r => r.DeduplicationKey == ScheduleAdmitter.OccurrenceKey(beside.Id, second));
+        Assert.Single(await RootsAsync(beside.Id, ct), r => r.IdempotencyKey == ScheduleAdmitter.OccurrenceKey(beside.Id, second));
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.BesideJobName, ct)).State.OutstandingCount);
         await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, readmitted.Id, ct);
         await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, beside.Id, ct);

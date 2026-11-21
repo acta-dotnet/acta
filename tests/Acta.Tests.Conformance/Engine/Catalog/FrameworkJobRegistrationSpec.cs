@@ -6,7 +6,7 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
 
 /// <summary>
 /// Conformance for system-job auto-registration: a deploy registers the
-/// <c>sys.alerts</c> system definition, its recurring slot (deduplication_key = the job name), and its
+/// <c>sys.alerts</c> system definition, its recurring slot (idempotency_key = the job name), and its
 /// schedule into the worker's namespace. The one spec that opts back into
 /// <see cref="ActaRuntimeTestBase{ConformanceFixture,TManifest}.RunSystemJobs"/>; every other execution
 /// spec keeps the slots out so a single drive deterministically claims its own probe.

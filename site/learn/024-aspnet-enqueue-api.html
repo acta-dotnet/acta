@@ -79,16 +79,16 @@
 <div class="step"><h2><span class="step-n">1</span>Enqueue in the POST and answer 202 with the job's ref</h2>
 <p>The job is a durable row before the response leaves, and the worker runs it after the request has ended. The ref goes into the address the client polls.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// POST writes a durable job and returns 202; the import runs on the worker after the request ends.</span>
-<span class="c">// DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.</span>
+<span class="c">// IdempotencyKey dedupes a retry with the same tenant/import id onto the same job.</span>
 app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</span> (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =&gt;
 {
     <span class="k">var</span> businessKey = <span class="s">$&quot;import:{request.Tenant}:{request.ImportId}&quot;</span>;
-    <span class="k">var</span> deduplicationKey = DeduplicationKey.ForDefinition(<span class="s">&quot;import-csv&quot;</span>, businessKey);
+    <span class="k">var</span> idempotencyKey = IdempotencyKey.ForDefinition(<span class="s">&quot;import-csv&quot;</span>, businessKey);
     <span class="k">var</span> correlationKey = http.TraceIdentifier;
 
 <span class="hl">    <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(</span>
 <span class="hl">        <span class="k">new</span> ImportCsv(request.Tenant, request.ImportId, request.FileName),</span>
-<span class="hl">        o =&gt; o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant).Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>),</span>
+<span class="hl">        o =&gt; o.IdempotencyKey(idempotencyKey).CorrelationKey(correlationKey).Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant).Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>),</span>
 <span class="hl">        ct</span>
 <span class="hl">    );</span>
 <span class="hl"> </span>
@@ -155,11 +155,11 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> app = builder.Build();
 
 <span class="c">// POST writes a durable job and returns 202; the import runs on the worker after the request ends.</span>
-<span class="c">// DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.</span>
+<span class="c">// IdempotencyKey dedupes a retry with the same tenant/import id onto the same job.</span>
 app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</span> (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =&gt;
 {
     <span class="k">var</span> businessKey = <span class="s">$&quot;import:{request.Tenant}:{request.ImportId}&quot;</span>;
-    <span class="k">var</span> deduplicationKey = DeduplicationKey.ForDefinition(<span class="s">&quot;import-csv&quot;</span>, businessKey);
+    <span class="k">var</span> idempotencyKey = IdempotencyKey.ForDefinition(<span class="s">&quot;import-csv&quot;</span>, businessKey);
     <span class="k">var</span> correlationKey = http.TraceIdentifier;
 
     <span class="c">// learn: 1. Enqueue in the POST and answer 202 with the job's ref</span>
@@ -167,7 +167,7 @@ app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</
     <span class="c">// ref goes into the address the client polls.</span>
 <span class="hl">    <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(</span>
 <span class="hl">        <span class="k">new</span> ImportCsv(request.Tenant, request.ImportId, request.FileName),</span>
-<span class="hl">        o =&gt; o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant).Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>),</span>
+<span class="hl">        o =&gt; o.IdempotencyKey(idempotencyKey).CorrelationKey(correlationKey).Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant).Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>),</span>
 <span class="hl">        ct</span>
 <span class="hl">    );</span>
 <span class="hl"> </span>
@@ -206,7 +206,7 @@ app.MapGet(<span class="s">&quot;/imports/{jobRef}&quot;</span>, <span class="k"
         <span class="k">new</span> ImportStatusResponse(
             snapshot.JobRef,
             snapshot.Status.ToString(),
-            snapshot.DeduplicationKey,
+            snapshot.IdempotencyKey,
             snapshot.CreatedAtUtc,
             snapshot.ModifiedAtUtc,
             result
@@ -228,7 +228,7 @@ Console.WriteLine(<span class="s">&quot;Then poll GET /imports/{jobRef}&quot;</s
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ImportStatusResponse(
         JobRef JobRef,
         <span class="k">string</span> Status,
-        <span class="k">string</span>? DeduplicationKey,
+        <span class="k">string</span>? IdempotencyKey,
         DateTime CreatedAtUtc,
         DateTime ModifiedAtUtc,
         ImportResult? Result

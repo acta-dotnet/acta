@@ -77,7 +77,7 @@ internal sealed class TriggerScheduleHandler(
             Admit: true,
             Envelope: new FiringEnvelope(firingId, FiringEnvelope.ManualKind, target.NowUtc, []).ToJson(),
             JobRef: root.Value,
-            DeduplicationKey: string.Create(CultureInfo.InvariantCulture, $"sys.manual.{target.ScheduleId}.{firingId:N}"),
+            IdempotencyKey: string.Create(CultureInfo.InvariantCulture, $"sys.manual.{target.ScheduleId}.{firingId:N}"),
             TriggerMessage: command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
             TriggerActor: JobControlActor.Operator(command.Actor),
             TriggerDetails: ScheduleControl.DetailsText(target.ScheduleName)

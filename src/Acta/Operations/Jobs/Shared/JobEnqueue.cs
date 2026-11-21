@@ -31,7 +31,7 @@ internal static class JobEnqueue
                 JobName: request.JobName,
                 Input: request.Input,
                 PriorityOverride: request.Priority,
-                DeduplicationKey: request.DeduplicationKey,
+                IdempotencyKey: request.IdempotencyKey,
                 CorrelationKey: request.CorrelationKey,
                 Tags: request.Tags,
                 ConcurrencyKey: request.ConcurrencyKey,
@@ -48,7 +48,7 @@ internal static class JobEnqueue
     }
 
     /// <summary>
-    /// Names fold to lowercase outside the <c>sys</c> reservation; keys keep their case, and the deduplication key may
+    /// Names fold to lowercase outside the <c>sys</c> reservation; keys keep their case, and the idempotency key may
     /// not start with <c>sys.</c>.
     /// </summary>
     internal static JobEnqueueValues Canonicalize(JobEnqueueValues row)
@@ -59,9 +59,9 @@ internal static class JobEnqueue
         {
             NamespaceName = NameSyntax.Canonicalize(row.NamespaceName, nameof(row.NamespaceName), reserveSystem: true),
             JobName = NameSyntax.Canonicalize(row.JobName, nameof(row.JobName), NameSyntax.ExtendedMaxLength, reserveSystem: true),
-            DeduplicationKey = row.DeduplicationKey is null
+            IdempotencyKey = row.IdempotencyKey is null
                 ? null
-                : DeduplicationKey.Canonicalize(row.DeduplicationKey, nameof(row.DeduplicationKey)),
+                : IdempotencyKey.Canonicalize(row.IdempotencyKey, nameof(row.IdempotencyKey)),
             CorrelationKey = row.CorrelationKey is null
                 ? null
                 : KeySyntax.Canonicalize(row.CorrelationKey, nameof(row.CorrelationKey), NameSyntax.DefaultMaxLength),

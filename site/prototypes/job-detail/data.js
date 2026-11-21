@@ -79,7 +79,7 @@
     reason: 'All 5 attempts failed. Check the provider before running this job again.',
     failureCode: 'TimeoutException',
     correlation: 'order-1842',
-    deduplication: 'invoice-1842',
+    idempotency: 'invoice-1842',
     input: { invoiceId: 1842, recipient: 'accounts@example.test' },
     events: [
       { title: 'Execution 5 failed', detail: 'TimeoutException · SMTP provider did not respond within 30s.', when: '6m ago', at: '2026-11-10T13:12:00Z', status: 'failed' },

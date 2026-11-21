@@ -496,17 +496,6 @@ sealed class Acta.DeadlineBehaviorCodeJsonConverter : System.Text.Json.Serializa
     .ctor()
     Acta.DeadlineBehaviorCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.DeadlineBehaviorCode value, System.Text.Json.JsonSerializerOptions options)
-static class Acta.DeduplicationKey
-    const System.Int32 MaxLength = 128
-    static System.String AcrossDefinitions(System.String businessKey)
-    static System.String ForDefinition(System.String definitionName, System.String businessKey)
-    static System.String ForTenant(System.String tenantName, System.String businessKey)
-    static System.String PerDay(System.String definitionName, System.String businessKey)
-    static System.String PerDay(System.String definitionName, System.String businessKey, System.DateOnly day)
-    static System.String PerHour(System.String definitionName, System.String businessKey)
-    static System.String PerHour(System.String definitionName, System.String businessKey, System.DateTimeOffset instant)
-    static System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.DateTimeOffset instant, System.TimeSpan bucketSize)
-    static System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.TimeSpan bucketSize)
 sealed record Acta.DefinitionPolicyOverrides
     .ctor(System.Nullable<Acta.JobPriorityCode> Priority = null, System.Nullable<System.Int32> MaxAttempts = null, System.Nullable<System.Int32> ConcurrencyLimit = null, System.String? RateLimit = null, System.String? Backoff = null, System.Nullable<System.Int32> ExecutionTimeoutSeconds = null, System.Nullable<System.Int32> DeadlineSeconds = null, System.Nullable<Acta.DeadlineBehaviorCode> DeadlineBehavior = null, System.Nullable<System.Int32> JobRetentionSeconds = null, System.Nullable<Acta.EventRecordingCode> EventRecording = null, System.Nullable<Acta.AlertProfileCode> AlertProfile = null, System.String? AlertChannelName = null, System.String? RunbookUrl = null, System.String? DisplayName = null, System.String? Description = null)
     System.Nullable<Acta.AlertProfileCode> AlertProfile { get;init; }
@@ -546,19 +535,19 @@ sealed record Acta.DiscardOutboxResponse : Acta.IOutboxControlResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.DateTime> PendingSinceUtc)
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.DateTime> PendingSinceUtc { get;init; }
-sealed class Acta.DuplicateDeduplicationKeyInBatchException : Acta.ActaException
+sealed class Acta.DuplicateIdempotencyKeyInBatchException : Acta.ActaException
     System.Int32 FirstOrdinal { get; }
     System.Int32 SecondOrdinal { get; }
     System.Nullable<System.Int64> ParentJobId { get; }
-    System.String DeduplicationKey { get; }
+    System.String IdempotencyKey { get; }
     System.String? RootJobNamespace { get; }
-    static Acta.DuplicateDeduplicationKeyInBatchException ForChild(System.Int64 parentJobId, System.String deduplicationKey, System.Int32 firstOrdinal, System.Int32 secondOrdinal)
-    static Acta.DuplicateDeduplicationKeyInBatchException ForRoot(System.String rootJobNamespace, System.String deduplicationKey, System.Int32 firstOrdinal, System.Int32 secondOrdinal)
+    static Acta.DuplicateIdempotencyKeyInBatchException ForChild(System.Int64 parentJobId, System.String idempotencyKey, System.Int32 firstOrdinal, System.Int32 secondOrdinal)
+    static Acta.DuplicateIdempotencyKeyInBatchException ForRoot(System.String rootJobNamespace, System.String idempotencyKey, System.Int32 firstOrdinal, System.Int32 secondOrdinal)
 enum Acta.EnqueueJobAction : System.Byte
     Deduplicated = 2
     Inserted = 1
 sealed record Acta.EnqueueJobRequest
-    .ctor(System.String JobNamespace, System.String JobName, Acta.JobPayload Input = default, System.String? DeduplicationKey = null, System.String? CorrelationKey = null, System.String? ConcurrencyKey = null, System.Nullable<Acta.JobPriorityCode> Priority = null, System.Nullable<System.DateTime> NextRunAtUtc = null, System.Nullable<System.Int32> DelaySeconds = null, System.Collections.Generic.IReadOnlyList<Acta.TagInput>? Tags = null, System.Nullable<System.Int64> ParentJobId = null, System.String? TenantName = null, System.Boolean OverrideParentTenant = false, System.String? Lane = null)
+    .ctor(System.String JobNamespace, System.String JobName, Acta.JobPayload Input = default, System.String? IdempotencyKey = null, System.String? CorrelationKey = null, System.String? ConcurrencyKey = null, System.Nullable<Acta.JobPriorityCode> Priority = null, System.Nullable<System.DateTime> NextRunAtUtc = null, System.Nullable<System.Int32> DelaySeconds = null, System.Collections.Generic.IReadOnlyList<Acta.TagInput>? Tags = null, System.Nullable<System.Int64> ParentJobId = null, System.String? TenantName = null, System.Boolean OverrideParentTenant = false, System.String? Lane = null)
     Acta.JobPayload Input { get;init; }
     System.Boolean OverrideParentTenant { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagInput>? Tags { get;init; }
@@ -570,7 +559,7 @@ sealed record Acta.EnqueueJobRequest
     System.String JobNamespace { get;init; }
     System.String? ConcurrencyKey { get;init; }
     System.String? CorrelationKey { get;init; }
-    System.String? DeduplicationKey { get;init; }
+    System.String? IdempotencyKey { get;init; }
     System.String? Lane { get;init; }
     System.String? TenantName { get;init; }
 record Acta.EnqueueJobResponse
@@ -949,7 +938,7 @@ sealed record Acta.GetJobLineageMapWait
     System.String Name { get;init; }
     System.String? ChildName { get;init; }
 sealed record Acta.GetJobResponse
-    .ctor(System.Int64 JobId, Acta.JobRef JobRef, Acta.JobKindCode Kind, System.String JobNamespace, System.Int32 DefinitionId, System.String JobName, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.String? DeduplicationKey, System.String? CorrelationKey, System.String? ConcurrencyKey, System.Byte InputFormatId, System.Nullable<System.Int64> InputByteLength, System.Byte ResultFormatId, System.Nullable<System.Int64> ResultByteLength, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String? Lane, System.Nullable<System.Int64> BlockedBehindJobId, System.Nullable<Acta.JobRef> BlockedBehindJobRef, System.Nullable<System.DateTime> NextRunAtUtc, System.Int64 ExecutionNumber, System.Int32 FailureCount, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.Nullable<System.DateTime> RetentionUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<Acta.WorkerRef> LeasedByWorkerRef, System.Int64 Version, System.Boolean LeaseLapsed = false)
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, Acta.JobKindCode Kind, System.String JobNamespace, System.Int32 DefinitionId, System.String JobName, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.String? IdempotencyKey, System.String? CorrelationKey, System.String? ConcurrencyKey, System.Byte InputFormatId, System.Nullable<System.Int64> InputByteLength, System.Byte ResultFormatId, System.Nullable<System.Int64> ResultByteLength, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String? Lane, System.Nullable<System.Int64> BlockedBehindJobId, System.Nullable<Acta.JobRef> BlockedBehindJobRef, System.Nullable<System.DateTime> NextRunAtUtc, System.Int64 ExecutionNumber, System.Int32 FailureCount, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.Nullable<System.DateTime> RetentionUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<Acta.WorkerRef> LeasedByWorkerRef, System.Int64 Version, System.Boolean LeaseLapsed = false)
     Acta.JobKindCode Kind { get;init; }
     Acta.JobPriorityCode Priority { get;init; }
     Acta.JobRef JobRef { get;init; }
@@ -982,7 +971,7 @@ sealed record Acta.GetJobResponse
     System.String JobNamespace { get;init; }
     System.String? ConcurrencyKey { get;init; }
     System.String? CorrelationKey { get;init; }
-    System.String? DeduplicationKey { get;init; }
+    System.String? IdempotencyKey { get;init; }
     System.String? Lane { get;init; }
     System.String? TenantName { get;init; }
 sealed record Acta.GetJobResultResponse
@@ -1260,6 +1249,17 @@ interface Acta.IWorkerWakeup
 interface Acta.IWorkers
     System.Threading.Tasks.Task<Acta.GetWorkerResponse?> GetAsync(Acta.WorkerRef workerRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ListWorkersResponse> ListAsync(Acta.ListWorkersQuery query, System.Threading.CancellationToken ct = default)
+static class Acta.IdempotencyKey
+    const System.Int32 MaxLength = 128
+    static System.String AcrossDefinitions(System.String businessKey)
+    static System.String ForDefinition(System.String definitionName, System.String businessKey)
+    static System.String ForTenant(System.String tenantName, System.String businessKey)
+    static System.String PerDay(System.String definitionName, System.String businessKey)
+    static System.String PerDay(System.String definitionName, System.String businessKey, System.DateOnly day)
+    static System.String PerHour(System.String definitionName, System.String businessKey)
+    static System.String PerHour(System.String definitionName, System.String businessKey, System.DateTimeOffset instant)
+    static System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.DateTimeOffset instant, System.TimeSpan bucketSize)
+    static System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.TimeSpan bucketSize)
 sealed class Acta.InvalidPageCursorException : Acta.ActaException
     .ctor(System.String message)
 sealed class Acta.InvalidQueryException : Acta.ActaException
@@ -1453,7 +1453,7 @@ class Acta.JobEnqueueOptions
     System.Nullable<System.Int64> ParentJobId { get;init; }
     System.String? ConcurrencyKey { get;init; }
     System.String? CorrelationKey { get;init; }
-    System.String? DeduplicationKey { get;init; }
+    System.String? IdempotencyKey { get;init; }
     System.String? JobNamespace { get;init; }
     System.String? Lane { get;init; }
     System.String? TenantName { get;init; }
@@ -1462,8 +1462,8 @@ sealed class Acta.JobEnqueueOptionsBuilder
     Acta.JobEnqueueOptions Build()
     Acta.JobEnqueueOptionsBuilder ConcurrencyKey(System.String concurrencyKey)
     Acta.JobEnqueueOptionsBuilder CorrelationKey(System.String correlationKey)
-    Acta.JobEnqueueOptionsBuilder DeduplicationKey(System.String deduplicationKey)
     Acta.JobEnqueueOptionsBuilder Delayed(System.TimeSpan delay)
+    Acta.JobEnqueueOptionsBuilder IdempotencyKey(System.String idempotencyKey)
     Acta.JobEnqueueOptionsBuilder JobNamespace(System.String jobNamespace)
     Acta.JobEnqueueOptionsBuilder Lane(System.String lane)
     Acta.JobEnqueueOptionsBuilder NextRunAt(System.DateTimeOffset utc)
@@ -1527,15 +1527,15 @@ record struct Acta.JobLookup
     Acta.JobLookupKind Kind { get; }
     Acta.JobRef JobRef { get; }
     System.Int64 JobId { get; }
-    System.String? DeduplicationKey { get; }
+    System.String? IdempotencyKey { get; }
     System.String? JobNamespace { get; }
-    static Acta.JobLookup ByDeduplicationKey(System.String jobNamespace, System.String deduplicationKey)
     static Acta.JobLookup ById(System.Int64 jobId)
+    static Acta.JobLookup ByIdempotencyKey(System.String jobNamespace, System.String idempotencyKey)
     static Acta.JobLookup ByRef(Acta.JobRef jobRef)
     static Acta.JobLookup op_Implicit(Acta.EnqueueJobResponse outcome)
     static Acta.JobLookup op_Implicit(Acta.JobRef jobRef)
 enum Acta.JobLookupKind : System.Byte
-    DeduplicationKey = 2
+    IdempotencyKey = 2
     JobId = 3
     JobRef = 1
     None = 0
@@ -1623,8 +1623,8 @@ sealed class Acta.JobRequestBuilder
     Acta.JobRequestBuilder ConcurrencyKey(System.String concurrencyKey)
     Acta.JobRequestBuilder CorrelationKey(System.String correlationKey)
     Acta.JobRequestBuilder Deduplicate(System.String businessKey)
-    Acta.JobRequestBuilder DeduplicationKey(System.String deduplicationKey)
     Acta.JobRequestBuilder Delayed(System.TimeSpan delay)
+    Acta.JobRequestBuilder IdempotencyKey(System.String idempotencyKey)
     Acta.JobRequestBuilder Json(System.String value)
     Acta.JobRequestBuilder Json<T>(T value)
     Acta.JobRequestBuilder Lane(System.String lane)
@@ -1947,7 +1947,7 @@ sealed record Acta.ListJobStepsResponse : Acta.IPagedResponse<Acta.ListJobStepsI
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
 sealed record Acta.ListJobsItem
-    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.String? DeduplicationKey, System.String? CorrelationKey, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String? Lane, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Int64 ExecutionNumber, System.Int32 FailureCount)
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.String? IdempotencyKey, System.String? CorrelationKey, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String? Lane, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Int64 ExecutionNumber, System.Int32 FailureCount)
     Acta.JobPriorityCode Priority { get;init; }
     Acta.JobRef JobRef { get;init; }
     Acta.JobStatusCode Status { get;init; }
@@ -1965,7 +1965,7 @@ sealed record Acta.ListJobsItem
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String? CorrelationKey { get;init; }
-    System.String? DeduplicationKey { get;init; }
+    System.String? IdempotencyKey { get;init; }
     System.String? Lane { get;init; }
     System.String? TenantName { get;init; }
 sealed record Acta.ListJobsQuery
@@ -2036,14 +2036,14 @@ sealed record Acta.ListOutboxSourcesResponse : Acta.IPagedResponse<Acta.ListOutb
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
 sealed record Acta.ListQuarantinedOutboxItem
-    .ctor(Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.String? DeduplicationKey, System.String? CorrelationKey, System.String? TenantName, System.Int32 FailureCount, System.String? LastError, System.DateTime CreatedAtUtc)
+    .ctor(Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.String? IdempotencyKey, System.String? CorrelationKey, System.String? TenantName, System.Int32 FailureCount, System.String? LastError, System.DateTime CreatedAtUtc)
     Acta.JobRef JobRef { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
     System.Int32 FailureCount { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String? CorrelationKey { get;init; }
-    System.String? DeduplicationKey { get;init; }
+    System.String? IdempotencyKey { get;init; }
     System.String? LastError { get;init; }
     System.String? TenantName { get;init; }
 sealed record Acta.ListQuarantinedOutboxQuery

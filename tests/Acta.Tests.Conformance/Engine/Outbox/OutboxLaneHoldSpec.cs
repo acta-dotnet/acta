@@ -141,11 +141,11 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
 
         var keys = labels.Select(Key).ToList();
         var jobs = await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId).ToListAsync(ct);
-        Assert.Equal(keys, jobs.Where(j => keys.Contains(j.DeduplicationKey!)).OrderBy(j => j.Id).Select(j => j.DeduplicationKey));
+        Assert.Equal(keys, jobs.Where(j => keys.Contains(j.IdempotencyKey!)).OrderBy(j => j.Id).Select(j => j.IdempotencyKey));
     }
 
     private string Key(string label) => $"{label}-{TestId}";
 
     private EnqueueJobRequest Row(string lane, string label, string jobName = "lane-step") =>
-        new(TestNamespace, jobName, JobPayload.Json(new LaneStep(lane, label)), DeduplicationKey: Key(label), Lane: $"{lane}-{TestId}");
+        new(TestNamespace, jobName, JobPayload.Json(new LaneStep(lane, label)), IdempotencyKey: Key(label), Lane: $"{lane}-{TestId}");
 }

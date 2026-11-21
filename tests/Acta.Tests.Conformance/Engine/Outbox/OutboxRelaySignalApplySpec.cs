@@ -24,9 +24,9 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
     {
         var ct = TestContext.Current.CancellationToken;
         var signals = Services.GetRequiredService<OutboxOperations>();
-        var dedup = Unique("sig-apply");
+        var idempotencyKey = Unique("sig-apply");
 
-        var row = EchoRow(dedup, status: 90, failureCount: 5);
+        var row = EchoRow(idempotencyKey, status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
 
         var slotJobId = await SeedSlotJobAsync(ct);
@@ -56,6 +56,6 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         // The same pass's drain now claims the freed row and relays it into a ledger job.
         var (summary, _) = await relay.RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, summary.Relayed);
-        Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(idempotencyKey, ct));
     }
 }

@@ -18,7 +18,7 @@
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261120230853_init has no upgrade path: provision a new one.
+-- init migration other than M20261120234904_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -70,11 +70,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.acta_migrations
-    WHERE name NOT IN ('M20261120230853_init')
+    WHERE name NOT IN ('M20261120234904_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261120230853_init =====
+-- ===== BEGIN M20261120234904_init =====
 CREATE TABLE IF NOT EXISTS main.acta_alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS main.acta_jobs (
     parent_job_id integer NULL,
     tenant_id integer NULL,
     schedule_id integer NULL,
-    deduplication_key text NULL,
+    idempotency_key text NULL,
     correlation_key text NULL,
     concurrency_key text NULL,
     input_format_id integer NOT NULL,
@@ -270,8 +270,8 @@ CREATE TABLE IF NOT EXISTS main.acta_jobs (
 CREATE INDEX IF NOT EXISTS main.acta_ix_jobs_parent ON acta_jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS main.acta_ix_jobs_namespace_created ON acta_jobs (namespace_id, created_at_utc DESC, job_id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS main.acta_ux_jobs_ref ON acta_jobs (job_ref);
-CREATE UNIQUE INDEX IF NOT EXISTS main.acta_ux_jobs_deduplication_key_root ON acta_jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS main.acta_ux_jobs_deduplication_key_child ON acta_jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS main.acta_ux_jobs_idempotency_key_root ON acta_jobs (namespace_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS main.acta_ux_jobs_idempotency_key_child ON acta_jobs (parent_job_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS main.acta_ux_jobs_slot ON acta_jobs (definition_id) WHERE job_kind_code = 20;
 
 -- lanes
@@ -696,7 +696,7 @@ SELECT
     j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
     r.job_status_code,
-    j.deduplication_key,
+    j.idempotency_key,
     j.correlation_key,
     j.concurrency_key,
     lane.lane_name,
@@ -847,10 +847,10 @@ JOIN main.acta_namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.acta_migrations (name)
-VALUES ('M20261120230853_init')
+VALUES ('M20261120234904_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261120230853_init =====
+-- ===== END M20261120234904_init =====
 
 COMMIT;
 

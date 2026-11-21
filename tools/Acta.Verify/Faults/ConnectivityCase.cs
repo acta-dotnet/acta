@@ -22,7 +22,7 @@ internal static class ConnectivityCase
         var jobs = host.Services.GetRequiredService<IJobs>();
         var input = Enumerable.Range(0, 20).Select(i => new WorkInput($"root-{i}", WorkMs: i == 0 ? 2000 : 10)).ToArray();
         var root = await jobs.EnqueueAsync(
-            new EnqueueJobRequest("verify", "work", JobPayload.Json(input[0], WorkJson.Default.WorkInput), DeduplicationKey: input[0].Key),
+            new EnqueueJobRequest("verify", "work", JobPayload.Json(input[0], WorkJson.Default.WorkInput), IdempotencyKey: input[0].Key),
             ct
         );
         await FaultCaseRunner.WaitAsync(
@@ -38,7 +38,7 @@ internal static class ConnectivityCase
                     "verify",
                     "work",
                     JobPayload.Json(input[i], WorkJson.Default.WorkInput),
-                    DeduplicationKey: input[i].Key
+                    IdempotencyKey: input[i].Key
                 ),
                 ct
             );

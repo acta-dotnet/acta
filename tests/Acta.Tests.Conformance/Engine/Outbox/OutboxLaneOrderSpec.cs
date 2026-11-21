@@ -36,21 +36,23 @@ public sealed class OutboxLaneOrderSpec : OutboxRelayIntegrationBase
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(second.JobId, ct)).Status);
     }
 
-    private EnqueueJobRequest Step(string dedup, JobPriorityCode priority) =>
+    private EnqueueJobRequest Step(string idempotencyKey, JobPriorityCode priority) =>
         new(
             TestNamespace,
             "lane-step",
-            JobPayload.Json(new LaneStep("staged", dedup)),
-            DeduplicationKey: dedup,
+            JobPayload.Json(new LaneStep("staged", idempotencyKey)),
+            IdempotencyKey: idempotencyKey,
             Priority: priority,
             Lane: "staged"
         );
 
-    private async Task<(long JobId, string Dedup)> JobAsync(string dedup, CancellationToken ct)
+    private async Task<(long JobId, string IdempotencyKey)> JobAsync(string idempotencyKey, CancellationToken ct)
     {
         var job = (
-            await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId && j.DeduplicationKey == dedup).SingleOrDefaultAsync(ct)
+            await Db.From<JobEntity>()
+                .Where(j => j.NamespaceId == NamespaceId && j.IdempotencyKey == idempotencyKey)
+                .SingleOrDefaultAsync(ct)
         )!;
-        return (job.Id, dedup);
+        return (job.Id, idempotencyKey);
     }
 }

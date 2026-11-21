@@ -32,7 +32,7 @@ internal static class TimeoutAndWakeupCases
                 "verify",
                 scenario.Id == "timeout-late-attempt" ? "late-work" : "work",
                 JobPayload.Json(input, WorkJson.Default.WorkInput),
-                DeduplicationKey: input.Key
+                IdempotencyKey: input.Key
             ),
             ct
         );

@@ -54,8 +54,8 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
     {
         var ct = TestContext.Current.CancellationToken;
         var key = $"shared-{Guid.NewGuid():N}";
-        var sum = await Jobs.EnqueueAsync(TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.DeduplicationKey(key), ct);
-        var invoice = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "acme"), o => o.DeduplicationKey(key), ct);
+        var sum = await Jobs.EnqueueAsync(TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.IdempotencyKey(key), ct);
+        var invoice = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "acme"), o => o.IdempotencyKey(key), ct);
 
         Assert.Equal(EnqueueJobAction.Deduplicated, invoice.Action);
         Assert.Equal(sum.JobRef, invoice.JobRef);

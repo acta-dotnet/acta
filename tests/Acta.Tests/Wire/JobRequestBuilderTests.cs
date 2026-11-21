@@ -90,10 +90,10 @@ public class JobRequestBuilderTests
     }
 
     [Fact]
-    public void DeduplicationKey_assigns_field()
+    public void IdempotencyKey_assigns_field()
     {
-        var built = JobRequestBuilder.Create(Ns, Name).DeduplicationKey("invoice-2026-05-22").Build();
-        Assert.Equal("invoice-2026-05-22", built.DeduplicationKey);
+        var built = JobRequestBuilder.Create(Ns, Name).IdempotencyKey("invoice-2026-05-22").Build();
+        Assert.Equal("invoice-2026-05-22", built.IdempotencyKey);
     }
 
     [Fact]
@@ -362,20 +362,20 @@ public class JobRequestBuilderTests
     }
 
     [Fact]
-    public void Deduplicate_composes_DeduplicationKey_from_jobName_and_businessKey()
+    public void Deduplicate_composes_IdempotencyKey_from_jobName_and_businessKey()
     {
         var built = JobRequestBuilder.Create(Ns, Name).Deduplicate("user-123").Build();
-        Assert.Equal(DeduplicationKey.ForDefinition(Name, "user-123"), built.DeduplicationKey);
+        Assert.Equal(IdempotencyKey.ForDefinition(Name, "user-123"), built.IdempotencyKey);
     }
 
     [Fact]
-    public void Deduplicate_and_DeduplicationKey_are_last_call_wins()
+    public void Deduplicate_and_IdempotencyKey_are_last_call_wins()
     {
-        var built1 = JobRequestBuilder.Create(Ns, Name).Deduplicate("a").DeduplicationKey("explicit-key").Build();
-        Assert.Equal("explicit-key", built1.DeduplicationKey);
+        var built1 = JobRequestBuilder.Create(Ns, Name).Deduplicate("a").IdempotencyKey("explicit-key").Build();
+        Assert.Equal("explicit-key", built1.IdempotencyKey);
 
-        var built2 = JobRequestBuilder.Create(Ns, Name).DeduplicationKey("explicit-key").Deduplicate("a").Build();
-        Assert.Equal(DeduplicationKey.ForDefinition(Name, "a"), built2.DeduplicationKey);
+        var built2 = JobRequestBuilder.Create(Ns, Name).IdempotencyKey("explicit-key").Deduplicate("a").Build();
+        Assert.Equal(IdempotencyKey.ForDefinition(Name, "a"), built2.IdempotencyKey);
     }
 
     [Theory]
@@ -409,14 +409,14 @@ public class JobRequestBuilderTests
     }
 
     [Fact]
-    public void Invalid_DeduplicationKey_throws()
+    public void Invalid_IdempotencyKey_throws()
     {
-        Assert.Throws<ArgumentNullException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey(null!));
-        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey("  "));
+        Assert.Throws<ArgumentNullException>(() => JobRequestBuilder.Create(Ns, Name).IdempotencyKey(null!));
+        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).IdempotencyKey("  "));
         Assert.Throws<ArgumentException>(() =>
-            JobRequestBuilder.Create(Ns, Name).DeduplicationKey(new string('a', NameSyntax.ExtendedMaxLength + 1))
+            JobRequestBuilder.Create(Ns, Name).IdempotencyKey(new string('a', NameSyntax.ExtendedMaxLength + 1))
         );
-        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey("sys.reserved"));
+        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).IdempotencyKey("sys.reserved"));
     }
 
     [Fact]
@@ -434,7 +434,7 @@ public class JobRequestBuilderTests
     {
         var request = JobRequestBuilder
             .Create("Samples", "Add-Numbers")
-            .DeduplicationKey("Order-7")
+            .IdempotencyKey("Order-7")
             .ConcurrencyKey("Mutex-A")
             .Lane("ORDER-1")
             .TenantName("ACME")
@@ -442,11 +442,11 @@ public class JobRequestBuilderTests
 
         Assert.Equal("samples", request.JobNamespace);
         Assert.Equal("add-numbers", request.JobName);
-        Assert.Equal("Order-7", request.DeduplicationKey);
+        Assert.Equal("Order-7", request.IdempotencyKey);
         Assert.Equal("Mutex-A", request.ConcurrencyKey);
         Assert.Equal("order-1", request.Lane);
         Assert.Equal("acme", request.TenantName);
-        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey("SYS.x"));
+        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).IdempotencyKey("SYS.x"));
     }
 
     [Fact]

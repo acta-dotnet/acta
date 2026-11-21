@@ -100,15 +100,15 @@ WHERE
     );
 
 -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
-SELECT ACTA_ERROR('ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.')
+SELECT ACTA_ERROR('ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the idempotency key belongs to another tenant''s job.')
 WHERE
-    @p_deduplication_key IS NOT NULL
+    @p_idempotency_key IS NOT NULL
     AND @p_parent_job_id IS NULL
     AND EXISTS (
         SELECT 1 FROM {{schema}}.jobs j
         WHERE
             j.namespace_id = (SELECT ns.namespace_id FROM {{schema}}.namespaces ns WHERE ns.namespace_name = @p_namespace_name)
-            AND j.deduplication_key = @p_deduplication_key
+            AND j.idempotency_key = @p_idempotency_key
             AND j.parent_job_id IS NULL
             AND j.tenant_id <> (SELECT t.tenant_id FROM {{schema}}.tenants t WHERE t.tenant_name = @p_tenant_name)
     );
@@ -177,7 +177,7 @@ WHERE
 -- end child-only
 
 INSERT INTO {{schema}}.jobs (
-    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
+    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, idempotency_key, correlation_key,
     namespace_id, definition_id, tenant_id,
     input_format_id, input, concurrency_key, event_recording_code
 )
@@ -186,7 +186,7 @@ SELECT
     @p_job_ref,
     NULL,
     NULL,
-    @p_deduplication_key,
+    @p_idempotency_key,
     @p_correlation_key,
     ns.namespace_id,
     jd.definition_id,
@@ -203,10 +203,10 @@ JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.defin
 WHERE
     ns.namespace_name = @p_namespace_name
     AND @p_parent_job_id IS NULL
-ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL DO NOTHING;
+ON CONFLICT (namespace_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL DO NOTHING;
 
 INSERT INTO {{schema}}.jobs (
-    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
+    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, idempotency_key, correlation_key,
     namespace_id, definition_id, tenant_id,
     input_format_id, input, concurrency_key, event_recording_code
 )
@@ -215,7 +215,7 @@ SELECT
     @p_job_ref,
     COALESCE(pj.lineage_root_job_id, pj.job_id),
     @p_parent_job_id,
-    @p_deduplication_key,
+    @p_idempotency_key,
     COALESCE(@p_correlation_key, pj.correlation_key),
     ns.namespace_id,
     jd.definition_id,
@@ -239,7 +239,7 @@ JOIN {{schema}}.jobs pj ON pj.job_id = @p_parent_job_id
 WHERE
     ns.namespace_name = @p_namespace_name
     AND @p_parent_job_id IS NOT NULL
-ON CONFLICT (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL DO NOTHING;
+ON CONFLICT (parent_job_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL DO NOTHING;
 
 -- Until the state insert, which comes last, the job this call inserted is the only one under its ref with no state row. A
 -- ref the caller supplied may name a job that already exists, and the tags and the answer leave that job as it is.
@@ -276,19 +276,19 @@ LEFT JOIN {{schema}}.jobs ins
         )
 LEFT JOIN {{schema}}.jobs ex
     ON
-        @p_deduplication_key IS NOT NULL
+        @p_idempotency_key IS NOT NULL
         AND @p_parent_job_id IS NULL
         AND ex.parent_job_id IS NULL
-        AND ex.deduplication_key = @p_deduplication_key
+        AND ex.idempotency_key = @p_idempotency_key
         AND ex.namespace_id = (
             SELECT ns.namespace_id FROM {{schema}}.namespaces ns
             WHERE ns.namespace_name = @p_namespace_name
         )
 LEFT JOIN {{schema}}.jobs
-    exc ON @p_deduplication_key IS NOT NULL
+    exc ON @p_idempotency_key IS NOT NULL
 AND @p_parent_job_id IS NOT NULL
 AND exc.parent_job_id = @p_parent_job_id
-AND exc.deduplication_key = @p_deduplication_key;
+AND exc.idempotency_key = @p_idempotency_key;
 
 -- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits as
 -- Blocked, keeping its due instant for when the settle ahead of it promotes it.

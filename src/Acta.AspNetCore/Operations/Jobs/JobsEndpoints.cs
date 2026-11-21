@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Jobs routes: one job by its ref or its deduplication key, its tags, its steps, and the control verbs. A verb
+/// The Jobs routes: one job by its ref or its idempotency key, its tags, its steps, and the control verbs. A verb
 /// answers with its response at 200 when applied or already in state, 409 when the job's state or a stale
 /// expectedVersion refuses it, and 404 for an unknown ref, so a client reads <c>action</c>, <c>status</c>, and
 /// <c>version</c> without special-casing the code.
@@ -27,30 +27,25 @@ internal static class JobsEndpoints
         // either a page or a job depending on which query parameters arrived.
         reads
             .MapDetail(
-                "/jobs/by-deduplication-key",
-                new("getJobByDeduplicationKey", ActaPermissions.Read),
-                "Resolve a job by namespace and deduplication key",
+                "/jobs/by-idempotency-key",
+                new("getJobByIdempotencyKey", ActaPermissions.Read),
+                "Resolve a job by namespace and idempotency key",
                 "Job",
                 ActaApiJsonContext.Relaxed.GetJobResponse,
                 static (http, call) =>
                     QueryReader.Bind(http.Request, static query =>
-                        (Namespace: query.Text("jobNamespace"), Key: query.Text("deduplicationKey"))
+                        (Namespace: query.Text("jobNamespace"), Key: query.Text("idempotencyKey"))
                     )
                         is { Namespace: { } jobNamespace, Key: { } key }
-                        ? call.Jobs.GetAsync(ByDeduplicationKey(jobNamespace, key), call.Ct)
-                        : throw new InvalidQueryException("jobNamespace and deduplicationKey are required.")
+                        ? call.Jobs.GetAsync(ByIdempotencyKey(jobNamespace, key), call.Ct)
+                        : throw new InvalidQueryException("jobNamespace and idempotencyKey are required.")
             )
             .WithQueryParameters([
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "The idempotency key's namespace scope.", Required: true),
                 new QueryParameterDoc(
-                    "jobNamespace",
+                    "idempotencyKey",
                     QueryParameterKind.String,
-                    "The deduplication key's namespace scope.",
-                    Required: true
-                ),
-                new QueryParameterDoc(
-                    "deduplicationKey",
-                    QueryParameterKind.String,
-                    "The caller-supplied deduplication key to resolve.",
+                    "The caller-supplied idempotency key to resolve.",
                     Required: true
                 ),
             ]);
@@ -227,11 +222,11 @@ internal static class JobsEndpoints
         );
     }
 
-    private static JobLookup ByDeduplicationKey(string jobNamespace, string deduplicationKey)
+    private static JobLookup ByIdempotencyKey(string jobNamespace, string idempotencyKey)
     {
         try
         {
-            return JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey);
+            return JobLookup.ByIdempotencyKey(jobNamespace, idempotencyKey);
         }
         catch (ArgumentException ex)
         {

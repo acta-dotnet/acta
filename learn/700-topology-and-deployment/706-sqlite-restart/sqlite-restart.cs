@@ -46,7 +46,7 @@ if (!firstRun)
 // learn: 2. Start the app again
 // There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same
 // machine that have ended, so the export the dead process held is due at once and this process runs it. The program
-// started a copy of itself first, `first-run`, which enqueued the export under a deduplication key and was killed in
+// started a copy of itself first, `first-run`, which enqueued the export under an idempotency key and was killed in
 // the middle of it; this is the second start.
 using var host = builder.Build();
 await host.StartAsync();
@@ -57,7 +57,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 if (firstRun)
 {
-    await jobs.EnqueueAsync(new Export("orders"), o => o.DeduplicationKey(exportKey));
+    await jobs.EnqueueAsync(new Export("orders"), o => o.IdempotencyKey(exportKey));
     await host.WaitForShutdownAsync();
     return;
 }
@@ -65,7 +65,7 @@ if (firstRun)
 // learn: 3. Read that the same job finished
 // The job the first run enqueued is found by its key. It is one job with two executions: the one that was lost and
 // the one that finished.
-var export = JobLookup.ByDeduplicationKey("sqlite-restart", exportKey);
+var export = JobLookup.ByIdempotencyKey("sqlite-restart", exportKey);
 await jobs.WaitAsync(export);
 var job = (await jobs.GetAsync(export))!;
 var why = (await jobs.ExplainAsync(export))!;

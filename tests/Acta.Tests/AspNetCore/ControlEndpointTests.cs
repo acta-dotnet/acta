@@ -1058,7 +1058,7 @@ public sealed class ControlEndpointTests
         {
             jobNamespace = "billing",
             jobName = "send-invoice",
-            deduplicationKey = "invoice-9",
+            idempotencyKey = "invoice-9",
         };
 
         var created = await client.SendAsync(PostEnqueue(body), ct);

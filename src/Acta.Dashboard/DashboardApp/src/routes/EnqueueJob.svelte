@@ -24,7 +24,7 @@
   let includeInput = $state(false);
   // The input editor's JSON text, sent verbatim so every digit survives (lib/rawJson.ts).
   let inputJson = $state('{}');
-  let deduplicationKey = $state('');
+  let idempotencyKey = $state('');
   let correlationKey = $state('');
   let lane = $state('');
   let concurrencyKey = $state('');
@@ -141,7 +141,7 @@
   }
 
   // The keys are checked as typed, in the server's words; the field keeps the raw text so a bad paste can be fixed, not retyped.
-  let dedupCheck = $derived(checkKey(deduplicationKey, 'deduplication'));
+  let idempotencyCheck = $derived(checkKey(idempotencyKey, 'idempotency'));
   let correlationCheck = $derived(checkKey(correlationKey, 'correlation'));
   let laneCheck = $derived(checkName(lane));
   let concurrencyCheck = $derived(checkKey(concurrencyKey, 'concurrency'));
@@ -151,7 +151,7 @@
       !busy &&
       namespace.trim().length > 0 &&
       jobName.trim().length > 0 &&
-      dedupCheck.error === null &&
+      idempotencyCheck.error === null &&
       correlationCheck.error === null &&
       laneCheck.error === null &&
       concurrencyCheck.error === null &&
@@ -175,7 +175,7 @@
         jobNamespace: namespace,
         jobName,
         ...inputFields.fields,
-        deduplicationKey: dedupCheck.value,
+        idempotencyKey: idempotencyCheck.value,
         correlationKey: correlationCheck.value,
         lane: laneCheck.value,
         concurrencyKey: concurrencyCheck.value,
@@ -186,7 +186,7 @@
       });
       createdRef = result.jobRef;
       message = result.action === 'deduplicated'
-        ? 'A job with this deduplication key already exists; returning the existing job.'
+        ? 'A job with this idempotency key already exists; returning the existing job.'
         : 'Job enqueued.';
       messageKind = 'ok';
     } catch (error) {
@@ -217,7 +217,7 @@
       {#snippet supporting()}
         <section class="detail-panel">
           <h2>Notes</h2>
-          <p class="detail-help">A deduplication key makes the enqueue idempotent: a repeat with the same key returns the existing job instead of inserting a new one, and never rewrites its lane, key, or tags. Priority, delay, and lane default to the definition policy when left unset; a concurrency key lets one job per key run at a time; tags are stored with the job and filter the Jobs page.</p>
+          <p class="detail-help">With an idempotency key, a repeat with the same key returns the existing job instead of inserting a new one, and never rewrites its lane, key, or tags. Priority, delay, and lane default to the definition policy when left unset; a concurrency key lets one job per key run at a time; tags are stored with the job and filter the Jobs page.</p>
         </section>
       {/snippet}
 
@@ -257,16 +257,16 @@
           {/if}
 
           <label class="detail-field">
-            <span>Deduplication key</span>
+            <span>Idempotency key</span>
             <input
-              bind:value={deduplicationKey}
+              bind:value={idempotencyKey}
               placeholder="Optional; a matching key returns the existing job"
               disabled={busy}
-              aria-invalid={dedupCheck.error !== null} />
-            {#if dedupCheck.error}
-              <span class="field-error" role="alert">{dedupCheck.error}</span>
+              aria-invalid={idempotencyCheck.error !== null} />
+            {#if idempotencyCheck.error}
+              <span class="field-error" role="alert">{idempotencyCheck.error}</span>
             {:else}
-              <span class="field-hint">{keyHint('deduplication')} Never starts with sys.</span>
+              <span class="field-hint">{keyHint('idempotency')} Never starts with sys.</span>
             {/if}
           </label>
           <label class="detail-field">

@@ -55,14 +55,14 @@ public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<Conformance
         await using var tx = await conn.BeginTransactionAsync(ct);
         var winner = await Jobs.EnqueueAsync(
             tx,
-            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), DeduplicationKey: key),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), IdempotencyKey: key),
             ct
         );
 
         // The batch meets the uncommitted key and waits on it; the producer then commits.
         var batch = Jobs.EnqueueJobsAsync(
             [
-                new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2)), DeduplicationKey: key),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2)), IdempotencyKey: key),
                 new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))),
             ],
             ct

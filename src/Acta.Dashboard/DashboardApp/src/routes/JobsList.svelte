@@ -51,7 +51,7 @@
   }
   const capabilities = createQuery(() => capabilitiesQuery());
   let canControlNow = $derived(can(capabilities.data, Permission.enqueue));
-  // A job name or a deduplication key is looked up within one namespace: the scope, or the only one there is.
+  // A job name or an idempotency key is looked up within one namespace: the scope, or the only one there is.
   const queryClient = useQueryClient();
   const namespaceNames = createQuery(() => namespaceNamesQuery());
   let lookupNamespace = $derived($scope || onlyNamespace(namespaceNames.data));
@@ -131,7 +131,7 @@
       location.hash = routes.job(value, { namespace: get(scope) });
       return;
     }
-    // Anything else is a deduplication key, resolved within the lookup namespace. Without a scope it waits for the
+    // Anything else is an idempotency key, resolved within the lookup namespace. Without a scope it waits for the
     // namespaces, then reads the scope again: one picked meanwhile is where to look, even when that read failed.
     try {
       let names: string[] = [];
@@ -144,10 +144,10 @@
       }
       const jobNamespace = get(scope) || onlyNamespace(names);
       if (!jobNamespace) {
-        jumpError = 'Select a namespace scope to look up a deduplication key.';
+        jumpError = 'Select a namespace scope to look up an idempotency key.';
         return;
       }
-      const job = await api<{ jobRef: string }>('jobs/by-deduplication-key', { jobNamespace, deduplicationKey: value });
+      const job = await api<{ jobRef: string }>('jobs/by-idempotency-key', { jobNamespace, idempotencyKey: value });
       location.hash = routes.job(job.jobRef, { namespace: get(scope) });
     } catch (e) {
       jumpError = e instanceof Error ? e.message : String(e);
@@ -198,7 +198,7 @@
       <label>
         Jump to
         <input
-          placeholder="job ref, deduplication key, or id:123"
+          placeholder="job ref, idempotency key, or id:123"
           bind:value={jump}
           onkeydown={(e) => e.key === 'Enter' && quickJump()} />
       </label>

@@ -126,7 +126,7 @@ internal sealed class EnqueueJobsHandler(
             );
         }
 
-        ValidateDeduplicationKeyUniqueness(rows);
+        ValidateIdempotencyKeyUniqueness(rows);
         return (prepared, rows);
     }
 
@@ -166,7 +166,7 @@ internal sealed class EnqueueJobsHandler(
     /// and the providers diverge on them (SQL Server trips the unique index, PostgreSQL skips one row), so they
     /// are rejected before any SQL. The scope mirrors the unique indexes: per namespace for roots, per parent for children.
     /// </summary>
-    internal static void ValidateDeduplicationKeyUniqueness(IReadOnlyList<JobEnqueueValues> rows)
+    internal static void ValidateIdempotencyKeyUniqueness(IReadOnlyList<JobEnqueueValues> rows)
     {
         if (rows.Count < 2)
         {
@@ -177,8 +177,8 @@ internal sealed class EnqueueJobsHandler(
         for (var i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
-            var deduplicationKey = row.DeduplicationKey;
-            if (deduplicationKey is null)
+            var idempotencyKey = row.IdempotencyKey;
+            if (idempotencyKey is null)
             {
                 continue;
             }
@@ -186,13 +186,13 @@ internal sealed class EnqueueJobsHandler(
             var scope = row.ParentJobId is { } parentId
                 ? $"child:{parentId.ToString(CultureInfo.InvariantCulture)}"
                 : $"root:{row.NamespaceName}";
-            var composite = scope + "\0" + deduplicationKey;
+            var composite = scope + "\0" + idempotencyKey;
 
             if (seen.TryGetValue(composite, out var firstOrdinal))
             {
                 throw row.ParentJobId is { } duplicateParentId
-                    ? DuplicateDeduplicationKeyInBatchException.ForChild(duplicateParentId, deduplicationKey, firstOrdinal, i)
-                    : DuplicateDeduplicationKeyInBatchException.ForRoot(row.NamespaceName, deduplicationKey, firstOrdinal, i);
+                    ? DuplicateIdempotencyKeyInBatchException.ForChild(duplicateParentId, idempotencyKey, firstOrdinal, i)
+                    : DuplicateIdempotencyKeyInBatchException.ForRoot(row.NamespaceName, idempotencyKey, firstOrdinal, i);
             }
 
             seen.Add(composite, i);

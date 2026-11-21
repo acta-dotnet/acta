@@ -24,8 +24,8 @@ public sealed class OutboxRelayRouteSpec : OutboxRelayIntegrationBase
     {
         var ct = TestContext.Current.CancellationToken;
         var lateNs = Unique("late");
-        var dedup = Unique("r6");
-        var seed = EchoRow(dedup, jobNamespace: lateNs);
+        var idempotencyKey = Unique("r6");
+        var seed = EchoRow(idempotencyKey, jobNamespace: lateNs);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceConnection);
@@ -51,6 +51,6 @@ public sealed class OutboxRelayRouteSpec : OutboxRelayIntegrationBase
         // Tick 2: the route resolves. The row is delivered once and deleted.
         await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
-        Assert.Equal(1, await CountLedgerJobsAsync(lateNsId, dedup, ct));
+        Assert.Equal(1, await CountLedgerJobsAsync(lateNsId, idempotencyKey, ct));
     }
 }

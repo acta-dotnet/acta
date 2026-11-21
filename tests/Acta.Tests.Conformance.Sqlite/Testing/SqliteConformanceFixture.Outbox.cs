@@ -117,10 +117,10 @@ public sealed partial class SqliteConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO main.{table}
-                (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
+                (job_ref, namespace_name, job_name, input_format_id, input, idempotency_key,
                  meta, job_priority_code, created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count,
                  claim_token, claim_until_utc)
-            VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
+            VALUES (@id, @ns, @name, @fmt, @data, @idempotency_key, @meta, @prio, @created, @next, @status, @failures,
                     @token, @until);
             """;
         // Bind the raw Guid (not .ToString()) so Microsoft.Data.Sqlite applies its real UPPER-CASE TEXT
@@ -130,7 +130,7 @@ public sealed partial class SqliteConformanceFixture
         cmd.Parameters.AddWithValue("@name", seed.JobName);
         cmd.Parameters.AddWithValue("@fmt", (long)seed.InputFormatId);
         cmd.Parameters.AddWithValue("@data", (object?)seed.Input ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@dedup", (object?)seed.DeduplicationKey ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@idempotency_key", (object?)seed.IdempotencyKey ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@meta", (object?)seed.Meta ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@prio", seed.PriorityCode is { } p ? (long)p : DBNull.Value);
         cmd.Parameters.AddWithValue("@created", seed.CreatedAtUtc.ToString(IsoFormat, CultureInfo.InvariantCulture));

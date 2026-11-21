@@ -51,7 +51,7 @@ public sealed class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFixture, J
             + "definition_name tenant_id tenant_name lineage_root_job_id lineage_root_job_ref worker_id worker_ref execution_number "
             + "duration_ms wait_ms event_message actor details_format details_text",
         ["jobs_view"] =
-            "job_id job_ref namespace_name definition_name job_kind job_kind_code job_status job_status_code deduplication_key "
+            "job_id job_ref namespace_name definition_name job_kind job_kind_code job_status job_status_code idempotency_key "
             + "correlation_key concurrency_key lane_name parent_job_id lineage_root_job_id schedule_id lineage_root_job_ref tenant_id tenant_name "
             + "job_priority job_priority_code input_format input_text result_format result_text next_run_at_utc execution_number "
             + "failure_count leased_by_worker_id leased_by_worker_host_name lease_expires_at_utc retention_until_utc created_at_utc "

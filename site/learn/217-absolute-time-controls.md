@@ -132,7 +132,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to keep a repeated request from creating a second job](/learn/010-deduplication-key.md)
+- [How to keep a repeated request from creating a second job](/learn/010-idempotency-key.md)
 
 ## More
 

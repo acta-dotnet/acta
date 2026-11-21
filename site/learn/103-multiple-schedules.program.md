@@ -153,7 +153,7 @@ start still fires). Lab [`106-schedule-misfire`](/learn/106-schedule-misfire.md)
 ### When not to use
 
 Use one-shot jobs when each financial/accounting occurrence needs an independent identity, retention
-period, deduplication key, or audit outcome. Use an external scheduler when scheduling authority must sit
+period, idempotency key, or audit outcome. Use an external scheduler when scheduling authority must sit
 outside the Acta database.
 
 ### Source trail

@@ -141,8 +141,8 @@ public sealed partial class OpenApiContractTests
         (string Route, string Parameter, bool Required, Action<string?> Validate)[] filters =
         [
             ("v1/jobs", "jobNamespace", false, value => QueryValidation.ValidateNamespace(value, "jobNamespace")),
-            ("v1/jobs/by-deduplication-key", "jobNamespace", true, value =>
-                JobLookup.ByDeduplicationKey(value ?? throw new InvalidQueryException("jobNamespace is required."), "ck-1")
+            ("v1/jobs/by-idempotency-key", "jobNamespace", true, value =>
+                JobLookup.ByIdempotencyKey(value ?? throw new InvalidQueryException("jobNamespace is required."), "ck-1")
             ),
             ("v1/jobs", "jobName", false, value => QueryValidation.ValidateJobName(value, "billing", "jobName")),
             ("v1/jobs", "tenantName", false, value => QueryValidation.ValidateExtendedName(value, "tenantName")),
@@ -175,7 +175,7 @@ public sealed partial class OpenApiContractTests
         {
             ("EnqueueJobRequest", "jobNamespace") => value => Enqueues(request => request with { JobNamespace = value }),
             ("EnqueueJobRequest", "jobName") => value => Enqueues(request => request with { JobName = value }),
-            ("EnqueueJobRequest", "deduplicationKey") => value => Enqueues(request => request with { DeduplicationKey = value }),
+            ("EnqueueJobRequest", "idempotencyKey") => value => Enqueues(request => request with { IdempotencyKey = value }),
             ("EnqueueJobRequest", "correlationKey") => value => Enqueues(request => request with { CorrelationKey = value }),
             ("EnqueueJobRequest", "tenantName") => value => Enqueues(request => request with { TenantName = value }),
             ("EnqueueJobRequest", "lane") => value => Enqueues(request => request with { Lane = value }),

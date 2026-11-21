@@ -14,7 +14,7 @@ public readonly record struct OutboxSeed(
     string JobName,
     byte InputFormatId,
     byte[]? Input,
-    string? DeduplicationKey,
+    string? IdempotencyKey,
     byte? PriorityCode,
     DateTime CreatedAtUtc,
     DateTime NextAttemptAtUtc,

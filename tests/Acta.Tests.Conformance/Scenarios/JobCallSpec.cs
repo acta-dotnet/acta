@@ -49,7 +49,7 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
         var key = Unique("named-input");
 
         // Naming the argument input binds the input-typed form, which routes a call by its job, not by its type.
-        var handle = await Jobs.EnqueueAsync(input: TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.DeduplicationKey(key), ct);
+        var handle = await Jobs.EnqueueAsync(input: TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.IdempotencyKey(key), ct);
 
         Assert.Equal("add-numbers", (await Jobs.GetAsync(handle, ct))!.JobName);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(handle, ct));
@@ -64,7 +64,7 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).ToListAsync(ct));
-        Assert.Equal("echo", child.DeduplicationKey);
+        Assert.Equal("echo", child.IdempotencyKey);
         Assert.Equal("job-child-echo", (await Jobs.GetAsync(JobLookup.ById(child.Id), ct))!.JobName);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
@@ -100,8 +100,8 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var first = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "dedup"), o => o.DeduplicationKey("invoice-7"), ct);
-        var second = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "dedup"), o => o.DeduplicationKey("invoice-7"), ct);
+        var first = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "dedup"), o => o.IdempotencyKey("invoice-7"), ct);
+        var second = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "dedup"), o => o.IdempotencyKey("invoice-7"), ct);
 
         Assert.Equal(EnqueueJobAction.Inserted, first.Action);
         Assert.Equal(EnqueueJobAction.Deduplicated, second.Action);

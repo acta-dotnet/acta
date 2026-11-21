@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 /// <summary>
 /// Conformance for GetJobCheckpointValue: one checkpoint's value reads back as stored, by the kind and the name the
 /// checkpoint list shows, and null stands for a checkpoint that holds no value, one that is not there, the scheduler's
-/// firing record, a job that is not there, and a deduplication key looked up in another namespace.
+/// firing record, a job that is not there, and an idempotency key looked up in another namespace.
 /// </summary>
 [ConformanceSpec(
     "job-payload-reads.checkpoint-value",
@@ -160,18 +160,18 @@ public sealed class GetJobCheckpointValueSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Null(await Jobs.GetCheckpointValueAsync(JobRef.New(), CheckpointKindCode.Variable, "fetch.status", ct));
     }
 
-    [Fact(DisplayName = "A deduplication key reads its own namespace's job, and from another namespace reaches nothing")]
-    public async Task A_deduplication_key_is_read_in_its_own_namespace()
+    [Fact(DisplayName = "An idempotency key reads its own namespace's job, and from another namespace reaches nothing")]
+    public async Task A_idempotency_key_is_read_in_its_own_namespace()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = Unique("checkpoint-value");
-        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey(key), ct);
+        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.IdempotencyKey(key), ct);
         var fence = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
         await SetAsync(fence, CheckpointKindCode.Variable, "fetch.status", JobPayload.Json("stage-two"), ct);
 
         Assert.NotNull(
             await Jobs.GetCheckpointValueAsync(
-                JobLookup.ByDeduplicationKey(TestNamespace, key),
+                JobLookup.ByIdempotencyKey(TestNamespace, key),
                 CheckpointKindCode.Variable,
                 "fetch.status",
                 ct
@@ -179,7 +179,7 @@ public sealed class GetJobCheckpointValueSpec : ActaRuntimeTestBase<ConformanceF
         );
         Assert.Null(
             await Jobs.GetCheckpointValueAsync(
-                JobLookup.ByDeduplicationKey(Unique("other"), key),
+                JobLookup.ByIdempotencyKey(Unique("other"), key),
                 CheckpointKindCode.Variable,
                 "fetch.status",
                 ct

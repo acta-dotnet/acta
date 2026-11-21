@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Engine.Outbox;
 /// <summary>
 /// A staged record's ref is its job's ref from the moment it is staged. The relay enqueues the job under that ref, so a
 /// record the relay enqueued and then stopped before removing is recognised by its held ref on the next pass, with or
-/// without a deduplication key.
+/// without an idempotency key.
 /// </summary>
 [ConformanceSpec(
     "outbox.relay-job-ref",
@@ -27,7 +27,7 @@ public sealed class OutboxRelayJobRefSpec : OutboxRelayIntegrationBase
         JobRef staged;
         await using (var producer = await Fixture.BeginOutboxProducerAsync(SourceTable))
         {
-            staged = await producer.StageAsync(EchoRequest(deduplicationKey: null));
+            staged = await producer.StageAsync(EchoRequest(idempotencyKey: null));
             await producer.CommitAsync();
         }
 
@@ -90,7 +90,7 @@ public sealed class OutboxRelayJobRefSpec : OutboxRelayIntegrationBase
     {
         var ct = TestContext.Current.CancellationToken;
         var foreign = EchoRow(null, jobName: "lane-step");
-        var holder = (await OwnedSubmission.EnqueueJobsAsync([EchoRequest(deduplicationKey: null)], [foreign.JobRef], ct)).Jobs[0];
+        var holder = (await OwnedSubmission.EnqueueJobsAsync([EchoRequest(idempotencyKey: null)], [foreign.JobRef], ct)).Jobs[0];
         var good = EchoRow(null);
         await Fixture.SeedOutboxRowAsync(SourceTable, foreign);
         await Fixture.SeedOutboxRowAsync(SourceTable, good);
@@ -142,7 +142,7 @@ public sealed class OutboxRelayJobRefSpec : OutboxRelayIntegrationBase
         Assert.NotNull(await Jobs.GetAsync(new JobRef(seed.JobRef), ct));
     }
 
-    [Fact(DisplayName = "Records sharing a deduplication key become one job, and a later record's ref names no job")]
+    [Fact(DisplayName = "Records sharing an idempotency key become one job, and a later record's ref names no job")]
     public async Task Records_sharing_a_key_become_one_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -334,8 +334,8 @@ public sealed class OutboxRelayJobRefSpec : OutboxRelayIntegrationBase
         return await CountNamespaceJobsAsync(ct) - before;
     }
 
-    private EnqueueJobRequest EchoRequest(string? deduplicationKey) =>
-        new(TestNamespace, "echo", JobPayload.FromBytes(JobPayloadFormat.Json, EchoJson()), DeduplicationKey: deduplicationKey);
+    private EnqueueJobRequest EchoRequest(string? idempotencyKey) =>
+        new(TestNamespace, "echo", JobPayload.FromBytes(JobPayloadFormat.Json, EchoJson()), IdempotencyKey: idempotencyKey);
 
     private Task<int> CountNamespaceJobsAsync(CancellationToken ct) =>
         Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId).CountAsync(ct);

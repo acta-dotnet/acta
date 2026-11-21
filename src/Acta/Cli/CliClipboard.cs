@@ -4,13 +4,13 @@ namespace Acta;
 
 /// <summary>
 /// Clipboard fallback for a read verb's target: when info, status, result, events, or explain is invoked
-/// without one, the runner reads the OS clipboard and accepts one token up to the DeduplicationKey size.
+/// without one, the runner reads the OS clipboard and accepts one token up to the IdempotencyKey size.
 /// </summary>
 internal static class CliClipboard
 {
     /// <summary>
-    /// Validates clipboard text as a CLI target: trimmed, non-empty, at most <see cref="DeduplicationKey.MaxLength"/>
-    /// characters, and printable ASCII without whitespace, as a job ref, an <c>id:&lt;n&gt;</c>, and a deduplication key
+    /// Validates clipboard text as a CLI target: trimmed, non-empty, at most <see cref="IdempotencyKey.MaxLength"/>
+    /// characters, and printable ASCII without whitespace, as a job ref, an <c>id:&lt;n&gt;</c>, and an idempotency key
     /// all are. Which of the three it is stays in the runner, same as for an explicit argument.
     /// </summary>
     public static bool TryResolveTarget(string? text, out string target)
@@ -22,7 +22,7 @@ internal static class CliClipboard
         }
 
         var candidate = text.Trim();
-        if (candidate.Length == 0 || candidate.Length > DeduplicationKey.MaxLength || candidate.AsSpan().ContainsAnyExceptInRange('!', '~'))
+        if (candidate.Length == 0 || candidate.Length > IdempotencyKey.MaxLength || candidate.AsSpan().ContainsAnyExceptInRange('!', '~'))
         {
             return false;
         }

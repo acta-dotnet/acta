@@ -28,10 +28,10 @@
         "006-many-jobs-one-class",
         "011-delayed-job",
         "217-absolute-time-controls",
-        "010-deduplication-key",
+        "010-idempotency-key",
         "028-deduplication-time-buckets",
         "029-enqueue-in-transaction",
-        "014-read-by-deduplication-key",
+        "014-read-by-idempotency-key",
         "015-call-vs-enqueue",
         "019-batch-enqueue",
         "017-priority",
@@ -225,7 +225,7 @@
         { "howTo": "202-durable-step", "when": "work that finished must not repeat on a retry" },
         { "howTo": "224-check-step", "when": "a side effect the provider can look up, so the run after a crash asks before repeating it" },
         { "howTo": "220-at-most-once-step", "when": "a side effect where a second attempt is worse than not knowing, such as capturing a payment" },
-        { "howTo": "010-deduplication-key", "when": "a repeated request must not create a second job" }
+        { "howTo": "010-idempotency-key", "when": "a repeated request must not create a second job" }
       ]
     },
     {
@@ -315,7 +315,7 @@
     "003-job-result": "return value output answer await",
     "007-dependency-injection": "dependency injection di constructor services",
     "008-cancellation-token": "cancellation token shutdown graceful",
-    "010-deduplication-key": "idempotent duplicate double click twice dedupe once only",
+    "010-idempotency-key": "idempotent duplicate double click twice dedupe once only",
     "011-delayed-job": "delay later reminder send in five minutes hours timer",
     "015-call-vs-enqueue": "call wait synchronous fire and forget",
     "016-max-attempts": "max attempts retry budget give up",

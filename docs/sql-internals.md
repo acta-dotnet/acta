@@ -218,8 +218,8 @@ small price a scan below a seek per row, and a retained table only grows, so eve
 could scan a permanent table carries `FORCESEEK` (a primary-key equality already seeks), naming the index when the predicate restates a filtered index's
 filter so the hint always compiles:
 
-- The deduplication probes in `enqueue_job` and `enqueue_jobs` seek `ux_jobs_deduplication_key_root`
-  or `ux_jobs_deduplication_key_child`; the parent lookup seeks `pk_jobs`. In `enqueue_jobs` the probe
+- The deduplication probes in `enqueue_job` and `enqueue_jobs` seek `ux_jobs_idempotency_key_root`
+  or `ux_jobs_idempotency_key_child`; the parent lookup seeks `pk_jobs`. In `enqueue_jobs` the probe
   is a join's inner side and names both seek columns: with the index alone the optimizer may seek the
   leading column and test the key as a residual, reading every key under it once per batch row.
 - The same routines look up each job's namespace and definition through `ux_namespaces_name` and
@@ -227,7 +227,7 @@ filter so the hint always compiles:
   row a read touches stays share-locked until the caller commits, so a lookup that scanned `namespaces` held every
   namespace's row and deadlocked with deploys writing theirs.
 - A map's replay reads its children as `enqueue_jobs` probes, a join's inner side under the list it passes:
-  `ListChildJobsByName` names both columns of `ux_jobs_deduplication_key_child`.
+  `ListChildJobsByName` names both columns of `ux_jobs_idempotency_key_child`.
 - The job delete's staging read seeks `ix_jobs_namespace_created` from its cursor and then `jobs_state`
   and `jobs` by key, and the event delete's read seeks `ix_events_namespace_created` from its pass's position.
 - The outbox claim, its lease recovery and lane check, the relay's finalizes, the backlog count, and the
@@ -310,7 +310,7 @@ changes both.
 
 ### Deduplication lock
 
-On SQL Server an enqueue serializes on its deduplication key through an application lock, not a range
+On SQL Server an enqueue serializes on its idempotency key through an application lock, not a range
 lock. `enqueue_job` and `enqueue_jobs` take `sp_getapplock`, exclusive and owned by the transaction, on
 `<schema>.dedup:n<namespace id>:<key>` for a root job or `<schema>.dedup:p<parent id>:<key>` for a
 child, and only then probe the deduplication index under `UPDLOCK`. An application lock binds only

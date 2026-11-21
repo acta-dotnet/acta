@@ -258,7 +258,7 @@ numeric `JobId` is for joins and SQL debugging only.
 ### Status and result
 
 `jobs.GetAsync(jobRef)` answers the row: `Status`, `FailureCount`, `NextRunAtUtc`, timestamps, and
-the deduplication, correlation, and concurrency keys you set. `jobs.TryGetResultAsync<ShipmentLabel>(jobRef)` answers the stored result and whether there is one: nothing is found until a
+the idempotency, correlation, and concurrency keys you set. `jobs.TryGetResultAsync<ShipmentLabel>(jobRef)` answers the stored result and whether there is one: nothing is found until a
 successful completion wrote one. `GetResultAsync<ShipmentLabel>` returns a result you expect, and throws when there is none.
 A job stores one result; a permanent job's next success replaces it.
 

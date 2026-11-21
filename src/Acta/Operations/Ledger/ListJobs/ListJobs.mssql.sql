@@ -15,7 +15,7 @@ SELECT TOP (@p_take)
     jd.definition_name AS job_name,
     j.parent_job_id,
     j.lineage_root_job_id,
-    j.deduplication_key,
+    j.idempotency_key,
     j.correlation_key,
     r.job_status_code AS status,
     r.job_priority_code AS priority,

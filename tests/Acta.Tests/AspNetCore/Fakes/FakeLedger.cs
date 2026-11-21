@@ -17,7 +17,7 @@ internal sealed class FakeLedger : ILedger
         ParentJobRef: null,
         LineageRootJobId: null,
         LineageRootJobRef: null,
-        DeduplicationKey: "ck-1",
+        IdempotencyKey: "ck-1",
         CorrelationKey: "trace-1",
         Status: JobStatusCode.Ready,
         Priority: JobPriorityCode.Normal,

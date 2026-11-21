@@ -12,7 +12,7 @@ The how-to is [/learn/028-deduplication-time-buckets.md](/learn/028-deduplicatio
 
 ```csharp
 // How to allow one job per hour or per day
-// A deduplication key built from a time bucket lets one job in per bucket: `DeduplicationKey.PerTimeBucket` here,
+// An idempotency key built from a time bucket lets one job in per bucket: `IdempotencyKey.PerTimeBucket` here,
 // with `PerHour` and `PerDay` as its fixed sizes.
 using Acta;
 using Acta.Learn.DeduplicationTimeBuckets;
@@ -46,15 +46,15 @@ Console.WriteLine("Enqueueing twice in the same 30-minute bucket...");
 // The key carries the bucket its instant falls in, so every enqueue inside the same half hour composes the same key.
 // `bucketSize` is thirty minutes and `instantA` a fixed instant, so the run repeats. `PerHour(job, businessKey)` and
 // `PerDay(job, businessKey)` are the fixed sizes, and every bucket is counted in UTC.
-var keyA1 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA1));
+var keyA1 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA1));
 
 // learn: end
 Console.WriteLine($"  enqueue 1: job {first.JobRef} action={first.Action}");
 
 // learn: 2. Enqueue again inside the bucket and get the first job back
-var keyA2 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA2));
+var keyA2 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA2));
 
 // learn: end
 Console.WriteLine($"  enqueue 2: job {second.JobRef} action={second.Action}");
@@ -67,8 +67,8 @@ Console.WriteLine(
 Console.WriteLine("Enqueueing in the next bucket...");
 
 // learn: 3. Enqueue in the next bucket and get a new job
-var keyB = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantB, bucketSize);
-var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyB));
+var keyB = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantB, bucketSize);
+var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyB));
 
 // learn: end
 Console.WriteLine($"  enqueue 3: job {third.JobRef} action={third.Action}");

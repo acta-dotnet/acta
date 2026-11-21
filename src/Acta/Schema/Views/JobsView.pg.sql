@@ -7,7 +7,7 @@ SELECT
     j.job_kind_code,
     {{decode:job-status:r.job_status_code}} AS job_status,
     r.job_status_code,
-    j.deduplication_key,
+    j.idempotency_key,
     j.correlation_key,
     j.concurrency_key,
     lane.lane_name,

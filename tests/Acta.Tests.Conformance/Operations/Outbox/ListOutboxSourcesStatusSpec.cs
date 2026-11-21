@@ -95,7 +95,7 @@ public sealed class ListOutboxSourcesStatusSpec : OutboxRelayHostBase
     }
 
     /// <summary>Stages a due row in a reserved input format, which the next pass quarantines on contact.</summary>
-    private async Task SeedUnreadableAsync(string dedup)
+    private async Task SeedUnreadableAsync(string idempotencyKey)
     {
         var now = DateTime.UtcNow.AddMinutes(-1);
         await Fixture.SeedOutboxRowAsync(
@@ -106,7 +106,7 @@ public sealed class ListOutboxSourcesStatusSpec : OutboxRelayHostBase
                 JobName: "echo",
                 InputFormatId: 4,
                 Input: [1],
-                DeduplicationKey: dedup,
+                IdempotencyKey: idempotencyKey,
                 PriorityCode: null,
                 CreatedAtUtc: now,
                 NextAttemptAtUtc: now,

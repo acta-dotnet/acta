@@ -18,7 +18,7 @@ The lines that matter:
 
 ```csharp
 var single = await jobs.EnqueueAsync(JobCallJobs.Hello(new Hello("World")));
-var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.DeduplicationKey("greet-ada"));
+var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.IdempotencyKey("greet-ada"));
 ```
 
 In `job-call.cs` (excerpt):
@@ -38,7 +38,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var single = await jobs.EnqueueAsync(JobCallJobs.Hello(new Hello("World")));
-var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.DeduplicationKey("greet-ada"));
+var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.IdempotencyKey("greet-ada"));
 Console.WriteLine($"Enqueued hello as {single.JobRef} and greet as {several.JobRef}.");
 
 await host.WaitForShutdownAsync();

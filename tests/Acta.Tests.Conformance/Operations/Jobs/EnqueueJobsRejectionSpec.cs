@@ -8,15 +8,15 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Batch-enqueue rejection spec - exercises the C# guards that run before any SQL: same-batch
-/// duplicate DeduplicationKeys (compared exactly), duplicate tag names per row, and unknown namespace/job.
+/// duplicate IdempotencyKeys (compared exactly), duplicate tag names per row, and unknown namespace/job.
 /// Each rejection is atomic: the whole batch throws and no job rows land. Distinct and null
-/// DeduplicationKeys are unaffected. Identical assertions run against SqlServer and Postgres.
+/// IdempotencyKeys are unaffected. Identical assertions run against SqlServer and Postgres.
 /// </summary>
 [ConformanceSpec(
     "enqueue-jobs.batch-rejection",
-    "Same-batch duplicate deduplication keys or malformed rows reject the batch",
+    "Same-batch duplicate idempotency keys or malformed rows reject the batch",
     Area = "Enqueue",
-    Contract = "A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted."
+    Contract = "A batch with a same-batch duplicate IdempotencyKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted."
 )]
 [Deploys("add-numbers")]
 public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueJobsRejectionSpec>>
@@ -25,16 +25,16 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
     // can resolve it; we never start the claim/execute loop.
     protected override bool RunAsWorker => true;
 
-    [Fact(DisplayName = "A same-batch duplicate DeduplicationKey throws DuplicateDeduplicationKeyInBatchException and persists nothing")]
-    public async Task Same_batch_duplicate_deduplication_key_throws()
+    [Fact(DisplayName = "A same-batch duplicate IdempotencyKey throws DuplicateIdempotencyKeyInBatchException and persists nothing")]
+    public async Task Same_batch_duplicate_idempotency_key_throws()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
 
         JobEnqueueValues[] command = [Row("dup-1", new AddNumbers(1, 1)), Row("dup-1", new AddNumbers(2, 2))];
 
-        var ex = await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(() => RunAsync(command, ct));
-        Assert.Equal("dup-1", ex.DeduplicationKey);
+        var ex = await Assert.ThrowsAsync<DuplicateIdempotencyKeyInBatchException>(() => RunAsync(command, ct));
+        Assert.Equal("dup-1", ex.IdempotencyKey);
         Assert.Equal(TestNamespace, ex.RootJobNamespace);
         Assert.Null(ex.ParentJobId);
         Assert.Equal(0, ex.FirstOrdinal);
@@ -43,20 +43,20 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 
-    [Fact(DisplayName = "Duplicate DeduplicationKeys with different payloads are still rejected")]
-    public async Task Same_batch_duplicate_deduplication_key_with_different_payloads_still_throws()
+    [Fact(DisplayName = "Duplicate IdempotencyKeys with different payloads are still rejected")]
+    public async Task Same_batch_duplicate_idempotency_key_with_different_payloads_still_throws()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
 
         JobEnqueueValues[] command = [Row("dup-2", new AddNumbers(10, 20)), Row("dup-2", new AddNumbers(99, 99))];
 
-        await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(() => RunAsync(command, ct));
+        await Assert.ThrowsAsync<DuplicateIdempotencyKeyInBatchException>(() => RunAsync(command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 
-    [Fact(DisplayName = "Distinct and null DeduplicationKeys coexist in one batch and all insert")]
-    public async Task Distinct_and_null_deduplication_keys_coexist()
+    [Fact(DisplayName = "Distinct and null IdempotencyKeys coexist in one batch and all insert")]
+    public async Task Distinct_and_null_idempotency_keys_coexist()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
@@ -102,7 +102,7 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
             Row("dup-3", new AddNumbers(3, 3)),
         ];
 
-        await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(() => RunAsync(command, ct));
+        await Assert.ThrowsAsync<DuplicateIdempotencyKeyInBatchException>(() => RunAsync(command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 
@@ -140,7 +140,7 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Empty(await Db.From<TagEntity>().Where(t => t.TagName == "probe").ToListAsync(ct));
     }
 
-    private JobEnqueueValues Row(string? deduplicationKey, AddNumbers input, IReadOnlyList<TagInput>? tags = null)
+    private JobEnqueueValues Row(string? idempotencyKey, AddNumbers input, IReadOnlyList<TagInput>? tags = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);
@@ -148,7 +148,7 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
-            DeduplicationKey: deduplicationKey,
+            IdempotencyKey: idempotencyKey,
             Tags: tags
         );
     }

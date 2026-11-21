@@ -113,7 +113,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var jobRefValues = new Guid[count];
         var namespaceNames = new string[count];
         var jobNames = new string[count];
-        var deduplicationKeys = new string?[count];
+        var idempotencyKeys = new string?[count];
         var correlationKeys = new string?[count];
         var priorityOverrides = new short?[count];
         var inputFormatIds = new short[count];
@@ -132,7 +132,7 @@ internal sealed class PostgresDialect : ISqlDialect
             jobRefValues[i] = jobRefs[i];
             namespaceNames[i] = row.NamespaceName;
             jobNames[i] = row.JobName;
-            deduplicationKeys[i] = row.DeduplicationKey;
+            idempotencyKeys[i] = row.IdempotencyKey;
             correlationKeys[i] = row.CorrelationKey;
             priorityOverrides[i] = row.PriorityOverride is { } priority ? (short)priority : null;
             inputFormatIds[i] = row.Input.Format.Id;
@@ -149,7 +149,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_job_ref", NpgsqlDbType.Uuid, jobRefValues);
         AddArray(postgres, "@p_b_namespace_name", NpgsqlDbType.Varchar, namespaceNames);
         AddArray(postgres, "@p_b_job_name", NpgsqlDbType.Varchar, jobNames);
-        AddArray(postgres, "@p_b_deduplication_key", NpgsqlDbType.Varchar, deduplicationKeys);
+        AddArray(postgres, "@p_b_idempotency_key", NpgsqlDbType.Varchar, idempotencyKeys);
         AddArray(postgres, "@p_b_correlation_key", NpgsqlDbType.Varchar, correlationKeys);
         AddArray(postgres, "@p_b_job_priority_code_override", NpgsqlDbType.Smallint, priorityOverrides);
         AddArray(postgres, "@p_b_input_format_id", NpgsqlDbType.Smallint, inputFormatIds);
@@ -197,7 +197,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_job_ref", NpgsqlDbType.Uuid, jobRef);
         AddScalar(postgres, "@p_namespace_name", NpgsqlDbType.Varchar, row.NamespaceName);
         AddScalar(postgres, "@p_job_name", NpgsqlDbType.Varchar, row.JobName);
-        AddScalar(postgres, "@p_deduplication_key", NpgsqlDbType.Varchar, (object?)row.DeduplicationKey ?? DBNull.Value);
+        AddScalar(postgres, "@p_idempotency_key", NpgsqlDbType.Varchar, (object?)row.IdempotencyKey ?? DBNull.Value);
         AddScalar(postgres, "@p_correlation_key", NpgsqlDbType.Varchar, (object?)row.CorrelationKey ?? DBNull.Value);
         AddScalar(
             postgres,

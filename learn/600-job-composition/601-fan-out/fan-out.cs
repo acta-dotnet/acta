@@ -1,5 +1,5 @@
 // How to enqueue many independent jobs from a handler
-// A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links
+// A handler takes `IJobs` and enqueues many independent jobs, each with a stable idempotency key. Nothing links
 // them to the handler's job and nothing waits for them (compare 212's `MapAsync`).
 using Acta;
 using Acta.Learn.FanOut;
@@ -33,7 +33,7 @@ namespace Acta.Learn.FanOut
 
     // Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.
     //
-    // Every enqueued job carries a deduplication key derived from what it is, not from when it was created.
+    // Every enqueued job carries an idempotency key derived from what it is, not from when it was created.
     // This handler is retryable, and the fan-out happens before it completes: a crash mid-loop replays
     // the whole loop, so without a stable key the album would grow a second copy of every thumbnail
     // already enqueued. With one, the replay re-enqueues and Acta returns the existing job instead.
@@ -49,7 +49,7 @@ namespace Acta.Learn.FanOut
             for (var i = 1; i <= input.PhotoCount; i++)
             {
                 var photo = i;
-                await jobs.EnqueueAsync(new MakeThumbnail(photo), o => o.DeduplicationKey($"thumbnail-{input.AlbumId}-{photo}"), ct);
+                await jobs.EnqueueAsync(new MakeThumbnail(photo), o => o.IdempotencyKey($"thumbnail-{input.AlbumId}-{photo}"), ct);
             }
             // learn: end
         }

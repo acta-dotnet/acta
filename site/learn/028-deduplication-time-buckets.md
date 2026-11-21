@@ -1,6 +1,6 @@
 # How to allow one job per hour or per day
 
-A deduplication key built from a time bucket lets one job in per bucket: `DeduplicationKey.PerTimeBucket` here, with `PerHour` and `PerDay` as its fixed sizes.
+An idempotency key built from a time bucket lets one job in per bucket: `IdempotencyKey.PerTimeBucket` here, with `PerHour` and `PerDay` as its fixed sizes.
 
 - Section: Start jobs, step 10
 - Program: `learn/000-fundamentals/028-deduplication-time-buckets` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -17,8 +17,8 @@ The key carries the bucket its instant falls in, so every enqueue inside the sam
 The lines that matter:
 
 ```csharp
-var keyA1 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA1));
+var keyA1 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA1));
 ```
 
 In `deduplication-time-buckets.cs` (excerpt):
@@ -27,12 +27,12 @@ In `deduplication-time-buckets.cs` (excerpt):
 // --- Within the same bucket: two enqueues collapse to one job ---
 Console.WriteLine("Enqueueing twice in the same 30-minute bucket...");
 
-var keyA1 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA1));
+var keyA1 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA1));
 Console.WriteLine($"  enqueue 1: job {first.JobRef} action={first.Action}");
 
-var keyA2 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA2));
+var keyA2 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA2));
 Console.WriteLine($"  enqueue 2: job {second.JobRef} action={second.Action}");
 ```
 
@@ -41,19 +41,19 @@ Console.WriteLine($"  enqueue 2: job {second.JobRef} action={second.Action}");
 The lines that matter:
 
 ```csharp
-var keyA2 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA2));
+var keyA2 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA2));
 ```
 
 In `deduplication-time-buckets.cs` (excerpt):
 
 ```csharp
-var keyA1 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA1));
+var keyA1 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA1));
 Console.WriteLine($"  enqueue 1: job {first.JobRef} action={first.Action}");
 
-var keyA2 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
-var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA2));
+var keyA2 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
+var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA2));
 Console.WriteLine($"  enqueue 2: job {second.JobRef} action={second.Action}");
 
 Console.WriteLine(
@@ -66,8 +66,8 @@ Console.WriteLine(
 The lines that matter:
 
 ```csharp
-var keyB = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantB, bucketSize);
-var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyB));
+var keyB = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantB, bucketSize);
+var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyB));
 ```
 
 In `deduplication-time-buckets.cs` (excerpt):
@@ -76,8 +76,8 @@ In `deduplication-time-buckets.cs` (excerpt):
 // --- Across buckets: a third enqueue in a new bucket inserts a fresh job ---
 Console.WriteLine("Enqueueing in the next bucket...");
 
-var keyB = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantB, bucketSize);
-var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyB));
+var keyB = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantB, bucketSize);
+var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyB));
 Console.WriteLine($"  enqueue 3: job {third.JobRef} action={third.Action}");
 
 Console.WriteLine(third.Action == EnqueueJobAction.Inserted ? "Inserted - new bucket, new job." : "ERROR: expected Inserted");

@@ -120,7 +120,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
             JobName: "send",
             InputFormatId: 0,
             Input: null,
-            DeduplicationKey: Guid.NewGuid().ToString("N"),
+            IdempotencyKey: Guid.NewGuid().ToString("N"),
             PriorityCode: null,
             CreatedAtUtc: DateTime.UtcNow.AddMinutes(-5),
             NextAttemptAtUtc: DateTime.UtcNow.AddMinutes(-5),

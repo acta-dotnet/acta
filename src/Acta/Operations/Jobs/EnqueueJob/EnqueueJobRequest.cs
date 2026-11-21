@@ -12,7 +12,7 @@ public sealed record EnqueueJobRequest(
     string JobNamespace,
     string JobName,
     JobPayload Input = default,
-    string? DeduplicationKey = null,
+    string? IdempotencyKey = null,
     string? CorrelationKey = null,
     string? ConcurrencyKey = null,
     JobPriorityCode? Priority = null,

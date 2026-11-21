@@ -57,9 +57,9 @@ permanent job through a real worker crash.
 
 - `JobId`: the internal numeric id, for joins, logs, and SQL debugging. A job's own JSON never carries it; an event names its subject by it (`entityId`), and a route takes one only as `/jobs/id:{n}` on reads once the host sets `EnableNumericIdLookup`.
 - `JobRef`: the public handle, `job_` plus the 32 hex digits of a UUID, such as `job_01a14f4e954e7bf68ac609f3fcad8e3d`, so a ref copies and searches as one word. A ref Acta creates is a UUIDv7, so those sort by creation time; a job enqueued from SQL with no ref gets a random one. Parsing takes exactly that form, with the hex in any casing; a dashed or bare Guid does not parse. Once retention removes a job's row, a lookup by its ref finds nothing: its alerts go with it, and its events carry the numeric `JobId` until their own retention runs out. An explicit purge removes the job's events and alerts with it and leaves one `job.purged` event whose details carry the ref.
-- `DeduplicationKey`: the caller's key for a root job, unique within the namespace while the job holding it exists; retention frees it.
+- `IdempotencyKey`: the caller's key for a root job, unique within the namespace while the job holding it exists; retention frees it.
 
-`JobRequestBuilder.Deduplicate(businessKey)` composes `<job-name>:<business-key>`. The static `DeduplicationKey` helpers (`ForDefinition`, `PerHour`, `PerDay`, `PerTimeBucket`, `ForTenant`, `AcrossDefinitions`) compose a final key for `JobEnqueueOptionsBuilder.DeduplicationKey(key)`. Keys are case-exact, so `Order-1` and `order-1` are two keys, and namespace-scoped, never tenant-scoped: compose a tenant-relative key with `DeduplicationKey.ForTenant(tenantName, businessKey)`. A key shared across definitions returns the job that holds it, whatever its definition, and a typed wait on that job throws when its definition, as this process registers it, produces a different result type.
+`JobRequestBuilder.Deduplicate(businessKey)` composes `<job-name>:<business-key>`. The static `IdempotencyKey` helpers (`ForDefinition`, `PerHour`, `PerDay`, `PerTimeBucket`, `ForTenant`, `AcrossDefinitions`) compose a final key for `JobEnqueueOptionsBuilder.IdempotencyKey(key)`. Keys are case-exact, so `Order-1` and `order-1` are two keys, and namespace-scoped, never tenant-scoped: compose a tenant-relative key with `IdempotencyKey.ForTenant(tenantName, businessKey)`. A key shared across definitions returns the job that holds it, whatever its definition, and a typed wait on that job throws when its definition, as this process registers it, produces a different result type.
 
 ### Namespace vs tenant
 
@@ -833,7 +833,7 @@ The meter bounds admissions, not the gaps between starts. With `R` the rate per 
 var job = await jobs.EnqueueAsync(new ShipOrder(1042));                                 // run now
 var later = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));    // run once, later
 var receipt = await jobs.EnqueueAsync(BillingJobs.SendInvoice(new SendInvoice(7)));     // JobHandle<Receipt>
-var once = await jobs.EnqueueAsync(new SendInvoice(8), o => o.DeduplicationKey("invoice-8"));
+var once = await jobs.EnqueueAsync(new SendInvoice(8), o => o.IdempotencyKey("invoice-8"));
 
 JobOutcome outcome = await job.WaitAsync(TimeSpan.FromSeconds(30));
 Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
@@ -842,7 +842,7 @@ Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 - Each job's member on the generated manifest is a factory (`BillingJobs.SendInvoice(...)`): it takes the handler's input parameters, none when the input carries no data, and returns the job's call. A call names its job, so nothing is inferred from the input's type. The factory is public, unless the job takes or returns a type other assemblies cannot see: then it is internal, as is the job's argument record. Enqueue and schedule take it with options as a `configure` callback, and `CallAsync` with its `JobExecutionOptions`.
 - A typed enqueue, of an input or of a job's call, answers a `JobHandle`: the `EnqueueJobResponse` (`JobRef`, `JobId`, `Action`) plus `GetStatusAsync`, `WaitAsync`, `GetResultAsync`, `TryGetResultAsync`, `CancelAsync`, and `ExplainAsync`, each addressed by the job's id, so none spends a query resolving the job.
 - Enqueuing a result job's call answers `JobHandle<TResult>`, so the wait and the result read need no type argument; an input-typed enqueue names it: `job.WaitAsync<Receipt>()`.
-- `WaitAsync` returns the outcome, never throws it; a timeout (30 seconds by default) or a cancelled token stops the wait, never the job. A typed wait on a job that succeeded and stored no result answers a succeeded outcome with no value: `HasValue` and `TryGetValue` are false, and `ValueOrThrow()` throws `JobResultMissingException`. A result declared `Task<int?>` is an `int` result, and reads as `int` or as `int?`. It throws when no job matches, for a non-positive timeout, when its token is cancelled, and when a typed wait or result read meets a job whose definition, as this process registers it, produces another result type, which a deduplication key shared across definitions can hand back. A job of a definition this process does not register is decoded without that check.
+- `WaitAsync` returns the outcome, never throws it; a timeout (30 seconds by default) or a cancelled token stops the wait, never the job. A typed wait on a job that succeeded and stored no result answers a succeeded outcome with no value: `HasValue` and `TryGetValue` are false, and `ValueOrThrow()` throws `JobResultMissingException`. A result declared `Task<int?>` is an `int` result, and reads as `int` or as `int?`. It throws when no job matches, for a non-positive timeout, when its token is cancelled, and when a typed wait or result read meets a job whose definition, as this process registers it, produces another result type, which an idempotency key shared across definitions can hand back. A job of a definition this process does not register is decoded without that check.
 - A successful wait's result is the one the execution it saw succeed stored.
 - `GetResultAsync<T>` reads a result you expect: it returns the stored result, and throws `InvalidOperationException`, naming the job and its status, when the job has stored none. `TryGetResultAsync<T>` reads a result that may not exist yet and answers `(bool Found, T? Value)`, so a stored zero is not mistaken for no result: `await handle.TryGetResultAsync<T>() is (true, var value)`. Both are point-in-time reads that never wait; `WaitAsync` follows the job to its result.
 - `IJobs.GetInputAsync<T>(jobRef)` reads a job's input, as enqueued or last updated, as its type. Like `GetResultAsync<T>` it expects a value: it throws when no job matches, when the job carries no input, and when this process registers the job with another input type.
@@ -850,7 +850,7 @@ Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 - `IJobs.GetAsync(jobRef)` states the format and the size of the job's input and of its result (`InputFormatId`, `InputByteLength`, `ResultFormatId`, `ResultByteLength`) and carries neither, and `ListCheckpointsAsync` states the same of each checkpoint's value (`ValueFormatId`, `ValueByteLength`). A body is always its own read: `GetInputAsync`, `GetResultAsync`, and `IJobs.GetCheckpointValueAsync(jobRef, CheckpointKindCode.Signal, "approved")` for one checkpoint's value as stored, null when the checkpoint holds none or does not exist.
 - `IJobs.WaitAsync(jobRef)` waits on a job another process enqueued, and `IJobs.GetHandleAsync(jobRef)` rebuilds a handle for it, or answers null when no job matches; `GetHandleAsync<Receipt>(jobRef)` rebuilds the typed handle a call of a result job answers.
 - `ScheduleAsync` takes a `TimeSpan`, counted on the database clock and rounded up to whole seconds, or a `DateTimeOffset`, and it accepts the same `configure` callback as `EnqueueAsync`; the time wins over one set there. It creates one job; a recurring schedule is `[Schedule]`.
-- `CallAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`. A typed result comes through the job's call, `jobs.CallAsync(BillingJobs.SendInvoice(new SendInvoice(7)))`, which answers `JobOutcome<Receipt>`; with an input alone it answers `JobOutcome`.
+- `CallAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { IdempotencyKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`. A typed result comes through the job's call, `jobs.CallAsync(BillingJobs.SendInvoice(new SendInvoice(7)))`, which answers `JobOutcome<Receipt>`; with an input alone it answers `JobOutcome`.
 - The raw `EnqueueJobRequest`, batch, transactional, and child enqueues answer the plain `EnqueueJobResponse`.
 
 ## Transactional enqueue and the external outbox
@@ -875,7 +875,7 @@ With EF Core, pass `transaction.GetDbTransaction()`.
 - The returned `JobId` and `JobRef` are provisional until you commit and dead after a rollback, so the answer is the plain `EnqueueJobResponse`, not a handle; follow the job after the commit with `jobs.WaitAsync(receipt)`, by its `JobRef`. Your own rows' generated ids are provisional the same way: on SQLite a rolled-back id is handed out again. `ScheduleAsync` has the same transactional twins.
 - On SQLite your transaction holds the database's one write lock, so every Acta write in the process (claims, completions, other enqueues) waits for it, as long as the connection string's `Default Timeout` and then through `DeadlockRetryAttempts` attempts, after which the caller sees `SqliteException`: keep the transaction short. The connection needs only the same `Data Source` as Acta's.
 - After any enqueue exception, roll back the whole business transaction.
-- Supply a stable `DeduplicationKey` if you may retry the whole transaction after an ambiguous commit.
+- Supply a stable `IdempotencyKey` if you may retry the whole transaction after an ambiguous commit.
 - A null, closed, or wrong-provider transaction is rejected before any command runs; pointing it at the database that holds the Acta schema is your job.
 
 ### The external outbox
@@ -896,7 +896,7 @@ await tx.CommitAsync(ct);
 With EF Core or another ORM, cast the unwrapped transaction (`(NpgsqlTransaction)efTx.GetDbTransaction()`).
 
 - Staging returns the `JobRef` of the job the relay enqueues for the row. The ref is minted when you stage, so you can store it beside your own rows in the same transaction; like them, it is provisional until you commit. A staged request must be a root job (`ParentJobId` null).
-- A `DeduplicationKey` is optional and works as on a direct enqueue: when a job, or an earlier row in the outbox, already holds the key, the row is deduplicated onto that job, and the ref staging returned names no job.
+- An `IdempotencyKey` is optional and works as on a direct enqueue: when a job, or an earlier row in the outbox, already holds the key, the row is deduplicated onto that job, and the ref staging returned names no job.
 - `DelaySeconds` counts from when the relay ingests the row.
 - Follow the job afterwards by its ref, `jobs.GetAsync(jobRef)`; null means not relayed yet, or, for a row with a key, deduplicated onto the job that holds the key.
 
@@ -1091,7 +1091,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 - `Run<TManifest>(...)` makes it a worker host. Without it the host is enqueue-only (for testing
   enqueue-side code such as HTTP handlers); `RunOnceAsync` then throws.
 - `enqueued` is a `JobHandle`, so its reads address the job directly, and it converts implicitly to `JobLookup` for every
-  `host.Jobs` verb; a `JobRef`, which converts the same way, and `JobLookup.ByDeduplicationKey(...)` address a job something else enqueued,
+  `host.Jobs` verb; a `JobRef`, which converts the same way, and `JobLookup.ByIdempotencyKey(...)` address a job something else enqueued,
   and `JobLookup.ById(...)` is the debug path.
 - `RunOnceAsync(enqueued)`, `ExpireExecutionLeaseAsync`, and every `Force...DueAsync` helper but the
   schedule's take the job as a `JobLookup`, as `host.Jobs` does, so the handle, a `JobRef`, or
@@ -1275,9 +1275,9 @@ from `host.Services` or query the schema directly: `host.Schema` names it, and
 A test runner may run test classes at once, and the tests of one class share whatever its host holds. A test stays independent when everything it drives and reads is something it created.
 
 - **A host is the unit of isolation.** Each `ActaTestHost.StartAsync` gets a schema of its own, so classes that start their own host never see each other's rows. On SQLite, give each host its own database file, since the hosts of one file take turns at its one write lock.
-- **Tests that share a host share its tables.** That is the facts of a class behind one fixture, and every class on a pinned `ActaTestHostOptions.Schema`. Give each test its own deduplication, correlation, concurrency and lock keys, built from a value made in the test such as a new `Guid`, and on a pinned schema its own namespace as well.
+- **Tests that share a host share its tables.** That is the facts of a class behind one fixture, and every class on a pinned `ActaTestHostOptions.Schema`. Give each test its own idempotency, correlation, concurrency and lock keys, built from a value made in the test such as a new `Guid`, and on a pinned schema its own namespace as well.
 - **Drive the job you enqueued.** `RunOnceAsync(enqueued)` runs that job. `RunOnceAsync("users")` runs whichever job of the namespace is due, which on a shared host may be another test's.
-- **Take identity from the answer.** The `JobHandle` the enqueue returned addresses the job for every read and every verb. A job something else enqueued is found by `JobLookup.ByDeduplicationKey(...)` with the test's own key. A numeric id written into a test is some other row.
+- **Take identity from the answer.** The `JobHandle` the enqueue returned addresses the job for every read and every verb. A job something else enqueued is found by `JobLookup.ByIdempotencyKey(...)` with the test's own key. A numeric id written into a test is some other row.
 - **Assert on your own rows.** Read the job through its handle. A list or a count over a namespace also holds whatever else the host has run.
 - **Keep handler state out of static fields.** Two tests run the same handler in one process, so a static counter or gate belongs to both. Register a fake in `ConfigureServices`, one per host, or let the job decide from what it carries: its input, or `ctx.ExecutionNumber`.
 - **Make things due, never wait for them.** `ForceJobDueAsync` and the other `Force...DueAsync` helpers bring a retry, a timer, a wait timeout or a schedule to now. A sleep sized to the backoff passes on a fast machine and fails on a busy one.

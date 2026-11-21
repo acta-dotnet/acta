@@ -16,7 +16,7 @@
     { label: 'Tenant', value: job.tenantName, href: job.tenantName ? routes.tenant(job.tenantName, { namespace: job.jobNamespace }) : undefined },
     { label: 'Lane', value: job.lane, kind: 'mono', href: job.lane ? routes.jobs({ lane: job.lane, namespace: job.jobNamespace }) : undefined },
     { label: 'Concurrency key', value: job.concurrencyKey, kind: 'mono' },
-    { label: 'Deduplication key', value: job.deduplicationKey, kind: 'mono', copy: true },
+    { label: 'Idempotency key', value: job.idempotencyKey, kind: 'mono', copy: true },
     { label: 'Correlation id', value: job.correlationKey, kind: 'mono', href: job.correlationKey ? routes.jobs({ correlationKey: job.correlationKey, namespace: job.jobNamespace }) : undefined, copy: true },
     { label: 'Parent', value: job.parentJobRef, kind: 'reference', href: job.parentJobRef ? routes.job(job.parentJobRef, { namespace: job.jobNamespace }) : undefined },
     { label: 'Lineage root', value: job.lineageRootJobRef !== job.jobRef && job.lineageRootJobRef !== job.parentJobRef ? job.lineageRootJobRef : null, kind: 'reference', href: job.lineageRootJobRef ? routes.job(job.lineageRootJobRef, { namespace: job.jobNamespace }) : undefined },

@@ -17,15 +17,15 @@ public class CliClipboardTests
     }
 
     [Fact]
-    public void Strings_up_to_deduplication_key_max_resolve()
+    public void Strings_up_to_idempotency_key_max_resolve()
     {
-        var key = new string('k', DeduplicationKey.MaxLength);
+        var key = new string('k', IdempotencyKey.MaxLength);
 
         Assert.True(CliClipboard.TryResolveTarget(key, out var target));
         Assert.Equal(key, target);
     }
 
-    // A job ref, an id:<n>, and a deduplication key are all one token of printable ASCII, so nothing else is a target.
+    // A job ref, an id:<n>, and an idempotency key are all one token of printable ASCII, so nothing else is a target.
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -39,17 +39,17 @@ public class CliClipboardTests
     }
 
     [Fact]
-    public void Strings_over_deduplication_key_max_do_not_resolve()
+    public void Strings_over_idempotency_key_max_do_not_resolve()
     {
-        Assert.False(CliClipboard.TryResolveTarget(new string('k', DeduplicationKey.MaxLength + 1), out _));
+        Assert.False(CliClipboard.TryResolveTarget(new string('k', IdempotencyKey.MaxLength + 1), out _));
     }
 }
 
 /// <summary>
 /// The runner resolves its target as the HTTP API does: a <c>job_...</c> target is a job ref, <c>id:&lt;n&gt;</c> the
-/// internal id on a read verb only, and anything else, a bare integer included, a deduplication key. It fills a read
+/// internal id on a read verb only, and anything else, a bare integer included, an idempotency key. It fills a read
 /// verb's missing target from the clipboard and names what it took, and refuses a control without one. The fake IJobs
-/// resolves exactly one job, by <see cref="NothingJobs.KnownJobId"/>, its ref, or <see cref="NothingJobs.KnownDeduplicationKey"/>
+/// resolves exactly one job, by <see cref="NothingJobs.KnownJobId"/>, its ref, or <see cref="NothingJobs.KnownIdempotencyKey"/>
 /// in <c>shop</c>, and records every lookup and control, so each case shows what the target resolved to.
 /// </summary>
 public class CliRunnerClipboardTests
@@ -69,7 +69,7 @@ public class CliRunnerClipboardTests
     }
 
     [Theory]
-    [InlineData("4711\r\n", "4711", JobLookupKind.DeduplicationKey)]
+    [InlineData("4711\r\n", "4711", JobLookupKind.IdempotencyKey)]
     [InlineData("id:42", "id:42", JobLookupKind.JobId)]
     [InlineData(" job_019826f000007000800000000000002a ", "job_019826f000007000800000000000002a", JobLookupKind.JobRef)]
     public async Task A_read_takes_a_missing_target_from_the_clipboard_and_names_it(string clipboardText, string target, JobLookupKind kind)
@@ -117,7 +117,7 @@ public class CliRunnerClipboardTests
         );
 
         Assert.Equal(64, exit);
-        Assert.Contains("job ref or deduplication key", error.ToString());
+        Assert.Contains("job ref or idempotency key", error.ToString());
         Assert.Empty(jobs.Lookups);
     }
 
@@ -133,7 +133,7 @@ public class CliRunnerClipboardTests
         var (exit, _, error, jobs) = await RunArgsAsync(args);
 
         Assert.Equal(64, exit);
-        Assert.Contains("A control takes a job ref or a deduplication key", error);
+        Assert.Contains("A control takes a job ref or an idempotency key", error);
         Assert.Empty(jobs.Lookups);
         Assert.Empty(jobs.Controls);
         Assert.Empty(jobs.Signals);
@@ -191,17 +191,17 @@ public class CliRunnerClipboardTests
     }
 
     [Fact]
-    public async Task A_bare_integer_is_a_deduplication_key_in_the_namespace()
+    public async Task A_bare_integer_is_a_idempotency_key_in_the_namespace()
     {
-        var (exit, _, _, jobs) = await RunArgsAsync("cancel", NothingJobs.KnownDeduplicationKey, "--ns", "shop");
+        var (exit, _, _, jobs) = await RunArgsAsync("cancel", NothingJobs.KnownIdempotencyKey, "--ns", "shop");
 
         Assert.Equal(0, exit);
-        Assert.Equal(JobLookup.ByDeduplicationKey("shop", NothingJobs.KnownDeduplicationKey), Assert.Single(jobs.Lookups));
+        Assert.Equal(JobLookup.ByIdempotencyKey("shop", NothingJobs.KnownIdempotencyKey), Assert.Single(jobs.Lookups));
         Assert.Equal(JobLookup.ById(NothingJobs.KnownJobId), Assert.Single(jobs.Controls));
     }
 
     /// <summary>
-    /// The integer is the known job's internal id, and no job holds it as a deduplication key, so the verb finds
+    /// The integer is the known job's internal id, and no job holds it as an idempotency key, so the verb finds
     /// nothing and acts on nothing.
     /// </summary>
     [Theory]
@@ -214,7 +214,7 @@ public class CliRunnerClipboardTests
 
         Assert.Equal(2, exit);
         Assert.Contains("job not found", error);
-        Assert.Equal(JobLookup.ByDeduplicationKey("shop", "42"), Assert.Single(jobs.Lookups));
+        Assert.Equal(JobLookup.ByIdempotencyKey("shop", "42"), Assert.Single(jobs.Lookups));
         Assert.Empty(jobs.Controls);
     }
 
@@ -237,7 +237,7 @@ public class CliRunnerClipboardTests
     [InlineData("clear-signal", "approval")]
     public async Task A_control_hands_the_operation_its_actor_or_the_os_user_name(params string[] verbAndName)
     {
-        string[] control = [verbAndName[0], NothingJobs.KnownDeduplicationKey, .. verbAndName[1..], "--ns", "shop"];
+        string[] control = [verbAndName[0], NothingJobs.KnownIdempotencyKey, .. verbAndName[1..], "--ns", "shop"];
 
         var (_, _, _, named) = await RunArgsAsync([.. control, "--actor", "ops-alice"]);
         var (_, _, _, unnamed) = await RunArgsAsync(control);
@@ -286,7 +286,7 @@ public class CliRunnerClipboardTests
         var exit = await runner.RunAsync(
             new CliCommand(
                 CliVerb.Signal,
-                Target: NothingJobs.KnownDeduplicationKey,
+                Target: NothingJobs.KnownIdempotencyKey,
                 SignalName: "approval",
                 SignalValue: null,
                 null,
@@ -311,7 +311,7 @@ public class CliRunnerClipboardTests
         var exit = await runner.RunAsync(
             new CliCommand(
                 CliVerb.Signal,
-                Target: NothingJobs.KnownDeduplicationKey,
+                Target: NothingJobs.KnownIdempotencyKey,
                 SignalName: "approval",
                 SignalValue: json,
                 null,
@@ -339,7 +339,7 @@ public class CliRunnerClipboardTests
         var exit = await runner.RunAsync(
             new CliCommand(
                 CliVerb.Signal,
-                Target: NothingJobs.KnownDeduplicationKey,
+                Target: NothingJobs.KnownIdempotencyKey,
                 SignalName: "approval",
                 SignalValue: null,
                 null,
@@ -362,7 +362,7 @@ public class CliRunnerClipboardTests
         var exit = await runner.RunAsync(
             new CliCommand(
                 CliVerb.Signal,
-                Target: NothingJobs.KnownDeduplicationKey,
+                Target: NothingJobs.KnownIdempotencyKey,
                 SignalName: "approval",
                 SignalValue: "approved",
                 null,
@@ -416,7 +416,7 @@ public class CliRunnerClipboardTests
         var jobs = new NothingJobs { JobVanishedAfterResolve = vanished };
         var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], output, error, () => null);
 
-        Assert.True(CliCommandParser.TryParse([verb, NothingJobs.KnownDeduplicationKey], out var command, out var parseError), parseError);
+        Assert.True(CliCommandParser.TryParse([verb, NothingJobs.KnownIdempotencyKey], out var command, out var parseError), parseError);
         var exit = await runner.RunAsync(command, TestContext.Current.CancellationToken);
         return (exit, output.ToString(), error.ToString());
     }
@@ -426,8 +426,8 @@ public class CliRunnerClipboardTests
         /// <summary>The one job this fake resolves, by this id, its ref, or its key in shop; every other target reads as absent.</summary>
         public const long KnownJobId = 42;
 
-        /// <summary>The known job's deduplication key, an integer that is not its id.</summary>
-        public const string KnownDeduplicationKey = "4711";
+        /// <summary>The known job's idempotency key, an integer that is not its id.</summary>
+        public const string KnownIdempotencyKey = "4711";
 
         /// <summary>Every lookup the runner resolved its target with.</summary>
         public List<JobLookup> Lookups { get; } = [];
@@ -452,7 +452,7 @@ public class CliRunnerClipboardTests
             {
                 JobLookupKind.JobId => job.JobId == KnownJobId,
                 JobLookupKind.JobRef => job.JobRef == KnownJobRef,
-                JobLookupKind.DeduplicationKey => job is { JobNamespace: "shop", DeduplicationKey: KnownDeduplicationKey },
+                JobLookupKind.IdempotencyKey => job is { JobNamespace: "shop", IdempotencyKey: KnownIdempotencyKey },
                 _ => false,
             };
 
@@ -474,7 +474,7 @@ public class CliRunnerClipboardTests
                         ParentJobRef: null,
                         TenantId: null,
                         TenantName: null,
-                        DeduplicationKey: KnownDeduplicationKey,
+                        IdempotencyKey: KnownIdempotencyKey,
                         CorrelationKey: null,
                         ConcurrencyKey: null,
                         InputFormatId: 0,

@@ -420,7 +420,7 @@ SELECT
     pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
     -- The landing names the child as its parent named it, how it ended, and the child's own message.
     substr(
-        'Child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || d.job_id) || ' '
+        'Child ' || COALESCE('''' || ch.idempotency_key || '''', 'job ' || d.job_id) || ' '
         || CASE d.to_status
             WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
             WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'

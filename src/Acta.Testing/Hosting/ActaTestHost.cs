@@ -298,7 +298,7 @@ public static class ActaTestHost
             var named = job.Kind switch
             {
                 JobLookupKind.JobRef => $"Job {job.JobRef}",
-                JobLookupKind.DeduplicationKey => $"No job with deduplication key '{job.DeduplicationKey}' in '{job.JobNamespace}'",
+                JobLookupKind.IdempotencyKey => $"No job with idempotency key '{job.IdempotencyKey}' in '{job.JobNamespace}'",
                 _ => $"Job {job.JobId}",
             };
             return new InvalidOperationException($"{named} does not exist; enqueue it before driving it.");

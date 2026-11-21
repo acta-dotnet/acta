@@ -121,10 +121,10 @@ public sealed partial class SqlServerConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {Schema}.{table}
-                (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
+                (job_ref, namespace_name, job_name, input_format_id, input, idempotency_key,
                  meta, job_priority_code, created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count,
                  claim_token, claim_until_utc)
-            VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
+            VALUES (@id, @ns, @name, @fmt, @data, @idempotency_key, @meta, @prio, @created, @next, @status, @failures,
                     @token, @until);
             """;
         cmd.Parameters.Add(new SqlParameter("@id", System.Data.SqlDbType.UniqueIdentifier) { Value = seed.JobRef });
@@ -133,7 +133,10 @@ public sealed partial class SqlServerConformanceFixture
         cmd.Parameters.Add(new SqlParameter("@fmt", System.Data.SqlDbType.TinyInt) { Value = seed.InputFormatId });
         cmd.Parameters.Add(new SqlParameter("@data", System.Data.SqlDbType.VarBinary) { Value = (object?)seed.Input ?? DBNull.Value });
         cmd.Parameters.Add(
-            new SqlParameter("@dedup", System.Data.SqlDbType.VarChar, 128) { Value = (object?)seed.DeduplicationKey ?? DBNull.Value }
+            new SqlParameter("@idempotency_key", System.Data.SqlDbType.VarChar, 128)
+            {
+                Value = (object?)seed.IdempotencyKey ?? DBNull.Value,
+            }
         );
         cmd.Parameters.Add(new SqlParameter("@meta", System.Data.SqlDbType.NVarChar, -1) { Value = (object?)seed.Meta ?? DBNull.Value });
         cmd.Parameters.Add(

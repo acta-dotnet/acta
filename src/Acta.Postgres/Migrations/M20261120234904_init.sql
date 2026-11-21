@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
     parent_job_id bigint NULL,
     tenant_id integer NULL,
     schedule_id integer NULL,
-    deduplication_key varchar(128) NULL,
+    idempotency_key varchar(128) NULL,
     correlation_key varchar(64) NULL,
     concurrency_key varchar(128) NULL,
     input_format_id smallint NOT NULL,
@@ -200,8 +200,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
 CREATE INDEX IF NOT EXISTS ix_jobs_parent ON {{schema}}.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_jobs_namespace_created ON {{schema}}.jobs (namespace_id, created_at_utc DESC, job_id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_ref ON {{schema}}.jobs (job_ref);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_deduplication_key_root ON {{schema}}.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_idempotency_key_root ON {{schema}}.jobs (namespace_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_idempotency_key_child ON {{schema}}.jobs (parent_job_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_slot ON {{schema}}.jobs (definition_id) WHERE job_kind_code = 20;
 
 -- lanes
@@ -681,7 +681,7 @@ RETURNS TABLE (
     job_id BIGINT,
     definition_id INT,
     execution_number BIGINT,
-    deduplication_key VARCHAR,
+    idempotency_key VARCHAR,
     job_kind_code SMALLINT,
     correlation_key VARCHAR,
     concurrency_key VARCHAR,
@@ -766,7 +766,7 @@ AS $$
             j.definition_id,
             j.tenant_id,
             r.execution_number,
-            j.deduplication_key,
+            j.idempotency_key,
             j.job_kind_code,
             j.correlation_key,
             j.concurrency_key,
@@ -787,7 +787,7 @@ AS $$
         u.job_id,
         u.definition_id,
         u.execution_number,
-        u.deduplication_key,
+        u.idempotency_key,
         u.job_kind_code,
         u.correlation_key,
         u.concurrency_key,
@@ -1405,7 +1405,7 @@ BEGIN
                 c.event_message,
                 -- The landing names the child as its parent named it, how it ended, and the child's own message.
                 LEFT(
-                    'Child ' || COALESCE('''' || j.deduplication_key || '''', 'job ' || r.job_id) || ' '
+                    'Child ' || COALESCE('''' || j.idempotency_key || '''', 'job ' || r.job_id) || ' '
                     || CASE r.job_status_code
                         WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
                         WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
@@ -1674,7 +1674,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_job(
     p_job_ref UUID DEFAULT GEN_RANDOM_UUID(),
     p_namespace_name VARCHAR DEFAULT NULL,
     p_job_name VARCHAR DEFAULT NULL,
-    p_deduplication_key VARCHAR DEFAULT NULL,
+    p_idempotency_key VARCHAR DEFAULT NULL,
     p_correlation_key VARCHAR DEFAULT NULL,
     p_job_priority_code_override SMALLINT DEFAULT NULL,
     p_input_format_id SMALLINT DEFAULT NULL,
@@ -1723,7 +1723,7 @@ BEGIN
 
     -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
     -- Spaces are trimmed because SQL Server compares strings padded, so both servers refuse the same keys.
-    IF btrim(p_deduplication_key, ' ') = '' OR btrim(p_correlation_key, ' ') = '' OR btrim(p_concurrency_key, ' ') = '' THEN
+    IF btrim(p_idempotency_key, ' ') = '' OR btrim(p_correlation_key, ' ') = '' OR btrim(p_concurrency_key, ' ') = '' THEN
         RAISE EXCEPTION 'Enqueue rejected: a key is blank. Pass NULL for no key.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -1885,7 +1885,7 @@ BEGIN
             job_ref,
             lineage_root_job_id,
             parent_job_id,
-            deduplication_key,
+            idempotency_key,
             correlation_key,
             namespace_id,
             definition_id,
@@ -1900,7 +1900,7 @@ BEGIN
             p_job_ref,
             v_lineage,
             p_parent_job_id,
-            p_deduplication_key,
+            p_idempotency_key,
             COALESCE(p_correlation_key, v_parent_corr),
             v_ns_id,
             v_def_id,
@@ -1911,8 +1911,8 @@ BEGIN
             p_concurrency_key,
             v_def_event_recording,
             now())
-        ON CONFLICT (parent_job_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL
+        ON CONFLICT (parent_job_id, idempotency_key)
+            WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL
             DO NOTHING
         RETURNING jobs.job_id INTO v_job_id;
     ELSE
@@ -1926,7 +1926,7 @@ BEGIN
             job_ref,
             lineage_root_job_id,
             parent_job_id,
-            deduplication_key,
+            idempotency_key,
             correlation_key,
             namespace_id,
             definition_id,
@@ -1941,7 +1941,7 @@ BEGIN
             p_job_ref,
             NULL,
             NULL,
-            p_deduplication_key,
+            p_idempotency_key,
             p_correlation_key,
             v_ns_id,
             v_def_id,
@@ -1951,8 +1951,8 @@ BEGIN
             p_concurrency_key,
             v_def_event_recording,
             now())
-        ON CONFLICT (namespace_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL
+        ON CONFLICT (namespace_id, idempotency_key)
+            WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL
             DO NOTHING
         RETURNING jobs.job_id INTO v_job_id;
     END IF;
@@ -2011,15 +2011,15 @@ BEGIN
         WHERE
             (p_parent_job_id IS NULL
                 AND j.namespace_id = v_ns_id
-                AND j.deduplication_key = p_deduplication_key
+                AND j.idempotency_key = p_idempotency_key
                 AND j.parent_job_id IS NULL)
             OR (p_parent_job_id IS NOT NULL
                 AND j.parent_job_id = p_parent_job_id
-                AND j.deduplication_key = p_deduplication_key);
+                AND j.idempotency_key = p_idempotency_key);
 
         -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
         IF p_parent_job_id IS NULL AND v_held_tenant <> v_tenant_id THEN
-            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.'
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the idempotency key belongs to another tenant''s job.'
                 USING ERRCODE = 'P0001';
         END IF;
 
@@ -2037,7 +2037,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_jobs(
     p_b_job_ref UUID [],
     p_b_namespace_name VARCHAR [],
     p_b_job_name VARCHAR [],
-    p_b_deduplication_key VARCHAR [],
+    p_b_idempotency_key VARCHAR [],
     p_b_correlation_key VARCHAR [],
     p_b_job_priority_code_override SMALLINT [],
     p_b_input_format_id SMALLINT [],
@@ -2293,7 +2293,7 @@ BEGIN
         job_ref UUID NOT NULL,
         parent_job_id BIGINT,
         lineage_root_job_id BIGINT,
-        deduplication_key VARCHAR,
+        idempotency_key VARCHAR,
         correlation_key VARCHAR,
         namespace_id INT NOT NULL,
         definition_id INT NOT NULL,
@@ -2330,11 +2330,11 @@ BEGIN
             row_number() OVER (ORDER BY b.ordinal) AS rn
         FROM unnest(
             p_b_ordinal, p_b_job_ref, p_b_namespace_name, p_b_job_name,
-            p_b_deduplication_key, p_b_correlation_key, p_b_job_priority_code_override,
+            p_b_idempotency_key, p_b_correlation_key, p_b_job_priority_code_override,
             p_b_input_format_id, p_b_input, p_b_concurrency_key, p_b_next_run_at_utc,
             p_b_delay_seconds, p_b_parent_job_id, p_b_tenant_name, v_lane
         ) AS b(ordinal, job_ref, namespace_name, job_name,
-            deduplication_key, correlation_key, priority_override,
+            idempotency_key, correlation_key, priority_override,
             input_format_id, input, concurrency_key, next_run_at_utc,
             delay_seconds, parent_job_id, tenant_name, lane)
     )
@@ -2344,7 +2344,7 @@ BEGIN
         job_ref,
         parent_job_id,
         lineage_root_job_id,
-        deduplication_key,
+        idempotency_key,
         correlation_key,
         namespace_id,
         definition_id,
@@ -2363,7 +2363,7 @@ BEGIN
         b.job_ref,
         b.parent_job_id,
         CASE WHEN b.parent_job_id IS NOT NULL THEN COALESCE(pj.lineage_root_job_id, pj.job_id) END,
-        b.deduplication_key,
+        b.idempotency_key,
         COALESCE(b.correlation_key, pj.correlation_key),
         ns.namespace_id,
         jd.definition_id,
@@ -2438,7 +2438,7 @@ BEGIN
             job_ref,
             lineage_root_job_id,
             parent_job_id,
-            deduplication_key,
+            idempotency_key,
             correlation_key,
             namespace_id,
             definition_id,
@@ -2455,7 +2455,7 @@ BEGIN
             e.job_ref,
             NULL,
             NULL,
-            e.deduplication_key,
+            e.idempotency_key,
             e.correlation_key,
             e.namespace_id,
             e.definition_id,
@@ -2467,8 +2467,8 @@ BEGIN
             now()
         FROM _enq_rows e
         WHERE NOT e.is_child
-        ON CONFLICT (namespace_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL
+        ON CONFLICT (namespace_id, idempotency_key)
+            WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL
             DO NOTHING
         RETURNING jobs.job_id
     ),
@@ -2479,7 +2479,7 @@ BEGIN
             job_ref,
             lineage_root_job_id,
             parent_job_id,
-            deduplication_key,
+            idempotency_key,
             correlation_key,
             namespace_id,
             definition_id,
@@ -2496,7 +2496,7 @@ BEGIN
             e.job_ref,
             e.lineage_root_job_id,
             e.parent_job_id,
-            e.deduplication_key,
+            e.idempotency_key,
             e.correlation_key,
             e.namespace_id,
             e.definition_id,
@@ -2508,8 +2508,8 @@ BEGIN
             now()
         FROM _enq_rows e
         WHERE e.is_child
-        ON CONFLICT (parent_job_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL
+        ON CONFLICT (parent_job_id, idempotency_key)
+            WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL
             DO NOTHING
         RETURNING jobs.job_id
     ),
@@ -2576,8 +2576,8 @@ BEGIN
         NOT e.is_child
         AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs mine WHERE mine.job_id = e.job_id)
         AND h.namespace_id = e.namespace_id
-        AND h.deduplication_key = e.deduplication_key
-        AND h.deduplication_key IS NOT NULL
+        AND h.idempotency_key = e.idempotency_key
+        AND h.idempotency_key IS NOT NULL
         AND h.parent_job_id IS NULL;
     UPDATE _enq_rows e
     SET held_id = h.job_id, held_ref = h.job_ref, held_tenant = h.tenant_id
@@ -2586,12 +2586,12 @@ BEGIN
         e.is_child
         AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs mine WHERE mine.job_id = e.job_id)
         AND h.parent_job_id = e.parent_job_id
-        AND h.deduplication_key = e.deduplication_key
-        AND h.deduplication_key IS NOT NULL;
+        AND h.idempotency_key = e.idempotency_key
+        AND h.idempotency_key IS NOT NULL;
 
     -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it is taken.
     IF EXISTS (SELECT 1 FROM _enq_rows e WHERE NOT e.is_child AND e.held_tenant <> e.tenant_id) THEN
-        RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.'
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name an idempotency key another tenant''s job holds.'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -2873,7 +2873,7 @@ BEGIN
     v_landing := COALESCE(
         p_event_message,
         'Child '
-        || COALESCE((SELECT '''' || c.deduplication_key || '''' FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id), 'job ' || p_child_job_id)
+        || COALESCE((SELECT '''' || c.idempotency_key || '''' FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id), 'job ' || p_child_job_id)
         || ' '
         || CASE p_child_status
             WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
@@ -3891,7 +3891,7 @@ BEGIN
             'The wait for '
             || CASE
                 WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
-                    THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(p_checkpoint_name, 11))
+                    THEN 'child ' || COALESCE('''' || ch.idempotency_key || '''', 'job ' || substr(p_checkpoint_name, 11))
                 ELSE 'signal ''' || p_checkpoint_name || ''''
             END || ' expired.',
             1 /* JobPayloadFormat.Json */,
@@ -3899,7 +3899,7 @@ BEGIN
                 -- Only a child wait whose child is still stored carries its ref.
                 json_strip_nulls(json_build_object(
                     'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
-                    'name', COALESCE(ch.deduplication_key, p_checkpoint_name),
+                    'name', COALESCE(ch.idempotency_key, p_checkpoint_name),
                     'child', 'job_' || replace(ch.job_ref::text, '-', ''),
                     'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
                 ))::text,
@@ -4122,7 +4122,7 @@ SELECT
     j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
     r.job_status_code,
-    j.deduplication_key,
+    j.idempotency_key,
     j.correlation_key,
     j.concurrency_key,
     lane.lane_name,
@@ -4269,5 +4269,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120230853_init')
+VALUES ('M20261120234904_init')
 ON CONFLICT (name) DO NOTHING;

@@ -34,7 +34,7 @@ public sealed class OutboxRelayDelaySpec : OutboxRelayHostBase
                 JobName: "job-wait-signal",
                 InputFormatId: 0,
                 Input: null,
-                DeduplicationKey: key,
+                IdempotencyKey: key,
                 PriorityCode: null,
                 CreatedAtUtc: staged,
                 NextAttemptAtUtc: staged,
@@ -47,7 +47,7 @@ public sealed class OutboxRelayDelaySpec : OutboxRelayHostBase
             await Db.ExecuteRawAsync(
                 // The producer's table, named in the schema its relay source reads: main on SQLite, outside the ledger's prefix.
                 $"UPDATE {OutboxIdentifier.Qualify(SourceTable, Fixture.DialectToken == "sqlite" ? "main" : Schema.SchemaName)} "
-                    + "SET delay_seconds = @p_delay WHERE deduplication_key = @p_key",
+                    + "SET delay_seconds = @p_delay WHERE idempotency_key = @p_key",
                 ct,
                 ("@p_delay", DelaySeconds),
                 ("@p_key", key)
@@ -59,7 +59,7 @@ public sealed class OutboxRelayDelaySpec : OutboxRelayHostBase
         var after = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
         // Counted from the staging, the job would have been due an hour ago.
-        var job = Assert.Single(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).ToListAsync(ct));
+        var job = Assert.Single(await Db.From<JobEntity>().Where(j => j.IdempotencyKey == key).ToListAsync(ct));
         var state = await ReadJobAsync(job.Id, ct);
         Assert.NotNull(state.JobState.NextRunAtUtc);
         Assert.InRange(state.JobState.NextRunAtUtc.Value, before.AddSeconds(DelaySeconds - 1), after.AddSeconds(DelaySeconds + 1));

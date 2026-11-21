@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Acta.Learn.DeduplicationKey</RootNamespace>
+    <RootNamespace>Acta.Learn.ReadByIdempotencyKey</RootNamespace>
   </PropertyGroup>
 </Project>

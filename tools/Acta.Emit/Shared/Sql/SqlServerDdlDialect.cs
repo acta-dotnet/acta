@@ -124,7 +124,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 job_ref                    UNIQUEIDENTIFIER NOT NULL,
                 namespace_name             VARCHAR(128)     NOT NULL,
                 job_name                   VARCHAR(128)     NOT NULL,
-                deduplication_key          VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                idempotency_key            VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 correlation_key            VARCHAR(64)      COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 job_priority_code_override TINYINT          NULL,
                 input_format_id            TINYINT          NOT NULL,

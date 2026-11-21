@@ -19,7 +19,7 @@ public class EntitySchemaTests
         Assert.Equal("pk_jobs", s.PrimaryKey.Name);
         Assert.Equal(["job_id"], s.PrimaryKey.Columns);
         Assert.Contains(s.Columns, c => c.Name == "job_ref");
-        Assert.Contains(s.Columns, c => c.Name == "deduplication_key");
+        Assert.Contains(s.Columns, c => c.Name == "idempotency_key");
         Assert.Contains(s.Columns, c => c.Name == "input");
         Assert.Contains(s.Columns, c => c.Name == "parent_job_id");
         Assert.Contains(s.Columns, c => c.Name == "lineage_root_job_id");
@@ -147,9 +147,9 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void DeduplicationKey_Is_NullableAscii128()
+    public void IdempotencyKey_Is_NullableAscii128()
     {
-        var c = ActaSchema.For<JobEntity>().Column("deduplication_key");
+        var c = ActaSchema.For<JobEntity>().Column("idempotency_key");
 
         Assert.Equal(DbKind.AsciiString, c.Kind);
         Assert.Equal(128, c.Size);
@@ -171,7 +171,7 @@ public class EntitySchemaTests
                 "deployments.deployment_version",
                 "jobs.concurrency_key",
                 "jobs.correlation_key",
-                "jobs.deduplication_key",
+                "jobs.idempotency_key",
                 "locks.lock_key",
                 "namespaces.deployment_version",
                 "tags.tag_value_search",

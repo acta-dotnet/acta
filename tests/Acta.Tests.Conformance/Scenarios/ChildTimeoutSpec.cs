@@ -373,7 +373,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
     private async Task<IReadOnlyDictionary<string, long>> ChildIdsAsync(long parentId, CancellationToken ct)
     {
         var children = await Db.From<JobEntity>().Where(j => j.ParentJobId == parentId).ToListAsync(ct);
-        return children.ToDictionary(j => j.DeduplicationKey!, j => j.Id, StringComparer.Ordinal);
+        return children.ToDictionary(j => j.IdempotencyKey!, j => j.Id, StringComparer.Ordinal);
     }
 
     // Moves the child wait past its deadline the way real time would: the latch's stored expiration and

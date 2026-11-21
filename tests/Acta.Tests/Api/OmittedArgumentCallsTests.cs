@@ -18,7 +18,7 @@ public sealed class OmittedArgumentCallsTests
         await jobs.EnqueueAsync(new EnqueueJobRequest("probe", "noop"));
         await jobs.EnqueueAsync(transaction, new EnqueueJobRequest("probe", "noop"));
         await jobs.EnqueueAsync(new AddNumbers(1, 2));
-        await jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey("k"));
+        await jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.IdempotencyKey("k"));
         await jobs.EnqueueAsync(transaction, new AddNumbers(1, 2));
         await jobs.EnqueueAsync(TestJobsManifest.AddNumbers(new AddNumbers(1, 2)));
         await jobs.EnqueueAsync(transaction, TestJobsManifest.AddNumbers(new AddNumbers(1, 2)));

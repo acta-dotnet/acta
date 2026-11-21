@@ -12,8 +12,8 @@ public enum JobLookupKind : byte
     /// <summary>Lookup by public <c>JobRef</c>.</summary>
     JobRef = 1,
 
-    /// <summary>Lookup by <c>(JobNamespace, DeduplicationKey)</c>; root job only.</summary>
-    DeduplicationKey = 2,
+    /// <summary>Lookup by <c>(JobNamespace, IdempotencyKey)</c>; root job only.</summary>
+    IdempotencyKey = 2,
 
     /// <summary>Lookup by database-local numeric <c>JobId</c>.</summary>
     JobId = 3,

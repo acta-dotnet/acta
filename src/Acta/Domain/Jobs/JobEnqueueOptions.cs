@@ -15,10 +15,10 @@ public class JobEnqueueOptions
     public string? JobNamespace { get; init; }
 
     /// <summary>
-    /// Exact final deduplication key, unique per namespace for root jobs and compared with its case. A second
+    /// Exact final idempotency key, unique per namespace for root jobs and compared with its case. A second
     /// enqueue with the same key returns the existing Job (<see cref="EnqueueJobAction.Deduplicated"/>).
     /// </summary>
-    public string? DeduplicationKey { get; init; }
+    public string? IdempotencyKey { get; init; }
 
     /// <summary>
     /// Correlation id for cross-system tracing: a W3C trace id or a caller's own custom value, at most
@@ -68,7 +68,7 @@ public class JobEnqueueOptions
     /// <summary>
     /// Enqueue as a child of this Job. The parent must exist and be non-terminal; the row inherits
     /// the parent's lineage root and, when <see cref="CorrelationKey"/> is unset, its correlation id.
-    /// <see cref="DeduplicationKey"/> dedup is scoped to the direct parent (sibling-unique) instead of the
+    /// <see cref="IdempotencyKey"/> dedup is scoped to the direct parent (sibling-unique) instead of the
     /// namespace. <c>null</c> = root job.
     /// </summary>
     public long? ParentJobId { get; init; }

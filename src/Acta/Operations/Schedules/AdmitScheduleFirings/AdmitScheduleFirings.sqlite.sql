@@ -14,7 +14,7 @@ SELECT
     json_extract(g.value, '$.admit') AS admit,
     json_extract(g.value, '$.envelope') AS envelope,
     json_extract(g.value, '$.job_ref') AS job_ref,
-    json_extract(g.value, '$.deduplication_key') AS deduplication_key,
+    json_extract(g.value, '$.idempotency_key') AS idempotency_key,
     json_extract(g.value, '$.trigger_message') AS trigger_message,
     json_extract(g.value, '$.trigger_actor') AS trigger_actor,
     json_extract(g.value, '$.trigger_details') AS trigger_details
@@ -78,7 +78,7 @@ WHERE
         FROM {{schema}}.jobs d
         WHERE
             d.namespace_id = @p_namespace_id
-            AND d.deduplication_key = temp._adm_groups.deduplication_key
+            AND d.idempotency_key = temp._adm_groups.idempotency_key
             AND d.parent_job_id IS NULL
     );
 
@@ -100,10 +100,10 @@ WHERE job_id IN (
 -- A per-occurrence firing is a fresh root: the definition's stored default input, priority, and audit level, the
 -- schedule as its provenance, no lane and no tenant, keyed so the same occurrence is never admitted twice. Ready at once.
 INSERT INTO {{schema}}.jobs (
-    job_kind_code, job_ref, deduplication_key, namespace_id, definition_id, schedule_id,
+    job_kind_code, job_ref, idempotency_key, namespace_id, definition_id, schedule_id,
     input_format_id, input, event_recording_code)
 SELECT
-    10 /* JobKindCode.Ordinary */, g.job_ref, g.deduplication_key, @p_namespace_id, js.definition_id, g.schedule_id,
+    10 /* JobKindCode.Ordinary */, g.job_ref, g.idempotency_key, @p_namespace_id, js.definition_id, g.schedule_id,
     jd.default_input_format_id, jd.default_input, jd.event_recording_code_effective
 FROM temp._adm_groups g
 JOIN temp._adm_valid v ON v.ordinal = g.ordinal

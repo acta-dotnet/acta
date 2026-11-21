@@ -81,7 +81,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// <see cref="MapAsync{TItem, TKey, TInput}(string, IEnumerable{TItem}, Func{TItem, TKey}, Func{TItem, TInput}, CancellationToken)"/>
-    /// with options every child of the map gets; the parent and each child's deduplication key stay the framework's.
+    /// with options every child of the map gets; the parent and each child's idempotency key stay the framework's.
     /// </summary>
     public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
         string groupName,

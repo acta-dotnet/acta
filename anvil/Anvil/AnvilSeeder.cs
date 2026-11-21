@@ -220,7 +220,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             namespaceName,
             jobName,
             input,
-            DeduplicationKey: $"anvil/{runId}/{batch:000}/{jobName}/{index}",
+            IdempotencyKey: $"anvil/{runId}/{batch:000}/{jobName}/{index}",
             CorrelationKey: runId,
             DelaySeconds: delaySeconds,
             Lane: lane,

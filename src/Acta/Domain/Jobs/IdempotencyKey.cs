@@ -3,12 +3,12 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// Composes stable values for <see cref="EnqueueJobRequest.DeduplicationKey"/>. The business key keeps its case, so
+/// Composes stable values for <see cref="EnqueueJobRequest.IdempotencyKey"/>. The business key keeps its case, so
 /// two ids that differ only by case are two keys; a definition or tenant name part folds to lowercase like every name.
 /// The completed key holds to the <see cref="KeySyntax"/> rule and the storage length, and may not start with the
 /// reserved <c>sys.</c> prefix in any case.
 /// </summary>
-public static class DeduplicationKey
+public static class IdempotencyKey
 {
     /// <summary>Maximum key length, delegated to the shared extended identifier limit.</summary>
     public const int MaxLength = NameSyntax.ExtendedMaxLength;
@@ -26,7 +26,7 @@ public static class DeduplicationKey
 
     /// <summary>
     /// Compose a tenant-relative key, <c>&lt;tenantName&gt;:&lt;businessKey&gt;</c>, so equal business keys under
-    /// different tenants never collide. Deduplication and concurrency keys are both namespace-scoped opaque strings,
+    /// different tenants never collide. Idempotency and concurrency keys are both namespace-scoped opaque strings,
     /// so the same composition serves <see cref="EnqueueJobRequest.ConcurrencyKey"/> values, and the result nests as
     /// the business key of <see cref="ForDefinition"/> when definition and tenant qualification are both wanted. The
     /// tenant part is a name, which never holds <c>:</c>, so two tenants never compose to one key.
@@ -87,7 +87,7 @@ public static class DeduplicationKey
     }
 
     /// <summary>
-    /// Returns the stored form of a deduplication key at enqueue: the <see cref="KeySyntax"/> rule, and no key under
+    /// Returns the stored form of an idempotency key at enqueue: the <see cref="KeySyntax"/> rule, and no key under
     /// <c>sys.</c> in any case, because the deduplication index also holds the system jobs' keys (<c>sys.retention</c>).
     /// Lookups use <see cref="KeySyntax.Canonicalize"/> alone, so a system job's key still resolves.
     /// </summary>

@@ -32,7 +32,7 @@ internal static partial class OpenApiExamples
         ["alertRef"] = FakeAlerts.KnownAlertRef.ToString(),
         ["scheduleName"] = "morning-run",
         ["calendarName"] = "office-hours",
-        ["deduplicationKey"] = "ck-1",
+        ["idempotencyKey"] = "ck-1",
         // The draft beside the published version 1, so the calendar preview compares two versions.
         ["version"] = "2",
         ["signalName"] = "approval",
@@ -50,7 +50,7 @@ internal static partial class OpenApiExamples
     public static readonly IReadOnlyDictionary<string, string> Requests = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["POST /jobs"] = """
-            {"jobNamespace":"billing","jobName":"send-invoice","input":{"json":{"invoiceId":42}},"deduplicationKey":"invoice-42",
+            {"jobNamespace":"billing","jobName":"send-invoice","input":{"json":{"invoiceId":42}},"idempotencyKey":"invoice-42",
             "lane":"reports","concurrencyKey":"customer:42","tags":[{"name":"source","value":"api"}]}
             """,
         ["POST /jobs/{jobRef}/pause"] = """{"reasonMessage":"Waiting for the provider.","expectedVersion":7}""",

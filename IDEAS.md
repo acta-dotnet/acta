@@ -115,7 +115,7 @@ catalog or the control API.
 ## Operation receipts
 
 A caller usually means "make sure this invoice is sent, and tell me what happened", not "insert
-another row each time the request is retried". Deduplication keys cover the retry today, but only
+another row each time the request is retried". Idempotency keys cover the retry today, but only
 while the job row exists: once retention purges it, the same key starts a new job. An `EnsureAsync`
 keyed by business operation could keep a small receipt whose retention is its own, return the same
 handle for a repeat, reject the same key used for different work, and require an explicit retry for

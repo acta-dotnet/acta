@@ -70,7 +70,7 @@ public sealed class GetJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         var key = Unique("no-such-job");
 
         var none = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await Jobs.GetInputAsync<AddNumbers>(JobLookup.ByDeduplicationKey(TestNamespace, key), ct)
+            await Jobs.GetInputAsync<AddNumbers>(JobLookup.ByIdempotencyKey(TestNamespace, key), ct)
         );
         Assert.StartsWith("No job matches", none.Message, StringComparison.Ordinal);
         Assert.Contains(key, none.Message, StringComparison.Ordinal);

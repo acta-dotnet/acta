@@ -197,7 +197,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<Ta
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(2, 3)),
-                DeduplicationKey: key,
+                IdempotencyKey: key,
                 Tags: [new TagInput("version", "first")]
             ),
             ct
@@ -207,7 +207,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<Ta
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(9, 9)),
-                DeduplicationKey: key,
+                IdempotencyKey: key,
                 Tags: [new TagInput("version", "second"), new TagInput("extra")]
             ),
             ct

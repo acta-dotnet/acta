@@ -54,7 +54,7 @@ public sealed class ListChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture
                 TestNamespace,
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),
-                DeduplicationKey: key,
+                IdempotencyKey: key,
                 ParentJobId: parentJobId
             ),
             ct

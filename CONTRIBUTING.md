@@ -185,7 +185,7 @@ To check a change against a starved runner, pin the full suite to two cores and 
 The conformance suites run their classes at once against one schema that no test cleans, so a test shares every table with the rest of the run and with the rows earlier runs left behind. A test owns what it created and reaches it only by an identifier nothing else can hold.
 
 - `ActaTestBase` gives each test its own namespace, `TestNamespace`, and a token, `TestId`. Whatever a namespace scopes (jobs, definitions, schedules, lanes, rate meters, its calendars) is isolated by working in `TestNamespace`.
-- A name or key the test invents is `Unique("name")`, which appends `TestId`: a deduplication, correlation, concurrency or lock key, a tenant, a lane, a calendar family, a definition registered at run time, a second namespace. One token then finds every row a test left, which a bare literal or a fresh Guid does not give.
+- A name or key the test invents is `Unique("name")`, which appends `TestId`: an idempotency, correlation, concurrency or lock key, a tenant, a lane, a calendar family, a definition registered at run time, a second namespace. One token then finds every row a test left, which a bare literal or a fresh Guid does not give.
 - `Unique` is required where no namespace scopes the name: `locks.lock_key`, tenants, calendars in the shared `sys` namespace, an outbox table.
 - A numeric id is one the database returned: the enqueue's answer, a seeded row, a lookup by name. A literal `1` or `42` is some other test's row.
 - An id that must not exist is the id of a row the test created and then removed (enqueue, run, purge), since the database never gives it out again. A read may also use `long.MaxValue`, which no identity reaches. A write is never keyed by an invented id.
@@ -516,7 +516,7 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
 - **`_name`** is a name: Acta's vocabulary, ASCII `dotted.kebab-case`, trimmed and lowercased on input, so it compares
   equal under any collation (`tenant_name`, `rate_name`, `lane_name`, `definition_name`).
 - **`_key`** is a key: the caller's identity, printable ASCII without whitespace, kept exactly as given and compared
-  bytewise (`deduplication_key`, `concurrency_key`, `lock_key`, `correlation_key`). Only a deduplication key
+  bytewise (`idempotency_key`, `concurrency_key`, `lock_key`, `correlation_key`). Only an idempotency key
   reserves `sys.`, because the system jobs' keys share its index.
 - **`display_name`, `value`, `alert_message`, `failure_message`, `actor`** are display text: any Unicode within a cap, never compared.
 - **`_token`** is opaque claim evidence (`claim_token`), proof of ownership rather than identity.
@@ -558,7 +558,7 @@ An operation has one name, `Verb` + `Subject` (`PauseJob`, `ListJobs`), and ever
 - **Operations class.** The method that runs an operation is `<Operation>Async` when the engine calls it, and the handler it holds is the operation in camelCase. A second form of one operation, such as the child enqueue under its parent's fence, takes its own name and is listed in `OperationNameTests` with what differs.
 - **Facade.** A public method is the operation's name without the facade's noun, plus `Async` on a task: `PauseJob` is `IJobs.PauseAsync`, `ListJobCheckpoints` is `IJobs.ListCheckpointsAsync`. `EnqueueJobs` keeps its noun as `IJobs.EnqueueJobsAsync`, because dropping it gives `EnqueueJob`'s method. A method that runs several operations, such as `IJobs.WaitAsync`, is named for what it does.
 - **Route.** A route folder takes its operation's name, and when one operation serves several owners their routes share it (`UpsertTag`), or a folder of one owner's route puts the owner before the subject (`UpsertTenantTag` for `UpsertTag`).
-- **OpenAPI id.** A route's operation id is its operation's name in camelCase (`pauseJob`). When one operation serves routes of several owners, the owner goes before the subject (`listJobTags`, `upsertTenantTag`) and the route with no owner keeps the plain name (`listEvents`); when two routes of one owner serve an operation, the second adds its distinguishing literal path word after the subject (`getJob` and `getJobByDeduplicationKey`). The route declares the id where it is mapped, on its `ActaOperationAttribute`, beside the permission the operation needs.
+- **OpenAPI id.** A route's operation id is its operation's name in camelCase (`pauseJob`). When one operation serves routes of several owners, the owner goes before the subject (`listJobTags`, `upsertTenantTag`) and the route with no owner keeps the plain name (`listEvents`); when two routes of one owner serve an operation, the second adds its distinguishing literal path word after the subject (`getJob` and `getJobByIdempotencyKey`). The route declares the id where it is mapped, on its `ActaOperationAttribute`, beside the permission the operation needs.
 - **Spec.** A spec in `tests/Acta.Tests.Conformance/Operations/<Group>/` starts with the operation of the group it proves, `<Operation>Spec` or `<Operation><Facet>Spec` (`GetJobIdByRefSpec`, `EnqueueJobTenantSpec`). A spec that proves a rule across the group's operations starts with the group's noun instead, its name or, for a group a facade serves, its singular (`LedgerForwardCodeReadSpec`, `JobIdentifierShapeSpec`).
 - **SQL.** Every `.sql` file in an operation's folder takes the operation's name as its stem, `<Operation>.<dialect>.sql` or `<Operation>.routine.<dialect>.sql`, so a second statement is a second operation, and the operation loads that statement under its own name. One that reads through another operation's statement is listed in `OperationNameTests` with its reason.
 - `OperationNameTests` enforces these; `OperationLayoutTests` and `HandlerResponseTests` hold the files and types inside the folder to the name.
@@ -648,7 +648,7 @@ The boundary has three sides, and only two of them are inside it:
     to turn a lookup into the internal id an advanced caller then uses.
   - **Write outcomes, failures, and their ids**: `EnqueueJobResponse`, `IJobControlResponse.JobId`, the other
     `Job*Outcome` records, `JobFailedException.JobId`,
-    `DuplicateDeduplicationKeyInBatchException.ParentJobId` / its `ForChild` factory.
+    `DuplicateIdempotencyKeyInBatchException.ParentJobId` / its `ForChild` factory.
   - **The child-job APIs**, which take or return a child's id: `GetChildResultAsync` and
     `JobEnqueueOptionsBuilder.ParentJobId(long)`.
   - **The `int`/`long` filter members left on the `List*Query` records**, which the HTTP edge resolves refs

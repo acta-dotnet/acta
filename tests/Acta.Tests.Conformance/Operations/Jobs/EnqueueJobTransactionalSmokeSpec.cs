@@ -146,19 +146,19 @@ public sealed class EnqueueJobTransactionalSmokeSpec : ActaRuntimeTestBase<Confo
     }
 
     /// <summary>
-    /// Finds the job this test enqueued by the deduplication key it stamped on it. Identity has to come
+    /// Finds the job this test enqueued by the idempotency key it stamped on it. Identity has to come
     /// from something the test owns: a rolled-back insert releases its surrogate id, and SQLite hands
     /// that same id to the next writer (AUTOINCREMENT's sequence bump rolls back with the row), so a
     /// sibling spec enqueueing in that window would satisfy an id lookup with its own row.
     /// </summary>
-    private async Task<JobEntity?> JobByKeyAsync(string deduplicationKey, CancellationToken ct) =>
-        await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
+    private async Task<JobEntity?> JobByKeyAsync(string idempotencyKey, CancellationToken ct) =>
+        await Db.From<JobEntity>().Where(j => j.IdempotencyKey == idempotencyKey).SingleOrDefaultAsync(ct);
 
-    private EnqueueJobRequest Request(string jobName, object input, string deduplicationKey)
+    private EnqueueJobRequest Request(string jobName, object input, string idempotencyKey)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);
-        return new EnqueueJobRequest(TestNamespace, jobName, payload, deduplicationKey);
+        return new EnqueueJobRequest(TestNamespace, jobName, payload, idempotencyKey);
     }
 
     private static async Task InsertBusinessRowAsync(DbConnection conn, DbTransaction tx, string probe, string marker, CancellationToken ct)

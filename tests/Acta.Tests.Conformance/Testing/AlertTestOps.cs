@@ -261,7 +261,7 @@ internal static class AlertTestOps
         AlertsJob.SkipVariablePrefix + eventId.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// The internal job id of a seeded recurring slot, looked up by its deduplication key, which for
+    /// The internal job id of a seeded recurring slot, looked up by its idempotency key, which for
     /// a recurring slot is the definition's job name.
     /// </summary>
     public static Task<long> RecurringSlotIdAsync(IServiceProvider services, string jobNamespace, string jobName, CancellationToken ct) =>

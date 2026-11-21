@@ -14,11 +14,11 @@ public sealed class BatchDeduplicationScopeTests
             JobEnqueue.Canonicalize(Root("BILLING", " invoice-7 ")),
         ];
 
-        var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
-            EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows)
+        var exception = Assert.Throws<DuplicateIdempotencyKeyInBatchException>(() =>
+            EnqueueJobsHandler.ValidateIdempotencyKeyUniqueness(rows)
         );
 
-        Assert.Equal("invoice-7", exception.DeduplicationKey);
+        Assert.Equal("invoice-7", exception.IdempotencyKey);
         Assert.Equal("billing", exception.RootJobNamespace);
         Assert.Null(exception.ParentJobId);
         Assert.Equal(0, exception.FirstOrdinal);
@@ -34,7 +34,7 @@ public sealed class BatchDeduplicationScopeTests
             JobEnqueue.Canonicalize(Root("billing", "Invoice-7")),
         ];
 
-        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueJobsHandler.ValidateIdempotencyKeyUniqueness(rows);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueValues[] rows = [Root("billing", "invoice-7"), Root("shipping", "invoice-7")];
 
-        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueJobsHandler.ValidateIdempotencyKeyUniqueness(rows);
     }
 
     [Fact]
@@ -50,11 +50,11 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueValues[] rows = [Child(42, "line-7"), Child(42, "other"), Child(42, "line-7")];
 
-        var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
-            EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows)
+        var exception = Assert.Throws<DuplicateIdempotencyKeyInBatchException>(() =>
+            EnqueueJobsHandler.ValidateIdempotencyKeyUniqueness(rows)
         );
 
-        Assert.Equal("line-7", exception.DeduplicationKey);
+        Assert.Equal("line-7", exception.IdempotencyKey);
         Assert.Null(exception.RootJobNamespace);
         Assert.Equal(42, exception.ParentJobId);
         Assert.Equal(0, exception.FirstOrdinal);
@@ -66,7 +66,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueValues[] rows = [Child(42, "line-7"), Child(43, "line-7")];
 
-        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueJobsHandler.ValidateIdempotencyKeyUniqueness(rows);
     }
 
     [Fact]
@@ -74,12 +74,12 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueValues[] rows = [Root("billing", "invoice-7"), Child(42, "invoice-7")];
 
-        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueJobsHandler.ValidateIdempotencyKeyUniqueness(rows);
     }
 
-    private static JobEnqueueValues Root(string jobNamespace, string deduplicationKey) =>
-        new(jobNamespace, "job", JobPayload.None, DeduplicationKey: deduplicationKey);
+    private static JobEnqueueValues Root(string jobNamespace, string idempotencyKey) =>
+        new(jobNamespace, "job", JobPayload.None, IdempotencyKey: idempotencyKey);
 
-    private static JobEnqueueValues Child(long parentJobId, string deduplicationKey) =>
-        new("billing", "job", JobPayload.None, DeduplicationKey: deduplicationKey, ParentJobId: parentJobId);
+    private static JobEnqueueValues Child(long parentJobId, string idempotencyKey) =>
+        new("billing", "job", JobPayload.None, IdempotencyKey: idempotencyKey, ParentJobId: parentJobId);
 }

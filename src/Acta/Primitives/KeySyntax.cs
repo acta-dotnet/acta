@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// The rule for a key, the caller's own identity: deduplication, concurrency, lock, alert deduplication, and
+/// The rule for a key, the caller's own identity: idempotency, concurrency, lock, alert deduplication, and
 /// correlation keys. A key is opaque printable ASCII without whitespace (<c>0x21</c> to <c>0x7E</c>), so
 /// <c>auth0|123</c> and <c>ORDER#42</c> are keys. Keys are case-sensitive: Acta keeps the case, so two keys that
 /// differ only by case are two keys.

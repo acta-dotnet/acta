@@ -23,15 +23,15 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     protected override bool RunAsWorker => true;
 
     [Fact(DisplayName = "Whole-entity materialization returns the matching row")]
-    public async Task Where_equals_finds_enqueued_job_by_deduplication_key()
+    public async Task Where_equals_finds_enqueued_job_by_idempotency_key()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueJob(ct);
+        var idempotencyKey = await EnqueueJob(ct);
 
-        var jobs = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).ToListAsync(ct);
+        var jobs = await Db.From<JobEntity>().Where(j => j.IdempotencyKey == idempotencyKey).ToListAsync(ct);
 
         var job = Assert.Single(jobs);
-        Assert.Equal(deduplicationKey, job.DeduplicationKey);
+        Assert.Equal(idempotencyKey, job.IdempotencyKey);
         var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
         Assert.Equal(JobStatusCode.Ready, runtime!.Status);
     }
@@ -41,10 +41,10 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     {
         var ct = TestContext.Current.CancellationToken;
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var deduplicationKey = await EnqueueJob(ct);
+        var idempotencyKey = await EnqueueJob(ct);
 
         var jobs = await Db.From<JobEntity>()
-            .Where(j => j.NamespaceId == namespaceId && j.ParentJobId == null && j.DeduplicationKey == deduplicationKey)
+            .Where(j => j.NamespaceId == namespaceId && j.ParentJobId == null && j.IdempotencyKey == idempotencyKey)
             .ToListAsync(ct);
 
         var job = Assert.Single(jobs);
@@ -58,9 +58,9 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     public async Task Count_returns_matching_row_count()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueJob(ct);
+        var idempotencyKey = await EnqueueJob(ct);
 
-        var count = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).CountAsync(ct);
+        var count = await Db.From<JobEntity>().Where(j => j.IdempotencyKey == idempotencyKey).CountAsync(ct);
 
         Assert.Equal(1, count);
     }
@@ -69,9 +69,9 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     public async Task In_predicate_matches_status_set()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueJob(ct);
+        var idempotencyKey = await EnqueueJob(ct);
 
-        var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
+        var job = await Db.From<JobEntity>().Where(j => j.IdempotencyKey == idempotencyKey).SingleOrDefaultAsync(ct);
         var inflight = new List<JobStatusCode> { JobStatusCode.Ready, JobStatusCode.Executing };
         var rows = await Db.From<JobStateEntity>().Where(r => r.Id == job!.Id && inflight.Contains(r.Status)).ToListAsync(ct);
 
@@ -83,20 +83,13 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
 
-        var deduplicationKey = Unique("fluent-read");
+        var idempotencyKey = Unique("fluent-read");
         _ = Services.GetRequiredService<ISqlDialect>();
         await EnqueueTestOps.EnqueueJobsAsync(
             Services,
-            [
-                new JobEnqueueValues(
-                    NamespaceName: TestNamespace,
-                    JobName: "add-numbers",
-                    Input: payload,
-                    DeduplicationKey: deduplicationKey
-                ),
-            ],
+            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, IdempotencyKey: idempotencyKey)],
             ct
         );
-        return deduplicationKey;
+        return idempotencyKey;
     }
 }

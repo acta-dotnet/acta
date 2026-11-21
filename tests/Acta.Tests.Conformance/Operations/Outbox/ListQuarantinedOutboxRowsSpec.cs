@@ -42,7 +42,7 @@ public sealed class ListQuarantinedOutboxRowsSpec : OutboxSpecBase
         var fromSeed = Assert.Single(page, r => r.JobRef.Value == seeded.JobRef);
         Assert.Equal("orders", fromSeed.JobNamespace);
         Assert.Equal("send", fromSeed.JobName);
-        Assert.Equal(seeded.DeduplicationKey, fromSeed.DeduplicationKey);
+        Assert.Equal(seeded.IdempotencyKey, fromSeed.IdempotencyKey);
         Assert.Null(fromSeed.CorrelationKey);
         Assert.Null(fromSeed.TenantName);
         Assert.Equal(4, fromSeed.FailureCount);

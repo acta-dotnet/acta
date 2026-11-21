@@ -38,7 +38,7 @@ public sealed class AnvilOutboxDatabase(string path, AnvilSession session)
 
     /// <summary>
     /// One transaction: <paramref name="count"/> business rows each paired with a staged outbox
-    /// record. The dedup key doubles as the operation id, so "one committed operation = one ledger
+    /// record. The idempotency key doubles as the operation id, so "one committed operation = one ledger
     /// job" is checkable exactly.
     /// </summary>
     public async Task StageAsync(int count, int batch, int firstOrdinal, CancellationToken ct)
@@ -60,7 +60,7 @@ public sealed class AnvilOutboxDatabase(string path, AnvilSession session)
                     session.NamespaceName,
                     "outbox-receipt",
                     AnvilPayloads.Json(new OutboxReceipt(operationId)),
-                    DeduplicationKey: operationId,
+                    IdempotencyKey: operationId,
                     CorrelationKey: session.RunId,
                     Tags: [new TagInput("demo", "anvil"), new TagInput("ingress", "outbox")]
                 ),

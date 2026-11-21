@@ -31,7 +31,7 @@ public sealed class ListChildJobsByNameSpec : ActaRuntimeTestBase<ConformanceFix
 
         Assert.Equal(
             [(a.JobId, a.JobRef, Unique("a")), (b.JobId, b.JobRef, Unique("b"))],
-            found.OrderBy(child => child.JobId).Select(child => (child.JobId, new JobRef(child.JobRef), child.DeduplicationKey))
+            found.OrderBy(child => child.JobId).Select(child => (child.JobId, new JobRef(child.JobRef), child.IdempotencyKey))
         );
     }
 
@@ -63,7 +63,7 @@ public sealed class ListChildJobsByNameSpec : ActaRuntimeTestBase<ConformanceFix
                 TestNamespace,
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),
-                DeduplicationKey: key,
+                IdempotencyKey: key,
                 ParentJobId: parentJobId
             ),
             ct

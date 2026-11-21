@@ -9,7 +9,7 @@ public sealed record AnvilSession(string RunId, string NamespaceName, string Sch
     private int _batch;
     private long _expectedFailures;
 
-    /// <summary>Next monotonic batch number; each seed click gets its own so deduplication keys stay unique.</summary>
+    /// <summary>Next monotonic batch number; each seed click gets its own so idempotency keys stay unique.</summary>
     public int NextBatch() => Interlocked.Increment(ref _batch);
 
     /// <summary>

@@ -15,11 +15,11 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 
 // POST writes a durable job and returns 202; the import runs on the worker after the request ends.
-// DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.
+// IdempotencyKey dedupes a retry with the same tenant/import id onto the same job.
 app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =>
 {
     var businessKey = $"import:{request.Tenant}:{request.ImportId}";
-    var deduplicationKey = DeduplicationKey.ForDefinition("import-csv", businessKey);
+    var idempotencyKey = IdempotencyKey.ForDefinition("import-csv", businessKey);
     var correlationKey = http.TraceIdentifier;
 
     // learn: 1. Enqueue in the POST and answer 202 with the job's ref
@@ -27,7 +27,7 @@ app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJo
     // ref goes into the address the client polls.
     var job = await jobs.EnqueueAsync(
         new ImportCsv(request.Tenant, request.ImportId, request.FileName),
-        o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
+        o => o.IdempotencyKey(idempotencyKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
         ct
     );
 
@@ -66,7 +66,7 @@ app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationTo
         new ImportStatusResponse(
             snapshot.JobRef,
             snapshot.Status.ToString(),
-            snapshot.DeduplicationKey,
+            snapshot.IdempotencyKey,
             snapshot.CreatedAtUtc,
             snapshot.ModifiedAtUtc,
             result
@@ -88,7 +88,7 @@ namespace Acta.Learn.AspNetEnqueueApi
     public sealed record ImportStatusResponse(
         JobRef JobRef,
         string Status,
-        string? DeduplicationKey,
+        string? IdempotencyKey,
         DateTime CreatedAtUtc,
         DateTime ModifiedAtUtc,
         ImportResult? Result

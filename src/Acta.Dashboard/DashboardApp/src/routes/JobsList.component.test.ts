@@ -39,7 +39,7 @@ describe('JobsList', () => {
     await vi.waitFor(() => expect(container.querySelector('td[data-label="Executions"]')?.textContent?.trim()).toBe('6 (3 consecutive failures)'));
   });
 
-  it('looks a deduplication key up in the scope picked while the namespaces load', async () => {
+  it('looks an idempotency key up in the scope picked while the namespaces load', async () => {
     location.hash = '#/jobs';
     let answerNamespaces = () => {};
     const namespacesAnswered = new Promise<void>((resolve) => (answerNamespaces = resolve));
@@ -55,7 +55,7 @@ describe('JobsList', () => {
           await namespacesAnswered;
           return json(paged(['billing', 'shipping'].map((jobNamespace) => ({ jobNamespace, status: 'active', ownerTeam: null, description: null, deploymentVersion: null, version: 1 }))));
         }
-        if (url.pathname.endsWith('/jobs/by-deduplication-key')) {
+        if (url.pathname.endsWith('/jobs/by-idempotency-key')) {
           lookups.push(url);
           return json({ jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502' });
         }
@@ -71,10 +71,10 @@ describe('JobsList', () => {
     answerNamespaces();
 
     await vi.waitFor(() => expect(lookups.map((url) => url.searchParams.get('jobNamespace'))).toEqual(['billing']));
-    expect(screen.queryByText('Select a namespace scope to look up a deduplication key.')).toBeNull();
+    expect(screen.queryByText('Select a namespace scope to look up an idempotency key.')).toBeNull();
   });
 
-  it('looks a deduplication key up in a scope picked while a failing namespaces read is pending', async () => {
+  it('looks an idempotency key up in a scope picked while a failing namespaces read is pending', async () => {
     // The scope store outlives a test; start unscoped, as the case needs.
     setScope('');
     location.hash = '#/jobs';
@@ -92,7 +92,7 @@ describe('JobsList', () => {
           await namespacesAnswered;
           return new Response(JSON.stringify({ title: 'The store is unavailable.' }), { status: 503 });
         }
-        if (url.pathname.endsWith('/jobs/by-deduplication-key')) {
+        if (url.pathname.endsWith('/jobs/by-idempotency-key')) {
           lookups.push(url);
           return json({ jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502' });
         }

@@ -27,7 +27,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
     // A due Pending row staged "in the past" so the claim predicate (next_attempt_at_utc <= db_now) is
     // satisfied without waiting; minutesAgo back-dates both instants so due order is deterministic.
     private protected static OutboxSeed DueRow(
-        string dedup,
+        string idempotencyKey,
         byte? priority = null,
         int minutesAgo = 5,
         byte status = 10,
@@ -40,7 +40,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
             JobName: "send",
             InputFormatId: inputFormatId,
             Input: null,
-            DeduplicationKey: dedup,
+            IdempotencyKey: idempotencyKey,
             PriorityCode: priority,
             CreatedAtUtc: DateTime.UtcNow.AddMinutes(-minutesAgo),
             NextAttemptAtUtc: DateTime.UtcNow.AddMinutes(-minutesAgo),
@@ -49,8 +49,8 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
         );
 
     // A row already Claimed by a prior relay whose lease has expired, so a fresh claim must recover it.
-    private protected OutboxSeed ClaimedExpiredRow(string dedup, Guid staleToken) =>
-        OutboxSpecBase.DueRow(dedup) with
+    private protected OutboxSeed ClaimedExpiredRow(string idempotencyKey, Guid staleToken) =>
+        OutboxSpecBase.DueRow(idempotencyKey) with
         {
             StatusCode = (byte)OutboxStatusCode.Claimed,
             ClaimToken = staleToken,
@@ -61,9 +61,9 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
         (await Store.ClaimAsync(new ClaimOutboxCommand(token, batchSize, LeaseTtlSeconds), ct)).Rows;
 
     // Seed one due row and claim it, returning its id and the owning token for a finalize proof.
-    private protected async Task<(Guid Id, Guid Token)> SeedAndClaimAsync(string dedup, CancellationToken ct)
+    private protected async Task<(Guid Id, Guid Token)> SeedAndClaimAsync(string idempotencyKey, CancellationToken ct)
     {
-        var row = OutboxSpecBase.DueRow(dedup);
+        var row = OutboxSpecBase.DueRow(idempotencyKey);
         await Fixture.SeedOutboxRowAsync(TableName, row);
         var token = Guid.NewGuid();
         var claimed = await ClaimAsync(token, batchSize: 10, ct);
@@ -73,9 +73,9 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
 
     // Seed one due row, claim it, and quarantine it under the owning token with the given error - the
     // arrange step of every operator-verb spec (requeue, discard, listing).
-    private protected async Task<Guid> SeedAndQuarantineAsync(string dedup, string error, CancellationToken ct)
+    private protected async Task<Guid> SeedAndQuarantineAsync(string idempotencyKey, string error, CancellationToken ct)
     {
-        var (id, token) = await SeedAndClaimAsync(dedup, ct);
+        var (id, token) = await SeedAndClaimAsync(idempotencyKey, ct);
         await Store.QuarantineAsync(new QuarantineOutboxCommand(token, [new OutboxQuarantine(id, 5, error)]), ct);
         return id;
     }

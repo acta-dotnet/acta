@@ -134,7 +134,7 @@ fired by [fast, faster]</code></pre></figure>
 <h3>Break it</h3>
 <p>Stop the process for more than a minute, restart it, and inspect how the misfire policy advances the cursors (this lab declares none, so the default <code>Skip</code> applies; a cursor less than a minute overdue at a start still fires). Lab <a href="/learn/106-schedule-misfire"><code>106-schedule-misfire</code></a> isolates the <code>Skip</code> versus <code>CatchUpOnce</code> decision.</p>
 <h3>When not to use</h3>
-<p>Use one-shot jobs when each financial/accounting occurrence needs an independent identity, retention period, deduplication key, or audit outcome. Use an external scheduler when scheduling authority must sit outside the Acta database.</p>
+<p>Use one-shot jobs when each financial/accounting occurrence needs an independent identity, retention period, idempotency key, or audit outcome. Use an external scheduler when scheduling authority must sit outside the Acta database.</p>
 <h3>Source trail</h3>
 <ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/learn/100-scheduling/103-multiple-schedules/multiple-schedules.cs"><code>multiple-schedules.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Scheduling/ScheduleAdmitter.cs"><code>ScheduleAdmitter.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Schema/Views/SchedulesView.sqlite.sql"><code>SchedulesView.sqlite.sql</code></a></li></ul>
 </details>

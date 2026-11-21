@@ -35,7 +35,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 // learn: Build the requests and enqueue them together
 // EnqueueJobsAsync writes the whole batch in one round-trip; outcomes return in request order. Two requests with one
-// deduplication key in the same batch throw before anything is written.
+// idempotency key in the same batch throw before anything is written.
 var requests = Enumerable.Range(1, 500).Select(_ => new EnqueueJobRequest("batch-enqueue", "ping")).ToList();
 
 var sw = Stopwatch.StartNew();

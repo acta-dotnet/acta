@@ -34,7 +34,7 @@ Read /llms.txt first. It is the contract: the rules every handler follows. This 
   - work that finished must not repeat on a retry: [How to keep finished work from repeating on a retry](/learn/202-durable-step.md)
   - a side effect the provider can look up, so the run after a crash asks before repeating it: [How to ask the provider before repeating a step after a crash](/learn/224-check-step.md)
   - a side effect where a second attempt is worse than not knowing, such as capturing a payment: [How to refuse to repeat a side effect after a crash](/learn/220-at-most-once-step.md)
-  - a repeated request must not create a second job: [How to keep a repeated request from creating a second job](/learn/010-deduplication-key.md)
+  - a repeated request must not create a second job: [How to keep a repeated request from creating a second job](/learn/010-idempotency-key.md)
 - A job has to wait:
   - for a person or another system that tells you: [How to wait for an approval without holding a worker](/learn/204-wait-signal.md)
   - for time to pass: [How to wait for time to pass without a running process](/learn/205-durable-sleep.md)
@@ -75,10 +75,10 @@ Every way to start work: now, later, once only, by name, or many at a time.
 - [How to keep several jobs in one class](/learn/006-many-jobs-one-class.md): A class can hold several `[Job]` methods. Each is a job of its own, with its own generated call
 - [How to run a job once, later](/learn/011-delayed-job.md): `ScheduleAsync(input, delay)` stores the job now and makes it due after the delay. No process has to stay alive until then
 - [How to schedule, sleep, and reschedule to an exact instant](/learn/217-absolute-time-controls.md): Pin work to an instant instead of a delay: `ScheduleAsync(input, runAt)` starts a job then, `SleepUntilAsync` pauses a handler until then, and `RescheduleUntilAsync` runs the handler again then
-- [How to keep a repeated request from creating a second job](/learn/010-deduplication-key.md): A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there
-- [How to allow one job per hour or per day](/learn/028-deduplication-time-buckets.md): A deduplication key built from a time bucket lets one job in per bucket: `DeduplicationKey.PerTimeBucket` here, with `PerHour` and `PerDay` as its fixed sizes
+- [How to keep a repeated request from creating a second job](/learn/010-idempotency-key.md): With an idempotency key, a second enqueue with the same key answers the job that is already there
+- [How to allow one job per hour or per day](/learn/028-deduplication-time-buckets.md): An idempotency key built from a time bucket lets one job in per bucket: `IdempotencyKey.PerTimeBucket` here, with `PerHour` and `PerDay` as its fixed sizes
 - [How to save a record and start its job in one transaction](/learn/029-enqueue-in-transaction.md): `EnqueueAsync` takes your open transaction, so the order row and the job that fulfils it commit together, or neither exists
-- [How to find a job by its deduplication key](/learn/014-read-by-deduplication-key.md): `JobLookup.ByDeduplicationKey` finds a job by the key it was enqueued with, when you did not keep its ref
+- [How to find a job by its idempotency key](/learn/014-read-by-idempotency-key.md): `JobLookup.ByIdempotencyKey` finds a job by the key it was enqueued with, when you did not keep its ref
 - [How to choose between starting a job and waiting for it](/learn/015-call-vs-enqueue.md): `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the job's outcome
 - [How to enqueue many jobs in one round trip](/learn/019-batch-enqueue.md): `EnqueueJobsAsync` writes a whole list of jobs in one round trip to the database and answers their outcomes in request order
 - [How to run urgent jobs first](/learn/017-priority.md): A priority on the enqueue decides which of the jobs that are due at once a worker claims first
@@ -142,11 +142,11 @@ Fan out, join the results, and decide what a failed child means.
 - [How to call another job and use its result](/learn/213-call-child.md): `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its outcome, whose `ValueOrThrow()` is the result
 - [How to fan out over a list and merge the results](/learn/212-fan-out-join.md): `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the parent to merge
 - [How to fan out to child jobs with Map or WaitChildren](/learn/215-map-wait-children.md): Two ways to fan out: `EnqueueChildAsync` with `WaitChildrenAsync` for a few named children, and `MapAsync` for one child per item of a list
-- [How to find the child job that handles one item](/learn/222-find-child-job.md): A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the parent's children and pick the one that carries the item's key
+- [How to find the child job that handles one item](/learn/222-find-child-job.md): A child's name on the reads is its idempotency key, `{map}/{key}` for a child that a map started. List the parent's children and pick the one that carries the item's key
 - [How to handle child jobs that fail](/learn/219-child-failure-outcomes.md): A group of children never throws by itself. A failed child shows in the `Failed` list of the wait or the map, and `ThrowIfAnyFailed` is how the parent chooses to fail with it
 - [How to start a child job in another namespace](/learn/704-cross-namespace-child.md): A parent starts a child in another worker's namespace and waits across the boundary
-- [How to enqueue many independent jobs from a handler](/learn/601-fan-out.md): A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's `MapAsync`)
-- [How to chain jobs into a pipeline](/learn/602-chained-jobs.md): Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts no second pipeline
+- [How to enqueue many independent jobs from a handler](/learn/601-fan-out.md): A handler takes `IJobs` and enqueues many independent jobs, each with a stable idempotency key. Nothing links them to the handler's job and nothing waits for them (compare 212's `MapAsync`)
+- [How to chain jobs into a pipeline](/learn/602-chained-jobs.md): Each stage is a job of its own that enqueues the next one, with an idempotency key so a replayed handoff starts no second pipeline
 
 ## Decide what happens when work fails
 

@@ -6,7 +6,7 @@ SELECT
     lroot.job_ref AS lineage_root_job_ref,
     j.parent_job_id,
     pjob.job_ref AS parent_job_ref,
-    j.deduplication_key,
+    j.idempotency_key,
     j.correlation_key,
     ns.namespace_name AS job_namespace,
     jd.definition_name AS job_name,

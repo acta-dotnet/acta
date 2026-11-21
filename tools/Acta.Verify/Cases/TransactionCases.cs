@@ -33,7 +33,7 @@ internal static class TransactionCases
             var input = new WorkInput("root");
             await jobs.EnqueueAsync(
                 transaction,
-                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
+                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), IdempotencyKey: input.Key),
                 ct
             );
             if (scenario.Id == "transactional-enqueue-commit")
@@ -51,7 +51,7 @@ internal static class TransactionCases
         if (scenario.Id == "transactional-enqueue-commit")
         {
             await FaultCaseRunner.WaitAsync(
-                async () => (await jobs.GetAsync(JobLookup.ByDeduplicationKey("verify", "root"), ct))?.Status == JobStatusCode.Succeeded,
+                async () => (await jobs.GetAsync(JobLookup.ByIdempotencyKey("verify", "root"), ct))?.Status == JobStatusCode.Succeeded,
                 plan.Deadline(1, 0, state.DrainRate),
                 ct
             );

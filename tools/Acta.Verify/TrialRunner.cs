@@ -72,10 +72,10 @@ internal static class TrialRunner
                 ambiguous.Add(input[i].Key);
             }
         }
-        // An enqueue whose reply was lost may still have committed: its identity decides, by its deduplication key.
+        // An enqueue whose reply was lost may still have committed: its identity decides, by its idempotency key.
         foreach (var key in ambiguous.ToArray())
         {
-            if (await jobs.GetAsync(JobLookup.ByDeduplicationKey("verify", key), ct) is { } committed)
+            if (await jobs.GetAsync(JobLookup.ByIdempotencyKey("verify", key), ct) is { } committed)
             {
                 acknowledged[key] = committed.JobId;
                 ambiguous.Remove(key);
@@ -236,7 +236,7 @@ internal static class TrialRunner
             "verify",
             "work",
             JobPayload.Json(input, WorkJson.Default.WorkInput),
-            DeduplicationKey: input.Key,
+            IdempotencyKey: input.Key,
             Lane: scenario.LaneAt(index),
             ConcurrencyKey: scenario.ConcurrencyKey
         );

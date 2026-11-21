@@ -92,7 +92,7 @@ public static class ChaosCase
                                     "verify",
                                     s.JobName,
                                     JobPayload.Json(s.Work, WorkJson.Default.WorkInput),
-                                    DeduplicationKey: s.Work.Key,
+                                    IdempotencyKey: s.Work.Key,
                                     Priority: s.High ? JobPriorityCode.High : null,
                                     DelaySeconds: s.DelaySeconds,
                                     // Half the jobs carry one of the tenants, so tenant and untenanted work run side by side.
@@ -439,7 +439,7 @@ public static class ChaosCase
                             "verify",
                             "work",
                             JobPayload.Json(work, WorkJson.Default.WorkInput),
-                            DeduplicationKey: work.Key
+                            IdempotencyKey: work.Key
                         ),
                         cancellationToken: ct
                     );

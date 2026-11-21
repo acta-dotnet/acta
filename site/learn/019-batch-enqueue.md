@@ -12,7 +12,7 @@
 
 ## 1. Build the requests and enqueue them together
 
-EnqueueJobsAsync writes the whole batch in one round-trip; outcomes return in request order. Two requests with one deduplication key in the same batch throw before anything is written.
+EnqueueJobsAsync writes the whole batch in one round-trip; outcomes return in request order. Two requests with one idempotency key in the same batch throw before anything is written.
 
 The lines that matter:
 

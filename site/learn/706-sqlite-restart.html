@@ -96,7 +96,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Start the app again</h2>
-<p>There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same machine that have ended, so the export the dead process held is due at once and this process runs it. The program started a copy of itself first, <code>first-run</code>, which enqueued the export under a deduplication key and was killed in the middle of it; this is the second start.</p>
+<p>There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same machine that have ended, so the export the dead process held is due at once and this process runs it. The program started a copy of itself first, <code>first-run</code>, which enqueued the export under an idempotency key and was killed in the middle of it; this is the second start.</p>
 <figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">using</span> <span class="k">var</span> host = builder.Build();</span>
 <span class="hl"><span class="k">await</span> host.StartAsync();</span>
 
@@ -104,7 +104,7 @@
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read that the same job finished</h2>
 <p>The job the first run enqueued is found by its key. It is one job with two executions: the one that was lost and the one that finished.</p>
-<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> export = JobLookup.ByDeduplicationKey(<span class="s">&quot;sqlite-restart&quot;</span>, exportKey);</span>
+<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> export = JobLookup.ByIdempotencyKey(<span class="s">&quot;sqlite-restart&quot;</span>, exportKey);</span>
 <span class="hl"><span class="k">await</span> jobs.WaitAsync(export);</span>
 <span class="hl"><span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(export))!;</span>
 <span class="hl"><span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(export))!;</span>
@@ -175,7 +175,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <span class="c">// learn: 2. Start the app again</span>
 <span class="c">// There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same</span>
 <span class="c">// machine that have ended, so the export the dead process held is due at once and this process runs it. The program</span>
-<span class="c">// started a copy of itself first, `first-run`, which enqueued the export under a deduplication key and was killed in</span>
+<span class="c">// started a copy of itself first, `first-run`, which enqueued the export under an idempotency key and was killed in</span>
 <span class="c">// the middle of it; this is the second start.</span>
 <span class="hl"><span class="k">using</span> <span class="k">var</span> host = builder.Build();</span>
 <span class="hl"><span class="k">await</span> host.StartAsync();</span>
@@ -186,7 +186,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 
 <span class="k">if</span> (firstRun)
 {
-    <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> Export(<span class="s">&quot;orders&quot;</span>), o =&gt; o.DeduplicationKey(exportKey));
+    <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> Export(<span class="s">&quot;orders&quot;</span>), o =&gt; o.IdempotencyKey(exportKey));
     <span class="k">await</span> host.WaitForShutdownAsync();
     <span class="k">return</span>;
 }
@@ -194,7 +194,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <span class="c">// learn: 3. Read that the same job finished</span>
 <span class="c">// The job the first run enqueued is found by its key. It is one job with two executions: the one that was lost and</span>
 <span class="c">// the one that finished.</span>
-<span class="hl"><span class="k">var</span> export = JobLookup.ByDeduplicationKey(<span class="s">&quot;sqlite-restart&quot;</span>, exportKey);</span>
+<span class="hl"><span class="k">var</span> export = JobLookup.ByIdempotencyKey(<span class="s">&quot;sqlite-restart&quot;</span>, exportKey);</span>
 <span class="hl"><span class="k">await</span> jobs.WaitAsync(export);</span>
 <span class="hl"><span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(export))!;</span>
 <span class="hl"><span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(export))!;</span>

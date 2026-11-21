@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// The CLI verbs. Read verbs and control verbs take a job ref or deduplication-key target, and a read verb also an
+/// The CLI verbs. Read verbs and control verbs take a job ref or idempotency-key target, and a read verb also an
 /// id:&lt;n&gt;; Debug runs an existing job in this process; Deploy writes this build's definitions and schedules; Migrate
 /// applies the schema and then deploys; neither takes a target; Help prints usage.
 /// </summary>

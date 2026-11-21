@@ -74,7 +74,7 @@ public static class PostgresMigrations
                 job_name varchar(128) NOT NULL,
                 input_format_id smallint NOT NULL,
                 input bytea NULL,
-                deduplication_key varchar(128) NULL,
+                idempotency_key varchar(128) NULL,
                 correlation_key varchar(64) NULL,
                 concurrency_key varchar(128) NULL,
                 lane_name varchar(128) NULL,

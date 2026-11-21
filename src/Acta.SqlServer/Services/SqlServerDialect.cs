@@ -17,7 +17,7 @@ internal sealed class SqlServerDialect : ISqlDialect
     public string DialectToken => "mssql";
 
     /// <summary>
-    /// 1205: deadlock victim. 51205: a routine's application lock (a deduplication key or a checkpoint) was refused,
+    /// 1205: deadlock victim. 51205: a routine's application lock (an idempotency key or a checkpoint) was refused,
     /// which <c>sp_getapplock</c> reports by return code, deadlock victim included, instead of raising 1205.
     /// 2801: an installed routine changed during concurrent bootstrap.
     /// </summary>
@@ -153,7 +153,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_job_ref", SqlDbType.UniqueIdentifier, jobRef);
         AddScalar(sql, "@p_namespace_name", SqlDbType.VarChar, row.NamespaceName);
         AddScalar(sql, "@p_job_name", SqlDbType.VarChar, row.JobName);
-        AddScalar(sql, "@p_deduplication_key", SqlDbType.VarChar, (object?)row.DeduplicationKey ?? DBNull.Value);
+        AddScalar(sql, "@p_idempotency_key", SqlDbType.VarChar, (object?)row.IdempotencyKey ?? DBNull.Value);
         AddScalar(sql, "@p_correlation_key", SqlDbType.VarChar, (object?)row.CorrelationKey ?? DBNull.Value);
         AddScalar(
             sql,

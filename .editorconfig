@@ -523,7 +523,7 @@ dotnet_diagnostic.CA1711.severity = none
 # friendly alternates CA2225 asks for already exist and are what the operators call - ByRef(JobRef)
 # and ById(long) - so the rule is satisfied in substance and fails only on the spelling: it wants
 # ToJobLookup / FromJobRef. Acta names lookup factories By* as a family - ByRef, ById,
-# ByDeduplicationKey - which reads at the call site as the sentence it is, and the type is
+# ByIdempotencyKey - which reads at the call site as the sentence it is, and the type is
 # public, so a second name for each would be one more name to keep.
 [src/Acta/Domain/Jobs/JobLookup.cs]
 dotnet_diagnostic.CA2225.severity = none

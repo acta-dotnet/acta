@@ -78,7 +78,7 @@ internal static class StorageCases
                                 "verify",
                                 "work",
                                 JobPayload.Json(work, WorkJson.Default.WorkInput),
-                                DeduplicationKey: work.Key
+                                IdempotencyKey: work.Key
                             ),
                             ct
                         )
@@ -146,7 +146,7 @@ internal static class StorageCases
                             "verify",
                             "work",
                             JobPayload.Json(work, WorkJson.Default.WorkInput),
-                            DeduplicationKey: work.Key,
+                            IdempotencyKey: work.Key,
                             Priority: status == 10 ? JobPriorityCode.High : JobPriorityCode.Normal,
                             NextRunAtUtc: status == 10 ? future : null
                         );
@@ -244,7 +244,7 @@ internal static class StorageCases
             AfterChildrenSignal: scenario.Id == "retention-live-dependencies" ? "hold" : null
         );
         var root = await jobs.EnqueueAsync(
-            new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
+            new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), IdempotencyKey: input.Key),
             ct
         );
         await FaultCaseRunner.WaitAsync(
@@ -263,7 +263,7 @@ internal static class StorageCases
                     "verify",
                     "retained-work",
                     JobPayload.Json(work, WorkJson.Default.WorkInput),
-                    DeduplicationKey: work.Key
+                    IdempotencyKey: work.Key
                 ),
                 ct
             );
@@ -374,7 +374,7 @@ internal static class StorageCases
         await using var connection = await state.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            $"SELECT COUNT(*) FROM {state.Table("jobs")} j JOIN {state.Table("jobs_state")} r ON r.job_id=j.job_id WHERE j.deduplication_key LIKE 'history-%' AND r.job_status_code={status}";
+            $"SELECT COUNT(*) FROM {state.Table("jobs")} j JOIN {state.Table("jobs_state")} r ON r.job_id=j.job_id WHERE j.idempotency_key LIKE 'history-%' AND r.job_status_code={status}";
         return Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
 }

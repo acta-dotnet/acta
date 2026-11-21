@@ -18,9 +18,9 @@ internal static class OutboxStaging
     /// extension binds these named parameters with its own typed parameter objects.
     /// </summary>
     private const string InsertColumnsAndValues = """
-            (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
+            (job_ref, namespace_name, job_name, input_format_id, input, idempotency_key,
              correlation_key, concurrency_key, lane_name, job_priority_code, next_run_at_utc, delay_seconds, tenant_name, meta)
-        VALUES (@job_ref, @namespace_name, @job_name, @input_format_id, @input, @deduplication_key,
+        VALUES (@job_ref, @namespace_name, @job_name, @input_format_id, @input, @idempotency_key,
                 @correlation_key, @concurrency_key, @lane_name, @job_priority_code, @next_run_at_utc, @delay_seconds, @tenant_name, @meta);
         """;
 
@@ -61,7 +61,7 @@ internal static class OutboxStaging
                 JobName: normalized.JobName,
                 InputFormatId: normalized.Input.Format.Id,
                 Input: normalized.Input.IsNone ? null : normalized.Input.Data.ToArray(),
-                DeduplicationKey: normalized.DeduplicationKey,
+                IdempotencyKey: normalized.IdempotencyKey,
                 CorrelationKey: normalized.CorrelationKey,
                 ConcurrencyKey: normalized.ConcurrencyKey,
                 Lane: normalized.Lane,

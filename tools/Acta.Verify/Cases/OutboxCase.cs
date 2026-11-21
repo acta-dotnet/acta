@@ -38,7 +38,7 @@ internal static class OutboxCase
                 domain.Parameters.AddWithValue("@key", work.Key);
                 await domain.ExecuteNonQueryAsync(ct);
                 await transaction.AddToActaOutboxAsync(
-                    new EnqueueJobRequest("verify", "work", JobPayload.Json(work, WorkJson.Default.WorkInput), DeduplicationKey: work.Key),
+                    new EnqueueJobRequest("verify", "work", JobPayload.Json(work, WorkJson.Default.WorkInput), IdempotencyKey: work.Key),
                     cancellationToken: ct
                 );
             }

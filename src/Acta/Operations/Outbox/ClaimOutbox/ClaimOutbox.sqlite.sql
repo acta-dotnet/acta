@@ -37,6 +37,6 @@ WHERE
    cannot read comes back as written and fails the read rather than reading as no instant. */
 RETURNING
     job_ref, namespace_name, job_name, input_format_id, input,
-    deduplication_key, correlation_key, concurrency_key, lane_name, job_priority_code,
+    idempotency_key, correlation_key, concurrency_key, lane_name, job_priority_code,
     COALESCE(strftime('%Y-%m-%d %H:%M:%f', next_run_at_utc), next_run_at_utc) AS next_run_at_utc,
     delay_seconds, tenant_name, meta, failure_count, id;

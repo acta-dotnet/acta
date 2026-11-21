@@ -83,7 +83,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     /// <summary>
     /// Per-test needle: <c>{name}-{TestId}</c>. Mandatory for GLOBAL keyspaces
     /// (e.g. <c>locks.lock_key</c>, which carries no namespace); preferred over ad-hoc Guids
-    /// anywhere a test needs a unique name or key (deduplication keys, extra namespaces), since the shared token
+    /// anywhere a test needs a unique name or key (idempotency keys, extra namespaces), since the shared token
     /// makes every row a test leaves behind joinable.
     /// </summary>
     protected string Unique(string name) => name + "-" + TestId;
@@ -239,7 +239,7 @@ internal sealed record TestJobRow(JobEntity Job, JobStateEntity JobState)
     public int? TenantId => Job.TenantId;
     public long? ParentJobId => Job.ParentJobId;
     public long? LineageRootJobId => Job.LineageRootJobId;
-    public string? DeduplicationKey => Job.DeduplicationKey;
+    public string? IdempotencyKey => Job.IdempotencyKey;
     public string? CorrelationKey => Job.CorrelationKey;
     public string? ConcurrencyKey => Job.ConcurrencyKey;
     public byte InputFormatId => Job.InputFormatId;

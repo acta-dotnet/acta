@@ -98,7 +98,7 @@ public class ManifestCallsTests
                 public static async Task Use(IJobs jobs, System.Data.Common.DbTransaction tx, DerivedTransaction derived)
                 {
                     JobHandle<Receipt> invoice = await jobs.EnqueueAsync(GenTestsJobs.SendInvoice(Guid.Empty, "billing@example.com"));
-                    JobHandle shipped = await jobs.EnqueueAsync(GenTestsJobs.ShipOrder(new ShipOrder(1)), o => o.DeduplicationKey("ship-1"));
+                    JobHandle shipped = await jobs.EnqueueAsync(GenTestsJobs.ShipOrder(new ShipOrder(1)), o => o.IdempotencyKey("ship-1"));
                     JobHandle<int> cleaned = await jobs.EnqueueAsync(GenTestsJobs.Cleanup());
                     EnqueueJobResponse inTx = await jobs.EnqueueAsync(tx, GenTestsJobs.Reconcile());
                     EnqueueJobResponse configuredInTx = await jobs.EnqueueAsync(tx, GenTestsJobs.Cleanup(), o => o.CorrelationKey("c-1"));

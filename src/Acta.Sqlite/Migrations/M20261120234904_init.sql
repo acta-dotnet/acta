@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
     parent_job_id integer NULL,
     tenant_id integer NULL,
     schedule_id integer NULL,
-    deduplication_key text NULL,
+    idempotency_key text NULL,
     correlation_key text NULL,
     concurrency_key text NULL,
     input_format_id integer NOT NULL,
@@ -196,8 +196,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_parent ON {{schema}}_jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_namespace_created ON {{schema}}_jobs (namespace_id, created_at_utc DESC, job_id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_ref ON {{schema}}_jobs (job_ref);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_root ON {{schema}}_jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_child ON {{schema}}_jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_idempotency_key_root ON {{schema}}_jobs (namespace_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_idempotency_key_child ON {{schema}}_jobs (parent_job_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_slot ON {{schema}}_jobs (definition_id) WHERE job_kind_code = 20;
 
 -- lanes
@@ -622,7 +622,7 @@ SELECT
     j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
     r.job_status_code,
-    j.deduplication_key,
+    j.idempotency_key,
     j.correlation_key,
     j.concurrency_key,
     lane.lane_name,
@@ -773,5 +773,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261120230853_init')
+VALUES ('M20261120234904_init')
 ON CONFLICT (name) DO NOTHING;

@@ -323,7 +323,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 ? $"child job {wait.Name[RaiseChildLatch.NamePrefix.Length..]}"
                 : $"child \"{wait.Name}\"";
 
-    /// <summary>The CLI's lookup for the child: its ref, or " id:{id}" by the latch name, since a bare number reads as a deduplication key.</summary>
+    /// <summary>The CLI's lookup for the child: its ref, or " id:{id}" by the latch name, since a bare number reads as an idempotency key.</summary>
     private static string ChildLookup(ExplainJobWait wait) =>
         wait.ChildJobRef is { } childRef ? $" {childRef}"
         : wait.Name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)

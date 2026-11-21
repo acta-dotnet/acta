@@ -53,7 +53,7 @@ internal static class SchedulingCases
                 "verify",
                 "work",
                 JobPayload.Json(input[i], WorkJson.Default.WorkInput),
-                DeduplicationKey: input[i].Key,
+                IdempotencyKey: input[i].Key,
                 Lane: lane,
                 ConcurrencyKey: scenario.Id == "concurrency-key-limit" ? "hot" : null,
                 Priority: scenario.Id == "priority-tenant-contention" && i % 2 == 0 ? JobPriorityCode.High : JobPriorityCode.Normal,

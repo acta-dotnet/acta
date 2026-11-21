@@ -382,12 +382,12 @@ public sealed class ControlContractTests
         {
             jobNamespace = "billing",
             jobName = "send-invoice",
-            deduplicationKey = "invoice-9",
+            idempotencyKey = "invoice-9",
         };
         return
         [
             new("jobs", "/jobs", "POST", "inserted", "/jobs", StatusCodes.Status201Created, typeof(EnqueueJobResponse), "inserted", body),
-            // Second request, same deduplication key: the fake matches the first exactly as the store does.
+            // Second request, same idempotency key: the fake matches the first exactly as the store does.
             new(
                 "jobs",
                 "/jobs",

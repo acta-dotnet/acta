@@ -18,13 +18,13 @@ public interface IJobs
     /// <paramref name="request"/> against the registered runtime and returns the internal
     /// <c>JobId</c>, the public <c>JobRef</c>, and the coarse <see cref="EnqueueJobAction"/>
     /// (<c>Inserted</c>, or <c>Deduplicated</c> when an existing row matched
-    /// <see cref="EnqueueJobRequest.DeduplicationKey"/>).
+    /// <see cref="EnqueueJobRequest.IdempotencyKey"/>).
     /// </summary>
     [OverloadResolutionPriority(1)]
     Task<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Typed enqueue: <c>jobs.EnqueueAsync(input, o =&gt; o.DeduplicationKey("final-key"))</c>. Resolves
+    /// Typed enqueue: <c>jobs.EnqueueAsync(input, o =&gt; o.IdempotencyKey("final-key"))</c>. Resolves
     /// <typeparamref name="TInput"/> to its registered job (namespace, name, payload format) from the generated manifest,
     /// serializes <paramref name="input"/>, and enqueues. Returns a <see cref="JobHandle"/> to follow the job; it converts
     /// implicitly to <see cref="JobLookup"/> for the read and control verbs. Throws when the input type is unregistered or
@@ -191,7 +191,7 @@ public interface IJobs
     /// Resolve <paramref name="job"/> to the internal <c>JobId</c> in <see cref="GetJobIdResponse"/>, or <c>null</c> when no row
     /// matches. A <see cref="JobLookupKind.JobId"/> lookup returns the id directly with no DB
     /// round-trip; a <see cref="JobLookupKind.JobRef"/> lookup resolves over the unique
-    /// <c>job_ref</c> index; a <see cref="JobLookupKind.DeduplicationKey"/> lookup matches root jobs only
+    /// <c>job_ref</c> index; a <see cref="JobLookupKind.IdempotencyKey"/> lookup matches root jobs only
     /// (<c>parent_job_id IS NULL</c>). Pin the returned id and reuse it across polls and mutations.
     /// </summary>
     Task<GetJobIdResponse?> GetIdAsync(JobLookup job, CancellationToken ct = default);

@@ -19,7 +19,7 @@ public sealed class OutboxScriptColumnsTests
         "job_name",
         "input_format_id",
         "input",
-        "deduplication_key",
+        "idempotency_key",
         "correlation_key",
         "concurrency_key",
         "lane_name",

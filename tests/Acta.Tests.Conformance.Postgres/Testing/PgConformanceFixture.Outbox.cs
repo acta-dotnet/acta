@@ -102,15 +102,15 @@ public sealed partial class PgConformanceFixture
         source.UsePostgres(Conn);
     }
 
-    /// <summary>Count Postgres-ledger jobs in a namespace carrying a deduplication key (mixed-provider proof).</summary>
-    public static async ValueTask<int> CountLedgerJobsByDedupAsync(int namespaceId, string dedup)
+    /// <summary>Count Postgres-ledger jobs in a namespace carrying an idempotency key (mixed-provider proof).</summary>
+    public static async ValueTask<int> CountLedgerJobsByIdempotencyKeyAsync(int namespaceId, string idempotencyKey)
     {
         await using var c = new NpgsqlConnection(Conn);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = $"SELECT COUNT(*) FROM {Schema}.jobs WHERE namespace_id = @ns AND deduplication_key = @dedup;";
+        cmd.CommandText = $"SELECT COUNT(*) FROM {Schema}.jobs WHERE namespace_id = @ns AND idempotency_key = @idempotency_key;";
         cmd.Parameters.Add(new NpgsqlParameter("@ns", NpgsqlDbType.Integer) { Value = namespaceId });
-        cmd.Parameters.Add(new NpgsqlParameter("@dedup", NpgsqlDbType.Varchar) { Value = dedup });
+        cmd.Parameters.Add(new NpgsqlParameter("@idempotency_key", NpgsqlDbType.Varchar) { Value = idempotencyKey });
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
@@ -130,10 +130,10 @@ public sealed partial class PgConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {Schema}.{table}
-                (job_ref, namespace_name, job_name, input_format_id, input, deduplication_key,
+                (job_ref, namespace_name, job_name, input_format_id, input, idempotency_key,
                  meta, job_priority_code, created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count,
                  claim_token, claim_until_utc)
-            VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
+            VALUES (@id, @ns, @name, @fmt, @data, @idempotency_key, @meta, @prio, @created, @next, @status, @failures,
                     @token, @until);
             """;
         cmd.Parameters.Add(new NpgsqlParameter("@id", NpgsqlDbType.Uuid) { Value = seed.JobRef });
@@ -141,7 +141,9 @@ public sealed partial class PgConformanceFixture
         cmd.Parameters.Add(new NpgsqlParameter("@name", NpgsqlDbType.Varchar) { Value = seed.JobName });
         cmd.Parameters.Add(new NpgsqlParameter("@fmt", NpgsqlDbType.Smallint) { Value = (short)seed.InputFormatId });
         cmd.Parameters.Add(new NpgsqlParameter("@data", NpgsqlDbType.Bytea) { Value = (object?)seed.Input ?? DBNull.Value });
-        cmd.Parameters.Add(new NpgsqlParameter("@dedup", NpgsqlDbType.Varchar) { Value = (object?)seed.DeduplicationKey ?? DBNull.Value });
+        cmd.Parameters.Add(
+            new NpgsqlParameter("@idempotency_key", NpgsqlDbType.Varchar) { Value = (object?)seed.IdempotencyKey ?? DBNull.Value }
+        );
         cmd.Parameters.Add(new NpgsqlParameter("@meta", NpgsqlDbType.Jsonb) { Value = (object?)seed.Meta ?? DBNull.Value });
         cmd.Parameters.Add(
             new NpgsqlParameter("@prio", NpgsqlDbType.Smallint) { Value = seed.PriorityCode is { } p ? (short)p : DBNull.Value }

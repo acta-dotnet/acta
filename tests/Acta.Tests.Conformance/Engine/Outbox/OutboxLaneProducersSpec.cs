@@ -90,8 +90,8 @@ public sealed class OutboxLaneProducersSpec : OutboxRelayIntegrationBase
     private async Task<List<string>> RelayedAsync(CancellationToken ct)
     {
         var jobs = await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId).ToListAsync(ct);
-        var ours = jobs.Where(j => j.DeduplicationKey?.EndsWith(TestId, StringComparison.Ordinal) == true);
-        return [.. ours.OrderBy(j => j.Id).Select(j => j.DeduplicationKey!)];
+        var ours = jobs.Where(j => j.IdempotencyKey?.EndsWith(TestId, StringComparison.Ordinal) == true);
+        return [.. ours.OrderBy(j => j.Id).Select(j => j.IdempotencyKey!)];
     }
 
     private List<string> Keys(params string[] labels) => [.. labels.Select(Key)];
@@ -99,5 +99,5 @@ public sealed class OutboxLaneProducersSpec : OutboxRelayIntegrationBase
     private string Key(string label) => $"{label}-{TestId}";
 
     private EnqueueJobRequest Row(string lane, string label) =>
-        new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), DeduplicationKey: Key(label), Lane: $"{lane}-{TestId}");
+        new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), IdempotencyKey: Key(label), Lane: $"{lane}-{TestId}");
 }

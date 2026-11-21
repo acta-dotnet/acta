@@ -48,7 +48,7 @@ public class DbParamsTests
     [Fact]
     public void For_column_accepts_null_value()
     {
-        var p = DbParams.For(ActaSchema.Job.DeduplicationKey, null);
+        var p = DbParams.For(ActaSchema.Job.IdempotencyKey, null);
 
         Assert.Null(p.Value);
         Assert.Equal(128, p.Size);

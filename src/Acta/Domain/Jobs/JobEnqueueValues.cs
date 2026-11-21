@@ -13,7 +13,7 @@ internal sealed record JobEnqueueValues(
     string JobName,
     JobPayload Input,
     JobPriorityCode? PriorityOverride = null,
-    string? DeduplicationKey = null,
+    string? IdempotencyKey = null,
     string? CorrelationKey = null,
     string? ConcurrencyKey = null,
     DateTime? NextRunAtUtc = null,

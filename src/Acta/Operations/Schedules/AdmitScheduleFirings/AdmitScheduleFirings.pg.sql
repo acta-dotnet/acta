@@ -10,10 +10,10 @@ DROP TABLE IF EXISTS pg_temp._adm_lock;
 CREATE TEMP TABLE _adm_groups ON COMMIT DROP AS
 SELECT
     g.ordinal, g.job_id, g.expected_job_version, g.schedule_id, g.expected_state_version, g.admit, g.envelope,
-    g.job_ref, g.deduplication_key, g.trigger_message, g.trigger_actor, g.trigger_details
+    g.job_ref, g.idempotency_key, g.trigger_message, g.trigger_actor, g.trigger_details
 FROM json_to_recordset(@p_groups::json) AS g (
     ordinal INT, job_id BIGINT, expected_job_version BIGINT, schedule_id INT, expected_state_version INT, admit BOOLEAN,
-    envelope TEXT, job_ref UUID, deduplication_key VARCHAR, trigger_message VARCHAR, trigger_actor VARCHAR, trigger_details TEXT);
+    envelope TEXT, job_ref UUID, idempotency_key VARCHAR, trigger_message VARCHAR, trigger_actor VARCHAR, trigger_details TEXT);
 CREATE TEMP TABLE _adm_rows ON COMMIT DROP AS
 SELECT
     a.group_ordinal, a.schedule_id, a.schedule_name, a.expected_version, a.expected_schedule_version,
@@ -94,7 +94,7 @@ WHERE
         FROM {{schema}}.jobs d
         WHERE
             d.namespace_id = @p_namespace_id
-            AND d.deduplication_key = g.deduplication_key
+            AND d.idempotency_key = g.idempotency_key
             AND d.parent_job_id IS NULL
     );
 
@@ -117,10 +117,10 @@ WHERE r.job_id = g.job_id AND g.admit;
 -- A per-occurrence firing is a fresh root: the definition's stored default input, priority, and audit level, the
 -- schedule as its provenance, no lane and no tenant, keyed so the same occurrence is never admitted twice. Ready at once.
 INSERT INTO {{schema}}.jobs (
-    job_kind_code, job_ref, deduplication_key, namespace_id, definition_id, schedule_id,
+    job_kind_code, job_ref, idempotency_key, namespace_id, definition_id, schedule_id,
     input_format_id, input, event_recording_code, created_at_utc)
 SELECT
-    10 /* JobKindCode.Ordinary */, g.job_ref, g.deduplication_key, @p_namespace_id, js.definition_id, g.schedule_id,
+    10 /* JobKindCode.Ordinary */, g.job_ref, g.idempotency_key, @p_namespace_id, js.definition_id, g.schedule_id,
     jd.default_input_format_id, jd.default_input, jd.event_recording_code_effective, now()
 FROM _adm_groups g
 INNER JOIN _adm_valid v ON v.ordinal = g.ordinal

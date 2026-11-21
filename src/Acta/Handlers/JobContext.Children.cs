@@ -7,12 +7,12 @@ public abstract partial class JobContext
     private const string ChildSignalPrefix = "sys.child.";
 
     /// <summary>
-    /// Enqueues a child job from a typed input, replay-safe: <paramref name="name"/> is the child's deduplication key,
+    /// Enqueues a child job from a typed input, replay-safe: <paramref name="name"/> is the child's idempotency key,
     /// so a replay returns the existing child (<see cref="EnqueueJobAction.Deduplicated"/>); wait for it with <c>WaitChildAsync</c>.
     /// </summary>
     /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
-    /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win.</param>
+    /// <param name="configure">Optional enqueue options; the parent id and idempotency key are framework-set and win.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     [DebuggerDisableUserUnhandledExceptions]
     public async Task<EnqueueJobResponse> EnqueueChildAsync<TInput>(
@@ -63,7 +63,7 @@ public abstract partial class JobContext
             jobNamespace,
             jobName,
             input,
-            DeduplicationKey: options.DeduplicationKey,
+            IdempotencyKey: options.IdempotencyKey,
             CorrelationKey: options.CorrelationKey,
             ConcurrencyKey: options.ConcurrencyKey,
             Priority: options.Priority,
@@ -245,7 +245,7 @@ public abstract partial class JobContext
         return new JobEnqueueOptions
         {
             JobNamespace = configured?.JobNamespace,
-            DeduplicationKey = name,
+            IdempotencyKey = name,
             CorrelationKey = configured?.CorrelationKey,
             ConcurrencyKey = configured?.ConcurrencyKey,
             Lane = configured?.Lane,
@@ -261,7 +261,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Subclass sink: typed child enqueue through the shared enqueue path. The options carry the
-    /// framework-set parent id and deduplication key.
+    /// framework-set parent id and idempotency key.
     /// </summary>
     private protected abstract Task<EnqueueJobResponse> EnqueueChildCoreAsync<TInput>(
         TInput input,

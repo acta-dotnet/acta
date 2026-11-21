@@ -45,14 +45,14 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
 
-        var deduplicationKey = Unique("single");
+        var idempotencyKey = Unique("single");
         JobEnqueueValues[] command =
         [
             new JobEnqueueValues(
                 NamespaceName: TestNamespace,
                 JobName: "add-numbers",
                 Input: payload,
-                DeduplicationKey: deduplicationKey,
+                IdempotencyKey: idempotencyKey,
                 Tags: [new TagInput("env", "EU-West"), new TagInput("feature", "batch-enqueue")]
             ),
         ];
@@ -69,7 +69,7 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         Assert.Equal(outcome.JobId, jobRow.Id);
         Assert.Equal(JobStatusCode.Ready, jobRow.Status);
         Assert.Equal(namespaceId, jobRow.NamespaceId);
-        Assert.Equal(deduplicationKey, jobRow.DeduplicationKey);
+        Assert.Equal(idempotencyKey, jobRow.IdempotencyKey);
         Assert.Null(jobRow.LineageRootJobId);
 
         // Enqueue does not write events - the Job row's own creation columns are the

@@ -153,7 +153,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, J
                 JobNamespace: TestNamespace,
                 JobName: "add-numbers",
                 Input: payload,
-                DeduplicationKey: Unique("ctrl"),
+                IdempotencyKey: Unique("ctrl"),
                 CorrelationKey: null,
                 Priority: null
             ),

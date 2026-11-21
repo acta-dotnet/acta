@@ -14,7 +14,7 @@ internal readonly record struct OutboxStagingValues(
     string JobName,
     byte InputFormatId,
     byte[]? Input,
-    string? DeduplicationKey,
+    string? IdempotencyKey,
     string? CorrelationKey,
     string? ConcurrencyKey,
     string? Lane,

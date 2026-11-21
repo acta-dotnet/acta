@@ -116,7 +116,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         );
 
         // The provisional identity never became durable.
-        Assert.Null(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(j => j.IdempotencyKey == key).SingleOrDefaultAsync(ct));
 
         // A re-enqueue after rollback inserts a fresh row - the earlier dedupe left nothing behind.
         await InCallerTransactionAsync(
@@ -130,7 +130,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
             ct
         );
 
-        Assert.NotNull(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<JobEntity>().Where(j => j.IdempotencyKey == key).SingleOrDefaultAsync(ct));
     }
 
     [Fact(DisplayName = "An enqueue of a key an open transaction holds waits for its commit and returns that job")]
@@ -252,10 +252,10 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
             {
                 await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
 
-                // A same-batch duplicate deduplication key is a deterministic pre-SQL rejection. Acta throws
+                // A same-batch duplicate idempotency key is a deterministic pre-SQL rejection. Acta throws
                 // the translated type once (no retry) and the caller must roll back the whole transaction.
                 IReadOnlyList<EnqueueJobRequest> batch = [Request(key: dupKey), Request(key: dupKey)];
-                await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(async () => await Jobs.EnqueueJobsAsync(tx, batch, ct));
+                await Assert.ThrowsAsync<DuplicateIdempotencyKeyInBatchException>(async () => await Jobs.EnqueueJobsAsync(tx, batch, ct));
 
                 await tx.RollbackAsync(ct);
             },
@@ -263,7 +263,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         );
 
         Assert.Equal(0, await CountBusinessRowsAsync(conn, probe, marker, ct));
-        var jobCount = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == dupKey).CountAsync(ct);
+        var jobCount = await Db.From<JobEntity>().Where(j => j.IdempotencyKey == dupKey).CountAsync(ct);
         Assert.Equal(0, jobCount);
     }
 
@@ -303,7 +303,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 1));
-        return new EnqueueJobRequest(TestNamespace, jobName, payload, DeduplicationKey: key);
+        return new EnqueueJobRequest(TestNamespace, jobName, payload, IdempotencyKey: key);
     }
 
     private static async Task InsertBusinessRowAsync(DbConnection conn, DbTransaction tx, string probe, string marker, CancellationToken ct)

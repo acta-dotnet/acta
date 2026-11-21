@@ -17,7 +17,7 @@ public static class PostgresOutboxStagingExtensions
     /// <summary>
     /// Stages <paramref name="request"/> as one outbox row on this transaction, committed or rolled back with it, and
     /// returns the ref of the job the relay enqueues for it. The request takes no parent. A
-    /// <see cref="EnqueueJobRequest.DeduplicationKey"/> is optional and works as on a direct enqueue: when another job
+    /// <see cref="EnqueueJobRequest.IdempotencyKey"/> is optional and works as on a direct enqueue: when another job
     /// holds the key, the record is deduplicated onto that job and the returned ref names no job.
     /// <paramref name="table"/> and <paramref name="schema"/> are the ones the relay's source reads.
     /// </summary>
@@ -53,7 +53,7 @@ public static class PostgresOutboxStagingExtensions
         p.Add(new NpgsqlParameter("@job_name", NpgsqlDbType.Varchar) { Value = row.JobName });
         p.Add(new NpgsqlParameter("@input_format_id", NpgsqlDbType.Smallint) { Value = (short)row.InputFormatId });
         p.Add(new NpgsqlParameter("@input", NpgsqlDbType.Bytea) { Value = (object?)row.Input ?? DBNull.Value });
-        p.Add(new NpgsqlParameter("@deduplication_key", NpgsqlDbType.Varchar) { Value = (object?)row.DeduplicationKey ?? DBNull.Value });
+        p.Add(new NpgsqlParameter("@idempotency_key", NpgsqlDbType.Varchar) { Value = (object?)row.IdempotencyKey ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@correlation_key", NpgsqlDbType.Varchar) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@concurrency_key", NpgsqlDbType.Varchar) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@lane_name", NpgsqlDbType.Varchar) { Value = (object?)row.Lane ?? DBNull.Value });

@@ -6,7 +6,7 @@ namespace Acta;
 /// What a job is: an ordinary job, or the one permanent job a scheduled definition fires through. The kind is set when the job is
 /// created and never changes.
 /// </summary>
-/// <remarks>Code reads the kind instead of inferring it from a deduplication key or from the schedules a row owns.</remarks>
+/// <remarks>Code reads the kind instead of inferring it from an idempotency key or from the schedules a row owns.</remarks>
 [JsonConverter(typeof(JobKindCodeJsonConverter))]
 [CodeKind("job-kind")]
 public enum JobKindCode : byte

@@ -22,10 +22,7 @@ public sealed class SqliteAmbientTransactionScopeSpec
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
-        return await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", payload, DeduplicationKey: Unique("ambient")),
-            ct
-        );
+        return await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload, IdempotencyKey: Unique("ambient")), ct);
     }
 
     [Fact(DisplayName = "An owned enqueue inside an ambient TransactionScope throws the documented rejection")]

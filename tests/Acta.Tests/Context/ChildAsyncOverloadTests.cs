@@ -6,7 +6,7 @@ namespace Acta.Tests.Context;
 /// Overload-resolution and forwarding tests for the positional-<c>ct</c> convenience overloads of
 /// <c>EnqueueChildAsync{TInput}</c> and <c>CallChildAsync</c>: a bare <c>ct</c> in the third slot
 /// must resolve to the new overload and behave identically to the named
-/// <c>configure: null, ct: ct</c> form (same deduplication key, same parent, same outcome).
+/// <c>configure: null, ct: ct</c> form (same idempotency key, same parent, same outcome).
 /// </summary>
 public sealed class ChildAsyncOverloadTests
 {
@@ -23,7 +23,7 @@ public sealed class ChildAsyncOverloadTests
 
         var positional = Assert.Single(viaPositional.StartOptions);
         var named = Assert.Single(viaNamed.StartOptions);
-        Assert.Equal("reserve-inventory", positional.DeduplicationKey);
+        Assert.Equal("reserve-inventory", positional.IdempotencyKey);
         Assert.Equivalent(named, positional);
     }
 
@@ -36,7 +36,7 @@ public sealed class ChildAsyncOverloadTests
 
         Assert.True(outcome.Succeeded);
         var options = Assert.Single(ctx.StartOptions);
-        Assert.Equal("reserve-inventory", options.DeduplicationKey);
+        Assert.Equal("reserve-inventory", options.IdempotencyKey);
         Assert.Equal(ctx.JobId, options.ParentJobId);
     }
 
@@ -70,7 +70,7 @@ public sealed class ChildAsyncOverloadTests
             var ctx = new RecordingJobContext { SeededChildResult = 42 };
             await call(ctx);
             Assert.Equal(sink, ctx.Events[0]);
-            Assert.Equal("child", Assert.Single(ctx.StartOptions).DeduplicationKey);
+            Assert.Equal("child", Assert.Single(ctx.StartOptions).IdempotencyKey);
         }
     }
 

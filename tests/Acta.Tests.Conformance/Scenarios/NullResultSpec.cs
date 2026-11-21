@@ -58,13 +58,13 @@ public sealed class NullResultSpec : ActaRuntimeTestBase<ConformanceFixture, Job
     {
         var ct = TestContext.Current.CancellationToken;
         var key = Unique("lookup");
-        var job = await Jobs.EnqueueAsync(new NullResultInput(1), o => o.DeduplicationKey(key), ct);
+        var job = await Jobs.EnqueueAsync(new NullResultInput(1), o => o.IdempotencyKey(key), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(job, ct));
 
-        // The call's deduplication key lands it on the job that already succeeded with no result.
+        // The call's idempotency key lands it on the job that already succeeded with no result.
         var outcome = await Jobs.CallAsync(
             TestJobsManifest.NullResult(new NullResultInput(1)),
-            new JobExecutionOptions { DeduplicationKey = key, WaitTimeout = SpecWaits.Gate },
+            new JobExecutionOptions { IdempotencyKey = key, WaitTimeout = SpecWaits.Gate },
             ct
         );
 

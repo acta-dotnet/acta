@@ -69,13 +69,13 @@ internal static class CliOutput
                 w.WriteString("jobNamespace", snapshot.JobNamespace);
                 w.WriteString("jobName", snapshot.JobName);
                 WriteJsonStringOrNull(w, "tenantName", snapshot.TenantName);
-                if (snapshot.DeduplicationKey is { } key)
+                if (snapshot.IdempotencyKey is { } key)
                 {
-                    w.WriteString("deduplicationKey", key);
+                    w.WriteString("idempotencyKey", key);
                 }
                 else
                 {
-                    w.WriteNull("deduplicationKey");
+                    w.WriteNull("idempotencyKey");
                 }
                 w.WriteString("status", snapshot.Status.Code);
                 w.WriteString("createdAtUtc", snapshot.CreatedAtUtc);
@@ -88,7 +88,7 @@ internal static class CliOutput
         writer.WriteLine($"namespace: {snapshot.JobNamespace}");
         writer.WriteLine($"name: {snapshot.JobName}");
         writer.WriteLine($"tenant: {snapshot.TenantName ?? "(none)"}");
-        writer.WriteLine($"deduplication-key: {snapshot.DeduplicationKey ?? "(none)"}");
+        writer.WriteLine($"idempotency-key: {snapshot.IdempotencyKey ?? "(none)"}");
         writer.WriteLine($"status: {snapshot.Status.Code}");
         writer.WriteLine($"created-utc: {Instant(snapshot.CreatedAtUtc)}");
         writer.WriteLine($"failure-count: {snapshot.FailureCount}");
@@ -537,22 +537,22 @@ internal static class CliOutput
         writer.WriteLine("       <app> jobs deploy [--force] [--json]");
         writer.WriteLine();
         writer.WriteLine("Verbs:");
-        writer.WriteLine("  info     <job-ref|deduplication-key|id:n>        print the job row");
-        writer.WriteLine("  status   <job-ref|deduplication-key|id:n>        print the current status");
-        writer.WriteLine("  result   <job-ref|deduplication-key|id:n>        print the latest result payload");
-        writer.WriteLine("  cancel   <job-ref|deduplication-key>             cancel the job (cascades to children)");
-        writer.WriteLine("  pause    <job-ref|deduplication-key>             pause a job before it runs");
+        writer.WriteLine("  info     <job-ref|idempotency-key|id:n>          print the job row");
+        writer.WriteLine("  status   <job-ref|idempotency-key|id:n>          print the current status");
+        writer.WriteLine("  result   <job-ref|idempotency-key|id:n>          print the latest result payload");
+        writer.WriteLine("  cancel   <job-ref|idempotency-key>               cancel the job (cascades to children)");
+        writer.WriteLine("  pause    <job-ref|idempotency-key>               pause a job before it runs");
         writer.WriteLine(
-            "  resume   <job-ref|deduplication-key>             resume a paused job at its next run time, or now if past or suspended"
+            "  resume   <job-ref|idempotency-key>               resume a paused job at its next run time, or now if past or suspended"
         );
-        writer.WriteLine("  restart  <job-ref|deduplication-key>             reset any non-executing job to ready");
-        writer.WriteLine("  signal   <job-ref|deduplication-key> <name>      raise a signal (add --value for a payload)");
-        writer.WriteLine("  clear-signal <job-ref|deduplication-key> <name>  clear a finished job's signal before a restart");
+        writer.WriteLine("  restart  <job-ref|idempotency-key>               reset any non-executing job to ready");
+        writer.WriteLine("  signal   <job-ref|idempotency-key> <name>        raise a signal (add --value for a payload)");
+        writer.WriteLine("  clear-signal <job-ref|idempotency-key> <name>    clear a finished job's signal before a restart");
         writer.WriteLine(
-            "  debug    <job-ref|deduplication-key>             run only this one job in-process (this worker runs nothing else)"
+            "  debug    <job-ref|idempotency-key>               run only this one job in-process (this worker runs nothing else)"
         );
-        writer.WriteLine("  events   <job-ref|deduplication-key|id:n>        print the job's audit timeline newest first");
-        writer.WriteLine("  explain  <job-ref|deduplication-key|id:n>        explain the job's state in plain English + next action");
+        writer.WriteLine("  events   <job-ref|idempotency-key|id:n>          print the job's audit timeline newest first");
+        writer.WriteLine("  explain  <job-ref|idempotency-key|id:n>          explain the job's state in plain English + next action");
         writer.WriteLine("  migrate                                          apply the Acta migrations this database lacks, then deploy");
         writer.WriteLine("  deploy                                           write this build's job definitions and schedules, then exit");
         writer.WriteLine();
@@ -562,13 +562,13 @@ internal static class CliOutput
         writer.WriteLine("  --actor <name>   actor a control records on its event (default: the operating system's user name)");
         writer.WriteLine("  --take <n>       events page size (default 50, max 100)");
         writer.WriteLine("  --after <cursor> events continuation cursor from a previous page");
-        writer.WriteLine("  --ns <ns>        namespace for deduplication-key lookups (required with several registered)");
+        writer.WriteLine("  --ns <ns>        namespace for idempotency-key lookups (required with several registered)");
         writer.WriteLine("  --break          debug: raise the debugger and stop at the job's handler entry");
         writer.WriteLine("  --force          deploy/migrate: deploy a build that deployed earlier and is no longer current");
         writer.WriteLine("  --json           print the result as JSON");
         writer.WriteLine();
         writer.WriteLine("A job_... target is a job ref, id:<n> the internal job id from a log line (reads only),");
-        writer.WriteLine("and any other target, a bare integer included, a deduplication key (see --ns).");
+        writer.WriteLine("and any other target, a bare integer included, an idempotency key (see --ns).");
         writer.WriteLine("Omit a read's target to take it from the clipboard; a control always names its job.");
         writer.WriteLine();
         writer.WriteLine($"Registered namespaces: {(namespaces.Count == 0 ? "(none)" : string.Join(", ", namespaces))}");

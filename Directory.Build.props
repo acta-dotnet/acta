@@ -26,7 +26,7 @@
   <!-- Permanent suppressions. Each rule here asks for a change Acta has deliberately decided against,
        so it is turned off with its reason recorded rather than satisfied in code. -->
   <PropertyGroup>
-    <!-- Canonical identifiers, deduplication keys, slugs, and operator-facing tokens are lowercase
+    <!-- Canonical identifiers, idempotency keys, slugs, and operator-facing tokens are lowercase
          ASCII by design; CA1308's uppercase-normalization guidance conflicts with that. -->
     <NoWarn>$(NoWarn);CA1308</NoWarn>
     <!-- Code-family and transport enums intentionally use byte/short backing types to match persisted

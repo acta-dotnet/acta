@@ -19,7 +19,7 @@ BEGIN TRY
         admit BIT NOT NULL,
         envelope NVARCHAR(MAX) NULL,
         job_ref UNIQUEIDENTIFIER NULL,
-        deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+        idempotency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
         trigger_message NVARCHAR(512) NULL,
         trigger_actor NVARCHAR(128) NULL,
         trigger_details NVARCHAR(MAX) NULL);
@@ -45,14 +45,14 @@ BEGIN TRY
 
     INSERT INTO @groups (
         ordinal, job_id, expected_job_version, schedule_id, expected_state_version, admit, envelope,
-        job_ref, deduplication_key, trigger_message, trigger_actor, trigger_details)
+        job_ref, idempotency_key, trigger_message, trigger_actor, trigger_details)
     SELECT
         ordinal, job_id, expected_job_version, schedule_id, expected_state_version, admit, envelope,
-        job_ref, deduplication_key, trigger_message, trigger_actor, trigger_details
+        job_ref, idempotency_key, trigger_message, trigger_actor, trigger_details
     FROM OPENJSON(@p_groups) WITH (
         ordinal INT '$.ordinal', job_id BIGINT '$.job_id', expected_job_version BIGINT '$.expected_job_version',
         schedule_id INT '$.schedule_id', expected_state_version INT '$.expected_state_version', admit BIT '$.admit',
-        envelope NVARCHAR(MAX) '$.envelope', job_ref UNIQUEIDENTIFIER '$.job_ref', deduplication_key VARCHAR(128) '$.deduplication_key',
+        envelope NVARCHAR(MAX) '$.envelope', job_ref UNIQUEIDENTIFIER '$.job_ref', idempotency_key VARCHAR(128) '$.idempotency_key',
         trigger_message NVARCHAR(512) '$.trigger_message', trigger_actor NVARCHAR(128) '$.trigger_actor',
         trigger_details NVARCHAR(MAX) '$.trigger_details');
 
@@ -138,12 +138,12 @@ BEGIN TRY
         AND g.job_id IS NULL
         AND EXISTS (
             SELECT 1
-            FROM {{schema}}.jobs d WITH (FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
+            FROM {{schema}}.jobs d WITH (FORCESEEK, INDEX (ux_jobs_idempotency_key_root))
             WHERE
                 d.namespace_id = @p_namespace_id
-                AND d.deduplication_key = g.deduplication_key
+                AND d.idempotency_key = g.idempotency_key
                 AND d.parent_job_id IS NULL
-                AND d.deduplication_key IS NOT NULL
+                AND d.idempotency_key IS NOT NULL
         );
 
     UPDATE a
@@ -168,10 +168,10 @@ BEGIN TRY
     -- schedule as its provenance, no lane and no tenant, keyed so the same occurrence is never admitted twice. Ready at
     -- once. Identity values follow the plan's order.
     INSERT INTO {{schema}}.jobs (
-        job_kind_code, job_ref, deduplication_key, namespace_id, definition_id, schedule_id,
+        job_kind_code, job_ref, idempotency_key, namespace_id, definition_id, schedule_id,
         input_format_id, input, event_recording_code, created_at_utc)
     SELECT
-        10 /* JobKindCode.Ordinary */, g.job_ref, g.deduplication_key, @p_namespace_id, js.definition_id, g.schedule_id,
+        10 /* JobKindCode.Ordinary */, g.job_ref, g.idempotency_key, @p_namespace_id, js.definition_id, g.schedule_id,
         jd.default_input_format_id, jd.default_input, jd.event_recording_code_effective, @now
     FROM @groups g
     INNER JOIN @valid v ON v.ordinal = g.ordinal

@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 /// <summary>
 /// Conformance for <c>GetJob</c>: a point-read that returns the <c>GetJobResponse</c> projection for a
 /// known job id, and <c>null</c> for an unknown id. Exercises the column mapping (id, status,
-/// deduplication key, namespace, name, definition, priority, execution number, parent, next run,
+/// idempotency key, namespace, name, definition, priority, execution number, parent, next run,
 /// the input's and the result's format and size, tenant) and the absent-row sentinel.
 /// </summary>
 [ConformanceSpec(
@@ -28,7 +28,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         _ = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
-        var deduplicationKey = Unique("get-job");
+        var idempotencyKey = Unique("get-job");
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = (
             await EnqueueTestOps.EnqueueJobsAsync(
@@ -38,7 +38,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
                         NamespaceName: TestNamespace,
                         JobName: "add-numbers",
                         Input: payload,
-                        DeduplicationKey: deduplicationKey
+                        IdempotencyKey: idempotencyKey
                     ),
                 ],
                 ct
@@ -51,7 +51,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         Assert.NotNull(snapshot);
         Assert.Equal(jobId, snapshot!.JobId);
         Assert.Equal(JobStatusCode.Ready, snapshot.Status);
-        Assert.Equal(deduplicationKey, snapshot.DeduplicationKey);
+        Assert.Equal(idempotencyKey, snapshot.IdempotencyKey);
         Assert.Equal(TestNamespace, snapshot.JobNamespace);
         Assert.Equal("add-numbers", snapshot.JobName);
         // The job's namespace+name pair addresses the catalog row its definition id points at.

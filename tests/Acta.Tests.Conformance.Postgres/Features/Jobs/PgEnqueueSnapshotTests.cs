@@ -61,12 +61,12 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
             await cmd.ExecuteScalarAsync(ct);
         }
 
-        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, DeduplicationKey: key), ct);
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, IdempotencyKey: key), ct);
 
         // The key exists and this transaction cannot see it: neither a second job nor the first one's id is an honest
         // answer, so the caller retries its transaction, as for any serialization failure.
         var failed = await Assert.ThrowsAnyAsync<Exception>(() =>
-            Jobs.EnqueueAsync(transaction, new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, DeduplicationKey: key), ct)
+            Jobs.EnqueueAsync(transaction, new EnqueueJobRequest(TestNamespace, "add-numbers", Payload, IdempotencyKey: key), ct)
         );
         Assert.Equal("40001", Assert.IsType<Npgsql.PostgresException>(failed).SqlState);
     }

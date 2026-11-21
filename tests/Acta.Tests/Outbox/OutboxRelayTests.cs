@@ -19,7 +19,7 @@ public sealed class OutboxRelayTests
     private static long _staged;
 
     private static ClaimOutboxRow Row(
-        string dedup,
+        string idempotencyKey,
         string ns = "orders",
         string job = "process",
         int failureCount = 0,
@@ -34,7 +34,7 @@ public sealed class OutboxRelayTests
             job,
             data is null ? (byte)0 : (byte)1,
             data,
-            dedup,
+            idempotencyKey,
             null,
             null,
             null,
@@ -76,7 +76,7 @@ public sealed class OutboxRelayTests
 
         var batch = Assert.Single(target.Batches);
         var request = Assert.Single(batch);
-        Assert.Equal("k1", request.DeduplicationKey);
+        Assert.Equal("k1", request.IdempotencyKey);
         Assert.Equal([early.JobRef, late.JobRef], store.Deleted.ToHashSet());
         // Two rows claimed, one job inserted, one coalesced member absorbed as a dedup.
         Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0), summary);
@@ -141,7 +141,7 @@ public sealed class OutboxRelayTests
         Assert.Equal([first.JobRef, untenanted.JobRef], store.Deleted.ToHashSet());
         var refused = Assert.Single(store.Rescheduled);
         Assert.Equal((other.JobRef, 1), (refused.JobRef, refused.FailureCount));
-        Assert.Equal("Enqueue rejected: the deduplication key belongs to another tenant's job.", refused.LastError);
+        Assert.Equal("Enqueue rejected: the idempotency key belongs to another tenant's job.", refused.LastError);
         Assert.Equal(new OutboxTickSummary(3, 1, 1, 0, 0), summary);
     }
 
@@ -164,7 +164,7 @@ public sealed class OutboxRelayTests
     [Fact]
     public async Task A_deterministic_rejection_retries_each_group_individually_isolating_the_bad_group()
     {
-        // Three distinct (namespace, dedup) groups; one carries a bad route. The whole-batch attempt is
+        // Three distinct (namespace, idempotency key) groups; one carries a bad route. The whole-batch attempt is
         // rejected, so the relay retries each group on its own: the two good groups ingest and delete, the
         // bad group reschedules. That is one whole-batch attempt plus three per-group attempts (four target
         // calls), the linear per-group shape - not a binary split, which would make five calls for three.
@@ -269,7 +269,7 @@ public sealed class OutboxRelayTests
     [Fact]
     public async Task A_group_rejection_increments_each_rows_own_count_and_only_over_threshold_rows_quarantine()
     {
-        // One (namespace, dedup) group with two staged duplicates at different failure counts: 0 and 4.
+        // One (namespace, idempotency key) group with two staged duplicates at different failure counts: 0 and 4.
         var fresh = Row("k1", failureCount: 0, id: Guid.NewGuid());
         var aged = Row("k1", failureCount: 4, id: Guid.NewGuid());
         var store = new FakeStore(fresh, aged);
@@ -470,7 +470,7 @@ public sealed class OutboxRelayTests
         {
             if (call.Stem == "EnqueueJob")
             {
-                return [new Enqueued((string)call.Parameters["p_job_name"]!, call.Parameters["p_deduplication_key"] as string)];
+                return [new Enqueued((string)call.Parameters["p_job_name"]!, call.Parameters["p_idempotency_key"] as string)];
             }
 
             using var document = JsonDocument.Parse((string)call.Parameters["p_rows"]!);
@@ -478,16 +478,13 @@ public sealed class OutboxRelayTests
             [
                 .. document
                     .RootElement.EnumerateArray()
-                    .Select(row => new Enqueued(
-                        row.GetProperty("job_name").GetString()!,
-                        row.GetProperty("deduplication_key").GetString()
-                    )),
+                    .Select(row => new Enqueued(row.GetProperty("job_name").GetString()!, row.GetProperty("idempotency_key").GetString())),
             ];
         }
     }
 
     /// <summary>One enqueued row as the target bound it.</summary>
-    private sealed record Enqueued(string JobName, string? DeduplicationKey);
+    private sealed record Enqueued(string JobName, string? IdempotencyKey);
 
     // The real outbox source over a scripted session, binding through the SQLite source dialect.
     private static OutboxOperations.Source Source(Func<BoundCall, object?> answer) =>

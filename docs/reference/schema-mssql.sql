@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261120230853_init has no upgrade path: provision a new one.
+-- init migration other than M20261120234904_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261120230853_init')
+    WHERE name NOT IN ('M20261120234904_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261120230853_init =====
+-- ===== BEGIN M20261120234904_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -276,7 +276,7 @@ CREATE TABLE acta.jobs (
     parent_job_id bigint NULL,
     tenant_id int NULL,
     schedule_id int NULL,
-    deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    idempotency_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     correlation_key varchar(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     concurrency_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     input_format_id tinyint NOT NULL,
@@ -290,8 +290,8 @@ ALTER TABLE acta.jobs SET (LOCK_ESCALATION = DISABLE);
 CREATE INDEX ix_jobs_parent ON acta.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
 CREATE INDEX ix_jobs_namespace_created ON acta.jobs (namespace_id, created_at_utc DESC, job_id DESC) WITH (ALLOW_PAGE_LOCKS = OFF);
 CREATE UNIQUE INDEX ux_jobs_ref ON acta.jobs (job_ref) WITH (ALLOW_PAGE_LOCKS = OFF);
-CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON acta.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL WITH (ALLOW_PAGE_LOCKS = OFF);
-CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON acta.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_idempotency_key_root ON acta.jobs (namespace_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_idempotency_key_child ON acta.jobs (parent_job_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND parent_job_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
 CREATE UNIQUE INDEX ux_jobs_slot ON acta.jobs (definition_id) WHERE job_kind_code = 20 WITH (ALLOW_PAGE_LOCKS = OFF);
 END
 GO
@@ -574,7 +574,7 @@ EXEC(N'CREATE TYPE acta.enqueue_jobs AS TABLE (
     job_ref                    UNIQUEIDENTIFIER NOT NULL,
     namespace_name             VARCHAR(128)     NOT NULL,
     job_name                   VARCHAR(128)     NOT NULL,
-    deduplication_key          VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    idempotency_key            VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     correlation_key            VARCHAR(64)      COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     job_priority_code_override TINYINT          NULL,
     input_format_id            TINYINT          NOT NULL,
@@ -1064,7 +1064,7 @@ BEGIN
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
                 execution_number BIGINT NOT NULL,
-                deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                idempotency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 job_kind_code TINYINT NOT NULL,
                 correlation_key VARCHAR(64) NULL,
                 concurrency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
@@ -1148,7 +1148,7 @@ BEGIN
             j.definition_id,
             j.tenant_id,
             INSERTED.execution_number,
-            j.deduplication_key,
+            j.idempotency_key,
             j.job_kind_code,
             j.correlation_key,
             j.concurrency_key,
@@ -1163,7 +1163,7 @@ BEGIN
         INTO
             @claimed (
                 job_id, job_ref, definition_id, tenant_id, execution_number,
-                deduplication_key, job_kind_code, correlation_key, concurrency_key,
+                idempotency_key, job_kind_code, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 failure_count, lane_id, parent_job_id, schedule_id
             )
@@ -1180,7 +1180,7 @@ BEGIN
                     job_id,
                     definition_id,
                     execution_number,
-                    deduplication_key,
+                    idempotency_key,
                     job_kind_code,
                     correlation_key,
                     concurrency_key,
@@ -1206,7 +1206,7 @@ BEGIN
                     CAST(NULL AS BIGINT) AS job_id,
                     CAST(NULL AS INT) AS definition_id,
                     CAST(NULL AS BIGINT) AS execution_number,
-                    CAST(NULL AS VARCHAR(128)) AS deduplication_key,
+                    CAST(NULL AS VARCHAR(128)) AS idempotency_key,
                     CAST(NULL AS TINYINT) AS job_kind_code,
                     CAST(NULL AS VARCHAR(64)) AS correlation_key,
                     CAST(NULL AS VARCHAR(128)) AS concurrency_key,
@@ -1788,7 +1788,7 @@ BEGIN
                         -- The landing names the child as its parent named it, how it ended, and the child's own message; the cast
                         -- caps it in UTF-16 units, which LEFT does not count under a supplementary-character collation.
                         CAST(LEFT(
-                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
+                            N'Child ' + COALESCE(N'''' + j.idempotency_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
                             + CASE d.job_status_code
                                 WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
                                 WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
@@ -2086,7 +2086,7 @@ CREATE OR ALTER PROCEDURE acta.enqueue_job
     @p_job_ref UNIQUEIDENTIFIER = NULL,
     @p_namespace_name VARCHAR(128) = NULL,
     @p_job_name VARCHAR(128) = NULL,
-    @p_deduplication_key VARCHAR(128) = NULL,
+    @p_idempotency_key VARCHAR(128) = NULL,
     @p_correlation_key VARCHAR(64) = NULL,
     @p_job_priority_code_override TINYINT = NULL,
     @p_input_format_id TINYINT = NULL,
@@ -2131,7 +2131,7 @@ BEGIN
 
         -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
         -- Strings compare padded here, so a key of spaces is refused with the empty one, as PostgreSQL's trim does.
-        IF @p_deduplication_key = '' OR @p_correlation_key = '' OR @p_concurrency_key = ''
+        IF @p_idempotency_key = '' OR @p_correlation_key = '' OR @p_concurrency_key = ''
             THROW 50015, 'Enqueue rejected: a key is blank. Pass NULL for no key.', 1;
 
         SELECT
@@ -2234,7 +2234,7 @@ BEGIN
                     END;
             END;
 
-        IF @p_deduplication_key IS NOT NULL
+        IF @p_idempotency_key IS NOT NULL
             BEGIN
                 -- The key's own lock serializes enqueues of one key to commit (docs/sql-internals.md,
                 -- "Deduplication lock"); the same name in enqueue_jobs.
@@ -2242,13 +2242,13 @@ BEGIN
                     N'acta.dedup:',
                     CASE WHEN @p_parent_job_id IS NULL THEN CONCAT(N'n', @ns_id) ELSE CONCAT(N'p', @p_parent_job_id) END,
                     N':',
-                    @p_deduplication_key
+                    @p_idempotency_key
                 );
                 DECLARE @dedup_lock_result INT;
                 -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
                 EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
                 IF @dedup_lock_result < 0
-                    THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+                    THROW 51205, 'ACTA:DEDUP_LOCK:The idempotency key lock was not granted (deadlock victim or cancelled).', 1;
 
                 -- Each probe seeks its dedup index, the index's filter restated: a scan under UPDLOCK locks every row it
                 -- reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
@@ -2257,12 +2257,12 @@ BEGIN
                         SELECT
                             @existing_id = j.job_id,
                             @existing_ref = j.job_ref
-                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
+                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_idempotency_key_child))
                         WHERE
                             j.parent_job_id = @p_parent_job_id
-                            AND j.deduplication_key = @p_deduplication_key
+                            AND j.idempotency_key = @p_idempotency_key
                             AND j.parent_job_id IS NOT NULL
-                            AND j.deduplication_key IS NOT NULL;
+                            AND j.idempotency_key IS NOT NULL;
                     END
                 ELSE
                     BEGIN
@@ -2270,17 +2270,17 @@ BEGIN
                             @existing_id = j.job_id,
                             @existing_ref = j.job_ref,
                             @existing_tenant = j.tenant_id
-                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
+                        FROM acta.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_idempotency_key_root))
                         WHERE
                             j.namespace_id = @ns_id
-                            AND j.deduplication_key = @p_deduplication_key
+                            AND j.idempotency_key = @p_idempotency_key
                             AND j.parent_job_id IS NULL
-                            AND j.deduplication_key IS NOT NULL;
+                            AND j.idempotency_key IS NOT NULL;
                     END;
 
                 -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
                 IF @existing_tenant IS NOT NULL AND @tenant_id IS NOT NULL AND @existing_tenant <> @tenant_id
-                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.', 1;
+                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the idempotency key belongs to another tenant''s job.', 1;
             END;
 
         IF @p_parent_job_id IS NOT NULL
@@ -2366,7 +2366,7 @@ BEGIN
             BEGIN
                 INSERT INTO acta.jobs (
                     job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
+                    idempotency_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
                     concurrency_key, event_recording_code,
@@ -2374,7 +2374,7 @@ BEGIN
                 )
                 VALUES (
                     10 /* JobKindCode.Ordinary */, @p_job_ref, @lineage, @p_parent_job_id,
-                    @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
+                    @p_idempotency_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE
                         WHEN @def_tenant_req = 30 /* TenantRequirementCode.Forbidden */ THEN NULL
@@ -2668,7 +2668,7 @@ BEGIN
         IF
             EXISTS (
                 SELECT 1 FROM @p_batch
-                WHERE deduplication_key IS NOT NULL
+                WHERE idempotency_key IS NOT NULL
             )
             BEGIN
                 -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
@@ -2680,12 +2680,12 @@ BEGIN
                         N'acta.dedup:',
                         CASE WHEN b.parent_job_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_job_id) END,
                         N':',
-                        b.deduplication_key
+                        b.idempotency_key
                     )
                 FROM @p_batch b
                 LEFT JOIN @resolved r ON r.ordinal = b.ordinal
                 WHERE
-                    b.deduplication_key IS NOT NULL
+                    b.idempotency_key IS NOT NULL
                     AND (b.parent_job_id IS NOT NULL OR r.ns_id IS NOT NULL);
 
                 DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks), @dedup_lock_result INT;
@@ -2694,7 +2694,7 @@ BEGIN
                         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
                         EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
                         IF @dedup_lock_result < 0
-                            THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+                            THROW 51205, 'ACTA:DEDUP_LOCK:The idempotency key lock was not granted (deadlock victim or cancelled).', 1;
                         SET @dedup_lock = (SELECT MIN(name) FROM @dedup_locks WHERE name > @dedup_lock);
                     END;
 
@@ -2707,14 +2707,14 @@ BEGIN
                     j.job_id,
                     j.job_ref
                 FROM @p_batch b
-                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_job_id, deduplication_key)))
+                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_idempotency_key_child (parent_job_id, idempotency_key)))
                     ON
                         j.parent_job_id = b.parent_job_id
-                        AND j.deduplication_key = b.deduplication_key
+                        AND j.idempotency_key = b.idempotency_key
                         AND j.parent_job_id IS NOT NULL
-                        AND j.deduplication_key IS NOT NULL
+                        AND j.idempotency_key IS NOT NULL
                 WHERE
-                    b.deduplication_key IS NOT NULL
+                    b.idempotency_key IS NOT NULL
                     AND b.parent_job_id IS NOT NULL;
 
                 INSERT INTO @existing (ordinal, job_id, job_ref)
@@ -2724,14 +2724,14 @@ BEGIN
                     j.job_ref
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
+                INNER JOIN acta.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_idempotency_key_root (namespace_id, idempotency_key)))
                     ON
                         j.namespace_id = r.ns_id
-                        AND j.deduplication_key = b.deduplication_key
+                        AND j.idempotency_key = b.idempotency_key
                         AND j.parent_job_id IS NULL
-                        AND j.deduplication_key IS NOT NULL
+                        AND j.idempotency_key IS NOT NULL
                 WHERE
-                    b.deduplication_key IS NOT NULL
+                    b.idempotency_key IS NOT NULL
                     AND b.parent_job_id IS NULL;
 
                 -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it
@@ -2744,7 +2744,7 @@ BEGIN
                         INNER JOIN acta.jobs j ON j.job_id = x.job_id
                         WHERE j.parent_job_id IS NULL AND j.tenant_id <> r.tenant_id
                     )
-                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.', 1;
+                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name an idempotency key another tenant''s job holds.', 1;
             END;
 
         DECLARE @parents TABLE (
@@ -2885,7 +2885,7 @@ BEGIN
             BEGIN
                 INSERT INTO acta.jobs (
                     job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
+                    idempotency_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
                     concurrency_key, event_recording_code,
@@ -2897,7 +2897,7 @@ BEGIN
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,
-                    b.deduplication_key,
+                    b.idempotency_key,
                     COALESCE(b.correlation_key, p.correlation_key),
                     r.ns_id,
                     r.def_id,
@@ -2941,7 +2941,7 @@ BEGIN
             BEGIN
                 INSERT INTO acta.jobs (
                     job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
-                    deduplication_key, correlation_key,
+                    idempotency_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
                     concurrency_key, event_recording_code,
@@ -2953,7 +2953,7 @@ BEGIN
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,
-                    b.deduplication_key,
+                    b.idempotency_key,
                     COALESCE(b.correlation_key, p.correlation_key),
                     r.ns_id,
                     r.def_id,
@@ -3371,7 +3371,7 @@ BEGIN
             @p_event_message,
             N'Child '
             + COALESCE(
-                (SELECT N'''' + c.deduplication_key COLLATE DATABASE_DEFAULT + N'''' FROM acta.jobs c WHERE c.job_id = @p_child_job_id),
+                (SELECT N'''' + c.idempotency_key COLLATE DATABASE_DEFAULT + N'''' FROM acta.jobs c WHERE c.job_id = @p_child_job_id),
                 N'job ' + CONVERT(NVARCHAR(20), @p_child_job_id)
             )
             + N' '
@@ -4433,7 +4433,7 @@ BEGIN
                 + CASE
                     WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                         THEN N'child ' + COALESCE(
-                            N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
+                            N'''' + ch.idempotency_key COLLATE DATABASE_DEFAULT + N'''',
                             N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
                         )
                     ELSE N'signal ''' + @p_checkpoint_name + N''''
@@ -4447,7 +4447,7 @@ BEGIN
                     -- the other providers do not, and a map child's name holds one.
                     + CAST(
                         REPLACE(
-                            STRING_ESCAPE(COALESCE(ch.deduplication_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json'),
+                            STRING_ESCAPE(COALESCE(ch.idempotency_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json'),
                             '\/',
                             '/'
                         ) AS VARCHAR(1024)
@@ -4696,7 +4696,7 @@ SELECT
     j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
     r.job_status_code,
-    j.deduplication_key,
+    j.idempotency_key,
     j.correlation_key,
     j.concurrency_key,
     lane.lane_name,
@@ -4859,11 +4859,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261120230853_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261120234904_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261120230853_init');
+VALUES ('M20261120234904_init');
 GO
--- ===== END M20261120230853_init =====
+-- ===== END M20261120234904_init =====
 GO
 COMMIT TRANSACTION;
 GO

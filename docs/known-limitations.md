@@ -143,7 +143,7 @@ Acta requires no ambient isolation level: every mutation is guarded by explicit 
 compare-and-swap predicate, so job correctness does not depend on snapshot isolation. On SQL Server it
 runs and is tested with READ_COMMITTED_SNAPSHOT on and off: no Acta statement waits on an
 application's open transaction, except the write-write waits RCSI has too (the same lane, parent
-row, or deduplication key), a lookup of the very job that transaction is still enqueuing, and a
+row, or idempotency key), a lookup of the very job that transaction is still enqueuing, and a
 statement of that transaction that locks a whole page or table, which no read can skip. Without RCSI
 two things differ: a tree cancel waits for a transaction that is enqueuing a child into the tree, and
 Explain is not one snapshot. In both modes a dashboard page or count can briefly miss a row another

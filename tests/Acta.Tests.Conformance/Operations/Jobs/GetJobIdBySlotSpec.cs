@@ -27,7 +27,7 @@ public sealed class GetJobIdBySlotSpec : ActaStorageTestBase<ConformanceFixture>
         var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct))[jobName];
         var ordinary = await Services
             .GetRequiredService<IJobs>()
-            .EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, JobPayload.Json(1), DeduplicationKey: jobName), ct);
+            .EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, JobPayload.Json(1), IdempotencyKey: jobName), ct);
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,

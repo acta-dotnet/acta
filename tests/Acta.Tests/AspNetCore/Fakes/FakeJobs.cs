@@ -401,7 +401,7 @@ internal sealed class FakeJobs : IJobs
 
     private GetJobResponse? Detail(JobLookup job)
     {
-        if (IsFound(job) || (job.JobNamespace == "billing" && job.DeduplicationKey == "ck-1"))
+        if (IsFound(job) || (job.JobNamespace == "billing" && job.IdempotencyKey == "ck-1"))
         {
             return Snapshot(42, "billing", "send-invoice", StoredInput, StoredResult);
         }
@@ -421,9 +421,9 @@ internal sealed class FakeJobs : IJobs
     {
         EnqueueRequests.Add(request);
 
-        // Second enqueue of a deduplication key matches the first, as the real store does: the
+        // Second enqueue of an idempotency key matches the first, as the real store does: the
         // endpoint distinguishes created from matched, so the fake has to as well.
-        if (request.DeduplicationKey is { Length: > 0 } key && _deduplicated.TryGetValue(key, out var existing))
+        if (request.IdempotencyKey is { Length: > 0 } key && _deduplicated.TryGetValue(key, out var existing))
         {
             return new EnqueueJobResponse(existing.Id, existing.Ref, EnqueueJobAction.Deduplicated);
         }
@@ -432,7 +432,7 @@ internal sealed class FakeJobs : IJobs
         var jobRef = EnqueuedRef(id);
         _enqueuedRefs[jobRef.Value] = id;
         _enqueuedInputs[id] = request.Input.IsNone ? null : request.Input;
-        if (request.DeduplicationKey is { Length: > 0 } fresh)
+        if (request.IdempotencyKey is { Length: > 0 } fresh)
         {
             _deduplicated[fresh] = (id, jobRef);
         }
@@ -495,7 +495,7 @@ internal sealed class FakeJobs : IJobs
             LineageRootJobRef: null,
             ParentJobId: null,
             ParentJobRef: null,
-            DeduplicationKey: "ck-1",
+            IdempotencyKey: "ck-1",
             CorrelationKey: null,
             JobNamespace: jobNamespace,
             JobName: jobName,

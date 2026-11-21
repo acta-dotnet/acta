@@ -41,7 +41,7 @@ internal sealed class CliCommandRunner(
             if (!read)
             {
                 await error.WriteLineAsync(
-                    "Job target is missing: a control takes the job ref or deduplication key of its job; only a read takes it from the clipboard."
+                    "Job target is missing: a control takes the job ref or idempotency key of its job; only a read takes it from the clipboard."
                 );
                 return ExitUsage;
             }
@@ -49,7 +49,7 @@ internal sealed class CliCommandRunner(
             if (!CliClipboard.TryResolveTarget((clipboard ?? CliClipboard.ReadText)(), out var fromClipboard))
             {
                 await error.WriteLineAsync(
-                    "Job target is missing: pass a job ref, a deduplication key, or id:<n>, or copy one to the clipboard."
+                    "Job target is missing: pass a job ref, an idempotency key, or id:<n>, or copy one to the clipboard."
                 );
                 return ExitUsage;
             }
@@ -65,7 +65,7 @@ internal sealed class CliCommandRunner(
         }
 
         // One resolution up front, so every verb addresses the row by its already-resolved internal id
-        // and prints the job's public ref - whichever of ref, deduplication key, or id the operator typed.
+        // and prints the job's public ref - whichever of ref, idempotency key, or id the operator typed.
         var snapshot = await jobs.GetAsync(lookup, ct);
         if (snapshot is null)
         {
@@ -101,7 +101,7 @@ internal sealed class CliCommandRunner(
 
     /// <summary>
     /// Resolves the target as the HTTP API does: a <c>job_...</c> target is a job ref, <c>id:&lt;n&gt;</c> the internal
-    /// id, and anything else, a bare integer included, a deduplication key in the namespace. A control refuses an id,
+    /// id, and anything else, a bare integer included, an idempotency key in the namespace. A control refuses an id,
     /// which names a job in any namespace and which a restored backup reissues, so a stale one acts on another job.
     /// </summary>
     private bool TryBuildLookup(CliCommand command, bool read, out JobLookup job, out string? usageError)
@@ -119,7 +119,7 @@ internal sealed class CliCommandRunner(
             job = default;
             if (!read)
             {
-                usageError = "A control takes a job ref or a deduplication key; id:<n> addresses a job on the read verbs only.";
+                usageError = "A control takes a job ref or an idempotency key; id:<n> addresses a job on the read verbs only.";
                 return false;
             }
 
@@ -139,12 +139,12 @@ internal sealed class CliCommandRunner(
             job = default;
             usageError =
                 namespaces.Count == 0
-                    ? "Deduplication-key job needs --ns; this process registers no namespaces."
-                    : $"--ns is required for deduplication-key lookups; registered namespaces: {string.Join(", ", namespaces)}.";
+                    ? "Idempotency-key job needs --ns; this process registers no namespaces."
+                    : $"--ns is required for idempotency-key lookups; registered namespaces: {string.Join(", ", namespaces)}.";
             return false;
         }
 
-        job = JobLookup.ByDeduplicationKey(ns, target);
+        job = JobLookup.ByIdempotencyKey(ns, target);
         return true;
     }
 

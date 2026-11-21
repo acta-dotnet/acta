@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to find the child job that handles one item · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to find the child job that handles one item with Acta, durable execution for .NET. A child's name on the reads is its deduplication key, {map}/{key} for a child that a map started. List the parent's children and pick the one that carries the item's key." />
+  <meta name="description" content="How to find the child job that handles one item with Acta, durable execution for .NET. A child's name on the reads is its idempotency key, {map}/{key} for a child that a map started. List the parent's children and pick the one that carries the item's key." />
   <link rel="canonical" href="https://useacta.net/learn/222-find-child-job" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to find the child job that handles one item · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to find the child job that handles one item with Acta, durable execution for .NET. A child's name on the reads is its deduplication key, {map}/{key} for a child that a map started. List the parent's children and pick the one that carries the item's key." />
+  <meta property="og:description" content="How to find the child job that handles one item with Acta, durable execution for .NET. A child's name on the reads is its idempotency key, {map}/{key} for a child that a map started. List the parent's children and pick the one that carries the item's key." />
   <meta property="og:url" content="https://useacta.net/learn/222-find-child-job" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to find the child job that handles one item","description":"How to find the child job that handles one item with Acta, durable execution for .NET. A child's name on the reads is its deduplication key, {map}/{key} for a child that a map started. List the parent's children and pick the one that carries the item's key.","url":"https://useacta.net/learn/222-find-child-job","inLanguage":"en","articleSection":"Split work across child jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to find the child job that handles one item","description":"How to find the child job that handles one item with Acta, durable execution for .NET. A child's name on the reads is its idempotency key, {map}/{key} for a child that a map started. List the parent's children and pick the one that carries the item's key.","url":"https://useacta.net/learn/222-find-child-job","inLanguage":"en","articleSection":"Split work across child jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Split work across child jobs","item":"https://useacta.net/learn#s-children"},{"@type":"ListItem","position":3,"name":"How to find the child job that handles one item","item":"https://useacta.net/learn/222-find-child-job"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to find the child job that handles one item</h1>
-      <p class="lede">A child's name on the reads is its deduplication key, <code>{map}/{key}</code> for a child that a map started. List the parent's children and pick the one that carries the item's key.</p>
+      <p class="lede">A child's name on the reads is its idempotency key, <code>{map}/{key}</code> for a child that a map started. List the parent's children and pick the one that carries the item's key.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -77,7 +77,7 @@
       <article class="howto person-face">
 <p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
 <div class="step"><h2><span class="step-n">1</span>Start each child under the item's own key</h2>
-<p><code>itemKey</code> names each child after its item. The name is stored as the child's deduplication key, and it is how a replay of the parent and a reader from outside find the same child.</p>
+<p><code>itemKey</code> names each child after its item. The name is stored as the child's idempotency key, and it is how a replay of the parent and a reader from outside find the same child.</p>
 <figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> InvoiceJobs
 {
     <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;send-invoices&quot;</span>)]</span>
@@ -108,12 +108,12 @@
 <span class="k">await</span> parent.WaitAsync();
 
 <span class="hl"><span class="k">var</span> children = <span class="k">await</span> operations.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(Parent: parent));</span>
-<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> children.Items.OrderBy(child =&gt; child.DeduplicationKey, StringComparer.Ordinal))</span>
+<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> children.Items.OrderBy(child =&gt; child.IdempotencyKey, StringComparer.Ordinal))</span>
 <span class="hl">{</span>
-<span class="hl">    Console.WriteLine(<span class="s">$&quot;{child.DeduplicationKey}: {child.Status.Code}&quot;</span>);</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;{child.IdempotencyKey}: {child.Status.Code}&quot;</span>);</span>
 <span class="hl">}</span>
 
-<span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.DeduplicationKey == <span class="s">&quot;invoice/7&quot;</span>);
+<span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.IdempotencyKey == <span class="s">&quot;invoice/7&quot;</span>);
 <span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(invoice7.JobRef))!;
 Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&quot;</span>);
 
@@ -122,12 +122,12 @@ Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&
 <div class="step"><h2><span class="step-n">3</span>Pick the child that carries the item's key</h2>
 <p>The key is the one the map was given for that item, so a page that shows invoice 7 gets from the invoice to its job, and from there to what the job did.</p>
 <figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> children = <span class="k">await</span> operations.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(Parent: parent));
-<span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> children.Items.OrderBy(child =&gt; child.DeduplicationKey, StringComparer.Ordinal))
+<span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> children.Items.OrderBy(child =&gt; child.IdempotencyKey, StringComparer.Ordinal))
 {
-    Console.WriteLine(<span class="s">$&quot;{child.DeduplicationKey}: {child.Status.Code}&quot;</span>);
+    Console.WriteLine(<span class="s">$&quot;{child.IdempotencyKey}: {child.Status.Code}&quot;</span>);
 }
 
-<span class="hl"><span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.DeduplicationKey == <span class="s">&quot;invoice/7&quot;</span>);</span>
+<span class="hl"><span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.IdempotencyKey == <span class="s">&quot;invoice/7&quot;</span>);</span>
 <span class="hl"><span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(invoice7.JobRef))!;</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&quot;</span>);</span>
 
@@ -142,13 +142,13 @@ invoice/7: failed
 invoice 7: Failed. the customer's address bounced</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
-<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A child's name on the job reads is its <code>DeduplicationKey</code>: the call's name for <code>EnqueueChildAsync</code>, <code>{map}/{key}</code> for a map's child.</li><li>Keys keep their case: <code>Invoice/7</code> and <code>invoice/7</code> are two keys, so build the key the same way where you start the child and where you look for it.</li><li>The list answers a page at a time, fifty jobs unless <code>PageSize</code> says otherwise and a hundred at most. A parent with more children is read page by page, as in <a href="/learn/409-operator-queries">list and page through jobs</a>.</li><li>A failed child does not fail its parent by itself, so a parent that reads <code>succeeded</code> can still have a child that failed. <a href="/learn/219-child-failure-outcomes">Handle child jobs that fail</a> shows the parent's side.</li><li><code>&quot;invoice&quot;</code> is how <code>send-invoices</code> finds the child for each item. A renamed child is new work: every invoice is sent again.</li><li>A parent and its children are each stored under their own job name. The names in <code>[Job(&quot;send-invoices&quot;)]</code> and <code>[Job(&quot;send-invoice&quot;)]</code>, and the namespace in <code>Run&lt;FindChildJobJobs&gt;(&quot;find-child-job&quot;)</code>, are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>SendInvoices</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>send-invoices-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
-<div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">A parent mapped invoices 5, 6 and 7 under the name <code>invoice</code>. Which deduplication key does the child for invoice 6 carry?</p><ol class="check-options"><li><button type="button"><code>6</code></button></li><li><button type="button"><code>invoice/6</code></button></li><li><button type="button"><code>send-invoice/6</code></button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b><code>invoice/6</code>.</b> The name the map was given comes first, then the item's key. The job's own name, <code>send-invoice</code>, is not part of it.</p></details></div></div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A child's name on the job reads is its <code>IdempotencyKey</code>: the call's name for <code>EnqueueChildAsync</code>, <code>{map}/{key}</code> for a map's child.</li><li>Keys keep their case: <code>Invoice/7</code> and <code>invoice/7</code> are two keys, so build the key the same way where you start the child and where you look for it.</li><li>The list answers a page at a time, fifty jobs unless <code>PageSize</code> says otherwise and a hundred at most. A parent with more children is read page by page, as in <a href="/learn/409-operator-queries">list and page through jobs</a>.</li><li>A failed child does not fail its parent by itself, so a parent that reads <code>succeeded</code> can still have a child that failed. <a href="/learn/219-child-failure-outcomes">Handle child jobs that fail</a> shows the parent's side.</li><li><code>&quot;invoice&quot;</code> is how <code>send-invoices</code> finds the child for each item. A renamed child is new work: every invoice is sent again.</li><li>A parent and its children are each stored under their own job name. The names in <code>[Job(&quot;send-invoices&quot;)]</code> and <code>[Job(&quot;send-invoice&quot;)]</code>, and the namespace in <code>Run&lt;FindChildJobJobs&gt;(&quot;find-child-job&quot;)</code>, are stored with every job. Treat them as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.</li><li><code>SendInvoices</code> is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as <code>send-invoices-v2</code>, and the old handler stays registered until its jobs have finished: <a href="/learn/502-job-versions">Change a job's input without breaking the jobs already stored</a>.</li></ul></div>
+<div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">A parent mapped invoices 5, 6 and 7 under the name <code>invoice</code>. Which idempotency key does the child for invoice 6 carry?</p><ol class="check-options"><li><button type="button"><code>6</code></button></li><li><button type="button"><code>invoice/6</code></button></li><li><button type="button"><code>send-invoice/6</code></button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b><code>invoice/6</code>.</b> The name the map was given comes first, then the item's key. The job's own name, <code>send-invoice</code>, is not part of it.</p></details></div></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/222-find-child-job"><code>learn/200-durable-execution/222-find-child-job</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">find-child-job.cs</span><span class="file-size">81 lines</span></summary><figure class="listing"><figcaption><span class="file">find-child-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to find the child job that handles one item</span>
-<span class="c">// A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the</span>
+<span class="c">// A child's name on the reads is its idempotency key, `{map}/{key}` for a child that a map started. List the</span>
 <span class="c">// parent's children and pick the one that carries the item's key.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.FindChildJob;
@@ -179,9 +179,9 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <span class="c">// learn: 2. List the parent's children</span>
 <span class="c">// `Parent` restricts the job list to the children of one job. Each child shows the name it was started under.</span>
 <span class="hl"><span class="k">var</span> children = <span class="k">await</span> operations.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(Parent: parent));</span>
-<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> children.Items.OrderBy(child =&gt; child.DeduplicationKey, StringComparer.Ordinal))</span>
+<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> children.Items.OrderBy(child =&gt; child.IdempotencyKey, StringComparer.Ordinal))</span>
 <span class="hl">{</span>
-<span class="hl">    Console.WriteLine(<span class="s">$&quot;{child.DeduplicationKey}: {child.Status.Code}&quot;</span>);</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;{child.IdempotencyKey}: {child.Status.Code}&quot;</span>);</span>
 <span class="hl">}</span>
 
 <span class="c">// learn: end</span>
@@ -189,7 +189,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <span class="c">// learn: 3. Pick the child that carries the item's key</span>
 <span class="c">// The key is the one the map was given for that item, so a page that shows invoice 7 gets from the invoice to its</span>
 <span class="c">// job, and from there to what the job did.</span>
-<span class="hl"><span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.DeduplicationKey == <span class="s">&quot;invoice/7&quot;</span>);</span>
+<span class="hl"><span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.IdempotencyKey == <span class="s">&quot;invoice/7&quot;</span>);</span>
 <span class="hl"><span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(invoice7.JobRef))!;</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&quot;</span>);</span>
 
@@ -209,7 +209,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
         <span class="k">public</span> <span class="k">async</span> Task Handle(SendInvoices batch, JobContext ctx, CancellationToken ct)
         {
             <span class="c">// learn: 1. Start each child under the item's own key</span>
-            <span class="c">// `itemKey` names each child after its item. The name is stored as the child's deduplication key, and it</span>
+            <span class="c">// `itemKey` names each child after its item. The name is stored as the child's idempotency key, and it</span>
             <span class="c">// is how a replay of the parent and a reader from outside find the same child.</span>
 <span class="hl">            <span class="k">var</span> sent = <span class="k">await</span> ctx.MapAsync(<span class="s ct" data-ct="child" tabindex="0">&quot;invoice&quot;</span>, batch.InvoiceIds, itemKey: id =&gt; id, child: id =&gt; <span class="k">new</span> SendInvoice(id), ct);</span>
             <span class="c">// learn: end</span>

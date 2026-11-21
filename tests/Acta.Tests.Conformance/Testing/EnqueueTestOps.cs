@@ -4,7 +4,7 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Test-support enqueue over the enqueue handlers' inserts with the production row pipeline: canonicalization,
-/// per-row validation, same-batch deduplication-key uniqueness, C#-side ref allocation, and ordinal
+/// per-row validation, same-batch idempotency-key uniqueness, C#-side ref allocation, and ordinal
 /// reassembly - so specs that build raw rows exercise the same path the handlers run.
 /// </summary>
 internal static class EnqueueTestOps
@@ -22,7 +22,7 @@ internal static class EnqueueTestOps
             JobEnqueue.ValidateRow(canonical[i], i);
         }
 
-        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(canonical);
+        EnqueueJobsHandler.ValidateIdempotencyKeyUniqueness(canonical);
 
         var refs = new Guid[canonical.Length];
         for (var i = 0; i < refs.Length; i++)

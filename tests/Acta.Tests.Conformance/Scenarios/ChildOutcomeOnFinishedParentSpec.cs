@@ -78,7 +78,7 @@ public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<Confo
                 TestNamespace,
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),
-                DeduplicationKey: Unique("done"),
+                IdempotencyKey: Unique("done"),
                 ParentJobId: root.JobId
             ),
             ct
@@ -88,7 +88,7 @@ public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<Confo
                 TestNamespace,
                 "job-wait-signal",
                 JobPayload.None,
-                DeduplicationKey: Unique("held"),
+                IdempotencyKey: Unique("held"),
                 ParentJobId: finished.JobId
             ),
             ct

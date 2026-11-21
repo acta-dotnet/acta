@@ -59,7 +59,7 @@ public sealed class ClearSignalSystemJobTests
             LineageRootJobRef: null,
             ParentJobId: null,
             ParentJobRef: null,
-            DeduplicationKey: null,
+            IdempotencyKey: null,
             CorrelationKey: null,
             JobNamespace: "billing",
             JobName: jobName,

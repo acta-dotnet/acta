@@ -61,8 +61,8 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
     public async Task Requeue_parks_rejects_while_pending_and_the_tick_applies()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = Unique("facade-rq");
-        var row = EchoRow(dedup, status: 90, failureCount: 5);
+        var idempotencyKey = Unique("facade-rq");
+        var row = EchoRow(idempotencyKey, status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
         var (slotJobId, _) = await SeedSlotJobAsync("sys.outbox", ct);
 
@@ -103,7 +103,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         var noSlot = await Outbox.DiscardAsync(TestNamespace, all: true, ct: ct);
         Assert.Equal(ControlAction.NotFound, noSlot.Action);
 
-        // A user job reusing the "sys.outbox" deduplication key resolves by key but fails the job-name
+        // A user job reusing the "sys.outbox" idempotency key resolves by key but fails the job-name
         // gate, so it can never receive operator commands.
         await SeedSlotJobAsync("user-job", ct);
         var spoofed = await Outbox.RequeueAsync(TestNamespace, null, null, null, ct);

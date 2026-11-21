@@ -7,28 +7,28 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for <c>GetJobId</c>: a ref or a root deduplication key resolves to the job's internal id, an id lookup
+/// Conformance for <c>GetJobId</c>: a ref or a root idempotency key resolves to the job's internal id, an id lookup
 /// answers its own id, and a lookup that matches no job answers <c>null</c>.
 /// </summary>
 [ConformanceSpec(
     "get-job-id.resolve",
-    "GetJobId resolves a ref or deduplication key to the id, null for no match",
+    "GetJobId resolves a ref or idempotency key to the id, null for no match",
     Area = "Reads",
-    Contract = "GetJobId returns the internal id of the job a ref or a root deduplication key names, returns an id lookup's own id, and returns null when no job matches."
+    Contract = "GetJobId returns the internal id of the job a ref or a root idempotency key names, returns an id lookup's own id, and returns null when no job matches."
 )]
 [Deploys("add-numbers")]
 public sealed class GetJobIdSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobIdSpec>>
 {
-    [Fact(DisplayName = "A ref and a deduplication key resolve to the enqueued job's id")]
-    public async Task Ref_and_deduplication_key_resolve_to_the_id()
+    [Fact(DisplayName = "A ref and an idempotency key resolve to the enqueued job's id")]
+    public async Task Ref_and_idempotency_key_resolve_to_the_id()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = Unique("get-job-id");
-        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey(deduplicationKey), ct);
+        var idempotencyKey = Unique("get-job-id");
+        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.IdempotencyKey(idempotencyKey), ct);
         var handler = Services.GetRequiredService<GetJobIdHandler>();
 
         var byRef = await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByRef(enqueued.JobRef)), ct);
-        var byKey = await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByDeduplicationKey(TestNamespace, deduplicationKey)), ct);
+        var byKey = await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByIdempotencyKey(TestNamespace, idempotencyKey)), ct);
 
         Assert.Equal(enqueued.JobId, byRef?.JobId);
         Assert.Equal(enqueued.JobId, byKey?.JobId);
@@ -44,6 +44,6 @@ public sealed class GetJobIdSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         Assert.Null(await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByRef(JobRef.New())), ct));
         // The all-zero ref is well formed and minted for no job.
         Assert.Null(await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByRef(default)), ct));
-        Assert.Null(await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByDeduplicationKey(TestNamespace, "no-such-key")), ct));
+        Assert.Null(await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByIdempotencyKey(TestNamespace, "no-such-key")), ct));
     }
 }

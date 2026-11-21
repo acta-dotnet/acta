@@ -99,11 +99,11 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `EnqueueJob` | `IJobs.EnqueueAsync` | `POST /jobs` (`enqueueJob`, `acta.enqueue`) | · | routine | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobNamespaceSpec`, `EnqueueJobRejectionTaxonomySpec`, `EnqueueJobTenantRequirementSpec`, `EnqueueJobTenantSpec`, `EnqueueJobTenantSuspensionSpec`, `EnqueueJobTransactionalSmokeSpec`, `EnqueueJobTransactionalSpec` |
 | `EnqueueJobs` | `IJobs.EnqueueJobsAsync` | · | · | routine | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | · | `ExplainJobCancelReasonSpec`, `ExplainJobSpec` |
-| `GetJob` | `IJobs.GetAsync` | `GET /jobs/{jobRef}` (`getJob`, `acta.read`)<br>`GET /jobs/by-deduplication-key` (`getJobByDeduplicationKey`, `acta.read`) | · | inline | · | `GetJobSpec` |
+| `GetJob` | `IJobs.GetAsync` | `GET /jobs/{jobRef}` (`getJob`, `acta.read`)<br>`GET /jobs/by-idempotency-key` (`getJobByIdempotencyKey`, `acta.read`) | · | inline | · | `GetJobSpec` |
 | `GetJobCheckpointValue` | `IJobs.GetCheckpointValueAsync` | `GET /jobs/{jobRef}/checkpoints/{checkpointKind}/{checkpointName}/value` (`getJobCheckpointValue`, `acta.read`) | · | inline | · | `GetJobCheckpointValueSpec` |
 | `GetJobDetail` | · | `GET /jobs/{jobRef}/detail` (`getJobDetail`, `acta.read`) | · | · | · | · |
 | `GetJobId` | `IJobs.GetIdAsync` | · | · | · | · | `GetJobIdSpec` |
-| `GetJobIdByDeduplicationKey` | · | · | · | inline | · | `GetJobIdByDeduplicationKeySpec` |
+| `GetJobIdByIdempotencyKey` | · | · | · | inline | · | `GetJobIdByIdempotencyKeySpec` |
 | `GetJobIdByRef` | · | · | · | inline | · | `GetJobIdByRefSpec` |
 | `GetJobIdBySlot` | · | · | · | inline | · | `GetJobIdBySlotSpec` |
 | `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` (`getJobInput`, `acta.read`) | · | inline | · | `GetJobInputSpec` |

@@ -227,7 +227,7 @@
       <div><dt>Reference</dt><dd>${refButton(job.ref)}</dd></div><div><dt>Kind</dt><dd>${job.kind === 'permanent' ? 'Permanent' : 'Ordinary'}</dd></div>
       <div><dt>Created</dt><dd>${time('18m ago', job.created)}</dd></div><div><dt>Modified</dt><dd>${time('6m ago', job.modified)}</dd></div>
       <div><dt>Priority</dt><dd>Normal</dd></div><div><dt>Recorded executions</dt><dd>${job.attempts}</dd></div>
-      ${job.correlation ? `<div><dt>Correlation key</dt><dd class="mono">${escape(job.correlation)}</dd></div>` : ''}${job.deduplication ? `<div><dt>Deduplication key</dt><dd class="mono">${escape(job.deduplication)}</dd></div>` : ''}
+      ${job.correlation ? `<div><dt>Correlation key</dt><dd class="mono">${escape(job.correlation)}</dd></div>` : ''}${job.idempotency ? `<div><dt>Idempotency key</dt><dd class="mono">${escape(job.idempotency)}</dd></div>` : ''}
     </dl></div></details>`;
   }
 

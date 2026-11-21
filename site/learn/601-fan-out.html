@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to enqueue many independent jobs from a handler · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to enqueue many independent jobs from a handler with Acta, durable execution for .NET. A handler takes IJobs and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's MapAsync)." />
+  <meta name="description" content="How to enqueue many independent jobs from a handler with Acta, durable execution for .NET. A handler takes IJobs and enqueues many independent jobs, each with a stable idempotency key. Nothing links them to the handler's job and nothing waits for them (compare 212's MapAsync)." />
   <link rel="canonical" href="https://useacta.net/learn/601-fan-out" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to enqueue many independent jobs from a handler · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to enqueue many independent jobs from a handler with Acta, durable execution for .NET. A handler takes IJobs and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's MapAsync)." />
+  <meta property="og:description" content="How to enqueue many independent jobs from a handler with Acta, durable execution for .NET. A handler takes IJobs and enqueues many independent jobs, each with a stable idempotency key. Nothing links them to the handler's job and nothing waits for them (compare 212's MapAsync)." />
   <meta property="og:url" content="https://useacta.net/learn/601-fan-out" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to enqueue many independent jobs from a handler","description":"How to enqueue many independent jobs from a handler with Acta, durable execution for .NET. A handler takes IJobs and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's MapAsync).","url":"https://useacta.net/learn/601-fan-out","inLanguage":"en","articleSection":"Split work across child jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to enqueue many independent jobs from a handler","description":"How to enqueue many independent jobs from a handler with Acta, durable execution for .NET. A handler takes IJobs and enqueues many independent jobs, each with a stable idempotency key. Nothing links them to the handler's job and nothing waits for them (compare 212's MapAsync).","url":"https://useacta.net/learn/601-fan-out","inLanguage":"en","articleSection":"Split work across child jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Split work across child jobs","item":"https://useacta.net/learn#s-children"},{"@type":"ListItem","position":3,"name":"How to enqueue many independent jobs from a handler","item":"https://useacta.net/learn/601-fan-out"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to enqueue many independent jobs from a handler</h1>
-      <p class="lede">A handler takes <code>IJobs</code> and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's <code>MapAsync</code>).</p>
+      <p class="lede">A handler takes <code>IJobs</code> and enqueues many independent jobs, each with a stable idempotency key. Nothing links them to the handler's job and nothing waits for them (compare 212's <code>MapAsync</code>).</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -80,7 +80,7 @@
 <p>The handler can be retried, and a replay runs the whole loop again. With a stable key the replay gets the existing job back instead of a second copy.</p>
 <figure class="listing"><figcaption><span class="file">fan-out.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.</span>
 <span class="c">//</span>
-<span class="c">// Every enqueued job carries a deduplication key derived from what it is, not from when it was created.</span>
+<span class="c">// Every enqueued job carries an idempotency key derived from what it is, not from when it was created.</span>
 <span class="c">// This handler is retryable, and the fan-out happens before it completes: a crash mid-loop replays</span>
 <span class="c">// the whole loop, so without a stable key the album would grow a second copy of every thumbnail</span>
 <span class="c">// already enqueued. With one, the replay re-enqueues and Acta returns the existing job instead.</span>
@@ -93,7 +93,7 @@
 <span class="hl">        <span class="k">for</span> (<span class="k">var</span> i = 1; i &lt;= input.PhotoCount; i++)</span>
 <span class="hl">        {</span>
 <span class="hl">            <span class="k">var</span> photo = i;</span>
-<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.DeduplicationKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.IdempotencyKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>), ct);</span>
 <span class="hl">        }</span>
     }
 }</code></pre></figure>
@@ -114,7 +114,7 @@ made thumbnail for photo #5</code></pre></figure>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/600-job-composition/601-fan-out"><code>learn/600-job-composition/601-fan-out</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">fan-out.cs</span><span class="file-size">63 lines</span></summary><figure class="listing"><figcaption><span class="file">fan-out.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to enqueue many independent jobs from a handler</span>
-<span class="c">// A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links</span>
+<span class="c">// A handler takes `IJobs` and enqueues many independent jobs, each with a stable idempotency key. Nothing links</span>
 <span class="c">// them to the handler's job and nothing waits for them (compare 212's `MapAsync`).</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.FanOut;
@@ -148,7 +148,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 
     <span class="c">// Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.</span>
     <span class="c">//</span>
-    <span class="c">// Every enqueued job carries a deduplication key derived from what it is, not from when it was created.</span>
+    <span class="c">// Every enqueued job carries an idempotency key derived from what it is, not from when it was created.</span>
     <span class="c">// This handler is retryable, and the fan-out happens before it completes: a crash mid-loop replays</span>
     <span class="c">// the whole loop, so without a stable key the album would grow a second copy of every thumbnail</span>
     <span class="c">// already enqueued. With one, the replay re-enqueues and Acta returns the existing job instead.</span>
@@ -164,7 +164,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 <span class="hl">            <span class="k">for</span> (<span class="k">var</span> i = 1; i &lt;= input.PhotoCount; i++)</span>
 <span class="hl">            {</span>
 <span class="hl">                <span class="k">var</span> photo = i;</span>
-<span class="hl">                <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.DeduplicationKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>), ct);</span>
+<span class="hl">                <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.IdempotencyKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>), ct);</span>
 <span class="hl">            }</span>
             <span class="c">// learn: end</span>
         }

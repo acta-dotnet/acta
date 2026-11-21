@@ -51,7 +51,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     private static readonly Backoff RowBackoff = Backoff.Range(TimeSpan.FromMinutes(1), TimeSpan.FromHours(8));
 
     /// <summary>The enqueue's own refusal of a key another tenant's job holds, which a row that arrives alone records.</summary>
-    private const string TenantMismatchMessage = "Enqueue rejected: the deduplication key belongs to another tenant's job.";
+    private const string TenantMismatchMessage = "Enqueue rejected: the idempotency key belongs to another tenant's job.";
 
     private readonly ILogger _log = log ?? NullLogger<OutboxRelay>.Instance;
 
@@ -471,13 +471,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// target, avoiding the ledger's same-batch duplicate-key rejection. Groups keep the claim order.
     /// The group keeps every member row so retry/quarantine can advance each row's own failure
     /// count. The grouping key matches the target's dedup: the namespace folded like every name, the
-    /// deduplication key exact, so two handoffs whose keys differ only by case are two jobs. A row with no key is a job
+    /// idempotency key exact, so two handoffs whose keys differ only by case are two jobs. A row with no key is a job
     /// of its own and groups alone.
     /// </summary>
     private static List<OutboxGroup> Coalesce(IReadOnlyList<ClaimOutboxRow> claimed) =>
         [
             .. claimed
-                .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey, r.DeduplicationKey is null ? r.Id : 0))
+                .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.IdempotencyKey, r.IdempotencyKey is null ? r.Id : 0))
                 .Select(g =>
                 {
                     var ordered = g.OrderBy(static r => r.Id).ToList();

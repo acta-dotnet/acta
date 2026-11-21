@@ -19,7 +19,7 @@ internal static class AdmitScheduleFiringsJson
             writer.WriteBoolean("admit", g.Admit);
             JsonRows.Text(writer, "envelope", g.Envelope);
             JsonRows.Text(writer, "job_ref", g.JobRef?.ToString());
-            JsonRows.Text(writer, "deduplication_key", g.DeduplicationKey);
+            JsonRows.Text(writer, "idempotency_key", g.IdempotencyKey);
             JsonRows.Text(writer, "trigger_message", g.TriggerMessage);
             JsonRows.Text(writer, "trigger_actor", g.TriggerActor);
             JsonRows.Text(writer, "trigger_details", g.TriggerDetails);

@@ -13,7 +13,7 @@ public sealed class JobEnqueueRequestValidationTests
         var request = new EnqueueJobRequest(
             "Billing",
             "Send-Invoice",
-            DeduplicationKey: " Order-1 ",
+            IdempotencyKey: " Order-1 ",
             CorrelationKey: "Trace-A",
             ConcurrencyKey: "Mutex-A",
             Tags: [new TagInput("Env.Prod", "EU-West")],
@@ -27,7 +27,7 @@ public sealed class JobEnqueueRequestValidationTests
 
         Assert.Equal("billing", normalized.JobNamespace);
         Assert.Equal("send-invoice", normalized.JobName);
-        Assert.Equal("Order-1", normalized.DeduplicationKey);
+        Assert.Equal("Order-1", normalized.IdempotencyKey);
         Assert.Equal("Trace-A", normalized.CorrelationKey);
         Assert.Equal("Mutex-A", normalized.ConcurrencyKey);
         Assert.Equal("tenant-a", normalized.TenantName);
@@ -38,7 +38,7 @@ public sealed class JobEnqueueRequestValidationTests
     }
 
     [Fact]
-    public void Only_the_deduplication_key_reserves_the_sys_prefix()
+    public void Only_the_idempotency_key_reserves_the_sys_prefix()
     {
         var request = new EnqueueJobRequest(Ns, Name, ConcurrencyKey: "sys.mutex", CorrelationKey: "sys.trace");
 
@@ -61,9 +61,9 @@ public sealed class JobEnqueueRequestValidationTests
             new EnqueueJobRequest("SYS", Name),
             new EnqueueJobRequest(Ns, "Sys.Send-Invoice"),
             new EnqueueJobRequest(Ns, new string('a', NameSyntax.ExtendedMaxLength + 1)),
-            new EnqueueJobRequest(Ns, Name, DeduplicationKey: "sys.reserved"),
-            new EnqueueJobRequest(Ns, Name, DeduplicationKey: "SYS.Reserved"),
-            new EnqueueJobRequest(Ns, Name, DeduplicationKey: "has space"),
+            new EnqueueJobRequest(Ns, Name, IdempotencyKey: "sys.reserved"),
+            new EnqueueJobRequest(Ns, Name, IdempotencyKey: "SYS.Reserved"),
+            new EnqueueJobRequest(Ns, Name, IdempotencyKey: "has space"),
             new EnqueueJobRequest(Ns, Name, CorrelationKey: "caf\u00e9"),
             new EnqueueJobRequest(Ns, Name, TenantName: "tenant_a"),
             new EnqueueJobRequest(Ns, Name) { Lane = "order:42" },

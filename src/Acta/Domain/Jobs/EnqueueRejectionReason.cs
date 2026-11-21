@@ -28,7 +28,7 @@ public enum EnqueueRejectionReason : byte
     TenantForbidden = 7,
 
     /// <summary>
-    /// A child names a tenant that differs from the parent's without the explicit override opt-in, or a deduplication key
+    /// A child names a tenant that differs from the parent's without the explicit override opt-in, or an idempotency key
     /// is held by another tenant's job.
     /// </summary>
     TenantMismatch = 8,

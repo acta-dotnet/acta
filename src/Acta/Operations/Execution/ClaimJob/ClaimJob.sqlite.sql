@@ -30,7 +30,7 @@ SELECT
     j.job_id,
     j.definition_id,
     r.execution_number,
-    j.deduplication_key,
+    j.idempotency_key,
     j.job_kind_code,
     j.correlation_key,
     j.concurrency_key,

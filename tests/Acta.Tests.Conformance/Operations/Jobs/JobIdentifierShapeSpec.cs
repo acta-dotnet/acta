@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Conformance: the two identifier shapes. A name is trimmed and lowercased on input, so any case addresses one
-/// stored name; a key keeps its case and is compared exactly. Only the deduplication key reserves <c>sys.</c>,
+/// stored name; a key keeps its case and is compared exactly. Only the idempotency key reserves <c>sys.</c>,
 /// and a lookup still resolves the seeded <c>sys</c> namespace.
 /// </summary>
 [ConformanceSpec(
@@ -87,22 +87,22 @@ public sealed class JobIdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
     }
 
-    [Fact(DisplayName = "Deduplication keys that differ only by case are two jobs, and a lookup by key is exact")]
-    public async Task Deduplication_keys_keep_their_case()
+    [Fact(DisplayName = "Idempotency keys that differ only by case are two jobs, and a lookup by key is exact")]
+    public async Task Idempotency_keys_keep_their_case()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = Unique("Order");
 
-        var first = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key), ct);
+        var first = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), IdempotencyKey: key), ct);
         var second = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key.ToLowerInvariant()),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), IdempotencyKey: key.ToLowerInvariant()),
             ct
         );
 
         Assert.Equal(EnqueueJobAction.Inserted, second.Action);
         Assert.NotEqual(first.JobId, second.JobId);
-        Assert.Equal(first.JobId, (await Jobs.GetIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key), ct))?.JobId);
-        Assert.Null(await Jobs.GetIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key.ToUpperInvariant()), ct));
+        Assert.Equal(first.JobId, (await Jobs.GetIdAsync(JobLookup.ByIdempotencyKey(TestNamespace, key), ct))?.JobId);
+        Assert.Null(await Jobs.GetIdAsync(JobLookup.ByIdempotencyKey(TestNamespace, key.ToUpperInvariant()), ct));
     }
 
     [Fact(DisplayName = "Correlation keys that differ only by case filter apart, and a filter is trimmed like a key")]
@@ -155,18 +155,18 @@ public sealed class JobIdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixt
         await locks.ReleaseLockAsync(held.Value, ct);
     }
 
-    [Fact(DisplayName = "A batch keeps deduplication keys that differ only by case apart, from each other and from a stored key")]
+    [Fact(DisplayName = "A batch keeps idempotency keys that differ only by case apart, from each other and from a stored key")]
     public async Task A_batch_keeps_key_case()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = Unique("Order");
-        var stored = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key), ct);
+        var stored = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), IdempotencyKey: key), ct);
 
         var batch = await Jobs.EnqueueJobsAsync(
             [
-                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key.ToLowerInvariant()),
-                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key.ToUpperInvariant()),
-                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), IdempotencyKey: key.ToLowerInvariant()),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), IdempotencyKey: key.ToUpperInvariant()),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), IdempotencyKey: key),
             ],
             ct
         );
@@ -203,13 +203,13 @@ public sealed class JobIdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.True((await locks.ReleaseLockAsync(folded.Value, ct)).Released);
     }
 
-    [Fact(DisplayName = "SYS.x is rejected as a deduplication key at enqueue and as a name at registration")]
+    [Fact(DisplayName = "SYS.x is rejected as an idempotency key at enqueue and as a name at registration")]
     public async Task The_sys_reservation_holds_in_any_case()
     {
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAnyAsync<ArgumentException>(async () =>
-            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: "SYS.x"), ct)
+            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), IdempotencyKey: "SYS.x"), ct)
         );
         await Assert.ThrowsAnyAsync<ArgumentException>(async () => await Operations.Tenants.RegisterAsync("SYS.x", null, null, ct));
         await Assert.ThrowsAnyAsync<ArgumentException>(async () =>

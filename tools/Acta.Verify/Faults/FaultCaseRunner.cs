@@ -95,13 +95,13 @@ internal static class FaultCaseRunner
                 await survivor.ReadyAsync(ct);
             }
             var root = await jobs.EnqueueAsync(
-                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
+                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), IdempotencyKey: input.Key),
                 ct
             );
             foreach (var side in sideInputs)
             {
                 await jobs.EnqueueAsync(
-                    new EnqueueJobRequest("verify", "work", JobPayload.Json(side, WorkJson.Default.WorkInput), DeduplicationKey: side.Key),
+                    new EnqueueJobRequest("verify", "work", JobPayload.Json(side, WorkJson.Default.WorkInput), IdempotencyKey: side.Key),
                     ct
                 );
             }

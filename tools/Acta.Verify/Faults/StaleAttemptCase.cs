@@ -24,7 +24,7 @@ internal static class StaleAttemptCase
         await original.ReadyAsync(ct);
         var input = new WorkInput("root", Boundary: "claim");
         var root = await jobs.EnqueueAsync(
-            new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
+            new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), IdempotencyKey: input.Key),
             ct
         );
         var pid = await effects.WaitBarrierAsync("claim", TimeSpan.FromSeconds(30), ct);
