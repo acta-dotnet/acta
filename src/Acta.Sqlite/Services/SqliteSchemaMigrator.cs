@@ -101,15 +101,14 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
 
     /// <summary>
     /// The file holds the unprefixed tables of a release candidate that named them without the schema, and none of this
-    /// build's. Dropping the database would take the application's tables with it, so the way out is the release notes'.
+    /// build's. Nothing translates one into the other, so the way out is a new file.
     /// </summary>
     internal static InvalidOperationException EarlierCandidate(string schema) =>
         new(
             "This database file holds the unprefixed tables an Acta release candidate before 1.0.0-rc.15 provisioned "
                 + $"(migrations, jobs, namespaces, checkpoints and the rest), and no history under the prefix '{schema}_' this "
-                + "build of Acta names its tables with. Nothing translates one into the other: remove that candidate's tables, "
-                + "indexes and views with the statements in the 1.0.0-rc.15 release notes (docs/release-notes.md), or start "
-                + $"from a new file, and provision it again: {SchemaMigrations.HowToApply(DialectToken)}."
+                + "build of Acta names its tables with. Nothing translates one into the other: delete the file and start from a "
+                + $"new one, then provision it: {SchemaMigrations.HowToApply(DialectToken)}."
         );
 
     /// <summary>

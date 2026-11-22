@@ -10,45 +10,9 @@ Not yet released.
 
 **Rename a job's deduplication key to its idempotency key**: the key a caller gives a job on enqueue, which makes a second enqueue answer the first job and is how the rest of a system finds it, is the job's idempotency key. In C#: `o.IdempotencyKey(id)` on an enqueue, `EnqueueJobRequest.IdempotencyKey`, `JobLookup.ByIdempotencyKey(namespace, key)`, `JobLookupKind.IdempotencyKey`, the helpers `IdempotencyKey.ForDefinition`, `PerHour`, `PerDay` and the rest (the class was `DeduplicationKey`), the `IdempotencyKey` member on `GetJobResponse`, `ListJobsItem` and `ListQuarantinedOutboxItem`, and `DuplicateIdempotencyKeyInBatchException`. Over HTTP the field is `idempotencyKey` and the lookup route is `/jobs/by-idempotency-key`; the CLI takes and prints `idempotency-key`. In the database the column is `jobs.idempotency_key`, with the indexes `ux_jobs_idempotency_key_root` and `ux_jobs_idempotency_key_child`, and `jobs_view` shows it under that name. A producer's outbox table names its column `idempotency_key` too, so recreate it as the outbox entry below says. An alert's key is still its deduplication key, the outcome of a repeated enqueue is still `Deduplicated`, and `JobRequestBuilder.Deduplicate(businessKey)` keeps its name.
 
-**On SQLite, read Acta's tables under the `acta_` prefix, and remove an earlier candidate's tables from the file**: SQLite has no schemas, so Acta's tables sat unprefixed in the application's file, where `jobs` or `migrations` could collide with the application's own. The schema name is now a prefix on every table, index and view Acta creates there: `acta_jobs`, `acta_migrations`, `acta_jobs_view`. Change SQL of your own that reads the file, such as `SELECT * FROM acta_jobs_view`. `Schema` is no longer refused on SQLite: the default is `acta`, another value is another prefix, and a name beginning `sqlite` is refused. A host that wrote `Schema = "main"`, the only value an earlier candidate took, removes the setting, or its tables are named `main_jobs`. `SqliteMigrations.ApplyAsync` takes the schema as its second parameter, `ApplyAsync(connectionString, schema, cancellationToken)`, so pass the token by name. A producer's outbox table keeps its name, `acta_outbox` by default.
+**On SQLite, read Acta's tables under the `acta_` prefix, and delete a file an earlier candidate provisioned**: SQLite has no schemas, so Acta's tables sat unprefixed in the application's file, where `jobs` or `migrations` could collide with the application's own. The schema name is now a prefix on every table, index and view Acta creates there: `acta_jobs`, `acta_migrations`, `acta_jobs_view`. Change SQL of your own that reads the file, such as `SELECT * FROM acta_jobs_view`. `Schema` is no longer refused on SQLite: the default is `acta`, another value is another prefix, and a name beginning `sqlite` is refused. A host that wrote `Schema = "main"`, the only value an earlier candidate took, removes the setting, or its tables are named `main_jobs`. `SqliteMigrations.ApplyAsync` takes the schema as its second parameter, `ApplyAsync(connectionString, schema, cancellationToken)`, so pass the token by name. A producer's outbox table keeps its name, `acta_outbox` by default.
 
-A file an earlier candidate provisioned is refused at startup and by the published script, and nothing is created beside the old tables. Start from a new file, or, where the file also holds the application's data, remove the earlier candidate's objects with the statements below and provision again. They remove tables by name, so run them only on a file an earlier candidate provisioned, where `jobs`, `migrations` and the rest are Acta's:
-
-```sql
-PRAGMA foreign_keys = OFF;
-BEGIN IMMEDIATE;
-DROP VIEW IF EXISTS main.alerts_view;
-DROP VIEW IF EXISTS main.calendars_view;
-DROP VIEW IF EXISTS main.checkpoints_view;
-DROP VIEW IF EXISTS main.definitions_view;
-DROP VIEW IF EXISTS main.deployments_view;
-DROP VIEW IF EXISTS main.events_view;
-DROP VIEW IF EXISTS main.jobs_view;
-DROP VIEW IF EXISTS main.schedules_view;
-DROP VIEW IF EXISTS main.steps_view;
-DROP VIEW IF EXISTS main.tags_view;
-DROP VIEW IF EXISTS main.workers_view;
-DROP TABLE IF EXISTS main.alerts;
-DROP TABLE IF EXISTS main.calendars;
-DROP TABLE IF EXISTS main.checkpoints;
-DROP TABLE IF EXISTS main.definitions;
-DROP TABLE IF EXISTS main.deployments;
-DROP TABLE IF EXISTS main.events;
-DROP TABLE IF EXISTS main.jobs;
-DROP TABLE IF EXISTS main.jobs_state;
-DROP TABLE IF EXISTS main.lanes;
-DROP TABLE IF EXISTS main.locks;
-DROP TABLE IF EXISTS main.migrations;
-DROP TABLE IF EXISTS main.namespaces;
-DROP TABLE IF EXISTS main.schedules;
-DROP TABLE IF EXISTS main.schedules_state;
-DROP TABLE IF EXISTS main.steps;
-DROP TABLE IF EXISTS main.tags;
-DROP TABLE IF EXISTS main.tenants;
-DROP TABLE IF EXISTS main.workers;
-COMMIT;
-PRAGMA foreign_keys = ON;
-```
+A file an earlier candidate provisioned is refused at startup and by the published script, and nothing is created beside the old tables. Delete the file and start from a new one.
 
 **Recreate a producer's outbox table, and name its rows by `jobRefs`**: the table's uuid column `outbox_id` is `job_ref`, and its names follow: the constraint `uq_{table}_outbox_id` is `uq_{table}_job_ref`, and on SQLite the check `ck_{table}_outbox_id_uuid` is `ck_{table}_job_ref_uuid` and the index `ux_{table}_outbox_id` is `ux_{table}_job_ref`. Drain the outbox, drop the table and create it again from the provider's `CreateOutboxScript`: `ApplyOutboxAsync` leaves an existing table as it is, and the relay fails on a table that still has the old column. Change any SQL of your own that reads the table. `IOutbox.RequeueAsync` and `DiscardAsync` take `jobRefs`, a list of `JobRef`, where they took `outboxIds`; the bodies of `POST /outbox/{jobNamespace}/requeue` and `/discard` take `jobRefs`, each a `job_...` handle, and a quarantined row in the listing states `jobRef` where it stated `outboxId`. A cursor an earlier candidate issued for that listing is refused. The recreated table also names its key column `idempotency_key`, and takes a row without one: the column is nullable.
 

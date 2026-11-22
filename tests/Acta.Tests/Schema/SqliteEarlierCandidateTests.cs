@@ -54,7 +54,7 @@ public sealed class SqliteEarlierCandidateTests : IDisposable
             SqliteMigrations.ApplyAsync(ConnectionString, cancellationToken: ct)
         );
 
-        Assert.Contains("release notes", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("delete the file and start from a new one", refused.Message, StringComparison.Ordinal);
         Assert.Equal(0, await CountPrefixedAsync(ct));
         Assert.Equal("delete", await ScalarAsync("PRAGMA journal_mode;", ct));
     }
@@ -69,7 +69,7 @@ public sealed class SqliteEarlierCandidateTests : IDisposable
             SqliteSchemaMigrator.PreflightAsync(ConnectionString, "acta", ct)
         );
 
-        Assert.Contains("release notes", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("delete the file and start from a new one", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class SqliteEarlierCandidateTests : IDisposable
 
         var refused = await Assert.ThrowsAsync<SqliteException>(() => ExecuteAsync(PublishedScript(), ct));
 
-        Assert.Contains("earlier_acta_candidate_tables", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("earlier_acta_candidate_file_delete_it", refused.Message, StringComparison.Ordinal);
         Assert.Equal(0, await CountPrefixedAsync(ct));
         Assert.Equal("delete", await ScalarAsync("PRAGMA journal_mode;", ct));
     }

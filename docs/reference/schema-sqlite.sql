@@ -32,7 +32,7 @@
 
 -- ===== refuse a file an earlier candidate provisioned without the prefix =====
 CREATE TEMP TABLE IF NOT EXISTS candidate_guard (
-    earlier INTEGER CONSTRAINT earlier_acta_candidate_tables_remove_them_per_the_release_notes CHECK (earlier = 0)
+    earlier INTEGER CONSTRAINT earlier_acta_candidate_file_delete_it_and_start_from_a_new_one CHECK (earlier = 0)
 );
 INSERT INTO candidate_guard
 SELECT
