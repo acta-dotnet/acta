@@ -28,6 +28,8 @@ public sealed class PurgeExpiredJobsRaceSpec : ActaRuntimeTestBase<ConformanceFi
     private const int Landers = 4;
     private const int BatchSize = 25;
     private static readonly TimeSpan RaceFor = TimeSpan.FromSeconds(3);
+    private int _restarted;
+    private int _purged;
 
     // A race with deadlock retry off needs its tables to itself (CONTRIBUTING.md, "Tests that run in parallel").
     protected override bool OwnSchema => true;
@@ -69,7 +71,7 @@ public sealed class PurgeExpiredJobsRaceSpec : ActaRuntimeTestBase<ConformanceFi
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var request = new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2)));
         var (landed, restarted) = (0, 0);
-        while (race.Elapsed < RaceFor)
+        while (Racing(race))
         {
             try
             {
@@ -83,6 +85,7 @@ public sealed class PurgeExpiredJobsRaceSpec : ActaRuntimeTestBase<ConformanceFi
                 if ((await Jobs.RestartAsync(JobLookup.ById(job), ct: ct)).Action == ControlAction.Applied)
                 {
                     restarted++;
+                    Interlocked.Increment(ref _restarted);
                     landed += await LandPastRetentionAsync(execution, ns, workerId, leaseTtl, job, ct) ? 1 : 0;
                 }
             }
@@ -114,12 +117,13 @@ public sealed class PurgeExpiredJobsRaceSpec : ActaRuntimeTestBase<ConformanceFi
     {
         var maintenance = Services.GetRequiredService<MaintenanceOperations>();
         var (purged, cursor) = (0, (RetentionCursor?)null);
-        while (race.Elapsed < RaceFor)
+        while (Racing(race))
         {
             try
             {
                 var batch = await maintenance.PurgeExpiredJobsAsync(new PurgeExpiredJobsCommand(ns, cutoff, BatchSize, cursor), ct);
                 purged += batch.Purged;
+                Interlocked.Add(ref _purged, batch.Purged);
                 cursor = batch.Next;
             }
             catch (DbException ex) when (Fixture.IsTransient(ex)) { }
@@ -127,6 +131,18 @@ public sealed class PurgeExpiredJobsRaceSpec : ActaRuntimeTestBase<ConformanceFi
 
         return purged;
     }
+
+    /// <summary>
+    /// Whether the race goes on: for its three seconds, and past them until the delete has deleted and a restart has
+    /// raced it, since a runner that fits a handful of landings into the window may show neither. Bounded by
+    /// <see cref="SpecWaits.Converge"/>.
+    /// </summary>
+    private bool Racing(Stopwatch race) =>
+        race.Elapsed < RaceFor
+        || (
+            race.Elapsed < SpecWaits.Converge
+            && (Volatile.Read(ref _purged) == 0 || (Db.Provider != DbProvider.Sqlite && Volatile.Read(ref _restarted) == 0))
+        );
 
     private static Task<T> Run<T>(TaskCompletionSource start, Func<Task<T>> action, CancellationToken ct) =>
         Task.Run(
