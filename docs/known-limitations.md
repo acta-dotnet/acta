@@ -5,10 +5,10 @@ Known boundaries to review before using Acta in production-like environments.
 ## Stability status
 
 Acta 1.0 is in release candidates. rc.14 folded the candidates' migrations into one baseline and gave the
-persisted codes their final ids, and until 1.0.0 a candidate may still change the schema, by a migration on
+persisted codes their final ids, rc.15 re-cut that baseline, and until 1.0.0 a candidate may still change the schema, by a migration on
 that baseline, the way every 1.x release will on 1.0.0's, or by another re-cut
 ([release notes](./release-notes.md)). A database provisioned under another baseline is dropped and provisioned
-again: no migration translates one baseline into another. From 1.0.0 the data model is frozen, the
+again, and a SQLite file is deleted: no migration translates one baseline into another. From 1.0.0 the data model is frozen, the
 schema and the persisted codes, and the migration history with it: schema changes ship only
 as additive migrations and the baseline is never re-cut, so a database provisioned by a 1.x build
 upgrades by migration alone. The public API is not frozen with it; changes to it after 1.0.0 are kept
