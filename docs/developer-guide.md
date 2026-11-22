@@ -160,7 +160,7 @@ The generator emits descriptors from the declared signature. The runtime uses th
 
 ### Execution semantics
 
-Execution is at-least-once: a crash, a lease expiry, a failed completion write, or a shutdown re-runs the attempt, and an operator restart or a database restore can re-run work whose external effects already happened, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use deduplication keys, durable steps, a check before a step repeats (`RunStepWithCheckAsync`), `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
+Execution is at-least-once: a crash, a lease expiry, a failed completion write, or a shutdown re-runs the attempt, and an operator restart or a database restore can re-run work whose external effects already happened, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use idempotency keys, durable steps, a check before a step repeats (`RunStepWithCheckAsync`), `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
 
 Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new one (see [renaming a step, variable, signal or timer](#renaming-a-step-variable-signal-or-timer)). Durable state belongs to the job, not to one fire, so a permanent job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 
@@ -240,7 +240,7 @@ What a check does not cover: an attempt whose lease expired can still be mid-cal
 
 #### At-most-once steps
 
-For a side effect where running twice is worse than not running (charging a card, sending an email with no deduplication key):
+For a side effect where running twice is worse than not running (charging a card, sending an email with no idempotency key):
 
 ```csharp
 try

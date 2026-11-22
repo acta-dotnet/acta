@@ -1,7 +1,7 @@
 <!-- engineering-lab
 lab: can-jobs-refuse-unsafe-replay
 views: jobs_view, steps_view, events_view
-alternatives: bare-handler, normal-durable-step, external-deduplication-key, at-most-once-step, reconciliation
+alternatives: bare-handler, normal-durable-step, external-idempotency-key, at-most-once-step, reconciliation
 -->
 
 # Engineering Lab: a recorded step outcome is reused on replay
@@ -17,7 +17,7 @@ twice, or corrupt an external state machine.
 | --- | --- | --- |
 | Bare handler code | Minimal ceremony | Repeats on replay |
 | Normal durable step | Replays a recorded success | A crash before recording success can repeat the body |
-| External deduplication key | Usually the strongest answer | The external system must implement it |
+| External idempotency key | Usually the strongest answer | The external system must implement it |
 | Step with a check | Asks the external system before repeating a started step | The external system must be able to answer, and can answer late |
 | At-most-once step | Acta will not invoke an interrupted body again | The outcome can remain ambiguous |
 | Reconciliation | Resolves ambiguity from external evidence | Requires a readable external state/API |
@@ -41,7 +41,7 @@ dotnet run --project learn/200-durable-execution/202-durable-step
 
 The handler fails once after `start-freeze-cycle`; the job reaches execution two, while this controlled
 failure-after-completion path invokes the body once and the step row stays `succeeded`. The stable
-external deduplication key in the example is still necessary for the crash-before-recording window.
+external idempotency key in the example is still necessary for the crash-before-recording window.
 
 ## Rows to inspect
 
@@ -59,7 +59,7 @@ to explore a process stopping after step start but before outcome recording.
 
 ## When not to use
 
-Do not use a durable step to disguise a non-idempotent API when that API offers a real deduplication key.
+Do not use a durable step to disguise a non-idempotent API when that API offers a real idempotency key.
 Prefer the external guarantee. Do not create a step for pure, cheap computation unless replay cost or
 determinism makes the stored result worthwhile.
 

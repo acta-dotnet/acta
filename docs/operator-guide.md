@@ -849,7 +849,7 @@ with, and restore them together when possible.
 
 A database restore is a state rewind. Jobs that were terminal after the backup may become runnable
 again after restore, while external side effects may already have happened. This is another reason
-handlers need deduplication keys and reconciliation paths for irreversible side effects.
+handlers need idempotency keys and reconciliation paths for irreversible side effects.
 
 After restore, start workers normally and let recovery handle expired leases. Validate this in a
 staging restore drill before relying on it operationally.
@@ -922,7 +922,7 @@ The lease expires and recovery makes the job runnable again within budget, on th
 code may run again. Succeeded durable steps return their stored results; an in-progress step whose
 outcome was not recorded follows its configured semantics.
 
-External systems are not rolled back. Use deduplication keys, a step with a check, reconciliation, or
+External systems are not rolled back. Use idempotency keys, a step with a check, reconciliation, or
 carefully selected `AtMostOnce()` steps when duplicate execution is worse than an ambiguous outcome.
 
 ### …the external call succeeds but Acta cannot record completion?
@@ -935,7 +935,7 @@ by default): the heartbeat cannot renew either. When the database returns, a com
 repeating usually lands first, since the completion checks the lease's holder and not its expiry; a row whose
 attempt was lost with its process, or whose completion a recovery pass beats, is reclaimed and re-run under the
 failure budget, which on its last attempt can land a job Failed whose work had succeeded. This is the central at-least-once boundary. Pass a
-stable business deduplication key to the external system or reconcile its state before repeating the
+stable business idempotency key to the external system or reconcile its state before repeating the
 side effect.
 
 ### …the database is unavailable?
@@ -1071,7 +1071,7 @@ resolve means the incident is considered settled. Neither action changes the und
 
 Acta state rewinds to the backup point; external systems do not. Work that completed after the backup
 can appear runnable again, and signals or operator actions after the backup can disappear. Run a
-reconciliation before releasing workers, using stable external deduplication keys and the restored
+reconciliation before releasing workers, using stable external idempotency keys and the restored
 timeline as evidence, not as proof that external effects did or did not happen.
 
 ## Troubleshooting

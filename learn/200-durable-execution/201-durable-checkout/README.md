@@ -17,7 +17,7 @@ what the checkout is waiting for, or how an operator can prove what happened.
 
 - Keep the continuation in memory and lose it when the process stops.
 - Put flags in an application table and build a state-machine runner around them.
-- Replay everything and require every external system to honor a deduplication key.
+- Replay everything and require every external system to honor an idempotency key.
 - Adopt a workflow engine with a separate state model and operating surface.
 - Use a distributed transaction where every participant genuinely supports one.
 
@@ -34,7 +34,7 @@ updated status, scheduling, counters, and worker ownership live on the smaller `
 
 The handler re-enters from the top after each durable wait. Completed steps replay their stored outcome,
 but a normal step body can still run again if the process dies after its external side effect and before
-Acta records completion. The example therefore passes stable deduplication keys to its simulated external
+Acta records completion. The example therefore passes stable idempotency keys to its simulated external
 systems. A real inventory, payment, or mail API must persist and honor those keys.
 
 Every named step and checkpoint is also a durable contract and an additional row. This is more explicit

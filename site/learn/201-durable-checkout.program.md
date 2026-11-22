@@ -81,14 +81,14 @@ public sealed class CheckoutJob
 
         // learn: 2. Put each outside call in a step
         // Normal durable steps replay completed outcomes, but an in-flight body can run again after a
-        // crash. These simulated external calls therefore carry stable deduplication keys. A real
+        // crash. These simulated external calls therefore carry stable idempotency keys. A real
         // inventory, payment, or mail service must persist and honor the same contract.
         await context.RunStepAsync(
             "reserve-inventory",
             async innerCt =>
             {
                 await Task.Delay(150, innerCt);
-                Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
+                Console.WriteLine($"[{order.OrderId}] inventory request: idempotency-key=reservation:{order.OrderId}");
             },
             ct
         );
@@ -98,7 +98,7 @@ public sealed class CheckoutJob
             async innerCt =>
             {
                 await Task.Delay(150, innerCt);
-                Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
+                Console.WriteLine($"[{order.OrderId}] payment request: idempotency-key=payment:{order.OrderId}");
                 return new ChargeResult($"ch_{order.OrderId}");
             },
             ct
@@ -121,7 +121,7 @@ public sealed class CheckoutJob
             {
                 var storedChargeId = await context.GetVariableAsync<string>("charge-id", innerCt);
                 await Task.Delay(100, innerCt);
-                Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: deduplication-key=receipt:{order.OrderId}");
+                Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: idempotency-key=receipt:{order.OrderId}");
             },
             ct
         );
@@ -427,7 +427,7 @@ what the checkout is waiting for, or how an operator can prove what happened.
 
 - Keep the continuation in memory and lose it when the process stops.
 - Put flags in an application table and build a state-machine runner around them.
-- Replay everything and require every external system to honor a deduplication key.
+- Replay everything and require every external system to honor an idempotency key.
 - Adopt a workflow engine with a separate state model and operating surface.
 - Use a distributed transaction where every participant genuinely supports one.
 
@@ -444,7 +444,7 @@ updated status, scheduling, counters, and worker ownership live on the smaller `
 
 The handler re-enters from the top after each durable wait. Completed steps replay their stored outcome,
 but a normal step body can still run again if the process dies after its external side effect and before
-Acta records completion. The example therefore passes stable deduplication keys to its simulated external
+Acta records completion. The example therefore passes stable idempotency keys to its simulated external
 systems. A real inventory, payment, or mail API must persist and honor those keys.
 
 Every named step and checkpoint is also a durable contract and an additional row. This is more explicit

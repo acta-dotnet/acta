@@ -21,7 +21,7 @@ await context.RunStepAsync(
     "start-freeze-cycle",
     _ =>
     {
-        Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}");
+        Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable idempotency key freeze:{box.BoxId}");
         return Task.CompletedTask;
     },
     ct
@@ -35,7 +35,7 @@ await context.RunStepAsync(
     "start-freeze-cycle",
     _ =>
     {
-        Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}");
+        Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable idempotency key freeze:{box.BoxId}");
         return Task.CompletedTask;
     },
     ct

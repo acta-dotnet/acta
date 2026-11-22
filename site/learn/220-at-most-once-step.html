@@ -134,7 +134,7 @@
 <h3>The problem</h3>
 <p>No local transaction can atomically commit both a remote charge and Acta's step outcome. If the process dies in that gap, retrying may duplicate the charge; refusing retry leaves an unknown outcome.</p>
 <h3>Common approaches</h3>
-<ul class="plain"><li>Accept at-least-once execution and make the side effect idempotent.</li><li>Send an external deduplication key and query the external result.</li><li>Ask the external system before repeating, with a step that has a check (<a href="/learn/224-check-step">Ask the provider before repeating a step after a crash</a>).</li><li>Refuse a second invocation with an at-most-once step.</li><li>Reconcile an ambiguous outcome and compensate or continue.</li></ul>
+<ul class="plain"><li>Accept at-least-once execution and make the side effect idempotent.</li><li>Send an external idempotency key and query the external result.</li><li>Ask the external system before repeating, with a step that has a check (<a href="/learn/224-check-step">Ask the provider before repeating a step after a crash</a>).</li><li>Refuse a second invocation with an at-most-once step.</li><li>Reconcile an ambiguous outcome and compensate or continue.</li></ul>
 <h3>Why this design</h3>
 <p><code>AtMostOnce()</code> durably marks the step start before invoking the body. Re-entering a still-pending step terminalizes it as <code>interrupted</code> and throws <code>StepInterruptedException</code>; Acta never calls that body a second time. The handler then owns reconciliation policy. A body that learns of the same ambiguity without dying, a timeout after the request left, throws <code>OutcomeUnknownException</code> and ends the step the same way.</p>
 <h3>Trade-offs</h3>
@@ -148,7 +148,7 @@ dotnet run --project learn/200-durable-execution/220-at-most-once-step -- recove
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
 <p>Before recovery, <code>jobs_view</code> is executing with a lapsed owner and <code>steps_view</code> is pending. After crash recovery re-arms it, the step becomes <code>interrupted</code>, and its <code>failure_message</code> says why; <code>events_view</code> preserves the loss and replay. On SQLite the restarted host releases the crashed process's job at once; on a server database the lab's short lease timings make the wait quick.</p>
 <h3>Break it</h3>
-<p>Comment out <code>AtMostOnce()</code> and repeat: the body can run again after recovery. Then replace the file with a fake external API that accepts a deduplication key and compare the certainty it can provide.</p>
+<p>Comment out <code>AtMostOnce()</code> and repeat: the body can run again after recovery. Then replace the file with a fake external API that accepts an idempotency key and compare the certainty it can provide.</p>
 <h3>When not to use</h3>
 <p>Do not choose at-most-once merely to avoid thinking about idempotency. Use it only when duplicate work is worse than missing/ambiguous work and a reconciliation path exists.</p>
 <h3>Source trail</h3>

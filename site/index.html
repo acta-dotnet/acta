@@ -175,7 +175,7 @@
             <li><b>book-shipment</b><span class="v">steps_view</span><span class="d">Records the booking outcome. A rejected booking ends the job; charging, invoicing, and receipt delivery cannot run.</span></li>
             <li><b>charge-card</b><span class="v">steps_view</span><span class="d">Runs after booking is confirmed. The payment adapter returns only a confirmed charge; a decline or transient error throws, so no invoice is issued.</span></li>
             <li><b>issue-invoice</b><span class="v">steps_view</span><span class="d">Receives both the confirmed booking ID and charge ID. On replay, completed steps return their saved results.</span></li>
-            <li><b>send-receipt</b><span class="v">steps_view</span><span class="d">Starts only after the invoice exists. The stable invoice ID gives receipt delivery the same deduplication key on every retry.</span></li>
+            <li><b>send-receipt</b><span class="v">steps_view</span><span class="d">Starts only after the invoice exists. The stable invoice ID gives receipt delivery the same idempotency key on every retry.</span></li>
           </ol>
         </div>
         <p class="hint"><b>Application contract.</b> This example starts with a validated order whose stock is already reserved. Each external adapter must honor its operation key. The payment adapter must throw unless a charge is confirmed. Booking cancellation, stock release, and refunds need explicit business recovery paths when an order cannot finish; Acta does not roll back external operations.</p>

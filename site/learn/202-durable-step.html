@@ -83,7 +83,7 @@
 <span class="hl">    <span class="s ct" data-ct="step" tabindex="0">&quot;start-freeze-cycle&quot;</span>,</span>
 <span class="hl">    _ =&gt;</span>
 <span class="hl">    {</span>
-<span class="hl">        Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}&quot;</span>);</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] requesting START-FREEZE with stable idempotency key freeze:{box.BoxId}&quot;</span>);</span>
 <span class="hl">        <span class="k">return</span> Task.CompletedTask;</span>
 <span class="hl">    },</span>
 <span class="hl">    ct</span>
@@ -119,21 +119,21 @@ Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] box frozen&quot;</span>);
 <h3>The problem</h3>
 <p>A retry repeats a handler. If an earlier side effect succeeded, repeating it can double-charge, send twice, or corrupt an external state machine.</p>
 <h3>Common approaches</h3>
-<div class="table-scroll"><table class="data-table compare"><thead><tr><th>Approach</th><th>Benefit</th><th>Cost</th></tr></thead><tbody><tr><th>Bare handler code</th><td>Minimal ceremony</td><td>Repeats on replay</td></tr><tr><th>Normal durable step</th><td>Replays a recorded success</td><td>A crash before recording success can repeat the body</td></tr><tr><th>External deduplication key</th><td>Usually the strongest answer</td><td>The external system must implement it</td></tr><tr><th>Step with a check</th><td>Asks the external system before repeating a started step</td><td>The external system must be able to answer, and can answer late</td></tr><tr><th>At-most-once step</th><td>Acta will not invoke an interrupted body again</td><td>The outcome can remain ambiguous</td></tr><tr><th>Reconciliation</th><td>Resolves ambiguity from external evidence</td><td>Requires a readable external state/API</td></tr></tbody></table></div>
+<div class="table-scroll"><table class="data-table compare"><thead><tr><th>Approach</th><th>Benefit</th><th>Cost</th></tr></thead><tbody><tr><th>Bare handler code</th><td>Minimal ceremony</td><td>Repeats on replay</td></tr><tr><th>Normal durable step</th><td>Replays a recorded success</td><td>A crash before recording success can repeat the body</td></tr><tr><th>External idempotency key</th><td>Usually the strongest answer</td><td>The external system must implement it</td></tr><tr><th>Step with a check</th><td>Asks the external system before repeating a started step</td><td>The external system must be able to answer, and can answer late</td></tr><tr><th>At-most-once step</th><td>Acta will not invoke an interrupted body again</td><td>The outcome can remain ambiguous</td></tr><tr><th>Reconciliation</th><td>Resolves ambiguity from external evidence</td><td>Requires a readable external state/API</td></tr></tbody></table></div>
 <h3>Why this design</h3>
 <p><code>RunStepAsync</code> gives a named operation a durable record. Once the outcome is recorded, later executions return it instead of calling the body again. The built-in failure after the step proves that distinction.</p>
 <h3>Trade-offs</h3>
 <p>A normal step closes the replay gap only after completion is durable. It cannot atomically commit an external side effect and Acta's row. For the interrupted-at-most-once choice, continue with <a href="/learn/220-at-most-once-step"><code>220-at-most-once-step</code></a> rather than mistaking this lab for exactly-once.</p>
 <h3>Run the experiment</h3>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/200-durable-execution/202-durable-step</code></pre></figure>
-<p>The handler fails once after <code>start-freeze-cycle</code>; the job reaches execution two, while this controlled failure-after-completion path invokes the body once and the step row stays <code>succeeded</code>. The stable external deduplication key in the example is still necessary for the crash-before-recording window.</p>
+<p>The handler fails once after <code>start-freeze-cycle</code>; the job reaches execution two, while this controlled failure-after-completion path invokes the body once and the step row stays <code>succeeded</code>. The stable external idempotency key in the example is still necessary for the crash-before-recording window.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
 <p>The lab prints <code>jobs_view</code>, <code>steps_view</code>, and <code>events_view</code>. The job row proves replay; the step row proves reuse of a recorded outcome; the event rows explain why execution one re-armed.</p>
 <h3>Break it</h3>
 <p>Move the simulated failure into the step body and compare the row. The step stays <code>pending</code>, the throw fails the attempt, and the job's retry runs the body again under the job's <code>MaxAttempts</code>. Then use lab 220 to explore a process stopping after step start but before outcome recording.</p>
 <h3>When not to use</h3>
-<p>Do not use a durable step to disguise a non-idempotent API when that API offers a real deduplication key. Prefer the external guarantee. Do not create a step for pure, cheap computation unless replay cost or determinism makes the stored result worthwhile.</p>
+<p>Do not use a durable step to disguise a non-idempotent API when that API offers a real idempotency key. Prefer the external guarantee. Do not create a step for pure, cheap computation unless replay cost or determinism makes the stored result worthwhile.</p>
 <h3>Source trail</h3>
 <ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/202-durable-step/durable-step.cs"><code>durable-step.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Worker/Context/RuntimeJobContext.cs"><code>RuntimeJobContext.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs"><code>StepAtMostOnceSpec.cs</code></a></li></ul>
 </details>
@@ -236,7 +236,7 @@ GetJobResponse? snapshot;
 <span class="hl">                <span class="s ct" data-ct="step" tabindex="0">&quot;start-freeze-cycle&quot;</span>,</span>
 <span class="hl">                _ =&gt;</span>
 <span class="hl">                {</span>
-<span class="hl">                    Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}&quot;</span>);</span>
+<span class="hl">                    Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] requesting START-FREEZE with stable idempotency key freeze:{box.BoxId}&quot;</span>);</span>
 <span class="hl">                    <span class="k">return</span> Task.CompletedTask;</span>
 <span class="hl">                },</span>
 <span class="hl">                ct</span>

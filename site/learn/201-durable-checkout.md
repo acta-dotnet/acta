@@ -40,7 +40,7 @@ Console.WriteLine($"[{order.OrderId}] approval observed by handler; reviewer={de
 
 ## 2. Put each outside call in a step
 
-Normal durable steps replay completed outcomes, but an in-flight body can run again after a crash. These simulated external calls therefore carry stable deduplication keys. A real inventory, payment, or mail service must persist and honor the same contract.
+Normal durable steps replay completed outcomes, but an in-flight body can run again after a crash. These simulated external calls therefore carry stable idempotency keys. A real inventory, payment, or mail service must persist and honor the same contract.
 
 The lines that matter:
 
@@ -50,7 +50,7 @@ await context.RunStepAsync(
     async innerCt =>
     {
         await Task.Delay(150, innerCt);
-        Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
+        Console.WriteLine($"[{order.OrderId}] inventory request: idempotency-key=reservation:{order.OrderId}");
     },
     ct
 );
@@ -60,7 +60,7 @@ var charge = await context.RunStepAsync(
     async innerCt =>
     {
         await Task.Delay(150, innerCt);
-        Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
+        Console.WriteLine($"[{order.OrderId}] payment request: idempotency-key=payment:{order.OrderId}");
         return new ChargeResult($"ch_{order.OrderId}");
     },
     ct
@@ -75,7 +75,7 @@ await context.RunStepAsync(
     async innerCt =>
     {
         await Task.Delay(150, innerCt);
-        Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
+        Console.WriteLine($"[{order.OrderId}] inventory request: idempotency-key=reservation:{order.OrderId}");
     },
     ct
 );
@@ -85,7 +85,7 @@ var charge = await context.RunStepAsync(
     async innerCt =>
     {
         await Task.Delay(150, innerCt);
-        Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
+        Console.WriteLine($"[{order.OrderId}] payment request: idempotency-key=payment:{order.OrderId}");
         return new ChargeResult($"ch_{order.OrderId}");
     },
     ct

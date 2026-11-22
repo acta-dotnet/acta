@@ -34,14 +34,14 @@ public sealed class CheckoutJob
 
         // learn: 2. Put each outside call in a step
         // Normal durable steps replay completed outcomes, but an in-flight body can run again after a
-        // crash. These simulated external calls therefore carry stable deduplication keys. A real
+        // crash. These simulated external calls therefore carry stable idempotency keys. A real
         // inventory, payment, or mail service must persist and honor the same contract.
         await context.RunStepAsync(
             "reserve-inventory",
             async innerCt =>
             {
                 await Task.Delay(150, innerCt);
-                Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
+                Console.WriteLine($"[{order.OrderId}] inventory request: idempotency-key=reservation:{order.OrderId}");
             },
             ct
         );
@@ -51,7 +51,7 @@ public sealed class CheckoutJob
             async innerCt =>
             {
                 await Task.Delay(150, innerCt);
-                Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
+                Console.WriteLine($"[{order.OrderId}] payment request: idempotency-key=payment:{order.OrderId}");
                 return new ChargeResult($"ch_{order.OrderId}");
             },
             ct
@@ -74,7 +74,7 @@ public sealed class CheckoutJob
             {
                 var storedChargeId = await context.GetVariableAsync<string>("charge-id", innerCt);
                 await Task.Delay(100, innerCt);
-                Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: deduplication-key=receipt:{order.OrderId}");
+                Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: idempotency-key=receipt:{order.OrderId}");
             },
             ct
         );

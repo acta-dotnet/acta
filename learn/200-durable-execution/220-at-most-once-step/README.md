@@ -1,7 +1,7 @@
 <!-- engineering-lab
 lab: can-jobs-refuse-unsafe-replay
 views: jobs_view, steps_view, events_view
-alternatives: at-least-once, external-deduplication-key, at-most-once, reconciliation
+alternatives: at-least-once, external-idempotency-key, at-most-once, reconciliation
 -->
 
 # Engineering Lab: at most once means ambiguity, not certainty
@@ -14,7 +14,7 @@ dies in that gap, retrying may duplicate the charge; refusing retry leaves an un
 ## Common approaches
 
 - Accept at-least-once execution and make the side effect idempotent.
-- Send an external deduplication key and query the external result.
+- Send an external idempotency key and query the external result.
 - Ask the external system before repeating, with a step that has a check ([Ask the provider before repeating a step after a crash](../224-check-step/)).
 - Refuse a second invocation with an at-most-once step.
 - Reconcile an ambiguous outcome and compensate or continue.
@@ -58,7 +58,7 @@ process's job at once; on a server database the lab's short lease timings make t
 ## Break it
 
 Comment out `AtMostOnce()` and repeat: the body can run again after recovery. Then
-replace the file with a fake external API that accepts a deduplication key and compare the certainty it
+replace the file with a fake external API that accepts an idempotency key and compare the certainty it
 can provide.
 
 ## When not to use
