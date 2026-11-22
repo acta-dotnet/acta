@@ -42,7 +42,8 @@ BEGIN TRY
         r.job_id = @p_job_id
         AND r.job_status_code = 50 /* JobStatusCode.Executing */
         AND r.execution_number = @p_execution_number
-        AND r.leased_by_worker_id = @p_worker_id;
+        AND r.leased_by_worker_id = @p_worker_id
+    OPTION (FORCE ORDER, LOOP JOIN);
 
     SELECT @@ROWCOUNT AS inserted;
 

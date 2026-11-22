@@ -36,7 +36,8 @@ BEGIN TRY
         @version = r.version
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
-    WHERE r.job_id = @p_job_id;
+    WHERE r.job_id = @p_job_id
+    OPTION (FORCE ORDER, LOOP JOIN);
 
     -- A cancel an ancestor's expired child wait makes lands only while that attempt holds the ancestor's row, read
     -- unlocked once this job's rows are locked (docs/sql-internals.md, "Execution fence"). An operator's or the

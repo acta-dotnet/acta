@@ -27,7 +27,8 @@ BEGIN TRY
         r.job_id = @p_job_id
         AND r.job_status_code = 50 /* JobStatusCode.Executing */
         AND r.execution_number = @p_execution_number
-        AND r.leased_by_worker_id = @p_leased_by_worker_id;
+        AND r.leased_by_worker_id = @p_leased_by_worker_id
+    OPTION (FORCE ORDER, LOOP JOIN);
 
     -- The reset clears nothing unless the attempt still holds the row, update-locked to commit (docs/sql-internals.md,
     -- "Execution fence"); the answer says which.

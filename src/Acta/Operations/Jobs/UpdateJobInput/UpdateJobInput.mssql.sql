@@ -27,7 +27,8 @@ BEGIN TRY
         @old_input = j.input
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
-    WHERE r.job_id = @p_job_id;
+    WHERE r.job_id = @p_job_id
+    OPTION (FORCE ORDER, LOOP JOIN);
 
     IF @from_status IS NULL
         BEGIN

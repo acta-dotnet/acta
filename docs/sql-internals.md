@@ -562,6 +562,16 @@ the lock.
   holds. The database breaks that deadlock, and the aborted owned call is retried like any `40P01` or
   `1205` victim.
 
+### Job lock order
+
+A statement that locks one job takes its `jobs_state` row before its `jobs` row. The retention delete locks the
+rows of an expired job in that order and then deletes them, and a control operation (restart, cancel, pause,
+resume, reschedule, reprioritize, reset state, update input, record note, purge) reads the same two rows under an
+update lock on the state row. On SQL Server without read committed snapshot the plain read of `jobs` takes a shared
+lock, and a server free to read `jobs` first holds it while it waits for the state row: with the delete holding the
+state row and waiting for `jobs`, that is a deadlock. Each of those reads therefore states its join order,
+`OPTION (FORCE ORDER, LOOP JOIN)`, with `jobs_state` written first. PostgreSQL and SQLite take no lock for the read.
+
 ### Schedule lock
 
 Each namespace has one schedule lock, held until its transaction ends: `sp_getapplock` on

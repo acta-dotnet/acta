@@ -23,7 +23,8 @@ BEGIN TRY
         @parent_job_id = j.parent_job_id
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK) ON j.job_id = r.job_id
-    WHERE r.job_id = @p_job_id;
+    WHERE r.job_id = @p_job_id
+    OPTION (FORCE ORDER, LOOP JOIN);
 
     IF @from_status IS NULL
         BEGIN
