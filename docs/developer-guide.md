@@ -834,18 +834,19 @@ The meter bounds admissions, not the gaps between starts. With `R` the rate per 
 ## Enqueue, schedule, and follow a job
 
 ```csharp
-var job = await jobs.EnqueueAsync(new ShipOrder(1042));                                 // run now
-var later = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));    // run once, later
-var receipt = await jobs.EnqueueAsync(BillingJobs.SendInvoice(new SendInvoice(7)));     // JobHandle<Receipt>
-var once = await jobs.EnqueueAsync(new SendInvoice(8), o => o.IdempotencyKey("invoice-8"));
+var job = await jobs.EnqueueAsync(new ShipOrder(1042));                                      // run now
+var later = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));         // run once, later
+var invoice = await jobs.EnqueueAsync(BillingJobs.SendInvoice(new SendInvoice(7)));          // JobHandle<Receipt>
+var once = await jobs.EnqueueAsync(new SendInvoice(8), o => o.IdempotencyKey("invoice-8"));  // JobHandle
 
-JobOutcome outcome = await job.WaitAsync(TimeSpan.FromSeconds(30));
-Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
+JobOutcome shipped = await job.WaitAsync();
+Receipt sent = (await invoice.WaitAsync()).ValueOrThrow();
+Receipt again = (await once.WaitAsync<Receipt>()).ValueOrThrow();
 ```
 
 - Each job's member on the generated manifest is a factory (`BillingJobs.SendInvoice(...)`): it takes the handler's input parameters, none when the input carries no data, and returns the job's call. A call names its job, so nothing is inferred from the input's type. The factory is public, unless the job takes or returns a type other assemblies cannot see: then it is internal, as is the job's argument record. Enqueue and schedule take it with options as a `configure` callback, and `CallAsync` with its `JobExecutionOptions`.
 - A typed enqueue, of an input or of a job's call, answers a `JobHandle`: the `EnqueueJobResponse` (`JobRef`, `JobId`, `Action`) plus `GetStatusAsync`, `WaitAsync`, `GetResultAsync`, `TryGetResultAsync`, `CancelAsync`, and `ExplainAsync`, each addressed by the job's id, so none spends a query resolving the job.
-- Enqueuing a result job's call answers `JobHandle<TResult>`, so the wait and the result read need no type argument; an input-typed enqueue names it: `job.WaitAsync<Receipt>()`.
+- Enqueuing a result job's call answers `JobHandle<TResult>`, so the wait and the result read need no type argument; an input-typed enqueue names it: `once.WaitAsync<Receipt>()`.
 - `WaitAsync` returns the outcome, never throws it; a timeout (30 seconds by default) or a cancelled token stops the wait, never the job. A typed wait on a job that succeeded and stored no result answers a succeeded outcome with no value: `HasValue` and `TryGetValue` are false, and `ValueOrThrow()` throws `JobResultMissingException`. A result declared `Task<int?>` is an `int` result, and reads as `int` or as `int?`. It throws when no job matches, for a non-positive timeout, when its token is cancelled, and when a typed wait or result read meets a job whose definition, as this process registers it, produces another result type, which an idempotency key shared across definitions can hand back. A job of a definition this process does not register is decoded without that check.
 - A successful wait's result is the one the execution it saw succeed stored.
 - `GetResultAsync<T>` reads a result you expect: it returns the stored result, and throws `InvalidOperationException`, naming the job and its status, when the job has stored none. `TryGetResultAsync<T>` reads a result that may not exist yet and answers `(bool Found, T? Value)`, so a stored zero is not mistaken for no result: `await handle.TryGetResultAsync<T>() is (true, var value)`. Both are point-in-time reads that never wait; `WaitAsync` follows the job to its result.
