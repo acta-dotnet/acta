@@ -52,7 +52,7 @@ public sealed class ProcessPaymentJob(IJobs jobs)
             "shipping",
             "ship-order",
             JobPayload.Json(new ShipOrderV1(order.OrderId, order.UserId, lines)),
-            DeduplicationKey: $"ship:{order.UserId}:{order.OrderId}"
+            IdempotencyKey: $"ship:{order.UserId}:{order.OrderId}"
         );
 
         await jobs.EnqueueAsync(handoff, ct);

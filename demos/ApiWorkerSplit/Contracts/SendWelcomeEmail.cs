@@ -15,7 +15,7 @@ public sealed record WelcomeEmailAccepted(JobRef JobRef, string Action, string S
 public sealed record WelcomeEmailStatus(
     JobRef JobRef,
     string Status,
-    string? DeduplicationKey,
+    string? IdempotencyKey,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc
 );

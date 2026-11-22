@@ -48,7 +48,7 @@ The POST response is `202 Accepted`: it confirms durable admission, not handler 
 eventually becomes `Succeeded`, and only the worker console prints `Sent welcome email ...`.
 
 Sending the same body again returns `action: "Deduplicated"` with the same `jobRef` because the API
-derives the deduplication key from `userId`. Change `userId` when you want a new job.
+derives the idempotency key from `userId`. Change `userId` when you want a new job.
 
 ## Run from terminals
 

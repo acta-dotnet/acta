@@ -45,7 +45,7 @@ charges the card, then hands off durably to shipping, which labels and dispatche
 | --- | --- |
 | `POST /orders` | Enqueue: the API returns as soon as the job row is committed |
 | `GET /orders/{jobRef}` | Poll a job's durable status by its public ref |
-| `GET /orders/{orderId}/shipping` | Find the shipping job by its deduplication key and read its durable status |
+| `GET /orders/{orderId}/shipping` | Find the shipping job by its idempotency key and read its durable status |
 | `POST /admin/orders/{jobRef}/fraud-decision` | Release a job that is suspended waiting on a signal |
 | `/acta` | The operator dashboard, read plus controls |
 

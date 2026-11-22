@@ -12,14 +12,14 @@ var app = builder.Build();
 // reaches a job without referencing the worker's manifest.
 app.MapPost("/welcome-emails", async (SendWelcomeEmail input, HttpContext http, IJobs jobs, CancellationToken ct) =>
 {
-    var deduplicationKey = $"welcome:{input.UserId}";
+    var idempotencyKey = $"welcome:{input.UserId}";
     var correlationKey = http.TraceIdentifier;
 
     var request = new EnqueueJobRequest(
         WelcomeEmailRoute.Namespace,
         WelcomeEmailRoute.JobName,
         JobPayload.Json(input),
-        DeduplicationKey: deduplicationKey,
+        IdempotencyKey: idempotencyKey,
         CorrelationKey: correlationKey,
         Tags: [new TagInput("kind", "email"), new TagInput("tenant", "demo")]
     );
@@ -40,7 +40,7 @@ app.MapGet("/welcome-emails/{jobRef}", async (string jobRef, IJobs jobs, Cancell
     var job = await jobs.GetAsync(parsed, ct);
     return job is null
         ? Results.NotFound()
-        : Results.Ok(new WelcomeEmailStatus(job.JobRef, job.Status.ToString(), job.DeduplicationKey, job.CreatedAtUtc, job.ModifiedAtUtc));
+        : Results.Ok(new WelcomeEmailStatus(job.JobRef, job.Status.ToString(), job.IdempotencyKey, job.CreatedAtUtc, job.ModifiedAtUtc));
 });
 
 Console.WriteLine("API process: enqueue-only, no worker handlers loaded.");

@@ -50,7 +50,7 @@ app.MapPost("/orders", async (OrderRequest input, HttpContext http, IOrderStore 
         "payments",
         "process-payment",
         JobPayload.Json(new OrderV1(input.OrderId, userId, input.Amount, input.Lines)),
-        DeduplicationKey: $"payment:{userId}:{input.OrderId}",
+        IdempotencyKey: $"payment:{userId}:{input.OrderId}",
         CorrelationKey: http.TraceIdentifier,
         Tags: [new TagInput("kind", "order")]
     );
@@ -82,7 +82,7 @@ app.MapGet("/orders/{orderId}/shipping", async (string orderId, HttpContext http
         return Results.Unauthorized();
     }
 
-    var job = await jobs.GetAsync(JobLookup.ByDeduplicationKey("shipping", $"ship:{userId}:{orderId}"), ct);
+    var job = await jobs.GetAsync(JobLookup.ByIdempotencyKey("shipping", $"ship:{userId}:{orderId}"), ct);
     return job is null ? Results.NotFound() : Results.Ok(ToStatus(job));
 });
 
