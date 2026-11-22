@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.15
 
-Not yet released.
+Tagged 2026-11-22. rc.15 answers an outside first-impression review before the 1.0.0 freeze, and re-cuts the baseline once more to do it. A finished handler's result is never thrown away, a step can ask the outside world before it repeats, a host declares the exceptions that are never retried, retention is one setting, a job's deduplication key is its idempotency key, SQLite's tables carry a prefix, and an execution records how long it waited to be claimed.
 
 ### What a consumer must change
 
@@ -69,6 +69,19 @@ A file an earlier candidate provisioned is refused at startup and by the publish
 - SQL Server read a large stored value in time that grew faster than the value: 32 MiB took four seconds and 64 MiB twenty-two. The driver's asynchronous row read is the cause, and Acta now reads a row that carries a stored payload synchronously on SQL Server: a job's input or result, a step's result, a variable. The same 32 MiB then reads in about 0.13 seconds. Every other read, and PostgreSQL and SQLite, are unchanged. Microsoft.Data.SqlClient 7 carries its own fix behind two process-wide switches that a host may set; Acta sets neither.
 - `ctx.EndsJob(ex)` answers false for every exception once a write of the attempt was refused because another execution holds the job. It answered true for a failure that would have ended the job, so a compensating catch could run in an attempt that no longer owned it.
 - The worker's log for a permanent job whose firing a non-retryable exception ended said "the job failed for good". It says the firing failed and the job is idle until its next firing, which is what happened.
+
+### Evidence
+
+The engine was certified with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The run's commit is `0907b3af4`. Five source files changed after it: the text of SQLite's refusal of an earlier candidate's file, `DbParams.JsonIdArray` taking a list of ints with the same output, `JobRequestBuilder.Deduplicate` renamed to `IdempotencyKeyFor`, and two doc comments. Everything else changed after it is CI configuration, the page generator, tests, the how-tos and documentation, and the full gates passed on the tagged tree.
+- **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held, with no rerun. The report's verdict is PASS.
+- **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server with a worker killed every 5 s: 79 busy kills reclaimed on PostgreSQL and 80 on SQL Server. SQLite passed at 10,000 jobs, with 52 busy kills reclaimed.
+- **Throughput.** Four PostgreSQL workers polling held 15,000/s offered in three 30 s passes and in the 120 s confirmation, completing 14,841 fully executed, durably completed jobs per second with p99 1.5 s. One worker, woken in process, completed 7,500 a second with p99 55 ms. SQL Server held 5,000 a second on four workers (4,999, p99 926 ms) and on one (4,994, p99 774 ms). SQLite held 250 on one worker, with p99 185 ms. Both PostgreSQL sixteen-worker ladders held every written rate up to 15,000/s: 15,274 a second on two namespaces with p99 1.2 s, and 15,368 on one with p99 877 ms.
+- **Drain.** Eight workers drained a backlog of 1,000,000 jobs at 85,807 a second on PostgreSQL and 43,111 on SQL Server (the steady rate on the database clock, median of three passes); one SQLite worker drained its backlog at 5,508.
+- **Compared with rc.14.** `acta-verify compare` sets every scenario beside rc.14's run. All 218 scenario runs the two share passed both times, and of the measured cells 16 read faster, 48 the same, and 27 slower, from one run each. Twenty-four of the twenty-seven are p99s at rates both runs held, inside their floors and not rerun. Three are drain rates, and each was run again alone: SQLite's drain read 7,337 a second across twelve passes, above rc.14's 6,230; SQL Server's four-worker drain read 33,248 across four runs, within 4% of rc.14's 34,482; SQL Server's one-worker drain, run on both releases back to back, read 14,363 on rc.14 and 13,889 on rc.15. That last gap, 3.3%, is real: rc.15 adds an index on a job's retention date, which every landing job maintains, and records how long each execution waited.
+- **The retention index.** Before it was kept, SQL Server's and SQLite's drains were run with and without it in mirrored order: 4.6% slower with sixteen workers, 1.6% with four, and 1.6% on SQLite, each inside the spread of its own runs, with no deadlock and no failed scenario.
+- **PostgreSQL versions.** The PostgreSQL conformance suite passed on 17 and on 19.0 as well as on 18; the release run and the benchmark are on 18.
+- **useacta.net.** The homepage states 14,841 fully executed, durably completed jobs per second on four PostgreSQL workers. The benchmark report is a page of the site.
+- **Release record.** The run's bundle is `20261121T145105100Z-97001dd0f9df40ffaeb8d1e6b8fd0649`, and the `result.json` line of its `checksums.sha256` is `8fa44973997f763e1c4d36ecf9e83622489fc9cfcde75c566bc8e7f4a10b97a1`. The gates on the tagged tree: the build, the formatter, the generated-file check, the fast suite, the three conformance suites, Verify's own tests, every runnable how-to, the Native AOT publish, the package smoke test, and the dashboard's unit, build, size and smoke checks.
 
 ## 1.0.0-rc.14
 
