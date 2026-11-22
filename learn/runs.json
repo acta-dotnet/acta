@@ -283,6 +283,13 @@
     "final status: succeeded, executions: 2",
     "Succeeded after 1 lost lease."
   ],
+  "707-orleans-integration": [
+    "sending the receipt for 100 EUR (attempt 2)",
+    "send-receipt",
+    "balance before the payment was confirmed: 0 EUR",
+    "balance after the payment was confirmed: 100 EUR",
+    "top-up-wallet"
+  ],
   "901-native-aot-json": ["Processed order ORD-001 x3", "Status: Succeeded"],
   "903-redis-wakeup": {
     "skip": "Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour."

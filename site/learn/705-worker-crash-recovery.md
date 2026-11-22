@@ -104,7 +104,7 @@ Proven by other suites. The release check does not run this program. Needs Postg
 
 ## Next
 
-- [How to change a job's input without breaking the jobs already stored](/learn/502-job-versions.md)
+- [How to integrate Acta with Orleans](/learn/707-orleans-integration.md)
 
 ## More
 

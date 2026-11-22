@@ -34,8 +34,9 @@ Ask these in order and stop at the first yes.
 
 1. **Can the work be lost without anyone noticing?** Use `BackgroundService`, a timer, or Polly around the call. Nothing needs to be stored.
 2. **Is it a message from one service to another?** Use a broker. Add Acta when what the message starts has to be retried, waited on, or explained afterwards.
-3. **Do workers in several languages share one workflow, or is it drawn in a designer?** Use a workflow platform.
-4. **Does the work have steps, waits, retries, or someone who will later ask what happened?** Use Acta.
+3. **Is it live state for many small objects, answered from memory?** Use an actor framework such as Orleans. Add Acta for the long work an object starts.
+4. **Do workers in several languages share one workflow, or is it drawn in a designer?** Use a workflow platform.
+5. **Does the work have steps, waits, retries, or someone who will later ask what happened?** Use Acta.
 
 ## Who reaches for Acta
 
@@ -90,6 +91,7 @@ Ask these in order and stop at the first yes.
 | A local loop where a missed tick is harmless | `BackgroundService` or `PeriodicTimer`. Nothing needs to be stored, so nothing more is needed. |
 | A script or container the platform starts on a calendar | cron, systemd timers, Windows Task Scheduler, a Kubernetes CronJob, or a cloud timer. The platform owns the clock and the process. |
 | Messages between services | A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its idempotency key. |
+| Many small stateful objects (a player, a wallet, a device) that stay addressable across a cluster | A virtual-actor framework such as Orleans. Each object holds its own state in memory, and the runtime places and activates it. Acta can run the work such an object starts. |
 | Background work the application owns | Acta, when the work needs retries, durable state, a history, or an operator who can pause, restart, or signal it. |
 | A controller that keeps an external system current: durable progress, bounded batches, a worker that may die mid-batch | Acta, as one permanent job ([the lab](../learn/100-scheduling/109-continuous-synchronization/)). |
 | A long-running workflow in .NET | Acta: one C# handler with steps, child jobs, signals, and timers, and its state as rows in your database. |
@@ -101,7 +103,7 @@ If the tool already makes your background work boring, visible, and consistent, 
 
 Cron, retries, dashboards, and SQL storage exist everywhere. What Acta offers is one durable work model: the timer, the queue, the retry loop, and the hand-maintained state table become one job with a schedule, a lease, a budget, and a ledger, and a parent, its children, and a long wait are jobs in the same model.
 
-The tools fall into four groups. Each group opens with what Acta adds in that space, then says when to keep the tool and when to choose Acta.
+The tools fall into five groups. Each group opens with what Acta adds in that space, then says when to keep the tool and when to choose Acta.
 
 ### Job runners and schedulers
 
@@ -139,6 +141,20 @@ A message says that something happened. A job is work that has to finish. The tw
 | Wolverine, a messaging framework | Your background work is message handling: a durable inbox and outbox, durable local queues, scheduled messages, and sagas, on a database you already run. | The unit is a job with a life of its own: steps, waits, child jobs, a schedule, a history, and an operator who can pause, restart, or signal it. |
 | RabbitMQ, Kafka, Service Bus, or SQS, a message broker | You need messaging between services, those in other languages included, with whatever pub/sub, fan-out, or replay your broker or streaming platform offers. | Add Acta beside it when the work a message starts needs steps, waits, and a history beyond redelivery. Without a broker, Acta runs that work on the database alone. |
 
+### Actors
+
+An actor is a small object that is always there to call and has an address: one object for one player, one wallet or one device. You call it by its id, and the framework finds it on a server of the cluster or activates it there. It handles one call at a time by default, so two calls never change its state at once. Its state is in memory while it is active and is saved only when its code says so. An actor framework is a way to build the application, not a way to run its long work. Orleans is adding durable work of its own, in its Durable Jobs and Journaling packages, both alphas.
+
+An actor is a thing that stays. A job is work that starts and ends.
+
+**What Acta adds:** a record of the work. An actor saves the state it chooses to save, and keeps a history only if its code writes one. The long work an actor starts becomes a job with recorded steps, waits that last days, a retry budget, and an answer to why it stopped. The nearest thing in Acta is a lane: one job at a time for a customer, an order or a device, in the order they were enqueued, held in the database. Silos form a cluster and send each other messages. Acta's workers do not call each other: each one works from the database.
+
+**Acta and actors work together.** In an application that runs both, a grain enqueues a job and returns, and the job's handler calls the grain back when the work is done. [Integrate Acta with Orleans](../learn/700-topology-and-deployment/707-orleans-integration/) shows it running.
+
+| Tool | Keep it when | Choose Acta when |
+| --- | --- | --- |
+| Orleans, a distributed application framework built on virtual actors | Your application is many small stateful objects that must stay addressable and in memory across a cluster, where a call is answered from the object's memory like a method call, with no database write unless its code makes one, and you want the runtime to place them, activate them on demand, and persist the state each one chooses to write. | The unit is a piece of work with a beginning and an end: a handler whose steps, waits, retries and history are recorded as it runs, in the SQL database the application already uses. Add Acta beside it when a grain starts work that must be retried, waited on for days, and explained afterwards. |
+
 ### In-process resilience
 
 **What Acta adds:** the retries that have to outlive the process.
@@ -162,6 +178,7 @@ The tables above say when each tool is the right one. Here the same questions ar
 - **Elsa**: A blocking activity (`Delay`, `Timer`, `Event`, `UserTask`) or `context.CreateBookmark` leaves a bookmark, and the workflow resumes when the bookmark is triggered. ([docs](https://docs.elsaworkflows.io/guides/running-workflows/long-running-workflows))
 - **Temporal**: A `[WorkflowSignal]` method sets state and the workflow awaits `Workflow.WaitConditionAsync`; `Workflow.DelayAsync` is the durable timer. ([docs](https://docs.temporal.io/develop/dotnet/message-passing))
 - **Durable Task**: The orchestrator awaits `context.WaitForExternalEvent<T>("Approval")`, raised by a client, and `context.CreateTimer` is the durable timer. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-task-external-events))
+- **Orleans**: A reminder's definition is stored, and it calls the grain back on a period meant to be minutes, hours or days; a tick due while the cluster is down is missed, and a timer stops when the grain deactivates. A call fails its caller after 30 seconds by default. Its documentation describes no durable wait inside a grain method. A Durable Jobs package, published as an alpha, runs one-time jobs at least once and across silo restarts. ([docs](https://learn.microsoft.com/dotnet/orleans/grains/timers-and-reminders))
 
 ### A finished step's output, where it lives, and what a restart does with it
 
@@ -172,6 +189,7 @@ The tables above say when each tool is the right one. Here the same questions ar
 - **Elsa**: In the instance's persisted workflow state and execution log, in the configured store; interrupted instances are requeued on startup. ([docs](https://docs.elsaworkflows.io/operate/workflow-state-and-journal))
 - **Temporal**: An event in the workflow's event history, held by the Temporal Service. A worker replays the workflow code against that history, and a completed activity returns its recorded result. ([docs](https://docs.temporal.io/workflows))
 - **Durable Task**: An event in the orchestration's history in the backend: the Durable Task Scheduler, or for Durable Functions also Azure Storage, Netherite or SQL Server. The orchestrator replays against it. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-task-orchestrations))
+- **Orleans**: In the grain's state, in the storage provider the silo configures (ADO.NET, Azure Storage, Cosmos DB, DynamoDB, Redis). The state is loaded when the grain activates and written only when the grain calls `WriteStateAsync`. After a silo fails the grain reactivates on another silo and reads what it last wrote. An event-sourced `JournaledGrain` can store its events instead, depending on its log-consistency provider. ([docs](https://learn.microsoft.com/dotnet/orleans/grains/grain-persistence/))
 
 ### Changing the code, while work is outstanding
 
@@ -182,6 +200,7 @@ The tables above say when each tool is the right one. Here the same questions ar
 - **Elsa**: Definitions are versioned: editing a published definition makes a new version, and publishing does not move running instances. An alteration can migrate an instance to another version. ([docs](https://docs.elsaworkflows.io/guides/running-workflows/workflow-definition-lifecycle))
 - **Temporal**: Workflow code must stay deterministic against the recorded history. A change that running executions would replay needs patching (`Workflow.Patched`), worker versioning, or a new workflow type. ([docs](https://docs.temporal.io/develop/dotnet/versioning))
 - **Durable Task**: Adding, removing, or reordering an orchestrator's calls can fail instances in flight. Orchestration versioning stamps each instance with a version the code branches on and workers match. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-orchestration-versioning))
+- **Orleans**: A grain interface can carry a `[Version]`, versioned grains are assumed backward compatible by default, and silos with different versions share a cluster in a rolling upgrade. The versioning of grain state is outside that: its documentation advises a version-tolerant serializer, so that already-stored state still loads. ([docs](https://learn.microsoft.com/dotnet/orleans/grains/grain-versioning/grain-versioning))
 
 ### A limit, shared by every worker, or one process's own
 
@@ -192,6 +211,7 @@ The tables above say when each tool is the right one. Here the same questions ar
 - **Elsa**: Its documentation describes no cluster-wide cap on workflow concurrency; a distributed lock coordinates access to one instance across nodes. ([docs](https://docs.elsaworkflows.io/hosting/distributed-hosting))
 - **Temporal**: A worker's concurrency and rate options are its own. `MaxTaskQueueActivitiesPerSecond` is enforced by the service across every worker of a task queue. ([docs](https://docs.temporal.io/guides/rate-limit-downstream-apis))
 - **Durable Task**: Durable Functions' concurrency throttles apply to each worker. A Durable Task Scheduler task queue, a preview, has a throughput limit the scheduler enforces. ([docs](https://learn.microsoft.com/azure/durable-task/durable-functions/durable-functions-perf-and-scale), [task queues](https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-task-queues))
+- **Orleans**: By default a grain runs one request at a time in at most one activation, so work addressed to one grain is serialized across silos; the default directory allows occasional duplicate activations during cluster instability. A stateless worker's `maxLocalWorkers` is per silo. Its documentation describes no cluster-wide rate limit. ([docs](https://learn.microsoft.com/dotnet/orleans/grains/request-scheduling))
 
 ### Why work is not moving, how an operator finds out
 
@@ -202,6 +222,7 @@ The tables above say when each tool is the right one. Here the same questions ar
 - **Elsa**: Elsa Studio's instance viewer shows the status, incidents, and journal of an instance, and the REST API returns the same. ([docs](https://docs.elsaworkflows.io/operate/workflow-state-and-journal))
 - **Temporal**: The Web UI shows a workflow's event history, pending activities, and call stack, and `temporal workflow show` and `stack` print the history and the stack from the CLI. ([docs](https://docs.temporal.io/web-ui))
 - **Durable Task**: The Durable Task Scheduler dashboard shows an instance's timeline and history; Durable Functions adds an HTTP status API and, on SQL Server, views over the data. ([docs](https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-dashboard))
+- **Orleans**: The Orleans Dashboard, an official package that its documentation calls a preview, shows silo health, grain activations, method calls, reminders, metrics, live logs, and the current state of one grain. Its documentation describes a buffer of recent metric samples, not a record of a grain's past calls; metrics and traces export through OpenTelemetry. ([docs](https://learn.microsoft.com/dotnet/orleans/dashboard/))
 
 ### What runs beside the application, for more than one node
 
@@ -212,6 +233,7 @@ The tables above say when each tool is the right one. Here the same questions ar
 - **Elsa**: A database, plus a distributed lock provider, a message bus for cache invalidation, and clustered scheduling. Its designer is optional. ([docs](https://docs.elsaworkflows.io/guides/clustering))
 - **Temporal**: A Temporal Service: self-hosted with its persistence and visibility stores, or Temporal Cloud. ([docs](https://docs.temporal.io/temporal-service/persistence))
 - **Durable Task**: Durable Functions runs on Azure Functions with a storage account and a state backend, or outside Azure on SQL Server. The standalone SDKs run anywhere and keep their state in the Durable Task Scheduler, a managed Azure service. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-task-storage-providers))
+- **Orleans**: A durable membership table every silo shares (ADO.NET, Azure Table Storage, Cosmos DB, Redis, Consul, ZooKeeper and others), silo and gateway ports, and storage providers for grain state and for reminders when grains use them. ([docs](https://learn.microsoft.com/dotnet/orleans/implementation/cluster-management))
 
 If an answer here is wrong or has gone out of date, that is a defect in this page: open an issue.
 

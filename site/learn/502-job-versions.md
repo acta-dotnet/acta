@@ -2,7 +2,7 @@
 
 A job enqueued before a deploy can run after it, so the new code has to read the input the old code stored. Keep the job's name for a change old rows survive, and give the job a new versioned name for a change they cannot.
 
-- Section: Deploy and scale, step 5
+- Section: Deploy and scale, step 6
 - Program: `learn/500-payloads/502-job-versions` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
