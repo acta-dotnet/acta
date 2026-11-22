@@ -26,6 +26,8 @@ Reprovisioning is a manual step, and it is destructive.
 
 ## Execution model
 
+At-least-once execution is not a limit of Acta: it is the guarantee every durable execution engine gives for an effect outside its own storage, since the effect and its record cannot commit together. What Acta adds is that a recorded step never runs again, a step with a check asks before it repeats, and an at-most-once step refuses to.
+
 Execution is at-least-once, and a handler re-enters from the top with its completed steps returning their stored results. That is the model, stated in full under [Execution semantics](./developer-guide.md#execution-semantics); the entries below are the limits inside it.
 
 - **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.

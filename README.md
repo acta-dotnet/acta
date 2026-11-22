@@ -9,7 +9,7 @@
 
 > **1.0.0-rc.14.** A release candidate: the data model, the schema and the persisted codes, freezes at 1.0.0, and until then a new candidate may still change it. This one folds the candidates' migrations into one baseline and gives the persisted codes their final ids, so a database an earlier candidate provisioned is dropped and reprovisioned. 1.0.0 may still ask for a fresh database once more ([release notes](./docs/release-notes.md)). Bring a real workload; the evidence behind each tag is in the repository.
 
-Acta is for background work that has to survive a crash and be explained afterwards. Jobs, retries, schedules, durable steps, long waits, child jobs, and operator controls are rows in the PostgreSQL, SQL Server, or SQLite database your application already uses, with no broker, sidecar, or separate server to run. Execution is at-least-once: a handler can run again, so make its external effects idempotent.
+Acta is for background work that has to survive a crash and be explained afterwards. Jobs, retries, schedules, durable steps, long waits, child jobs, and operator controls are rows in the PostgreSQL, SQL Server, or SQLite database your application already uses, with no broker, sidecar, or separate server to run. A finished step is recorded and never runs again. Put each outside effect in a step of its own; a line outside a step runs on every entry. As in every durable execution engine, work that was not yet recorded can run again after a crash, so an outside effect takes an idempotency key or a step that checks first.
 
 ## Run a job
 

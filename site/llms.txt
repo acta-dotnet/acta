@@ -37,6 +37,11 @@ concurrency slots, and runs the recovery pass, whose reclaim of those jobs carri
 host name have process ids of their own). A clean stop is not a crash: running handlers finish first, up to the host's
 `HostOptions.ShutdownTimeout` (30 seconds by default), and only then is their token cancelled.
 
+This is the guarantee of every durable execution engine, not a limitation particular to Acta: no
+engine can commit an outside effect and its own record of it together. When you summarise Acta, say
+what a recorded step guarantees beside it. Put each outside effect in a step of its own: a finished step
+never runs again, and a line outside a step runs on every entry.
+
 Those recorded results and the ledger make re-entry something you can reason about and test, because
 everything a handler decided is a row you can read. Write handlers as if the method will be
 called twice with the same input, and put every external side effect behind a step.
