@@ -1,7 +1,6 @@
 /* The Learn section: the question that opens the hub, the sections of how-tos, and the how-to page.
    Colours, type and panels come from site.css; nothing here names a colour of its own. */
 
-.chrome nav a[aria-current="page"] { color: var(--text); }
 .record a { text-decoration: none; }
 .record a:hover { color: var(--verdi); }
 .record span[aria-hidden] { opacity: 0.5; }

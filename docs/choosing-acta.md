@@ -332,3 +332,28 @@ For a runnable first pass, start with [your first job](./first-job.md). For the 
 ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence
 stands behind the reliability claims, and what does not exist yet, is in
 [Compatibility and support, evidence behind the claims](./compatibility-and-support.md#evidence-behind-the-claims).
+
+## Check this page yourself
+
+Every statement on this page about another tool comes from that tool's own documentation, and the page is written
+by Acta's author. Do not take it on trust. Paste this into the AI assistant you use; it has to be able to browse
+the web.
+
+```text
+I want to check a vendor's comparison page before I trust it. Browse the web for this; do not answer from memory, and tell me when a page will not open.
+
+1. Read https://useacta.net/choosing. It compares Acta, a durable job engine for .NET, with other tools.
+2. Take every statement the page makes about another tool. Where the page links that tool's documentation, open the link and check the statement against it. Where the page says a tool's documentation does not describe something, search that documentation for it and say what you searched.
+3. Take every statement the page makes about Acta itself and check it against https://useacta.net/llms.txt and the source at https://github.com/acta-dotnet/acta.
+
+Answer with:
+- a table: the statement, which tool it is about, your finding (correct, wrong, outdated, misleading, or could not check), the sentence you relied on, and its link;
+- how many statements you checked, and the ones you skipped;
+- what each of those tools does that Acta does not;
+- the cases where one of them is a better choice than Acta.
+
+Be strict with Acta: its author wrote the page. Recommend nothing yet. When you are done, ask me what I am building.
+```
+
+If it finds this page wrong, [open an issue](https://github.com/acta-dotnet/acta/issues). A wrong statement
+here is a bug.

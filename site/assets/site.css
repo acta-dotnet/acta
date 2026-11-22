@@ -134,6 +134,7 @@ pre code { font-size: inherit; color: inherit; }
 .chrome nav { margin-left: auto; display: flex; align-items: center; gap: 24px; color: var(--muted); }
 .chrome nav a { text-decoration: none; white-space: nowrap; }
 .chrome nav a:hover { color: var(--verdi); }
+.chrome nav a[aria-current="page"] { color: var(--text); }
 /* the one link off the site: GitHub's mark, centred on the line, coloured like the words beside it */
 .chrome nav .gh { align-self: center; display: inline-flex; }
 .chrome nav .gh svg { display: block; width: 18px; height: 18px; }
@@ -237,6 +238,9 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .panel-tab::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--verdi); opacity: 0.8; }
 .panel-tab.output::before { background: var(--oxide); }
 .panel-tab .copy { margin-left: auto; }
+/* a prompt panel: the copy button in its tab copies the whole prompt, and the prompt wraps instead of scrolling */
+.prompt.panel { margin: 1.1rem 0; }
+.prompt.panel pre { white-space: pre-wrap; }
 .pair { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
 .pair.lead-right { grid-template-columns: 1fr 1.15fr; }
 .pair > * { min-width: 0; }

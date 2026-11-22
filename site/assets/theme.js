@@ -1,4 +1,5 @@
-// Apply appearance before the first paint, then enhance each theme control group.
+// Apply appearance before the first paint, then enhance each theme control group and wire each button that copies
+// the text of the element its data-copy-target names.
 (() => {
   const key = "acta-theme";
   const root = document.documentElement;
@@ -60,5 +61,15 @@
       host.append(group);
     }
     apply(root.dataset.theme);
+
+    for (const button of document.querySelectorAll("[data-copy-target]")) {
+      button.addEventListener("click", async () => {
+        const source = document.querySelector(button.getAttribute("data-copy-target"));
+        await navigator.clipboard.writeText(source.textContent);
+        const label = button.textContent;
+        button.textContent = "Copied";
+        setTimeout(() => { button.textContent = label; }, 1600);
+      });
+    }
   });
 })();
