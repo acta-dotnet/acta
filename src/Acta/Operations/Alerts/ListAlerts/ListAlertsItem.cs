@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One alert in a page. jobRef is null once the job the alert is about has been purged, since alerts outlive their job.
+/// One alert in a page. jobRef is null when the alert is not about a job.
 /// </summary>
 /// <param name="AlertId">The alert's internal id; the JSON omits it and carries alertRef.</param>
 /// <param name="JobId">The internal id of the job the alert is about; the JSON omits it and carries jobRef.</param>

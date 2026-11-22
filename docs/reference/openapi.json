@@ -19435,7 +19435,7 @@
             "format": "date-time"
           }
         },
-        "description": "One alert in a page. jobRef is null once the job the alert is about has been purged, since alerts outlive their job."
+        "description": "One alert in a page. jobRef is null when the alert is not about a job."
       },
       "ListAlertsResponse": {
         "required": [

@@ -90,8 +90,7 @@ internal sealed class AlertEntity : IEntity<long>
     public long? JobId { get; init; }
 
     /// <summary>
-    /// Public ref of the Job that triggered the alert, denormalized at write so the alert stays publicly
-    /// addressable after Job purge. NULL when <see cref="JobId"/> is null.
+    /// Public ref of the Job that triggered the alert, denormalized at write. NULL when <see cref="JobId"/> is null.
     /// </summary>
     [DbColumn("job_ref", DbKind.Guid)]
     public Guid? JobRef { get; init; }
