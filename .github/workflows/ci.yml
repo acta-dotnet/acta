@@ -224,7 +224,8 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # The oldest supported PostgreSQL major passes the PostgreSQL suite; build-test covers 18, the compose default.
+  # The oldest supported PostgreSQL major and the newest pass the PostgreSQL suite; build-test covers 18, the compose
+  # default.
   postgres-majors:
     name: PostgreSQL ${{ matrix.version }}
     runs-on: ubuntu-latest
@@ -233,7 +234,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['17']
+        version: ['17', '19']
     env:
       ACTA_PG_IMAGE: postgres:${{ matrix.version }}
     steps:
