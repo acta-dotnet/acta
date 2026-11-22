@@ -208,6 +208,31 @@ public sealed class LearnEmitterTests : IDisposable
     }
 
     [Fact]
+    public void An_old_address_in_the_sections_file_sends_a_browser_to_the_how_to()
+    {
+        Write(
+            LearnLibrary.SectionsFile,
+            """
+            {
+              "sections": [{ "key": "start", "title": "Start jobs", "blurb": "Ways to start work.", "howTos": ["001-first"] }],
+              "tour": ["001-first"],
+              "lookAlikes": [],
+              "searchWords": {},
+              "redirects": { "001-greeting": "001-first" }
+            }
+            """
+        );
+
+        var emitted = LearnEmitter.Emit(_root);
+
+        var redirect = emitted["site/learn/001-greeting.html"];
+        Assert.Contains("<meta http-equiv=\"refresh\" content=\"0; url=/learn/001-first\" />", redirect, StringComparison.Ordinal);
+        Assert.Contains("<link rel=\"canonical\" href=\"https://useacta.net/learn/001-first\" />", redirect, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script", redirect, StringComparison.Ordinal);
+        Assert.DoesNotContain("001-greeting", emitted["site/learn/sitemap.xml"], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_repositorys_how_tos_are_the_ones_its_programs_emit()
     {
         var root = IntegrationConfig.FindRepoRoot();

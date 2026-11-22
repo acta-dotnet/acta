@@ -301,6 +301,27 @@ internal sealed partial class LearnPages
         return Page($"{entry.Title} · Acta, durable execution for .NET", description, entry.Url, entry.Url + ".md", body, structuredData);
     }
 
+    /// <summary>
+    /// The page at a renamed how-to's old address. It sends a browser on without a script, and its canonical link moves a
+    /// search engine's listing to the new address.
+    /// </summary>
+    public static string Redirect(HowTo entry) =>
+        $"""
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <title>{Esc(entry.Title)}</title>
+              <meta http-equiv="refresh" content="0; url={entry.Url}" />
+              <link rel="canonical" href="{Origin}{entry.Url}" />
+            </head>
+            <body>
+              <p>This how-to is now at <a href="{entry.Url}">{Esc(entry.Title)}</a>.</p>
+            </body>
+            </html>
+
+            """;
+
     /// <summary>A string as a JSON value that is safe inside a script element: no <c>&lt;</c> can close the element early.</summary>
     private static string Json(string value)
     {

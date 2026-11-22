@@ -29,7 +29,7 @@
         "011-delayed-job",
         "217-absolute-time-controls",
         "010-idempotency-key",
-        "028-deduplication-time-buckets",
+        "028-one-job-per-period",
         "029-enqueue-in-transaction",
         "014-read-by-idempotency-key",
         "015-call-vs-enqueue",
@@ -326,7 +326,10 @@
     "022-dashboard": "dashboard ui screen browser",
     "024-aspnet-enqueue-api": "http api endpoint post 202 poll rest web",
     "025-large-payload-reference": "blob file upload big payload s3 storage",
-    "028-deduplication-time-buckets": "throttle once per hour per day bucket",
+    "028-one-job-per-period": "throttle once per hour per day bucket",
     "029-enqueue-in-transaction": "transaction atomic commit rollback same transaction order row record database consistent outbox checkout"
+  },
+  "redirects": {
+    "028-deduplication-time-buckets": "028-one-job-per-period"
   }
 }

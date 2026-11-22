@@ -1,21 +1,8 @@
-# The whole program: allow one job per hour or per day
-
-The how-to is [/learn/028-deduplication-time-buckets.md](/learn/028-deduplication-time-buckets.md). This file holds every source file of `learn/000-fundamentals/028-deduplication-time-buckets` as it is compiled.
-
-## Not in the packages
-
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
-
-## The whole program
-
-### deduplication-time-buckets.cs
-
-```csharp
 // How to allow one job per hour or per day
 // An idempotency key built from a time bucket lets one job in per bucket: `IdempotencyKey.PerTimeBucket` here,
 // with `PerHour` and `PerDay` as its fixed sizes.
 using Acta;
-using Acta.Learn.DeduplicationTimeBuckets;
+using Acta.Learn.OneJobPerPeriod;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -24,7 +11,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run<DeduplicationTimeBucketsJobs>("deduplication-time-buckets");
+    j.Run<OneJobPerPeriodJobs>("one-job-per-period");
 });
 
 using var host = builder.Build();
@@ -79,7 +66,7 @@ Console.WriteLine(first.JobRef != third.JobRef ? "Two distinct jobs across bucke
 
 await host.StopAsync();
 
-namespace Acta.Learn.DeduplicationTimeBuckets
+namespace Acta.Learn.OneJobPerPeriod
 {
     public sealed record NightlySummary(string Tenant);
 
@@ -89,5 +76,3 @@ namespace Acta.Learn.DeduplicationTimeBuckets
         public static void Handle(NightlySummary input) => Console.WriteLine($"[{input.Tenant}] summary ran");
     }
 }
-```
-

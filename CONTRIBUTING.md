@@ -314,7 +314,9 @@ program: nothing about a how-to is written anywhere else.
   `<details><summary>Answer</summary>` block that opens with the right option's own words and a full
   stop, then says why.
 - **Sections.** `learn/sections.json` places every how-to in one section, and holds the
-  short tour, the look-alike pairs, and the words a search should also find a how-to by.
+  short tour, the look-alike pairs, and the words a search should also find a how-to by. Its
+  `redirects` map a renamed how-to's old slug to its folder, and the old address keeps a page
+  that sends a browser to the new one.
 
 `Acta.Emit -- check` fails for a how-to with no title, no step, or no section, and for a step that is
 left open.

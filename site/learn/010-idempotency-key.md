@@ -106,7 +106,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to allow one job per hour or per day](/learn/028-deduplication-time-buckets.md)
+- [How to allow one job per hour or per day](/learn/028-one-job-per-period.md)
 
 ## More
 

@@ -29,7 +29,7 @@
   "024-aspnet-enqueue-api": ["Then poll GET /imports/{jobRef}"],
   "025-large-payload-reference": ["enqueued with a reference to a 21-byte file (not the bytes).", ": 2 rows, 21 bytes (text/csv)"],
   "026-first-job": ["Acta worker started in namespace (shipping)", "Now listening on: http://127.0.0.1:"],
-  "028-deduplication-time-buckets": [
+  "028-one-job-per-period": [
     "Deduplicated - same bucket, same job.",
     "Inserted - new bucket, new job.",
     "Two distinct jobs across buckets - done."

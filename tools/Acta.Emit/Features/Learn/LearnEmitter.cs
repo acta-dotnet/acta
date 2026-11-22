@@ -4,9 +4,10 @@ using Acta.Emit.Features.Verify;
 namespace Acta.Emit.Features.Learn;
 
 /// <summary>
-/// The Learn section as files: one page, one Markdown twin and one program file per how-to, the section's front page,
-/// the index for agents, the section's sitemap, and the table of how-tos in the reference docs. Nothing here is edited
-/// by hand: a change to a program, a README or the sections file changes what is emitted.
+/// The Learn section as files: one page, one Markdown twin and one program file per how-to, a redirect page at each
+/// old address the sections file lists, the section's front page, the index for agents, the section's sitemap, and the
+/// table of how-tos in the reference docs. Nothing here is edited by hand: a change to a program, a README or the
+/// sections file changes what is emitted.
 /// </summary>
 internal static partial class LearnEmitter
 {
@@ -34,6 +35,10 @@ internal static partial class LearnEmitter
             emitted[$"{Pages}/{entry.Folder}.html"] = pages.HowToPage(entry);
             emitted[$"{Pages}/{entry.Folder}.md"] = pages.HowToMarkdown(entry);
             emitted[$"{Pages}/{entry.Folder}.program.md"] = pages.ProgramMarkdown(entry);
+        }
+        foreach (var (slug, entry) in library.Redirects)
+        {
+            emitted[$"{Pages}/{slug}.html"] = LearnPages.Redirect(entry);
         }
         emitted["site/learn.html"] = pages.Hub();
         emitted[$"{Pages}/index.md"] = pages.IndexMarkdown();

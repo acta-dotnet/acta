@@ -3,11 +3,11 @@
 An idempotency key built from a time bucket lets one job in per bucket: `IdempotencyKey.PerTimeBucket` here, with `PerHour` and `PerDay` as its fixed sizes.
 
 - Section: Start jobs, step 10
-- Program: `learn/000-fundamentals/028-deduplication-time-buckets` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/028-one-job-per-period` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
-- Page for people: /learn/028-deduplication-time-buckets
+- Page for people: /learn/028-one-job-per-period
 - New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
 
 ## 1. Build the key from the time bucket
@@ -21,7 +21,7 @@ var keyA1 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, b
 var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA1));
 ```
 
-In `deduplication-time-buckets.cs` (excerpt):
+In `one-job-per-period.cs` (excerpt):
 
 ```csharp
 // --- Within the same bucket: two enqueues collapse to one job ---
@@ -45,7 +45,7 @@ var keyA2 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, b
 var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyA2));
 ```
 
-In `deduplication-time-buckets.cs` (excerpt):
+In `one-job-per-period.cs` (excerpt):
 
 ```csharp
 var keyA1 = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
@@ -70,7 +70,7 @@ var keyB = IdempotencyKey.PerTimeBucket("nightly-summary", account, instantB, bu
 var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.IdempotencyKey(keyB));
 ```
 
-In `deduplication-time-buckets.cs` (excerpt):
+In `one-job-per-period.cs` (excerpt):
 
 ```csharp
 // --- Across buckets: a third enqueue in a new bucket inserts a fresh job ---
@@ -87,7 +87,7 @@ Console.WriteLine(first.JobRef != third.JobRef ? "Two distinct jobs across bucke
 
 ## 4. The job it acts on
 
-`deduplication-time-buckets.cs` (excerpt):
+`one-job-per-period.cs` (excerpt):
 
 ```csharp
 public static class NightlySummaryJob
@@ -102,7 +102,7 @@ public static class NightlySummaryJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project learn/000-fundamentals/028-deduplication-time-buckets
+dotnet run --project learn/000-fundamentals/028-one-job-per-period
 ```
 
 Its output must contain:
@@ -117,7 +117,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Remember
 
-- A delayed job can sit in the database for days before it runs. The name in `[Job("nightly-summary")]` and the namespace in `Run<DeduplicationTimeBucketsJobs>("deduplication-time-buckets")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
+- A delayed job can sit in the database for days before it runs. The name in `[Job("nightly-summary")]` and the namespace in `Run<OneJobPerPeriodJobs>("one-job-per-period")` are stored with every job. Treat both as permanent once jobs exist under them: a job stored under a name no handler carries stays Ready, and nothing runs it.
 - `NightlySummary` is stored with each job as its input. Add a field as optional or with a default. A renamed, removed or retyped field needs a new job name such as `nightly-summary-v2`, and the old handler stays registered until its jobs have finished: [Change a job's input without breaking the jobs already stored](/learn/502-job-versions.md).
 
 ## Not in the packages
@@ -130,4 +130,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/028-deduplication-time-buckets.program.md): every file as compiled, 78 lines.
+- [The whole program](/learn/028-one-job-per-period.program.md): every file as compiled, 78 lines.

@@ -119,6 +119,9 @@ internal sealed partial class LearnLibrary
     public List<LookAlike> LookAlikes { get; } = [];
     public Dictionary<string, string> SearchWords { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>The how-to each old address now names, by the slug a renamed how-to had.</summary>
+    public Dictionary<string, HowTo> Redirects { get; } = new(StringComparer.Ordinal);
+
     public static string PathOf(string repoRoot, string relative) =>
         Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar));
 
@@ -209,6 +212,13 @@ internal sealed partial class LearnLibrary
         foreach (var words in learn.GetProperty("searchWords").EnumerateObject())
         {
             SearchWords[Named(words.Name, "searchWords").Folder] = words.Value.GetString()!;
+        }
+        if (learn.TryGetProperty("redirects", out var redirects))
+        {
+            foreach (var old in redirects.EnumerateObject())
+            {
+                Redirects[old.Name] = Named(old.Value.GetString()!, $"the redirect from {old.Name}");
+            }
         }
     }
 

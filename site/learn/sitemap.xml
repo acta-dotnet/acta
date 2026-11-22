@@ -52,7 +52,7 @@
     <loc>https://useacta.net/learn/010-idempotency-key</loc>
   </url>
   <url>
-    <loc>https://useacta.net/learn/028-deduplication-time-buckets</loc>
+    <loc>https://useacta.net/learn/028-one-job-per-period</loc>
   </url>
   <url>
     <loc>https://useacta.net/learn/029-enqueue-in-transaction</loc>

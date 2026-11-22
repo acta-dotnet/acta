@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Acta.Learn.DeduplicationTimeBuckets</RootNamespace>
+    <RootNamespace>Acta.Learn.OneJobPerPeriod</RootNamespace>
   </PropertyGroup>
 </Project>
