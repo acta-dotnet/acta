@@ -87,15 +87,16 @@ public sealed class JobRequestBuilder
     public JobRequestBuilder NoPayload() => Payload(JobPayload.None);
 
     /// <summary>
-    /// Deduplicate this job definition using the caller's <paramref name="businessKey"/>. This is the
-    /// primary raw-builder API and composes
-    /// <c>&lt;jobName-from-Create&gt;:&lt;businessKey&gt;</c> before assigning the final key.
+    /// Set the idempotency key from the caller's <paramref name="businessKey"/>, scoped to this job definition: the
+    /// key is <c>&lt;jobName-from-Create&gt;:&lt;businessKey&gt;</c>, so one business key used by two definitions
+    /// makes two keys. This is the usual raw-builder call; <see cref="IdempotencyKey(string)"/> takes a finished key.
     /// </summary>
-    public JobRequestBuilder Deduplicate(string businessKey) => IdempotencyKey(Acta.IdempotencyKey.ForDefinition(_jobName, businessKey));
+    public JobRequestBuilder IdempotencyKeyFor(string businessKey) =>
+        IdempotencyKey(Acta.IdempotencyKey.ForDefinition(_jobName, businessKey));
 
     /// <summary>
     /// Assign an already composed final idempotency key. This is the lower-level API for explicit
-    /// cross-definition or time-bucketed keys; prefer <see cref="Deduplicate"/> for the usual
+    /// cross-definition or time-bucketed keys; prefer <see cref="IdempotencyKeyFor"/> for the usual
     /// definition-scoped business key. The key keeps its case and may not start with <c>sys.</c>.
     /// </summary>
     public JobRequestBuilder IdempotencyKey(string idempotencyKey)

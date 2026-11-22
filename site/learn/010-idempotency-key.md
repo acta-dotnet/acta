@@ -12,7 +12,7 @@ With an idempotency key, a second enqueue with the same key answers the job that
 
 ## 1. Give the enqueue a key that names the request
 
-`Deduplicate(businessKey)` on the raw builder stores the key with the job's name in front, so one business key used by two jobs never collides.
+`IdempotencyKeyFor(businessKey)` on the raw builder stores the key with the job's name in front, so one business key used by two jobs never collides.
 
 The lines that matter:
 
@@ -20,7 +20,7 @@ The lines that matter:
 var request = JobRequestBuilder
     .Create("idempotency-key", "send-welcome-email")
     .Json(new SendWelcomeEmail("sam@example.com", "Sam"))
-    .Deduplicate(businessKey)
+    .IdempotencyKeyFor(businessKey)
     .Build();
 
 var first = await jobs.EnqueueAsync(request, CancellationToken.None);
@@ -37,7 +37,7 @@ var finalKey = IdempotencyKey.ForDefinition("send-welcome-email", businessKey);
 var request = JobRequestBuilder
     .Create("idempotency-key", "send-welcome-email")
     .Json(new SendWelcomeEmail("sam@example.com", "Sam"))
-    .Deduplicate(businessKey)
+    .IdempotencyKeyFor(businessKey)
     .Build();
 
 var first = await jobs.EnqueueAsync(request, CancellationToken.None);

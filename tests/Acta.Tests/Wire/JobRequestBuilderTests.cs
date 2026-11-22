@@ -362,19 +362,19 @@ public class JobRequestBuilderTests
     }
 
     [Fact]
-    public void Deduplicate_composes_IdempotencyKey_from_jobName_and_businessKey()
+    public void IdempotencyKeyFor_composes_IdempotencyKey_from_jobName_and_businessKey()
     {
-        var built = JobRequestBuilder.Create(Ns, Name).Deduplicate("user-123").Build();
+        var built = JobRequestBuilder.Create(Ns, Name).IdempotencyKeyFor("user-123").Build();
         Assert.Equal(IdempotencyKey.ForDefinition(Name, "user-123"), built.IdempotencyKey);
     }
 
     [Fact]
-    public void Deduplicate_and_IdempotencyKey_are_last_call_wins()
+    public void IdempotencyKeyFor_and_IdempotencyKey_are_last_call_wins()
     {
-        var built1 = JobRequestBuilder.Create(Ns, Name).Deduplicate("a").IdempotencyKey("explicit-key").Build();
+        var built1 = JobRequestBuilder.Create(Ns, Name).IdempotencyKeyFor("a").IdempotencyKey("explicit-key").Build();
         Assert.Equal("explicit-key", built1.IdempotencyKey);
 
-        var built2 = JobRequestBuilder.Create(Ns, Name).IdempotencyKey("explicit-key").Deduplicate("a").Build();
+        var built2 = JobRequestBuilder.Create(Ns, Name).IdempotencyKey("explicit-key").IdempotencyKeyFor("a").Build();
         Assert.Equal(IdempotencyKey.ForDefinition(Name, "a"), built2.IdempotencyKey);
     }
 

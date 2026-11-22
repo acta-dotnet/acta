@@ -35,12 +35,12 @@ var businessKey = $"welcome:{Guid.NewGuid():N}";
 var finalKey = IdempotencyKey.ForDefinition("send-welcome-email", businessKey);
 
 // learn: 1. Give the enqueue a key that names the request
-// `Deduplicate(businessKey)` on the raw builder stores the key with the job's name in front, so one business key
-// used by two jobs never collides.
+// `IdempotencyKeyFor(businessKey)` on the raw builder stores the key with the job's name in front, so one business
+// key used by two jobs never collides.
 var request = JobRequestBuilder
     .Create("idempotency-key", "send-welcome-email")
     .Json(new SendWelcomeEmail("sam@example.com", "Sam"))
-    .Deduplicate(businessKey)
+    .IdempotencyKeyFor(businessKey)
     .Build();
 
 var first = await jobs.EnqueueAsync(request, CancellationToken.None);

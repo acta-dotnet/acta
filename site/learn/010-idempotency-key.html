@@ -78,7 +78,7 @@
       <article class="howto person-face">
 <p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the enqueue a key that names the request</h2>
-<p><code>Deduplicate(businessKey)</code> on the raw builder stores the key with the job's name in front, so one business key used by two jobs never collides.</p>
+<p><code>IdempotencyKeyFor(businessKey)</code> on the raw builder stores the key with the job's name in front, so one business key used by two jobs never collides.</p>
 <figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> businessKey = <span class="s">$&quot;welcome:{Guid.NewGuid():N}&quot;</span>;
@@ -87,7 +87,7 @@
 <span class="hl"><span class="k">var</span> request = JobRequestBuilder</span>
 <span class="hl">    .Create(<span class="s">&quot;idempotency-key&quot;</span>, <span class="s">&quot;send-welcome-email&quot;</span>)</span>
 <span class="hl">    .Json(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>))</span>
-<span class="hl">    .Deduplicate(businessKey)</span>
+<span class="hl">    .IdempotencyKeyFor(businessKey)</span>
 <span class="hl">    .Build();</span>
 <span class="hl"> </span>
 <span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(request, CancellationToken.None);</span>
@@ -142,12 +142,12 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> finalKey = IdempotencyKey.ForDefinition(<span class="s">&quot;send-welcome-email&quot;</span>, businessKey);
 
 <span class="c">// learn: 1. Give the enqueue a key that names the request</span>
-<span class="c">// `Deduplicate(businessKey)` on the raw builder stores the key with the job's name in front, so one business key</span>
-<span class="c">// used by two jobs never collides.</span>
+<span class="c">// `IdempotencyKeyFor(businessKey)` on the raw builder stores the key with the job's name in front, so one business</span>
+<span class="c">// key used by two jobs never collides.</span>
 <span class="hl"><span class="k">var</span> request = JobRequestBuilder</span>
 <span class="hl">    .Create(<span class="s">&quot;idempotency-key&quot;</span>, <span class="s">&quot;send-welcome-email&quot;</span>)</span>
 <span class="hl">    .Json(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>))</span>
-<span class="hl">    .Deduplicate(businessKey)</span>
+<span class="hl">    .IdempotencyKeyFor(businessKey)</span>
 <span class="hl">    .Build();</span>
 <span class="hl"> </span>
 <span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(request, CancellationToken.None);</span>
