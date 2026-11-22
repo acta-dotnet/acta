@@ -240,7 +240,7 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .panel-tab .copy { margin-left: auto; }
 /* a prompt panel: the copy button in its tab copies the whole prompt, and the prompt wraps instead of scrolling */
 .prompt.panel { margin: 1.1rem 0; }
-.prompt.panel pre { white-space: pre-wrap; }
+.prompt.panel pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .pair { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
 .pair.lead-right { grid-template-columns: 1fr 1.15fr; }
 .pair > * { min-width: 0; }
@@ -351,7 +351,6 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .sit .claim::before { content: "\201C"; }
 .sit .claim::after { content: "\201D"; }
 .sit .claim + p { margin-top: 1.5rem; }
-.sit.aside dd { font-size: 0.95rem; }
 
 /* axis: every row of a page shares one second column, so names line up on the left edge and what to read on the other */
 .axis .ref-group { margin-top: 4rem; }

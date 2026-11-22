@@ -88,10 +88,9 @@
             <p>Being established and being in that place are different things. Look at what each well-known tool is.</p>
           </dd>
         </div>
-        <div class="sit"><dt>Hangfire, Quartz.NET</dt><dd>Established at starting work. Neither resumes a job where it stopped.</dd></div>
+        <div class="sit"><dt>Hangfire, Quartz.NET</dt><dd>Established at starting work. Neither skips a job's finished work when it runs again.</dd></div>
         <div class="sit"><dt>Temporal</dt><dd>Established at durable workflows. It runs as its own service, self-hosted or in its cloud.</dd></div>
         <div class="sit"><dt>Durable Task</dt><dd>The closest overlap. Its orchestrators replay a history, kept in an Azure service or, for Durable Functions, in SQL Server anywhere.</dd></div>
-        <div class="sit aside"><dt></dt><dd>The category is young, not settled. Durable execution engines such as DBOS, Restate and Inngest are a few years old, and DBOS takes this same shape, a library on your own Postgres, for TypeScript, Python, Go and Java.</dd></div>
       </dl>
 
       <h2 class="ref-group" id="decide">Decide in a minute</h2>
@@ -115,7 +114,7 @@
               <li>Someone will ask what ran, what failed, and why a job is stuck.</li>
               <li>Operators need to pause, resume, cancel, restart, or signal jobs.</li>
               <li>One customer's or one order's jobs must run in order, one at a time.</li>
-              <li>PostgreSQL or SQL Server already runs beside the app, or the app is one process on SQLite.</li>
+              <li>PostgreSQL or SQL Server, in a <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">supported version</a>, already runs beside the app, or the app is one process on SQLite.</li>
             </ul>
           </dd>
         </div>
@@ -128,6 +127,7 @@
               <li>Workers in more than one language share the orchestration.</li>
               <li>You want local variables to survive a crash without naming what to keep. Acta runs the handler again from the top and skips the finished steps.</li>
               <li>A duplicate external side effect cannot be made idempotent, guarded, or reconciled.</li>
+              <li>You need a frozen data model today. Acta is a release candidate: its schema freezes at 1.0.0, and until then any candidate may re-cut it, and a database from an earlier candidate is then dropped and provisioned again.</li>
             </ul>
           </dd>
         </div>
@@ -154,8 +154,8 @@
       </details>
       <details class="fold" id="runners">
         <summary><b>Job runners and schedulers</b><span>Hangfire, Quartz.NET, TickerQ</span></summary>
-        <p class="lede">They decide when work starts, and they run it. What none of them does is resume a job's own code where it stopped.</p>
-        <p class="lede">With Acta the job carries its own progress. One that stops at step four of six resumes at step four, on any worker. It can wait days for an approval without holding a thread, and its order and limits hold across every worker.</p>
+        <p class="lede">They decide when work starts, and they run it. When a job runs again, none of them skips the work it already finished: a retry runs its code from the start.</p>
+        <p class="lede">With Acta the job carries its own progress. One that stops at step four of six runs again from the top on any worker, its three finished steps return their recorded results without running, and the new work starts at step four. It can wait days for an approval without holding a thread, and its order and limits hold across every worker.</p>
         <div class="vs">
           <div class="vs-row" id="hangfire">
             <div class="who"><b>Hangfire</b><span>background job runner</span></div>
@@ -175,28 +175,21 @@
             <div class="who"><b>TickerQ</b><span>scheduler</span></div>
             <div class="why">
               <p><b>Keep it when</b> you want a source-generated scheduler with persistence, a dashboard, priorities, and durable chains of jobs with parallel branches, under its own licence with a free Community option and a commercial subscription.</p>
-              <p><b>Choose Acta when</b> one handler should resume from its own checkpoints, wait on signals and timers, and hold lanes and limits across every worker.</p>
+              <p><b>Choose Acta when</b> one handler should keep its finished steps across a restart, wait on signals and timers, and hold lanes and limits across every worker.</p>
             </div>
           </div>
         </div>
       </details>
       <details class="fold" id="workflows">
-        <summary><b>Workflow engines</b><span>Workflow Core, Temporal, Elsa, Durable Task</span></summary>
+        <summary><b>Workflow engines</b><span>Durable Task, Elsa, Temporal, Workflow Core</span></summary>
         <p class="lede">They already keep progress. They differ in where the state lives and in how you write the workflow.</p>
         <p class="lede">Against the platforms, nothing new to run: the state is rows in the database the application already has, with no workflow server or hosted service beside it. Against the libraries, one model: a workflow is an ordinary C# handler, and it runs under the same schedules, limits, operator controls and SQL views as every other job. Against the engines that replay a history, steps answered by name: a handler runs from the top with its finished steps answered from their records, so new code is not checked against the order of calls an earlier version made. Step names and stored results must keep their meaning.</p>
         <div class="vs">
-          <div class="vs-row" id="workflow-core">
-            <div class="who"><b>Workflow Core</b><span>workflow library</span></div>
+          <div class="vs-row" id="durable-task">
+            <div class="who"><b>Durable Task</b><span>Durable Functions and its SDKs</span></div>
             <div class="why">
-              <p><b>Keep it when</b> your workflows are graphs of steps, declared in fluent C#, JSON, or YAML, and it already persists them where you need.</p>
-              <p><b>Choose Acta when</b> you would rather write the workflow as an ordinary C# handler, with named steps, waits, and child jobs as its durable points, and run it under the same controls, limits, and SQL views as every other job.</p>
-            </div>
-          </div>
-          <div class="vs-row" id="temporal">
-            <div class="who"><b>Temporal</b><span>workflow platform</span></div>
-            <div class="why">
-              <p><b>Keep it when</b> workers in several languages share one workflow, you want deterministic replay of its event history, or you already run its server or use its cloud service.</p>
-              <p><b>Choose Acta when</b> the workflow is .NET, its state belongs in the SQL database the application already uses, and you would rather not run or rent a separate workflow service.</p>
+              <p><b>Keep it when</b> you host on Azure Functions, or want a managed Azure service to hold your orchestrations' state. Durable Functions can also keep it in SQL Server.</p>
+              <p><b>Choose Acta when</b> the state belongs in the application's own PostgreSQL, SQL Server, or SQLite database, wherever the application runs, and you want checkpoints you place yourself rather than orchestrator code that replays.</p>
             </div>
           </div>
           <div class="vs-row" id="elsa">
@@ -206,20 +199,34 @@
               <p><b>Choose Acta when</b> your team writes and reviews workflows as plain C# handlers, and wants its jobs, schedules, and workflows in one model.</p>
             </div>
           </div>
-          <div class="vs-row" id="durable-task">
-            <div class="who"><b>Durable Task</b><span>Durable Functions and its SDKs</span></div>
+          <div class="vs-row" id="temporal">
+            <div class="who"><b>Temporal</b><span>workflow platform</span></div>
             <div class="why">
-              <p><b>Keep it when</b> you host on Azure Functions, or want a managed Azure service to hold your orchestrations' state. Durable Functions can also keep it in SQL Server.</p>
-              <p><b>Choose Acta when</b> the state belongs in the application's own PostgreSQL, SQL Server, or SQLite database, wherever the application runs, and you want checkpoints you place yourself rather than orchestrator code that replays.</p>
+              <p><b>Keep it when</b> workers in several languages share one workflow, you want deterministic replay of its event history, or you already run its server or use its cloud service.</p>
+              <p><b>Choose Acta when</b> the workflow is .NET, its state belongs in the SQL database the application already uses, and you would rather not run or rent a separate workflow service.</p>
+            </div>
+          </div>
+          <div class="vs-row" id="workflow-core">
+            <div class="who"><b>Workflow Core</b><span>workflow library</span></div>
+            <div class="why">
+              <p><b>Keep it when</b> your workflows are graphs of steps, declared in fluent C#, JSON, or YAML, and it already persists them where you need.</p>
+              <p><b>Choose Acta when</b> you would rather write the workflow as an ordinary C# handler, with named steps, waits, and child jobs as its durable points, and run it under the same controls, limits, and SQL views as every other job.</p>
             </div>
           </div>
         </div>
       </details>
       <details class="fold" id="messaging">
-        <summary><b>Messaging</b><span>Wolverine, RabbitMQ, Kafka, Service Bus, SQS</span></summary>
+        <summary><b>Messaging</b><span>Kafka, RabbitMQ, Service Bus, SQS, Wolverine</span></summary>
         <p class="lede">A message says that something happened. A job is work that has to finish. The two are often confused because both sit in a queue.</p>
         <p class="lede">What a message starts gets steps, a retry budget, a history, and an operator who can restart it weeks later. An enqueue can commit in the same transaction as your own rows, so the work exists exactly when the data does. This holds with a broker or without one: the broker carries the message, and Acta runs the work.</p>
         <div class="vs">
+          <div class="vs-row" id="brokers">
+            <div class="who"><b>Kafka, RabbitMQ, Service Bus, SQS</b><span>message broker</span></div>
+            <div class="why">
+              <p><b>Keep it</b> for messaging between services, those in other languages included, with whatever pub/sub, fan-out, or replay your broker or streaming platform offers.</p>
+              <p><b>Add Acta beside it</b> when the work a message starts needs steps, waits, and a history beyond redelivery. Without a broker, Acta runs that work on the database alone.</p>
+            </div>
+          </div>
           <div class="vs-row" id="wolverine">
             <div class="who"><b>Wolverine</b><span>messaging framework</span></div>
             <div class="why">
@@ -227,18 +234,11 @@
               <p><b>Choose Acta when</b> the unit is a job with a life of its own: steps, waits, child jobs, a schedule, a history, and an operator who can pause, restart, or signal it.</p>
             </div>
           </div>
-          <div class="vs-row" id="brokers">
-            <div class="who"><b>RabbitMQ, Kafka, Service Bus, SQS</b><span>message broker</span></div>
-            <div class="why">
-              <p><b>Keep it</b> for messaging between services, those in other languages included, with whatever pub/sub, fan-out, or replay your broker or streaming platform offers.</p>
-              <p><b>Add Acta beside it</b> when the work a message starts needs steps, waits, and a history beyond redelivery. Without a broker, Acta runs that work on the database alone.</p>
-            </div>
-          </div>
         </div>
       </details>
       <details class="fold" id="actors">
         <summary><b>Actors</b><span>Orleans</span></summary>
-        <p class="lede">An actor is a small object that is always there to call and has an address: one object for one player, one wallet or one device. You call it by its id, and the framework finds it on a server of the cluster or activates it there. It handles one call at a time by default, so two calls never change its state at once. Its state is in memory while it is active and is saved only when its code says so. An actor framework is a way to build the application, not a way to run its long work. Orleans is adding durable work of its own, in its Durable Jobs and Journaling packages, both alphas.</p>
+        <p class="lede">An actor is a small object that is always there to call and has an address: one object for one player, one wallet or one device. You call it by its id, and the framework finds it on a server of the cluster or activates it there. It handles one call at a time by default, so two calls never change its state at once. Its state is in memory while it is active and is saved only when its code says so. Orleans has durable features of its own too, durable jobs and journaled state, kept on the storage its silos configure.</p>
         <p class="lede">An actor is a thing that stays. A job is work that starts and ends.</p>
         <p class="lede">Acta adds a record of the work. An actor saves the state it chooses to save, and keeps a history only if its code writes one. The long work an actor starts becomes a job with recorded steps, waits that last days, a retry budget, and an answer to why it stopped. The nearest thing in Acta is a lane: one job at a time for a customer, an order or a device, in the order they were enqueued, held in the database. Silos form a cluster and send each other messages. Acta's workers do not call each other: each one works from the database.</p>
         <p class="lede"><b>Acta and actors work together.</b> In an application that runs both, a grain enqueues a job and returns, and the job's handler calls the grain back when the work is done. <a href="/learn/707-orleans-integration">Integrate Acta with Orleans</a> shows it running.</p>
@@ -273,78 +273,78 @@
             <div class="who"><b>Waiting hours or days</b><span>for something outside the job</span></div>
             <div class="why">
               <p><b>Acta</b> The handler awaits <code>ctx.WaitSignalAsync&lt;Approval&gt;("approval")</code>, and <code>jobs.RaiseSignalAsync</code> releases it; <code>SleepAsync</code> and <code>SleepUntilAsync</code> are durable timers. The job holds no worker while it waits. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#steps-variables-signals-and-timers">guide</a></p>
-              <p><b>Hangfire</b> A job is one method call. A later stage is another job, started by <code>BackgroundJob.ContinueJobWith</code> or delayed with <code>BackgroundJob.Schedule</code>; its documentation does not describe a wait for an outside event inside a running job. <a href="https://docs.hangfire.io/en/latest/background-methods/calling-methods-with-delay.html">docs</a></p>
-              <p><b>Quartz.NET</b> A continuation trigger (<code>StartAfter</code>) waits in the job store for its parent firing to end, and a trigger can be stored paused with a reason until someone resumes it. The wait is between jobs, not inside one. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/job-continuations.html">docs</a></p>
-              <p><b>Workflow Core</b> The workflow definition calls <code>.WaitFor("event", ...)</code>, released by <code>host.PublishEvent</code>; <code>.Schedule</code> and <code>.Recur</code> cover time. <a href="https://workflow-core.readthedocs.io/en/latest/external-events/">docs</a></p>
-              <p><b>Elsa</b> A blocking activity (<code>Delay</code>, <code>Timer</code>, <code>Event</code>, <code>UserTask</code>) or <code>context.CreateBookmark</code> leaves a bookmark, and the workflow resumes when the bookmark is triggered. <a href="https://docs.elsaworkflows.io/guides/running-workflows/long-running-workflows">docs</a></p>
+              <p><b>Durable Task</b> The orchestrator awaits <code>context.WaitForExternalEvent&lt;T&gt;("Approval")</code>, raised by a client, and <code>context.CreateTimer</code> is the durable timer. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-external-events">docs</a>, <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-timers">timers</a></p>
+              <p><b>Elsa</b> A blocking activity (<code>Delay</code>, <code>Timer</code>, <code>Event</code>) or <code>context.CreateBookmark</code> leaves a bookmark, and the workflow resumes when the bookmark is triggered. <a href="https://docs.elsaworkflows.io/guides/running-workflows/long-running-workflows">docs</a></p>
+              <p><b>Hangfire</b> A job is one method call. A later stage is another job, started by <code>BackgroundJob.ContinueJobWith</code> or delayed with <code>BackgroundJob.Schedule</code>; its documentation does not describe a wait for an outside event inside a running job. <a href="https://docs.hangfire.io/en/latest/background-methods/calling-methods-with-delay.html">docs</a>, <a href="https://www.hangfire.io/">continuations</a></p>
+              <p><b>Orleans</b> A reminder's definition is stored, and it calls the grain back on a period meant to be minutes, hours or days; a tick due while the cluster is down is missed, and a timer stops when the grain deactivates. A call fails its caller after 30 seconds by default. Durable Jobs run a one-time job at least once, and with persistent storage the job survives silo restarts. <a href="https://learn.microsoft.com/dotnet/orleans/grains/timers-and-reminders">docs</a>, <a href="https://learn.microsoft.com/dotnet/api/orleans.configuration.messagingoptions.responsetimeout">timeout</a>, <a href="https://github.com/dotnet/orleans/blob/9a0833d3a45c9160e2e65f31473df47022f2c600/src/Orleans.Durable/DurableJobs/README.md">durable jobs</a></p>
+              <p><b>Quartz.NET</b> A continuation trigger (<code>StartAfter</code>) waits in the job store for its parent firing to end, and a trigger can be stored paused with a reason until someone resumes it. The wait is between jobs, not inside one. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/job-continuations.html">docs</a>, <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/pausing-with-a-reason.html">pausing</a></p>
               <p><b>Temporal</b> A <code>[WorkflowSignal]</code> method sets state and the workflow awaits <code>Workflow.WaitConditionAsync</code>; <code>Workflow.DelayAsync</code> is the durable timer. <a href="https://docs.temporal.io/develop/dotnet/message-passing">docs</a></p>
-              <p><b>Durable Task</b> The orchestrator awaits <code>context.WaitForExternalEvent&lt;T&gt;("Approval")</code>, raised by a client, and <code>context.CreateTimer</code> is the durable timer. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-external-events">docs</a></p>
-              <p><b>Orleans</b> A reminder's definition is stored, and it calls the grain back on a period meant to be minutes, hours or days; a tick due while the cluster is down is missed, and a timer stops when the grain deactivates. A call fails its caller after 30 seconds by default. Its documentation describes no durable wait inside a grain method. A Durable Jobs package, published as an alpha, runs one-time jobs at least once and across silo restarts. <a href="https://learn.microsoft.com/dotnet/orleans/grains/timers-and-reminders">docs</a></p>
+              <p><b>Workflow Core</b> The workflow definition calls <code>.WaitFor("event", ...)</code>, released by <code>host.PublishEvent</code>; <code>.Schedule</code> and <code>.Recur</code> cover time. <a href="https://workflow-core.readthedocs.io/en/latest/external-events/">docs</a>, <a href="https://github.com/danielgerlag/workflow-core/blob/master/docs/control-structures.md">time</a></p>
             </div>
           </div>
           <div class="vs-row" id="q-output">
             <div class="who"><b>A finished step's output</b><span>where it lives, and what a restart does with it</span></div>
             <div class="why">
               <p><b>Acta</b> A row in <code>steps</code>, in the application's database, readable through <code>steps_view</code>. After a crash the handler runs again from its first line, and a step that succeeded returns its stored result without running its body. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#steps-variables-signals-and-timers">guide</a></p>
-              <p><b>Hangfire</b> A job's return value is kept with its succeeded state in the job storage, and with <code>UseResultsInContinuations</code> a continuation can take its parent's result. An interrupted job is retried from the start. <a href="https://api.hangfire.io/html/T_Hangfire_States_SucceededState.htm">docs</a></p>
-              <p><b>Quartz.NET</b> The job's <code>JobDataMap</code> in the job store, saved after a run when the job asks for it. A run report is kept in the execution history. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/job-data-map.html">docs</a></p>
-              <p><b>Workflow Core</b> Steps map their output into the workflow's data object, which is persisted with the instance between steps in the configured provider. <a href="https://workflow-core.readthedocs.io/en/latest/getting-started/">docs</a></p>
-              <p><b>Elsa</b> In the instance's persisted workflow state and execution log, in the configured store; interrupted instances are requeued on startup. <a href="https://docs.elsaworkflows.io/operate/workflow-state-and-journal">docs</a></p>
-              <p><b>Temporal</b> An event in the workflow's event history, held by the Temporal Service. A worker replays the workflow code against that history, and a completed activity returns its recorded result. <a href="https://docs.temporal.io/workflows">docs</a></p>
               <p><b>Durable Task</b> An event in the orchestration's history in the backend: the Durable Task Scheduler, or for Durable Functions also Azure Storage, Netherite or SQL Server. The orchestrator replays against it. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-orchestrations">docs</a></p>
-              <p><b>Orleans</b> In the grain's state, in the storage provider the silo configures (ADO.NET, Azure Storage, Cosmos DB, DynamoDB, Redis). The state is loaded when the grain activates and written only when the grain calls <code>WriteStateAsync</code>. After a silo fails the grain reactivates on another silo and reads what it last wrote. An event-sourced <code>JournaledGrain</code> can store its events instead, depending on its log-consistency provider. <a href="https://learn.microsoft.com/dotnet/orleans/grains/grain-persistence/">docs</a></p>
+              <p><b>Elsa</b> In the instance's persisted workflow state and execution log, in the configured store; interrupted instances are requeued on startup. <a href="https://docs.elsaworkflows.io/operate/workflow-state-and-journal">docs</a></p>
+              <p><b>Hangfire</b> A job's return value is kept with its succeeded state in the job storage, and with <code>UseResultsInContinuations</code> a continuation can take its parent's result. An interrupted job is retried from the start. <a href="https://api.hangfire.io/html/T_Hangfire_States_SucceededState.htm">docs</a>, <a href="https://www.nuget.org/packages/Hangfire/1.7.8">results</a>, <a href="https://docs.hangfire.io/en/latest/getting-started/index.html">retries</a></p>
+              <p><b>Orleans</b> In the grain's state, in the storage provider the silo configures (ADO.NET, Azure Storage, Cosmos DB, DynamoDB, Redis). The state is loaded when the grain activates and written only when the grain calls <code>WriteStateAsync</code>. After a silo fails the grain reactivates on another silo and reads what it last wrote. An event-sourced <code>JournaledGrain</code> can store its events instead, depending on its log-consistency provider. <a href="https://learn.microsoft.com/dotnet/orleans/grains/grain-persistence/">docs</a>, <a href="https://learn.microsoft.com/dotnet/orleans/implementation/messaging-delivery-guarantees">failover</a>, <a href="https://learn.microsoft.com/dotnet/orleans/grains/event-sourcing/log-consistency-providers">events</a></p>
+              <p><b>Quartz.NET</b> The job's <code>JobDataMap</code> in the job store, saved after a run when the job asks for it. A run report is kept in the execution history, in memory in each process unless the history is given a store. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/job-data-map.html">docs</a>, <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html">history</a></p>
+              <p><b>Temporal</b> An event in the workflow's event history, held by the Temporal Service. A worker replays the workflow code against that history, and a completed activity returns its recorded result. <a href="https://docs.temporal.io/workflows">docs</a></p>
+              <p><b>Workflow Core</b> Steps map their output into the workflow's data object, which is persisted with the instance between steps in the configured provider. <a href="https://workflow-core.readthedocs.io/en/latest/getting-started/">docs</a></p>
             </div>
           </div>
           <div class="vs-row" id="q-change">
             <div class="who"><b>Changing the code</b><span>while work is outstanding</span></div>
             <div class="why">
               <p><b>Acta</b> New code takes effect the next time a job is entered, since the handler always runs from the top. Step, signal, timer, and child names are keys into stored state and keep their meaning, and stored payloads must stay readable. New code is not checked against the order of calls an earlier version made. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#contract-evolution">guide</a></p>
-              <p><b>Hangfire</b> A queued job names its method. Its documentation pages do not cover changing one; a post on hangfire.io advises adding a new method over changing the parameters, name, or type of one a queued job names. <a href="https://www.hangfire.io/blog/2014/05/10/are-your-methods-ready-to-run-in-background.html">post</a></p>
-              <p><b>Quartz.NET</b> A job type that can no longer be loaded puts its trigger in an error state. The old type name can be mapped to the new one. Stored job data must stay readable by the new code. <a href="https://www.quartz-scheduler.net/documentation/troubleshooting.html">docs</a></p>
-              <p><b>Workflow Core</b> A definition has an id and a version, and an instance is started for one version. Its documentation does not describe changing a definition under running instances. <a href="https://workflow-core.readthedocs.io/en/latest/getting-started/">docs</a></p>
-              <p><b>Elsa</b> Definitions are versioned: editing a published definition makes a new version, and publishing does not move running instances. An alteration can migrate an instance to another version. <a href="https://docs.elsaworkflows.io/guides/running-workflows/workflow-definition-lifecycle">docs</a></p>
-              <p><b>Temporal</b> Workflow code must stay deterministic against the recorded history. A change that running executions would replay needs patching (<code>Workflow.Patched</code>), worker versioning, or a new workflow type. <a href="https://docs.temporal.io/develop/dotnet/versioning">docs</a></p>
               <p><b>Durable Task</b> Adding, removing, or reordering an orchestrator's calls can fail instances in flight. Orchestration versioning stamps each instance with a version the code branches on and workers match. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-orchestration-versioning">docs</a></p>
-              <p><b>Orleans</b> A grain interface can carry a <code>[Version]</code>, versioned grains are assumed backward compatible by default, and silos with different versions share a cluster in a rolling upgrade. The versioning of grain state is outside that: its documentation advises a version-tolerant serializer, so that already-stored state still loads. <a href="https://learn.microsoft.com/dotnet/orleans/grains/grain-versioning/grain-versioning">docs</a></p>
+              <p><b>Elsa</b> Definitions are versioned: editing a published definition makes a new version, and publishing does not move running instances. An alteration can migrate an instance to another version. <a href="https://docs.elsaworkflows.io/guides/running-workflows/workflow-definition-lifecycle">docs</a></p>
+              <p><b>Hangfire</b> A queued job names its method. Its documentation pages do not cover changing one; a post on hangfire.io advises adding a new method over changing the parameters, name, or type of one a queued job names. <a href="https://www.hangfire.io/blog/2014/05/10/are-your-methods-ready-to-run-in-background.html">post</a></p>
+              <p><b>Orleans</b> A grain interface can carry a <code>[Version]</code>, versioned grains are assumed backward compatible by default, and silos with different versions share a cluster in a rolling upgrade. The versioning of grain state is outside that: its documentation advises a version-tolerant serialization format, so that already-stored state still loads. <a href="https://learn.microsoft.com/dotnet/orleans/grains/grain-versioning/grain-versioning">docs</a>, <a href="https://learn.microsoft.com/dotnet/orleans/grains/grain-persistence/">state</a></p>
+              <p><b>Quartz.NET</b> A job type that can no longer be loaded puts its trigger in an error state. The old type name can be mapped to the new one. Serialized job data must stay readable by the new code. <a href="https://www.quartz-scheduler.net/documentation/troubleshooting.html">docs</a>, <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/job-data-map.html">job data</a></p>
+              <p><b>Temporal</b> Workflow code must stay deterministic against the recorded history. A change that running executions would replay needs patching (<code>Workflow.Patched</code>), worker versioning, or a new workflow type. <a href="https://docs.temporal.io/develop/dotnet/versioning">docs</a></p>
+              <p><b>Workflow Core</b> A definition has an id and a version, and an instance is started for one version. Its documentation does not describe changing a definition under running instances. <a href="https://workflow-core.readthedocs.io/en/latest/getting-started/">docs</a></p>
             </div>
           </div>
           <div class="vs-row" id="q-limit">
             <div class="who"><b>A limit</b><span>shared by every worker, or one process's own</span></div>
             <div class="why">
-              <p><b>Acta</b> A concurrency key and its limit, a rate limit, and a lane are held in the database, so each one holds across every worker. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#ordering-and-exclusion">guide</a></p>
-              <p><b>Hangfire</b> The worker count is per server, and the free <code>DisableConcurrentExecution</code> filter narrows overlap without guaranteeing it. Mutexes, semaphores, and rate windows are in the paid Hangfire Ace package, which keeps their state in the job storage. <a href="https://docs.hangfire.io/en/latest/background-processing/throttling.html">docs</a></p>
-              <p><b>Quartz.NET</b> The thread count is each scheduler instance's own. An execution group caps a category of work per node, or across the cluster when given a cluster limit; a start rate is a limiter added as job middleware, counted in each process. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/execution-groups.html">docs</a></p>
-              <p><b>Workflow Core</b> Its documentation describes no concurrency or rate setting. <a href="https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/">docs</a></p>
-              <p><b>Elsa</b> Its documentation describes no cluster-wide cap on workflow concurrency; a distributed lock coordinates access to one instance across nodes. <a href="https://docs.elsaworkflows.io/hosting/distributed-hosting">docs</a></p>
-              <p><b>Temporal</b> A worker's concurrency and rate options are its own. <code>MaxTaskQueueActivitiesPerSecond</code> is enforced by the service across every worker of a task queue. <a href="https://docs.temporal.io/guides/rate-limit-downstream-apis">docs</a></p>
+              <p><b>Acta</b> A concurrency key and its limit, a rate limit, and a lane are held in the database, so each one holds across every worker of its namespace. A rate limit paces admissions, and is no hard burst cap. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#ordering-and-exclusion">guide</a></p>
               <p><b>Durable Task</b> Durable Functions' concurrency throttles apply to each worker. A Durable Task Scheduler task queue, a preview, has a throughput limit the scheduler enforces. <a href="https://learn.microsoft.com/azure/durable-task/durable-functions/durable-functions-perf-and-scale">docs</a>, <a href="https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-task-queues">task queues</a></p>
-              <p><b>Orleans</b> By default a grain runs one request at a time in at most one activation, so work addressed to one grain is serialized across silos; the default directory allows occasional duplicate activations during cluster instability. A stateless worker's <code>maxLocalWorkers</code> is per silo. Its documentation describes no cluster-wide rate limit. <a href="https://learn.microsoft.com/dotnet/orleans/grains/request-scheduling">docs</a></p>
+              <p><b>Elsa</b> Its documentation describes no cluster-wide cap on workflow concurrency; a distributed lock coordinates access to one instance across nodes. <a href="https://docs.elsaworkflows.io/hosting/distributed-hosting">docs</a></p>
+              <p><b>Hangfire</b> The worker count is set on each background job server, and the free <code>DisableConcurrentExecution</code> filter narrows overlap without guaranteeing it. Mutexes, semaphores, and rate windows are in the paid Hangfire Ace package, which keeps their state in the job storage. <a href="https://docs.hangfire.io/en/latest/background-processing/configuring-degree-of-parallelism.html">workers</a>, <a href="https://docs.hangfire.io/en/latest/background-processing/throttling.html">docs</a></p>
+              <p><b>Orleans</b> By default a grain runs one request at a time in at most one activation, so work addressed to one grain is serialized across silos; the default directory allows occasional duplicate activations during cluster instability. A stateless worker's <code>maxLocalWorkers</code> is per silo. Its documentation describes no cluster-wide rate limit. <a href="https://learn.microsoft.com/dotnet/orleans/grains/request-scheduling">docs</a>, <a href="https://learn.microsoft.com/dotnet/orleans/host/grain-directory">directory</a>, <a href="https://learn.microsoft.com/dotnet/orleans/grains/stateless-worker-grains">stateless workers</a></p>
+              <p><b>Quartz.NET</b> The thread count is each scheduler instance's own. An execution group caps a category of work per node, or across the cluster when given a cluster limit; a start rate is a limiter added as job middleware, counted in each process. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/execution-groups.html">docs</a></p>
+              <p><b>Temporal</b> A worker's concurrency and rate options are its own. <code>MaxTaskQueueActivitiesPerSecond</code> is enforced by the service across every worker of a task queue, and eager activity execution can bypass it. <a href="https://docs.temporal.io/guides/rate-limit-downstream-apis">docs</a></p>
+              <p><b>Workflow Core</b> Its documentation describes no concurrency or rate limit shared across nodes. <a href="https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/">docs</a></p>
             </div>
           </div>
           <div class="vs-row" id="q-blocked">
             <div class="who"><b>Why work is not moving</b><span>how an operator finds out</span></div>
             <div class="why">
-              <p><b>Acta</b> <code>jobs.ExplainAsync</code>, <code>&lt;app&gt; jobs explain</code>, or the job's dashboard page says what the status means, what the job waits on, why the last attempt failed, and what an operator can do next. <code>jobs_view</code> and <code>events_view</code> answer the same from SQL. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#start-with-jobs-explain">guide</a></p>
-              <p><b>Hangfire</b> The dashboard shows a job's state history and its exception, and the monitoring API returns each state with its reason. <a href="https://docs.hangfire.io/en/latest/configuration/using-dashboard.html">docs</a></p>
-              <p><b>Quartz.NET</b> The 4.x dashboard counts triggers by state, blocked, paused, and in error among them, and shows what is executing and the execution history. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html">docs</a></p>
-              <p><b>Workflow Core</b> Its documentation describes no UI. A step's error reaches the host's <code>OnStepError</code> event and the logs, and an Elasticsearch index can be searched by status. <a href="https://workflow-core.readthedocs.io/en/latest/error-handling/">docs</a></p>
+              <p><b>Acta</b> <code>jobs.ExplainAsync</code>, <code>&lt;app&gt; jobs explain</code>, or the job's dashboard page says what the status means, what the job waits on, why the last attempt failed, and what an operator can do next. <code>jobs_view</code> and <code>events_view</code> show the job and its events in SQL. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#start-with-jobs-explain">guide</a></p>
+              <p><b>Durable Task</b> The Durable Task Scheduler dashboard shows an instance's timeline and history; Durable Functions adds an HTTP status API and, on SQL Server, views over the data. <a href="https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-dashboard">docs</a>, <a href="https://learn.microsoft.com/azure/durable-task/durable-functions/durable-functions-http-features">HTTP</a>, <a href="https://github.com/microsoft/durabletask-mssql">SQL</a></p>
               <p><b>Elsa</b> Elsa Studio's instance viewer shows the status, incidents, and journal of an instance, and the REST API returns the same. <a href="https://docs.elsaworkflows.io/operate/workflow-state-and-journal">docs</a></p>
-              <p><b>Temporal</b> The Web UI shows a workflow's event history, pending activities, and call stack, and <code>temporal workflow show</code> and <code>stack</code> print the history and the stack from the CLI. <a href="https://docs.temporal.io/web-ui">docs</a></p>
-              <p><b>Durable Task</b> The Durable Task Scheduler dashboard shows an instance's timeline and history; Durable Functions adds an HTTP status API and, on SQL Server, views over the data. <a href="https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-dashboard">docs</a></p>
-              <p><b>Orleans</b> The Orleans Dashboard, an official package that its documentation calls a preview, shows silo health, grain activations, method calls, reminders, metrics, live logs, and the current state of one grain. Its documentation describes a buffer of recent metric samples, not a record of a grain's past calls; metrics and traces export through OpenTelemetry. <a href="https://learn.microsoft.com/dotnet/orleans/dashboard/">docs</a></p>
+              <p><b>Hangfire</b> The monitoring UI shows statistics, exceptions, and the history of background jobs, and the monitoring API returns each state of a job with its reason. <a href="https://www.hangfire.io/overview.html">docs</a>, <a href="https://api.hangfire.io/html/T_Hangfire_Storage_Monitoring_StateHistoryDto.htm">API</a></p>
+              <p><b>Orleans</b> The Orleans Dashboard, an official package that its documentation calls a preview, shows silo health, grain activations, method calls, reminders, metrics, live logs, and the current state of one grain. Its documentation describes a buffer of recent metric samples, not a record of a grain's past calls; metrics and traces export through OpenTelemetry. <a href="https://learn.microsoft.com/dotnet/orleans/dashboard/">docs</a>, <a href="https://learn.microsoft.com/dotnet/orleans/host/monitoring">monitoring</a></p>
+              <p><b>Quartz.NET</b> The 4.x dashboard counts triggers by state, blocked, paused, and in error among them, and shows what is executing and the execution history, which is in memory in each process unless it is given a store. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html">docs</a></p>
+              <p><b>Temporal</b> The Web UI shows a workflow's event history, pending activities, and, while a worker is running, its call stack, and <code>temporal workflow show</code> and <code>stack</code> print the history and the stack from the CLI. <a href="https://docs.temporal.io/web-ui">docs</a>, <a href="https://docs.temporal.io/cli/workflow">CLI</a></p>
+              <p><b>Workflow Core</b> Its documentation describes no UI. A step's error reaches the host's <code>OnStepError</code> event, and an Elasticsearch index can be searched by status. <a href="https://workflow-core.readthedocs.io/en/latest/error-handling/">docs</a>, <a href="https://github.com/danielgerlag/workflow-core/blob/master/docs/elastic-search.md">search</a></p>
             </div>
           </div>
           <div class="vs-row" id="q-infra">
             <div class="who"><b>What runs beside the application</b><span>for more than one node</span></div>
             <div class="why">
               <p><b>Acta</b> The application's own PostgreSQL or SQL Server database, and nothing else; one process can run on SQLite. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">support</a></p>
-              <p><b>Hangfire</b> A job storage: SQL Server, Redis through the Hangfire Pro package, or a community storage such as PostgreSQL. <a href="https://www.hangfire.io/extensions.html">docs</a></p>
-              <p><b>Quartz.NET</b> A shared database behind its ADO.NET job store, with clustering on and the nodes' clocks within a second of each other. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/advanced-enterprise-features.html">docs</a></p>
-              <p><b>Workflow Core</b> A persistence database, plus a queue provider and a distributed lock manager. <a href="https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/">docs</a></p>
-              <p><b>Elsa</b> A database, plus a distributed lock provider, a message bus for cache invalidation, and clustered scheduling. Its designer is optional. <a href="https://docs.elsaworkflows.io/guides/clustering">docs</a></p>
-              <p><b>Temporal</b> A Temporal Service: self-hosted with its persistence and visibility stores, or Temporal Cloud. <a href="https://docs.temporal.io/temporal-service/persistence">docs</a></p>
               <p><b>Durable Task</b> Durable Functions runs on Azure Functions with a storage account and a state backend, or outside Azure on SQL Server. The standalone SDKs run anywhere and keep their state in the Durable Task Scheduler, a managed Azure service. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-storage-providers">docs</a></p>
+              <p><b>Elsa</b> A database, plus a distributed lock provider, a message bus for cache invalidation, and clustered scheduling. <a href="https://docs.elsaworkflows.io/guides/clustering">docs</a></p>
+              <p><b>Hangfire</b> A job storage: SQL Server, Redis through the Hangfire Pro package, or a community storage such as PostgreSQL. <a href="https://www.hangfire.io/">docs</a>, <a href="https://www.hangfire.io/pro/">Pro</a>, <a href="https://www.hangfire.io/extensions.html">community</a></p>
               <p><b>Orleans</b> A durable membership table every silo shares (ADO.NET, Azure Table Storage, Cosmos DB, Redis, Consul, ZooKeeper and others), silo and gateway ports, and storage providers for grain state and for reminders when grains use them. <a href="https://learn.microsoft.com/dotnet/orleans/implementation/cluster-management">docs</a></p>
+              <p><b>Quartz.NET</b> A shared database behind its ADO.NET job store, with clustering on and the nodes' clocks within a second of each other. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/advanced-enterprise-features.html">docs</a></p>
+              <p><b>Temporal</b> A Temporal Service: self-hosted with its persistence and visibility stores, or Temporal Cloud. <a href="https://docs.temporal.io/temporal-service/persistence">docs</a>, <a href="https://docs.temporal.io/evaluate/cloud">cloud</a></p>
+              <p><b>Workflow Core</b> A persistence database, plus a queue provider and a distributed lock manager. <a href="https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/">docs</a></p>
             </div>
           </div>
         </div>
@@ -353,12 +353,12 @@
       </details>
 
       <h2 class="ref-group" id="check">Check this page yourself</h2>
-      <p class="hint">Every statement on this page about another tool comes from that tool's own documentation, and the page is written by Acta's author. Do not take it on trust. Paste this into the AI assistant you use; it has to be able to browse the web.</p>
+      <p class="hint">Each answer under "How each tool handles the hard parts" links the documentation it comes from, and the page is written by Acta's author. Do not take it on trust. Paste this into the AI assistant you use; it has to be able to browse the web.</p>
       <div class="prompt panel">
         <div class="panel-tab">Prompt · fact-check<button class="copy" type="button" data-copy-target="#prompt-fact-check">Copy prompt</button></div>
         <pre id="prompt-fact-check">I want to check a vendor's comparison page before I trust it. Browse the web for this; do not answer from memory, and tell me when a page will not open.
 
-1. Read https://useacta.net/choosing. It compares Acta, a durable job engine for .NET, with other tools.
+1. Read https://useacta.net/choosing. It compares Acta, a durable job engine for .NET, with other tools. If it will not open, read the page's published source, https://raw.githubusercontent.com/acta-dotnet/acta/main/site/choosing.html.
 2. Take every statement the page makes about another tool. Where the page links that tool's documentation, open the link and check the statement against it. Where the page says a tool's documentation does not describe something, search that documentation for it and say what you searched.
 3. Take every statement the page makes about Acta itself and check it against https://useacta.net/llms.txt and the source at https://github.com/acta-dotnet/acta.
 
