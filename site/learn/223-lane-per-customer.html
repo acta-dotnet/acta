@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Name the customer's lane when you enqueue</h2>
 <p>The jobs of one lane run one at a time, in the order they were enqueued. Each customer has a lane of its own, so a slow command holds back that customer's next commands and nobody else's.</p>
 <figure class="listing"><figcaption><span class="file">lane-per-customer.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> commands = <span class="k">new</span> List&lt;JobHandle&gt;();
@@ -83,7 +83,7 @@
 {
     <span class="k">foreach</span> (<span class="k">var</span> customer <span class="k">in</span> customers)
     {
-<span class="hl">        commands.Add(<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ApplyCommand(customer, number), o =&gt; o.Lane(<span class="s">$&quot;customer-{customer}&quot;</span>)));</span>
+<span class="hl">        commands.Add(<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ApplyCommand(customer, number), o =&gt; o.<span class="st" data-st="lane" tabindex="0">Lane(<span class="s">$&quot;customer-{customer}&quot;</span>)</span>));</span>
     }
 }</code></pre></figure>
 </div>
@@ -143,7 +143,7 @@ builder.Services.UseActa(j =&gt;
         <span class="c">// learn: 1. Name the customer's lane when you enqueue</span>
         <span class="c">// The jobs of one lane run one at a time, in the order they were enqueued. Each customer has a lane of its</span>
         <span class="c">// own, so a slow command holds back that customer's next commands and nobody else's.</span>
-<span class="hl">        commands.Add(<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ApplyCommand(customer, number), o =&gt; o.Lane(<span class="s">$&quot;customer-{customer}&quot;</span>)));</span>
+<span class="hl">        commands.Add(<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ApplyCommand(customer, number), o =&gt; o.<span class="st" data-st="lane" tabindex="0">Lane(<span class="s">$&quot;customer-{customer}&quot;</span>)</span>));</span>
         <span class="c">// learn: end</span>
     }
 }

@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Restart the job under the same identity</h2>
 <p>RestartAsync re-arms the same job id: resets failure_count, clears retention, moves to Ready.</p>
 <figure class="listing"><figcaption><span class="file">operator-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>FlakyReportJob.DataSourceFixed = <span class="k">true</span>;
@@ -93,7 +93,7 @@ Console.WriteLine(<span class="s">$&quot;immediately observed after restart: fai
 <span class="k">public</span> <span class="k">static</span> <span class="k">bool</span> DataSourceFixed { <span class="k">get</span>; <span class="k">set</span>; }
 
 <span class="c">// MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.</span>
-<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+<span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-report&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
 {
     Console.WriteLine(<span class="s">$&quot;[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}&quot;</span>);
@@ -284,7 +284,7 @@ Console.WriteLine(<span class="s">$&quot;re-run complete: status={snapshot!.Stat
         <span class="k">public</span> <span class="k">static</span> <span class="k">bool</span> DataSourceFixed { <span class="k">get</span>; <span class="k">set</span>; }
 
         <span class="c">// MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.</span>
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-report&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}&quot;</span>);

@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Wait for the confirmation, with a deadline</h2>
 <p>The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo. <code>CancelAsync</code> ends the handler there, so the lines after it run only for a confirmed sign-up.</p>
 <figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s ct" data-ct="signal" tabindex="0">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
@@ -227,7 +227,7 @@ Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RegistrationJobs(UserStore users)
     {
         <span class="c">// The finished job is kept with its input for seven days, not the default ninety.</span>
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;register-user&quot;</span>, JobRetention = <span class="s">&quot;7d&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;register-user&quot;</span>, <span class="st" data-st="job-retention" tabindex="0">JobRetention = <span class="s">&quot;7d&quot;</span></span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(RegisterUser input, JobContext ctx, CancellationToken ct)
         {
             <span class="k">await</span> ctx.RunStepAsync(

@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Return a value from a step</h2>
 <p>Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs. A body that returns null fails the job for good, since a retry would run the finished body again. A result over <code>MaxInlinePayloadBytes</code> is stored with a warning, up to 16 MiB.</p>
 <figure class="listing"><figcaption><span class="file">step-chain.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> fetched = <span class="k">await</span> context.RunStepAsync(</span>

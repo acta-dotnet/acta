@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Enqueue each job with a key taken from what it is</h2>
 <p>The handler can be retried, and a replay runs the whole loop again. With a stable key the replay gets the existing job back instead of a second copy.</p>
 <figure class="listing"><figcaption><span class="file">fan-out.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.</span>
@@ -93,7 +93,7 @@
 <span class="hl">        <span class="k">for</span> (<span class="k">var</span> i = 1; i &lt;= input.PhotoCount; i++)</span>
 <span class="hl">        {</span>
 <span class="hl">            <span class="k">var</span> photo = i;</span>
-<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.IdempotencyKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>)</span>, ct);</span>
 <span class="hl">        }</span>
     }
 }</code></pre></figure>
@@ -164,7 +164,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 <span class="hl">            <span class="k">for</span> (<span class="k">var</span> i = 1; i &lt;= input.PhotoCount; i++)</span>
 <span class="hl">            {</span>
 <span class="hl">                <span class="k">var</span> photo = i;</span>
-<span class="hl">                <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.IdempotencyKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>), ct);</span>
+<span class="hl">                <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>)</span>, ct);</span>
 <span class="hl">            }</span>
             <span class="c">// learn: end</span>
         }

@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Deliver each occurrence as a job of its own</h2>
 <p>Each occurrence is an ordinary root job with a ref, retries, and result of its own. <code>MaxOutstanding</code> bounds how many may be unfinished at once, and a full schedule set to <code>Skip</code> passes over an occurrence, audited as <code>schedule.skipped</code> with the reason <code>capacity</code>. Unset, <code>MaxOutstanding</code> is 1 and <code>FullBehavior</code> is <code>Wait</code>, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.</p>
 <figure class="listing"><figcaption><span class="file">per-occurrence-delivery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">int</span> AtOnce =&gt; Volatile.Read(<span class="k">ref</span> _atOnce);
@@ -87,10 +87,10 @@
 <span class="hl"><span class="a">[Job(</span></span>
 <span class="hl"><span class="a">    <span class="s ct" data-ct="job" tabindex="0">&quot;import-files&quot;</span>,</span></span>
 <span class="hl"><span class="a">    ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence,</span></span>
-<span class="hl"><span class="a">    EventRecording = EventRecordingCode.Audit,</span></span>
-<span class="hl"><span class="a">    JobRetention = <span class="s">&quot;1d&quot;</span></span></span>
+<span class="hl"><span class="a">    <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Audit</span>,</span></span>
+<span class="hl"><span class="a">    <span class="st" data-st="job-retention" tabindex="0">JobRetention = <span class="s">&quot;1d&quot;</span></span></span></span>
 <span class="hl"><span class="a">)]</span></span>
-<span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]</span></span>
+<span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT1S&quot;</span></span>, <span class="st" data-st="max-outstanding" tabindex="0">MaxOutstanding = 2</span>, <span class="st" data-st="full-behavior" tabindex="0">FullBehavior = ScheduleFullBehaviorCode.Skip</span>)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Import(JobContext ctx, CancellationToken ct)
 {
     <span class="k">lock</span> (Counting)
@@ -246,10 +246,10 @@ Console.WriteLine(<span class="s">$&quot;{skipped} occurrences were skipped whil
 <span class="hl">        <span class="a">[Job(</span></span>
 <span class="hl"><span class="a">            <span class="s ct" data-ct="job" tabindex="0">&quot;import-files&quot;</span>,</span></span>
 <span class="hl"><span class="a">            ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence,</span></span>
-<span class="hl"><span class="a">            EventRecording = EventRecordingCode.Audit,</span></span>
-<span class="hl"><span class="a">            JobRetention = <span class="s">&quot;1d&quot;</span></span></span>
+<span class="hl"><span class="a">            <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Audit</span>,</span></span>
+<span class="hl"><span class="a">            <span class="st" data-st="job-retention" tabindex="0">JobRetention = <span class="s">&quot;1d&quot;</span></span></span></span>
 <span class="hl"><span class="a">        )]</span></span>
-<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT1S&quot;</span></span>, <span class="st" data-st="max-outstanding" tabindex="0">MaxOutstanding = 2</span>, <span class="st" data-st="full-behavior" tabindex="0">FullBehavior = ScheduleFullBehaviorCode.Skip</span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Import(JobContext ctx, CancellationToken ct)
         {

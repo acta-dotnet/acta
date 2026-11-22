@@ -75,10 +75,10 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the job a retry budget, because a crash spends an attempt</h2>
 <p>Nothing in the handler recovers the job. A worker that dies stops heartbeating, the lease on its job lapses, and another worker reclaims the job as a failed attempt and runs it again.</p>
-<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
+<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;crash-recovery-probe&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Handle(CrashRecoveryProbe input, CancellationToken ct)
 {
     Console.WriteLine(<span class="s">$&quot;[{role.Name}] executing {input.ProbeId}; ordinary handler code is at-least-once.&quot;</span>);
@@ -242,7 +242,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">if</span> (mode == <span class="s">&quot;enqueue&quot;</span>)
 {
     <span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> CrashRecoveryProbe(<span class="s">$&quot;probe-{sessionId}&quot;</span>, sessionId), o =&gt;
-        o.IdempotencyKey(IdempotencyKey.ForDefinition(<span class="s">&quot;crash-recovery-probe&quot;</span>, <span class="s">$&quot;crash-recovery-probe-{sessionId}&quot;</span>))
+        o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(IdempotencyKey.ForDefinition(<span class="s">&quot;crash-recovery-probe&quot;</span>, <span class="s">$&quot;crash-recovery-probe-{sessionId}&quot;</span>))</span>
     );
     File.WriteAllText(currentJobFile, enqueued.JobRef.ToString());
     Console.WriteLine(<span class="s">$&quot;Enqueued {enqueued.JobRef}. Worker A should claim it and terminate at the marked failure point.&quot;</span>);
@@ -356,7 +356,7 @@ Console.WriteLine(<span class="s">&quot;Worker B is live. Waiting for A's short 
         <span class="c">// learn: 1. Give the job a retry budget, because a crash spends an attempt</span>
         <span class="c">// Nothing in the handler recovers the job. A worker that dies stops heartbeating, the lease on its job lapses,</span>
         <span class="c">// and another worker reclaims the job as a failed attempt and runs it again.</span>
-<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;crash-recovery-probe&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(CrashRecoveryProbe input, CancellationToken ct)
         {

@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Enqueue the next stage as the last act of this one</h2>
 <p>The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the document, makes the repeat answer the existing job.</p>
 <figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> IngestDocumentJob(IJobs jobs)
@@ -84,7 +84,7 @@
     <span class="k">public</span> <span class="k">async</span> Task Handle(IngestDocument input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;ingested {input.FileName}&quot;</span>);
-<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>)</span>, ct);</span>
     }
 }</code></pre></figure>
 </div>
@@ -96,7 +96,7 @@
     <span class="k">public</span> <span class="k">async</span> Task Handle(RenderPdf input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;rendered {input.FileName} -&gt; PDF&quot;</span>);
-<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>)</span>, ct);</span>
     }
 }</code></pre></figure>
 </div>
@@ -164,7 +164,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
             <span class="c">// learn: 1. Enqueue the next stage as the last act of this one</span>
             <span class="c">// The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the</span>
             <span class="c">// document, makes the repeat answer the existing job.</span>
-<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>)</span>, ct);</span>
             <span class="c">// learn: end</span>
         }
     }
@@ -177,7 +177,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
             Console.WriteLine(<span class="s">$&quot;rendered {input.FileName} -&gt; PDF&quot;</span>);
             <span class="c">// learn: 2. Let the next stage hand on the same way</span>
             <span class="c">// Every stage enqueues the one after it under a key of its own; the last stage enqueues nothing.</span>
-<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.IdempotencyKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>)</span>, ct);</span>
             <span class="c">// learn: end</span>
         }
     }

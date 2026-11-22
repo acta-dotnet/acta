@@ -132,11 +132,12 @@
   if (asked) { ask.value = asked; search(); }
 })();
 
-// The names a job is stored under: a card on hover, focus or tap says what a rename does.
+// The names a job is stored under, and the settings of a job, a schedule or an enqueue: a card on hover, focus or tap
+// says what a rename does, or what the setting means. A setting's text marks code with backticks.
 (() => {
-  const names = document.querySelectorAll('.ct');
+  const names = document.querySelectorAll('.ct, .st');
   if (!names.length) return;
-  const text = {
+  const contracts = {
     job: ['This name is a contract.', 'It is stored with every job. Treat it as permanent once jobs exist under it.'],
     namespace: ['This namespace is a contract.', 'Every job is stored under it, and there is no rename.'],
     step: ['This name is a contract.', "It is the key to the step's stored result. Rename it and the step runs again."],
@@ -145,8 +146,39 @@
     variable: ['This name is a contract.', 'It is the key to a stored value. A renamed variable reads as absent.'],
     child: ['This name is a contract.', 'It is how a handler that runs again finds this child. A renamed child is new work.'],
   };
+  const duration = 'A duration is a number and a unit: `ms`, `s`, `m`, `h` or `d`, lowercase; `1.5h` works. No weeks, months or years.';
+  const settings = {
+    'max-attempts': ['MaxAttempts', 'How many failures in a row the job gets before it fails for good. A wait, a sleep or a reschedule does not spend one. Unset is 15.'],
+    backoff: ['Backoff', 'How long a failed attempt waits before the next. One duration, `"2s"`, waits the same every time. A range, `"1m..1d"`, doubles from the first to the second with 10% jitter; add `x3` to grow faster, `~20%` for more jitter, `exact` for none. Unset is `"1m..1d"`.', duration],
+    'execution-timeout': ['ExecutionTimeout', 'The longest one attempt may run; 5 minutes when unset. Past it the handler\'s token is cancelled and the attempt counts as failed.', duration],
+    deadline: ['Deadline', 'The longest the whole job may take from the moment it was created, retries included. Unset means none.', duration],
+    'deadline-behavior': ['DeadlineBehavior', 'What happens past the Deadline. `Strict`, the default, stops the job retrying or starting late. `Advisory` only tells the handler, through `ctx.IsOverdue`. A running handler is never cut off.'],
+    'job-retention': ['JobRetention', 'How long a finished job is kept before it is deleted. Unset takes `JobsOptions.Retention`, a year. A duration such as `"7d"`, or `"never"`.', duration],
+    'event-recording': ['EventRecording', 'Which events the job writes. `Audit`, the default, records every execution. `Failures` records failures, the successes that answer them and operator changes; choose it for a job that runs many times a minute.'],
+    'concurrency-limit': ['ConcurrencyLimit', 'How many attempts may run at once across all workers, 1 to 1024. Unset means no limit. They share one key: the job\'s name, or the `ConcurrencyKey` an enqueue gives.'],
+    'rate-limit': ['RateLimit', 'How often attempts may start across all workers: `"10/s"`, `"600/m"` or `"100/h"`. Unset means no limit.'],
+    format: ['Format', 'The format of the job\'s input and result: `"json"`, `"bytes"`, or one you declared. Unset, Acta infers it from the handler\'s types.'],
+    expression: ['Schedule', 'When the schedule fires. A cron expression of five fields, or six with seconds, or an interval such as `"5m"` or `"P1D"`, at least one second. An interval\'s largest unit is the day.'],
+    'time-zone-id': ['TimeZoneId', 'The time zone the schedule\'s cron or calendar is read in, an IANA or Windows id such as `"Europe/Ljubljana"`. Unset is UTC. An interval ignores it.'],
+    'misfire-strategy': ['MisfireStrategy', 'What to do with occurrences missed while nothing ran. `Skip`, the default, drops them. `CatchUpOnce` fires once for all of them, `CatchUpLatest` once as the latest, `CatchUpAll` each in order.'],
+    'max-outstanding': ['MaxOutstanding', 'How many occurrences of this schedule may be unfinished at once. 1 unless stated.'],
+    'full-behavior': ['FullBehavior', 'What an occurrence does when the schedule is at MaxOutstanding. `Wait`, the default, holds it until one finishes. `Skip` passes over it and moves on.'],
+    calendar: ['Calendar', 'The calendar whose dates this schedule fires on, in place of an expression.'],
+    availability: ['Availability', 'A calendar of windows in which the schedule may fire. An occurrence outside every window is dropped, never moved.'],
+    'idempotency-key': ['IdempotencyKey', 'Your own id for this piece of work. A second enqueue with the same key in the namespace answers the first job instead of making another. It is stored with the job, so take it from the business fact, such as an order number.'],
+    lane: ['Lane', 'Jobs in the same lane run one at a time, in the order they were enqueued; different lanes run side by side. Use one lane per customer, order or device. The name is stored with the job.'],
+    'concurrency-key': ['ConcurrencyKey', 'Jobs that share this key share its slots: at most the job\'s `ConcurrencyLimit` run at once, one when no limit is declared. Unlike a lane, it keeps no order.'],
+    priority: ['Priority', 'Where this job stands in the claim order, for this job only: `Bulk`, `Normal`, `High`, `Critical` or `Realtime`. Higher is always claimed first, with no aging. It never reorders a lane.'],
+    delayed: ['Delayed', 'Do not start before this much time has passed, counted on the database\'s clock. Rounded up to whole seconds.'],
+    'next-run-at': ['NextRunAt', 'Do not start before this instant. The last of `Delayed` and `NextRunAt` wins.'],
+    tag: ['Tag', 'A name, with an optional value, stored with the job for finding and filtering it later. Setting the same name again replaces it.'],
+    'tenant-name': ['TenantName', 'The customer this job is about. The tenant must be registered and active, or the enqueue is refused.'],
+    'correlation-key': ['CorrelationKey', 'An id for tracing this work across systems, such as a trace id. At most 64 characters.'],
+  };
   const tip = document.createElement('div');
   const star = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6l1.9 4.3 4.6.4-3.5 3.1 1.1 4.6L8 11.5 3.9 14l1.1-4.6L1.5 6.3l4.6-.4z" fill="currentColor"/></svg>';
+  const info = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="4.9" r="1" fill="currentColor"/><path d="M8 7.3v4.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  const say = (host, text) => text.split('`').forEach((part, n) => host.append(n % 2 ? Object.assign(document.createElement('code'), { textContent: part }) : part));
   tip.className = 'ct-tip'; tip.id = 'ct-tip'; tip.setAttribute('role', 'tooltip'); tip.hidden = true;
   document.body.appendChild(tip);
   let open = null;
@@ -156,9 +188,10 @@
     tip.classList.remove('is-shown'); tip.hidden = true;
   };
   const show = el => {
-    const t = text[el.dataset.ct]; if (!t) return;
+    const t = el.dataset.ct ? contracts[el.dataset.ct] : settings[el.dataset.st]; if (!t) return;
     if (open && open !== el) hide();
-    tip.innerHTML = star; const lead = document.createElement('b'); lead.textContent = t[0]; tip.append(lead, t[1]);
+    tip.innerHTML = el.dataset.ct ? star : info; const lead = document.createElement('b'); lead.textContent = t[0]; tip.append(lead); say(tip, t[1]);
+    if (t[2]) { const more = document.createElement('span'); more.className = 'ct-more'; say(more, t[2]); tip.append(more); }
     tip.hidden = false; open = el; el.classList.add('is-open'); el.setAttribute('aria-describedby', 'ct-tip');
     const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, vw = document.documentElement.clientWidth;
     const left = Math.max(16, Math.min(r.left + r.width / 2 - w / 2, vw - w - 16));
@@ -173,7 +206,7 @@
     el.addEventListener('blur', hide);
     el.addEventListener('click', event => { event.stopPropagation(); el.focus(); show(el); });
   });
-  document.addEventListener('click', () => { if (document.activeElement && document.activeElement.classList.contains('ct')) document.activeElement.blur(); hide(); });
+  document.addEventListener('click', () => { if (document.activeElement && document.activeElement.matches('.ct, .st')) document.activeElement.blur(); hide(); });
   addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
   document.querySelectorAll('.listing').forEach(box => box.addEventListener('scroll', hide, { passive: true, capture: true }));
 })();

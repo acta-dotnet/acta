@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Enqueue through the generated call</h2>
 <p>The manifest's generated call names the job and takes its handler's parameters; the namespace resolves from the registered manifest, and nothing is inferred from the input's type.</p>
 <figure class="listing"><figcaption><span class="file">job-call.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
@@ -92,7 +92,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="hl"><span class="k">var</span> single = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Hello(<span class="k">new</span> Hello(<span class="s">&quot;World&quot;</span>)));</span>
-<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.IdempotencyKey(<span class="s">&quot;greet-ada&quot;</span>));</span>
+<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">&quot;greet-ada&quot;</span>)</span>);</span>
 Console.WriteLine(<span class="s">$&quot;Enqueued hello as {single.JobRef} and greet as {several.JobRef}.&quot;</span>);
 
 <span class="k">await</span> host.WaitForShutdownAsync();
@@ -150,7 +150,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// The manifest's generated call names the job and takes its handler's parameters; the namespace resolves from the</span>
 <span class="c">// registered manifest, and nothing is inferred from the input's type.</span>
 <span class="hl"><span class="k">var</span> single = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Hello(<span class="k">new</span> Hello(<span class="s">&quot;World&quot;</span>)));</span>
-<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.IdempotencyKey(<span class="s">&quot;greet-ada&quot;</span>));</span>
+<span class="hl"><span class="k">var</span> several = <span class="k">await</span> jobs.EnqueueAsync(JobCallJobs.Greet(<span class="s">&quot;Ada&quot;</span>, 3), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(<span class="s">&quot;greet-ada&quot;</span>)</span>);</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;Enqueued hello as {single.JobRef} and greet as {several.JobRef}.&quot;</span>);

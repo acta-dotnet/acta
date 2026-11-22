@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Save the calendar as a draft and publish it</h2>
 <p>A calendar is a JSON definition saved as a draft, then published. <code>officeHours</code> names the family <code>office-hours</code> in <code>sys</code>, which every namespace binds by its plain name, and <code>Definitions.OpenAllDay</code> is a definition open all day, every day. A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.</p>
 <figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Phase 1: the calendar is published before the job that binds it deploys, as an operator would do it from</span>
@@ -99,8 +99,8 @@
 <p><code>Availability</code> names the calendar. The schedule fires only inside the windows its current version opens.</p>
 <figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> TickJob
 {
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
-<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-10s-in-hours&quot;</span>, <span class="s">&quot;PT10S&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>)]</span></span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Failures</span>)]</span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-10s-in-hours&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT10S&quot;</span></span>, <span class="st" data-st="availability" tabindex="0">Availability = <span class="s">&quot;office-hours&quot;</span></span>)]</span></span>
     <span class="k">public</span> Task Handle(Tick input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC tick&quot;</span>);
@@ -242,10 +242,10 @@ Console.WriteLine(<span class="s">&quot;Watching 15s for a tick that must not co
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> TickJob
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;tick&quot;</span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Failures</span>)]</span>
         <span class="c">// learn: 2. Bind the schedule to the calendar by name</span>
         <span class="c">// `Availability` names the calendar. The schedule fires only inside the windows its current version opens.</span>
-<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-10s-in-hours&quot;</span>, <span class="s">&quot;PT10S&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-10s-in-hours&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT10S&quot;</span></span>, <span class="st" data-st="availability" tabindex="0">Availability = <span class="s">&quot;office-hours&quot;</span></span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> Task Handle(Tick input, CancellationToken ct)
         {

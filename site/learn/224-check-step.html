@@ -75,12 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the step a check</h2>
 <p>After a crash between the charge and its record, the check finds the charge by the order's key and the body does not run.</p>
 <figure class="listing"><figcaption><span class="file">check-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
 {
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
     {
 <span class="hl">        <span class="k">var</span> chargeId = <span class="k">await</span> context.RunStepWithCheckAsync(</span>
@@ -102,7 +102,7 @@
 <p>A wait inside a check step's body is refused: after it the check would find the charge and skip the rest of the body.</p>
 <figure class="listing"><figcaption><span class="file">check-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
 {
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
     {
         <span class="k">var</span> chargeId = <span class="k">await</span> context.RunStepWithCheckAsync(
@@ -123,7 +123,7 @@
 <div class="step"><h2><span class="step-n">3</span>Give each outside effect a step of its own</h2>
 <figure class="listing"><figcaption><span class="file">check-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
 {
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
     {
         <span class="k">var</span> chargeId = <span class="k">await</span> context.RunStepWithCheckAsync(
@@ -207,7 +207,7 @@ builder.Services.UseActa(j =&gt;
 {
     <span class="c">// A fresh order key per run, so the experiment can be repeated against the same database and the same bank.</span>
     <span class="k">var</span> order = <span class="k">new</span> ShipOrder(<span class="s">$&quot;order-{Guid.NewGuid().ToString(&quot;N&quot;)[..8]}&quot;</span>, 125_00);
-    <span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(order, o =&gt; o.Delayed(TimeSpan.FromSeconds(2)));
+    <span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(order, o =&gt; o.<span class="st" data-st="delayed" tabindex="0">Delayed(TimeSpan.FromSeconds(2))</span>);
     File.WriteAllLines(currentOrderFile, [enqueued.JobRef.ToString(), order.Key]);
     Console.WriteLine(<span class="s">&quot;Enqueued the order. The process will stop right after the bank charges the card.&quot;</span>);
     Console.WriteLine(<span class="s">&quot;A non-zero exit is expected. Then run the recover command against the same database.&quot;</span>);
@@ -309,7 +309,7 @@ Console.WriteLine(<span class="s">$&quot;status={(await jobs.GetAsync(jobRef))?.
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShipOrderJob(Bank bank, Carrier carrier)
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;ship-order&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(ShipOrder order, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 1. Give the step a check</span>

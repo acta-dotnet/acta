@@ -75,13 +75,13 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Fire the job on a schedule</h2>
 <p>The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so between firings the job is <code>Idle</code> and holds no thread.</p>
 <figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">const</span> <span class="k">int</span> BatchSize = 40;
 
-<span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span></span>
-<span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span></span>
+<span class="hl"><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;2s&quot;</span></span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Audit</span>)]</span></span>
+<span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT5S&quot;</span></span>)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
     <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);
@@ -120,8 +120,8 @@
 </div>
 <div class="step"><h2><span class="step-n">4</span>Save the work first and the watermark after</h2>
 <p>The orders land first and the watermark after them: an attempt that dies between the two replays one batch, which the upsert absorbs; the other order would skip one.</p>
-<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
-<span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;2s&quot;</span></span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Audit</span>)]</span>
+<span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT5S&quot;</span></span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
     <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);
@@ -173,8 +173,8 @@ feed head: change 120; local orders: 40 (newest change 120)</code></pre></figure
 <ul class="plain"><li>A <code>BackgroundService</code> with a <code>PeriodicTimer</code>: progress lives in memory or in a hand-maintained table, and nothing records what each run did.</li><li>A queue that fans out &quot;sync now&quot; messages to workers, plus a state table, plus a scheduler to enqueue them.</li><li>A platform cron that starts a process per tick, which must find its own position and never overlap the previous tick.</li><li>A workflow engine with a long-running activity that loops forever.</li></ul>
 <h3>Why this design</h3>
 <p>One permanent job, <code>sync-orders</code>, with one schedule, <code>every-5s</code>, and one durable variable, <code>watermark</code>. The handler, as <code>SyncOrdersJob.cs</code> has it without its console lines and the lab's crash switch:</p>
-<figure class="listing"><figcaption><span class="note">C#</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
-<span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="note">C#</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;2s&quot;</span></span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Audit</span>)]</span>
+<span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT5S&quot;</span></span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
     <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s ct" data-ct="variable" tabindex="0">&quot;watermark&quot;</span>, 0L, ct);
@@ -795,8 +795,8 @@ Console.WriteLine(<span class="s">&quot;Watching three firings of one permanent 
     <span class="c">// learn: 1. Fire the job on a schedule</span>
     <span class="c">// The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so</span>
     <span class="c">// between firings the job is `Idle` and holds no thread.</span>
-<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span></span>
-<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;sync-orders&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;2s&quot;</span></span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Audit</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT5S&quot;</span></span>)]</span></span>
     <span class="c">// learn: end</span>
     <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
     {

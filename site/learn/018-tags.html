@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Tag the job when you enqueue it</h2>
 <p>Tags are labels for filtering and grouping jobs in queries or a dashboard. Find them with <code>operations.Ledger.ListJobsAsync(new ListJobsQuery(Tags: [new TagFilter(&quot;campaign&quot;, &quot;spring&quot;)]))</code>.</p>
 <figure class="listing"><figcaption><span class="file">tags.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -84,7 +84,7 @@
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="hl"><span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt;</span>
-<span class="hl">    o.Tag(<span class="s">&quot;campaign&quot;</span>, <span class="s">&quot;spring&quot;</span>).Tag(<span class="s">&quot;channel&quot;</span>, <span class="s">&quot;email&quot;</span>)</span>
+<span class="hl">    o.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;campaign&quot;</span>, <span class="s">&quot;spring&quot;</span>)</span>.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;channel&quot;</span>, <span class="s">&quot;email&quot;</span>)</span></span>
 <span class="hl">);</span>
 Console.WriteLine(<span class="s">$&quot;Enqueued job {outcome.JobRef} with tags campaign=spring, channel=email.&quot;</span>);
 Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop.&quot;</span>);
@@ -134,7 +134,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// Tags are labels for filtering and grouping jobs in queries or a dashboard. Find them with</span>
 <span class="c">// `operations.Ledger.ListJobsAsync(new ListJobsQuery(Tags: [new TagFilter(&quot;campaign&quot;, &quot;spring&quot;)]))`.</span>
 <span class="hl"><span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt;</span>
-<span class="hl">    o.Tag(<span class="s">&quot;campaign&quot;</span>, <span class="s">&quot;spring&quot;</span>).Tag(<span class="s">&quot;channel&quot;</span>, <span class="s">&quot;email&quot;</span>)</span>
+<span class="hl">    o.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;campaign&quot;</span>, <span class="s">&quot;spring&quot;</span>)</span>.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;channel&quot;</span>, <span class="s">&quot;email&quot;</span>)</span></span>
 <span class="hl">);</span>
 
 <span class="c">// learn: end</span>

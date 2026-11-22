@@ -75,12 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Set the retry budget on the job</h2>
 <p>MaxAttempts caps attempts, the first included; &quot;0s&quot; skips backoff. After the last attempt the job ends Failed.</p>
 <figure class="listing"><figcaption><span class="file">max-attempts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FlakyWorkJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-work&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-work&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> Task Handle(FlakyWork input) =&gt; <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Could not process {input.Item}.&quot;</span>);</span>
 }</code></pre></figure>
 </div>
@@ -157,7 +157,7 @@ builder.Services.UseActa(j =&gt;
     {
         <span class="c">// learn: 1. Set the retry budget on the job</span>
         <span class="c">// MaxAttempts caps attempts, the first included; &quot;0s&quot; skips backoff. After the last attempt the job ends Failed.</span>
-<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-work&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-work&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span></span>
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> Task Handle(FlakyWork input) =&gt; <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Could not process {input.Item}.&quot;</span>);</span>
         <span class="c">// learn: end</span>
     }

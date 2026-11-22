@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Map the dashboard into your app</h2>
 <p><code>MapActa</code> adds the dashboard and its JSON API under the path you give. By default it answers local requests only, and its controls (pause, resume, cancel, restart) stay disabled until <code>EnableControls</code> is set.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// The failed/retrying rows are intentional fixtures; preserve their evidence without startup stack-trace noise.</span>
@@ -250,13 +250,13 @@ Console.WriteLine(<span class="s">&quot;Press Ctrl+C to stop.&quot;</span>);
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> BrokenImportJob
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;broken-import&quot;</span>, MaxAttempts = 1)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;broken-import&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 1</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> Task Handle(BrokenImport input) =&gt; <span class="k">throw</span> <span class="k">new</span> InvalidDataException(<span class="s">$&quot;{input.FileName}: invalid header&quot;</span>);
     }
 
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> RetryImportJob
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;retry-import&quot;</span>, MaxAttempts = 5, Backoff = <span class="s">&quot;30s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;retry-import&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 5</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;30s&quot;</span></span>)]</span>
         <span class="k">public</span> <span class="k">static</span> Task Handle(RetryImport input) =&gt; <span class="k">throw</span> <span class="k">new</span> IOException(<span class="s">$&quot;{input.FileName}: upstream unavailable&quot;</span>);
     }
 
@@ -288,8 +288,8 @@ Console.WriteLine(<span class="s">&quot;Press Ctrl+C to stop.&quot;</span>);
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> HeartbeatJob
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;heartbeat&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
-        <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, Cron.Every15Seconds)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;heartbeat&quot;</span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Audit</span>)]</span>
+        <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, <span class="st" data-st="expression" tabindex="0">Cron.Every15Seconds</span>)]</span>
         <span class="k">public</span> Task Handle(HeartbeatTick input) =&gt; Task.Delay(50);
     }
 }</code></pre></figure>

@@ -75,27 +75,27 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Build the key from the time bucket</h2>
 <p>The key carries the bucket its instant falls in, so every enqueue inside the same half hour composes the same key. <code>bucketSize</code> is thirty minutes and <code>instantA</code> a fixed instant, so the run repeats. <code>PerHour(job, businessKey)</code> and <code>PerDay(job, businessKey)</code> are the fixed sizes, and every bucket is counted in UTC.</p>
 <figure class="listing"><figcaption><span class="file">deduplication-time-buckets.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// --- Within the same bucket: two enqueues collapse to one job ---</span>
 Console.WriteLine(<span class="s">&quot;Enqueueing twice in the same 30-minute bucket...&quot;</span>);
 
 <span class="hl"><span class="k">var</span> keyA1 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA1));</span>
+<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyA1)</span>);</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 1: job {first.JobRef} action={first.Action}&quot;</span>);
 
 <span class="k">var</span> keyA2 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);
-<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA2));
+<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyA2)</span>);
 Console.WriteLine(<span class="s">$&quot;  enqueue 2: job {second.JobRef} action={second.Action}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Enqueue again inside the bucket and get the first job back</h2>
 <figure class="listing"><figcaption><span class="file">deduplication-time-buckets.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> keyA1 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);
-<span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA1));
+<span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyA1)</span>);
 Console.WriteLine(<span class="s">$&quot;  enqueue 1: job {first.JobRef} action={first.Action}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> keyA2 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA2));</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyA2)</span>);</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 2: job {second.JobRef} action={second.Action}&quot;</span>);
 
 Console.WriteLine(
@@ -107,7 +107,7 @@ Console.WriteLine(
 Console.WriteLine(<span class="s">&quot;Enqueueing in the next bucket...&quot;</span>);
 
 <span class="hl"><span class="k">var</span> keyB = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantB, bucketSize);</span>
-<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyB));</span>
+<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyB)</span>);</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 3: job {third.JobRef} action={third.Action}&quot;</span>);
 
 Console.WriteLine(third.Action == EnqueueJobAction.Inserted ? <span class="s">&quot;Inserted - new bucket, new job.&quot;</span> : <span class="s">&quot;ERROR: expected Inserted&quot;</span>);
@@ -169,14 +169,14 @@ Console.WriteLine(<span class="s">&quot;Enqueueing twice in the same 30-minute b
 <span class="c">// `bucketSize` is thirty minutes and `instantA` a fixed instant, so the run repeats. `PerHour(job, businessKey)` and</span>
 <span class="c">// `PerDay(job, businessKey)` are the fixed sizes, and every bucket is counted in UTC.</span>
 <span class="hl"><span class="k">var</span> keyA1 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA1));</span>
+<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyA1)</span>);</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 1: job {first.JobRef} action={first.Action}&quot;</span>);
 
 <span class="c">// learn: 2. Enqueue again inside the bucket and get the first job back</span>
 <span class="hl"><span class="k">var</span> keyA2 = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantA, bucketSize);</span>
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyA2));</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyA2)</span>);</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 2: job {second.JobRef} action={second.Action}&quot;</span>);
@@ -190,7 +190,7 @@ Console.WriteLine(<span class="s">&quot;Enqueueing in the next bucket...&quot;</
 
 <span class="c">// learn: 3. Enqueue in the next bucket and get a new job</span>
 <span class="hl"><span class="k">var</span> keyB = IdempotencyKey.PerTimeBucket(<span class="s">&quot;nightly-summary&quot;</span>, account, instantB, bucketSize);</span>
-<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.IdempotencyKey(keyB));</span>
+<span class="hl"><span class="k">var</span> third = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> NightlySummary(<span class="s">&quot;acme&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(keyB)</span>);</span>
 
 <span class="c">// learn: end</span>
 Console.WriteLine(<span class="s">$&quot;  enqueue 3: job {third.JobRef} action={third.Action}&quot;</span>);

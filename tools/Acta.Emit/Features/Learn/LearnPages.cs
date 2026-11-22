@@ -166,10 +166,6 @@ internal sealed partial class LearnPages
     {
         var html = new StringBuilder();
         var steps = Steps(entry);
-        if (steps.Any(step => step.Html.Contains("class=\"s ct\"", StringComparison.Ordinal)))
-        {
-            html.Append("<p class=\"ct-legend\">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>\n");
-        }
         for (var n = 0; n < steps.Count; n++)
         {
             html.Append(
@@ -238,7 +234,10 @@ internal sealed partial class LearnPages
                 $"<div class=\"step plain-step\"><h2>Where to go next</h2><ul class=\"next-links\"><li><a href=\"{onward.Url}\">{Esc(onward.Title)}</a><span>{Esc(onward.Section.Title)}</span></li></ul></div>\n"
             );
         }
-        return html.ToString();
+        var face = html.ToString();
+        return face.Contains("class=\"s ct\"", StringComparison.Ordinal) || face.Contains("class=\"st\"", StringComparison.Ordinal)
+            ? "<p class=\"ct-legend\">Point at anything with a dotted underline, or tap it, to see what it means.</p>\n" + face
+            : face;
     }
 
     public string HowToPage(HowTo entry)

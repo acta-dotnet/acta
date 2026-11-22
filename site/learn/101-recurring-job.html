@@ -75,13 +75,13 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Put a schedule on the job</h2>
 <p><code>[Schedule]</code> takes a name and a cron, here one of the <code>Cron</code> constants, read in UTC unless <code>TimeZoneId</code> says otherwise. One permanent job fires on the cadence, and the count each firing returns replaces the result the last one stored. <code>EventRecording = Failures</code> keeps a frequent schedule from writing an event for every firing that succeeds, and the build warns when a schedule faster than once a minute leaves it out. Nothing enqueues a scheduled job, so its input is an empty record.</p>
 <figure class="listing"><figcaption><span class="file">recurring-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PurgeStaleSessionsJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;purge-stale-sessions&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
-<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, Cron.Every15Seconds)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;purge-stale-sessions&quot;</span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Failures</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, <span class="st" data-st="expression" tabindex="0">Cron.Every15Seconds</span>)]</span></span>
     <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">int</span>&gt; Handle(PurgeStaleSessions input, JobContext context, CancellationToken ct)
     {
         <span class="k">await</span> Task.Delay(100, ct);
@@ -132,8 +132,8 @@ builder.Services.UseActa(j =&gt;
         <span class="c">// result the last one stored. `EventRecording = Failures` keeps a frequent schedule from writing an event</span>
         <span class="c">// for every firing that succeeds, and the build warns when a schedule faster than once a minute leaves it out. Nothing enqueues a scheduled job, so its input is an</span>
         <span class="c">// empty record.</span>
-<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;purge-stale-sessions&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
-<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, Cron.Every15Seconds)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;purge-stale-sessions&quot;</span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Failures</span>)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, <span class="st" data-st="expression" tabindex="0">Cron.Every15Seconds</span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">int</span>&gt; Handle(PurgeStaleSessions input, JobContext context, CancellationToken ct)
         {

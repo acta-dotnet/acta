@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Enqueue in the POST and answer 202 with the job's ref</h2>
 <p>The job is a durable row before the response leaves, and the worker runs it after the request has ended. The ref goes into the address the client polls.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// POST writes a durable job and returns 202; the import runs on the worker after the request ends.</span>
@@ -88,7 +88,7 @@ app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</
 
 <span class="hl">    <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(</span>
 <span class="hl">        <span class="k">new</span> ImportCsv(request.Tenant, request.ImportId, request.FileName),</span>
-<span class="hl">        o =&gt; o.IdempotencyKey(idempotencyKey).CorrelationKey(correlationKey).Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant).Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>),</span>
+<span class="hl">        o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(idempotencyKey)</span>.<span class="st" data-st="correlation-key" tabindex="0">CorrelationKey(correlationKey)</span>.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant)</span>.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>)</span>,</span>
 <span class="hl">        ct</span>
 <span class="hl">    );</span>
 <span class="hl"> </span>
@@ -167,7 +167,7 @@ app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</
     <span class="c">// ref goes into the address the client polls.</span>
 <span class="hl">    <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(</span>
 <span class="hl">        <span class="k">new</span> ImportCsv(request.Tenant, request.ImportId, request.FileName),</span>
-<span class="hl">        o =&gt; o.IdempotencyKey(idempotencyKey).CorrelationKey(correlationKey).Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant).Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>),</span>
+<span class="hl">        o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(idempotencyKey)</span>.<span class="st" data-st="correlation-key" tabindex="0">CorrelationKey(correlationKey)</span>.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;tenant&quot;</span>, request.Tenant)</span>.<span class="st" data-st="tag" tabindex="0">Tag(<span class="s">&quot;kind&quot;</span>, <span class="s">&quot;csv&quot;</span>)</span>,</span>
 <span class="hl">        ct</span>
 <span class="hl">    );</span>
 <span class="hl"> </span>

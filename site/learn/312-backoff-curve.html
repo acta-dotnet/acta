@@ -75,12 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the backoff on the job</h2>
 <p>Exponential backoff: delays double per failure (1s, 2s, 4s) up to MaxAttempts=4. exact makes the curve deterministic so NextRunAtUtc gaps are observable.</p>
 <figure class="listing"><figcaption><span class="file">backoff-curve.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FlakyTransferJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-transfer&quot;</span>, MaxAttempts = 4, Backoff = <span class="s">&quot;1s..8s x2 exact&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-transfer&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 4</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;1s..8s x2 exact&quot;</span></span>)]</span></span>
     <span class="k">public</span> <span class="k">static</span> Task Handle(FlakyTransfer input) =&gt;
         <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Transfer {input.Id} failed: upstream unavailable.&quot;</span>);
 }</code></pre></figure>
@@ -164,7 +164,7 @@ Console.WriteLine(
         <span class="c">// learn: Write the backoff on the job</span>
         <span class="c">// Exponential backoff: delays double per failure (1s, 2s, 4s) up to MaxAttempts=4.</span>
         <span class="c">// exact makes the curve deterministic so NextRunAtUtc gaps are observable.</span>
-<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-transfer&quot;</span>, MaxAttempts = 4, Backoff = <span class="s">&quot;1s..8s x2 exact&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;flaky-transfer&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 4</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;1s..8s x2 exact&quot;</span></span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">static</span> Task Handle(FlakyTransfer input) =&gt;
             <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Transfer {input.Id} failed: upstream unavailable.&quot;</span>);

@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Set the failure count that escalates</h2>
 <p>AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2. It is a <code>JobsOptions</code> setting for the whole host, 3 by default.</p>
 <figure class="listing"><figcaption><span class="file">alert-escalation.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
@@ -109,7 +109,7 @@ builder.Services.UseActa(j =&gt;
     <span class="c">// AlertProfile = OnFailure (default): the first failure raises a FirstFailure alert and repeats count</span>
     <span class="c">// up on it, the count reaching AlertFailureThreshold raises ThresholdReached, and the last attempt</span>
     <span class="c">// raises FinalFailure.</span>
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;unstable-report&quot;</span>, MaxAttempts = 4, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;unstable-report&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 4</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
     <span class="k">public</span> <span class="k">static</span> Task Handle(UnstableReport input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{input.Name}] attempt failed&quot;</span>);
@@ -210,7 +210,7 @@ Console.WriteLine(<span class="s">$&quot;alerts ({alertItems.Count}):&quot;</spa
         <span class="c">// AlertProfile = OnFailure (default): the first failure raises a FirstFailure alert and repeats count</span>
         <span class="c">// up on it, the count reaching AlertFailureThreshold raises ThresholdReached, and the last attempt</span>
         <span class="c">// raises FinalFailure.</span>
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;unstable-report&quot;</span>, MaxAttempts = 4, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;unstable-report&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 4</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;0s&quot;</span></span>)]</span>
         <span class="k">public</span> <span class="k">static</span> Task Handle(UnstableReport input, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{input.Name}] attempt failed&quot;</span>);

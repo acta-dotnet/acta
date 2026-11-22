@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Declare a Slack channel with its URL from configuration</h2>
 <p>Built-in Slack incoming-webhook transport, with the webhook URL from configuration (Alerts:SlackWebhookUrl). Without one the channel logs instead, so a plain run sends nothing. Acta SQL stores only channel_name = &quot;ops-slack&quot; either way. MinSeverity = Warning suppresses lower-severity alerts at delivery.</p>
 <figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>w.AddManifest&lt;RealAlertRoutingJobs&gt;();

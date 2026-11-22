@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>List the holidays in a calendar definition</h2>
 <p>A <code>daily-local-time</code> definition fires at each of <code>times</code> on each of <code>days</code>, and skips every date in <code>excludedDates</code>. Paste the whole list of holidays: one that falls on a weekend is skipped twice over.</p>
 <figure class="listing"><figcaption><span class="file">holiday-calendar.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Definitions
@@ -112,7 +112,7 @@ current = draft.Version.Value;
 <figure class="listing"><figcaption><span class="file">holiday-calendar.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> DailyReportJob
 {
     <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;daily-report&quot;</span>)]</span>
-<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;working-days-at-eight&quot;</span>, Calendar = <span class="s">&quot;working-days&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;working-days-at-eight&quot;</span>, <span class="st" data-st="calendar" tabindex="0">Calendar = <span class="s">&quot;working-days&quot;</span></span>, <span class="st" data-st="time-zone-id" tabindex="0">TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span></span>)]</span></span>
     <span class="k">public</span> Task Handle(DailyReport input, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:yyyy-MM-dd} sent the daily report&quot;</span>);
@@ -231,7 +231,7 @@ Console.WriteLine(
         <span class="c">// learn: 3. Name the calendar on the schedule</span>
         <span class="c">// `Calendar` takes the place of a cron or an interval, and `TimeZoneId` is the zone the calendar's local times</span>
         <span class="c">// are read in.</span>
-<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;working-days-at-eight&quot;</span>, Calendar = <span class="s">&quot;working-days&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;working-days-at-eight&quot;</span>, <span class="st" data-st="calendar" tabindex="0">Calendar = <span class="s">&quot;working-days&quot;</span></span>, <span class="st" data-st="time-zone-id" tabindex="0">TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span></span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> Task Handle(DailyReport input, CancellationToken ct)
         {

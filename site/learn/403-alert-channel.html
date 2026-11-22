@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Declare the channel on the worker</h2>
 <p><code>w</code> is the worker builder of <code>j.Run(&quot;alert-channel&quot;, w =&gt; { w.AddManifest&lt;AlertChannelJobs&gt;(); ... })</code>, the form of <code>Run</code> that takes more than a manifest. Alert channels declare process-local delivery configuration. Alert rows persist only the selected channel name; endpoints and secrets stay in app configuration. MinSeverity = Warning suppresses lower-severity alerts at delivery.</p>
 <figure class="listing"><figcaption><span class="file">alert-channel.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>w.AddManifest&lt;AlertChannelJobs&gt;();

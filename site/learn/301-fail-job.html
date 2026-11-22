@@ -75,13 +75,13 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>End the job as failed where retrying cannot help</h2>
 <p>FailAsync ends the job as Failed now (no retry); a thrown exception retries to MaxAttempts.</p>
 <figure class="listing"><figcaption><span class="file">fail-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessUploadJob
 {
     <span class="c">// FailAsync is terminal even with MaxAttempts = 5: it ends the job, it does not retry.</span>
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-upload&quot;</span>, MaxAttempts = 5)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-upload&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 5</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(ProcessUpload upload, JobContext context, CancellationToken ct)
     {
         <span class="k">if</span> (upload.Corrupt)
@@ -142,7 +142,7 @@ Console.WriteLine(<span class="s">$&quot;status={snapshot!.Status}, failureCount
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessUploadJob
     {
         <span class="c">// FailAsync is terminal even with MaxAttempts = 5: it ends the job, it does not retry.</span>
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-upload&quot;</span>, MaxAttempts = 5)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;process-upload&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 5</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(ProcessUpload upload, JobContext context, CancellationToken ct)
         {
             <span class="k">if</span> (upload.Corrupt)

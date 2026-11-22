@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Name the namespace and the job in a request</h2>
 <p>Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying a request body. An in-process caller with an ambiguous input type uses the generated call instead (023). A caller that holds only the JSON text passes it as it came, <code>JobPayload.CopyBytes(JobPayloadFormat.Json, bytes)</code>: <code>JobPayload.Json(text)</code> would store the text as one JSON string.</p>
 <figure class="listing"><figcaption><span class="file">raw-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();

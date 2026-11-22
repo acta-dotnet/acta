@@ -251,10 +251,11 @@ a.door:hover { border-top-color: var(--verdi); }
   .howto-body { grid-template-columns: 1fr; }
 }
 
-/* A name a job is stored under: marked in a listing, explained in a card on hover, focus or tap. */
+/* A name a job is stored under, and a setting: marked in a listing, explained in a card on hover, focus or tap. The
+   underline stays faint until it is pointed at, so the code reads first. */
 .ct-legend { margin: 0 0 2rem; font-size: 0.92rem; color: var(--faint); }
-.ct { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: color-mix(in srgb, var(--verdi) 70%, transparent); cursor: help; border-radius: 3px; }
-.ct:hover, .ct:focus-visible, .ct.is-open { background: var(--verdi-wash); box-shadow: 0 0 0 3px var(--verdi-wash); text-decoration-color: var(--verdi); }
+.ct, .st { --hint-wash: color-mix(in srgb, var(--muted) 12%, transparent); text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: color-mix(in srgb, var(--faint) 50%, transparent); cursor: help; border-radius: 3px; }
+.ct:hover, .ct:focus-visible, .ct.is-open, .st:hover, .st:focus-visible, .st.is-open { background: var(--hint-wash); box-shadow: 0 0 0 3px var(--hint-wash); text-decoration-color: var(--muted); }
 /* The card is two steps lighter than the listing it lies on, with a brighter edge and a deep shadow, so it reads as a
    raised rectangle and does not sink into the code behind it. The mark in its corner is
    drawn in a colour close to the card's own, so it is found without competing with the text. */
@@ -264,4 +265,6 @@ a.door:hover { border-top-color: var(--verdi); }
 .ct-tip.is-shown { opacity: 1; transform: none; }
 .ct-tip svg { position: absolute; top: 0.62rem; right: 0.7rem; width: 15px; height: 15px; color: var(--tip-mark); }
 .ct-tip b { display: block; margin-bottom: 0.2rem; padding-right: 1.5rem; font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 1.06rem; line-height: 1.25; color: var(--tip-ink); }
+.ct-tip code { font-size: 0.9em; color: var(--tip-ink); }
+.ct-tip .ct-more { display: block; margin-top: 0.45rem; }
 @media (prefers-reduced-motion: reduce) { .ct-tip { transition: none; transform: none; } }

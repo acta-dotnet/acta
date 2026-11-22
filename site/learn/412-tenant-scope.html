@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Register the tenant</h2>
 <p>A tenant is a row in the catalog. An enqueue names it, and the name must resolve to a tenant that is not suspended.</p>
 <figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
@@ -97,7 +97,7 @@
 
 <span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;
 
-<span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</span>
+<span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.<span class="st" data-st="tenant-name" tabindex="0">TenantName(<span class="s">&quot;acme&quot;</span>)</span>.<span class="st" data-st="correlation-key" tabindex="0">CorrelationKey(runId)</span>);</span>
 <span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobRef, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;tenant parent to finish&quot;</span>);
 <span class="k">if</span> (parentTerminal.Status != JobStatusCode.Succeeded)
 {
@@ -206,7 +206,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// learn: 2. Name the tenant when you enqueue</span>
 <span class="c">// An enqueue that names an unknown or a suspended tenant throws `EnqueueRejectedException`, and its `Reason` says</span>
 <span class="c">// which.</span>
-<span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</span>
+<span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.<span class="st" data-st="tenant-name" tabindex="0">TenantName(<span class="s">&quot;acme&quot;</span>)</span>.<span class="st" data-st="correlation-key" tabindex="0">CorrelationKey(runId)</span>);</span>
 
 <span class="c">// learn: end</span>
 <span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobRef, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;tenant parent to finish&quot;</span>);
@@ -230,7 +230,7 @@ Console.WriteLine(
 {
     <span class="k">try</span>
     {
-        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(rejectedKey), options =&gt; options.TenantName(rejectedKey));
+        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(rejectedKey), options =&gt; options.<span class="st" data-st="tenant-name" tabindex="0">TenantName(rejectedKey)</span>);
     }
     <span class="k">catch</span> (EnqueueRejectedException rejected)
     {
@@ -241,14 +241,14 @@ Console.WriteLine(
 <span class="k">if</span> (suspendActive)
 {
     <span class="k">var</span> preExisting = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> TenantLifecycleProbe(<span class="s">&quot;acme&quot;</span>), options =&gt;
-        options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId).Delayed(TimeSpan.FromSeconds(2))
+        options.<span class="st" data-st="tenant-name" tabindex="0">TenantName(<span class="s">&quot;acme&quot;</span>)</span>.<span class="st" data-st="correlation-key" tabindex="0">CorrelationKey(runId)</span>.<span class="st" data-st="delayed" tabindex="0">Delayed(TimeSpan.FromSeconds(2))</span>
     );
     <span class="k">await</span> operations.Tenants.SuspendAsync(<span class="s">&quot;acme&quot;</span>, <span class="s">&quot;tenant lifecycle lab&quot;</span>, <span class="s">&quot;lab-user&quot;</span>);
     <span class="k">try</span>
     {
         <span class="k">try</span>
         {
-            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> TenantLifecycleProbe(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>));
+            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> TenantLifecycleProbe(<span class="s">&quot;acme&quot;</span>), options =&gt; options.<span class="st" data-st="tenant-name" tabindex="0">TenantName(<span class="s">&quot;acme&quot;</span>)</span>);
             <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;Expected enqueue for the newly suspended tenant to be rejected.&quot;</span>);
         }
         <span class="k">catch</span> (EnqueueRejectedException rejected)

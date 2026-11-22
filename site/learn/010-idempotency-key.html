@@ -75,7 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Give the enqueue a key that names the request</h2>
 <p><code>Deduplicate(businessKey)</code> on the raw builder stores the key with the job's name in front, so one business key used by two jobs never collides.</p>
 <figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
@@ -91,13 +91,13 @@
 <span class="hl"> </span>
 <span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(request, CancellationToken.None);</span>
 
-<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.IdempotencyKey(finalKey));</code></pre></figure>
+<span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(finalKey)</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Repeat the enqueue and get the same job back</h2>
 <p>A typed enqueue stores its key exactly as given, so to meet the first job it passes the same composed key. Two typed enqueues need only pass the same string to <code>IdempotencyKey(...)</code>. This second enqueue answers the first job, deduplicated.</p>
 <figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(request, CancellationToken.None);
 
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.IdempotencyKey(finalKey));</span></code></pre></figure>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(finalKey)</span>);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">idempotency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> WelcomeJob
@@ -157,7 +157,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// A typed enqueue stores its key exactly as given, so to meet the first job it passes the same composed key. Two</span>
 <span class="c">// typed enqueues need only pass the same string to `IdempotencyKey(...)`. This second enqueue answers the first</span>
 <span class="c">// job, deduplicated.</span>
-<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.IdempotencyKey(finalKey));</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendWelcomeEmail(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>), o =&gt; o.<span class="st" data-st="idempotency-key" tabindex="0">IdempotencyKey(finalKey)</span>);</span>
 
 <span class="c">// learn: end</span>
 

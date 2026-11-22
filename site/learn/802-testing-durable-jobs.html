@@ -75,6 +75,7 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Drive the job to its wait</h2>
 <p>The job under test, <code>process-order</code>, reserves stock in a step, waits for the signal <code>approval</code>, then charges. First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).</p>
 <figure class="listing"><figcaption><span class="file">OrderTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>

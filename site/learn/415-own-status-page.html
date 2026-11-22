@@ -75,10 +75,10 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Keep what the screen shows in a variable</h2>
 <p>The status says where the job is in Acta's terms. What it is doing in your terms is a variable the handler writes as the work advances, inside the step, so a replay does not write it again.</p>
-<figure class="listing"><figcaption><span class="file">own-status-page.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;prepare-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+<figure class="listing"><figcaption><span class="file">own-status-page.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;prepare-order&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;2s&quot;</span></span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task Handle(PrepareOrder order, JobContext ctx, CancellationToken ct)
 {
     <span class="k">await</span> ctx.RunStepAsync(
@@ -231,7 +231,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PrepareOrderJob
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;prepare-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;prepare-order&quot;</span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 3</span>, <span class="st" data-st="backoff" tabindex="0">Backoff = <span class="s">&quot;2s&quot;</span></span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(PrepareOrder order, JobContext ctx, CancellationToken ct)
         {
             <span class="k">await</span> ctx.RunStepAsync(

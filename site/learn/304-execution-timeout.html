@@ -75,12 +75,12 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Set the timeout on the job</h2>
 <p>ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken. The cut spends an attempt, and with MaxAttempts = 1 the job ends <code>Failed</code>.</p>
 <figure class="listing"><figcaption><span class="file">execution-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SlowReportJob
 {
-<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-report&quot;</span>, ExecutionTimeout = <span class="s">&quot;2s&quot;</span>, MaxAttempts = 1)]</span></span>
+<span class="hl">    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-report&quot;</span>, <span class="st" data-st="execution-timeout" tabindex="0">ExecutionTimeout = <span class="s">&quot;2s&quot;</span></span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 1</span>)]</span></span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(SlowReport input, JobContext context, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{input.Name}] generating report (this runs too long)...&quot;</span>);
@@ -92,7 +92,7 @@
 <div class="step"><h2><span class="step-n">2</span>Pass the token to the work, so the timeout can stop it</h2>
 <figure class="listing"><figcaption><span class="file">execution-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SlowReportJob
 {
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-report&quot;</span>, ExecutionTimeout = <span class="s">&quot;2s&quot;</span>, MaxAttempts = 1)]</span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-report&quot;</span>, <span class="st" data-st="execution-timeout" tabindex="0">ExecutionTimeout = <span class="s">&quot;2s&quot;</span></span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 1</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(SlowReport input, JobContext context, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{input.Name}] generating report (this runs too long)...&quot;</span>);
@@ -154,7 +154,7 @@ Console.WriteLine(<span class="s">$&quot;status={snapshot!.Status}&quot;</span>)
         <span class="c">// learn: 1. Set the timeout on the job</span>
         <span class="c">// ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken. The cut</span>
         <span class="c">// spends an attempt, and with MaxAttempts = 1 the job ends `Failed`.</span>
-<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-report&quot;</span>, ExecutionTimeout = <span class="s">&quot;2s&quot;</span>, MaxAttempts = 1)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;slow-report&quot;</span>, <span class="st" data-st="execution-timeout" tabindex="0">ExecutionTimeout = <span class="s">&quot;2s&quot;</span></span>, <span class="st" data-st="max-attempts" tabindex="0">MaxAttempts = 1</span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(SlowReport input, JobContext context, CancellationToken ct)
         {

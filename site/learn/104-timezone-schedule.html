@@ -75,15 +75,15 @@
     </header>
     <div class="wrap howto-body">
       <article class="howto person-face">
-<p class="ct-legend">A name with a dotted underline is a contract. Point at it, or tap it, to see why.</p>
+<p class="ct-legend">Point at anything with a dotted underline, or tap it, to see what it means.</p>
 <div class="step"><h2><span class="step-n">1</span>Write the hour as a cron and pin it to your time zone</h2>
 <p>The cron has five fields: minute, hour, day of month, month, day of week. <code>0 8 * * *</code> is 08:00 every day, and without a time zone that hour is read as UTC. TimeZoneId pins cron to wall-clock local time across DST switches (IANA or Windows ids; an unresolvable id fails the deploy, which a development start runs). For Berlin write <code>Europe/Berlin</code>.</p>
 <figure class="listing"><figcaption><span class="file">timezone-schedule.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> DailyDigestJob
 {
-    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;daily-digest&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
-<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;morning-ljubljana&quot;</span>, <span class="s">&quot;0 8 * * *&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
+    <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;daily-digest&quot;</span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Failures</span>)]</span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;morning-ljubljana&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;0 8 * * *&quot;</span></span>, <span class="st" data-st="time-zone-id" tabindex="0">TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span></span>)]</span></span>
     <span class="c">// The second schedule is here so the program prints while you watch. Intervals are absolute gaps and take no timezone.</span>
-    <span class="a">[Schedule(<span class="s">&quot;demo-tick&quot;</span>, <span class="s">&quot;PT15S&quot;</span>)]</span>
+    <span class="a">[Schedule(<span class="s">&quot;demo-tick&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT15S&quot;</span></span>)]</span>
     <span class="k">public</span> Task Handle(DailyDigest input, JobContext context, CancellationToken ct)
     {
         Console.WriteLine(
@@ -134,16 +134,16 @@ Console.WriteLine(<span class="s">&quot;the zoned one fires 08:00 Ljubljana wall
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> DailyDigestJob
     {
-        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;daily-digest&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
+        <span class="a">[Job(<span class="s ct" data-ct="job" tabindex="0">&quot;daily-digest&quot;</span>, <span class="st" data-st="event-recording" tabindex="0">EventRecording = EventRecordingCode.Failures</span>)]</span>
         <span class="c">// learn: Write the hour as a cron and pin it to your time zone</span>
         <span class="c">// The cron has five fields: minute, hour, day of month, month, day of week. `0 8 * * *` is 08:00 every day, and</span>
         <span class="c">// without a time zone that hour is read as UTC.</span>
         <span class="c">// TimeZoneId pins cron to wall-clock local time across DST switches (IANA or Windows ids; an</span>
         <span class="c">// unresolvable id fails the deploy, which a development start runs). For Berlin write `Europe/Berlin`.</span>
-<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;morning-ljubljana&quot;</span>, <span class="s">&quot;0 8 * * *&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;morning-ljubljana&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;0 8 * * *&quot;</span></span>, <span class="st" data-st="time-zone-id" tabindex="0">TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span></span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="c">// The second schedule is here so the program prints while you watch. Intervals are absolute gaps and take no timezone.</span>
-        <span class="a">[Schedule(<span class="s">&quot;demo-tick&quot;</span>, <span class="s">&quot;PT15S&quot;</span>)]</span>
+        <span class="a">[Schedule(<span class="s">&quot;demo-tick&quot;</span>, <span class="st" data-st="expression" tabindex="0"><span class="s">&quot;PT15S&quot;</span></span>)]</span>
         <span class="k">public</span> Task Handle(DailyDigest input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(
