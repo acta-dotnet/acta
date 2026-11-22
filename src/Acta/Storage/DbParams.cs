@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Numerics;
 using System.Text;
 using System.Text.Json;
 
@@ -66,8 +65,7 @@ internal static class DbParams
     /// <summary>
     /// JSON array text (<c>[1,2]</c>) for SQL that expands an id set from it; null for an empty set, which binds as DBNull.
     /// </summary>
-    public static string? JsonIdArray<T>(IReadOnlyList<T>? values)
-        where T : IBinaryInteger<T>
+    public static string? JsonIdArray(IReadOnlyList<int>? values)
     {
         if (values is not { Count: > 0 })
         {
@@ -81,7 +79,7 @@ internal static class DbParams
             {
                 text.Append(',');
             }
-            text.Append(values[i].ToString(null, CultureInfo.InvariantCulture));
+            text.Append(values[i].ToString(CultureInfo.InvariantCulture));
         }
         return text.Append(']').ToString();
     }
